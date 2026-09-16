@@ -1,0 +1,32 @@
+{
+  "schema_version": "letter-curriculum-v1",
+  "note_tr": "24 statik ASL harfi (J ve Z hariç) için zorluk, el şekli ipucu ve karışabilecek harfler. Zorluk seviyeleri yerleşik ASL parmak-alfabesi pedagojisine göre elle küratörlendi; ileride 24 harf fixture'ının model marjlarıyla rafine edilebilir.",
+  "note_en": "Difficulty, handshape cue and look-alike letters for the 24 static ASL letters (J and Z excluded). Difficulty is hand-curated from established ASL fingerspelling pedagogy; it can later be refined with per-letter model margins from the 24 letter fixtures.",
+  "suggested_order": ["B", "L", "Y", "I", "C", "O", "W", "F", "D", "V", "U", "A", "S", "K", "P", "G", "Q", "H", "R", "X", "E", "M", "N", "T"],
+  "letters": [
+    { "letter": "A", "difficulty": "medium", "cue_tr": "Yumruk; başparmak parmakların yanında.", "cue_en": "Fist; thumb resting along the side of the fingers.", "confusable_with": ["S", "T"] },
+    { "letter": "B", "difficulty": "easy", "cue_tr": "Dört parmak düz yukarı, başparmak avucun içinde.", "cue_en": "Four fingers straight up, thumb folded across the palm.", "confusable_with": [] },
+    { "letter": "C", "difficulty": "easy", "cue_tr": "El açık bir 'C' harfi gibi kavis yapar.", "cue_en": "The hand curves into an open 'C' shape.", "confusable_with": ["O"] },
+    { "letter": "D", "difficulty": "easy", "cue_tr": "İşaret parmağı yukarı, diğerleri başparmakla halka.", "cue_en": "Index finger up, the others meet the thumb in a circle.", "confusable_with": ["F"] },
+    { "letter": "E", "difficulty": "medium", "cue_tr": "Parmaklar kıvrık, uçları başparmağa değer.", "cue_en": "Fingers curled down, tips touching the thumb.", "confusable_with": ["C", "O"] },
+    { "letter": "F", "difficulty": "easy", "cue_tr": "İşaret ve başparmak halka, diğer üç parmak yukarı.", "cue_en": "Index and thumb form a circle, the other three point up.", "confusable_with": ["D"] },
+    { "letter": "G", "difficulty": "medium", "cue_tr": "İşaret parmağı yana doğru uzanır.", "cue_en": "Index finger points sideways.", "confusable_with": ["Q"] },
+    { "letter": "H", "difficulty": "medium", "cue_tr": "İşaret ve orta parmak yana doğru uzanır.", "cue_en": "Index and middle fingers point sideways.", "confusable_with": [] },
+    { "letter": "I", "difficulty": "easy", "cue_tr": "Sadece serçe parmak yukarı.", "cue_en": "Only the pinky finger points up.", "confusable_with": [] },
+    { "letter": "K", "difficulty": "medium", "cue_tr": "İşaret ve orta parmak yukarı, başparmak arada; el yukarı bakar.", "cue_en": "Index and middle up with the thumb between; hand points up.", "confusable_with": ["P"] },
+    { "letter": "L", "difficulty": "easy", "cue_tr": "Başparmak ve işaret parmağı 'L' harfi yapar.", "cue_en": "Thumb and index finger form an 'L'.", "confusable_with": [] },
+    { "letter": "M", "difficulty": "hard", "cue_tr": "Başparmak üç parmağın altına kıvrılır.", "cue_en": "Thumb tucks under three fingers.", "confusable_with": ["N", "T"] },
+    { "letter": "N", "difficulty": "hard", "cue_tr": "Başparmak iki parmağın altına kıvrılır.", "cue_en": "Thumb tucks under two fingers.", "confusable_with": ["M", "T"] },
+    { "letter": "O", "difficulty": "easy", "cue_tr": "Tüm parmaklar başparmakla tam halka yapar.", "cue_en": "All fingers meet the thumb in a full 'O'.", "confusable_with": ["C"] },
+    { "letter": "P", "difficulty": "medium", "cue_tr": "K harfi gibi, ama el aşağı bakar.", "cue_en": "Like K, but the hand points downward.", "confusable_with": ["K"] },
+    { "letter": "Q", "difficulty": "medium", "cue_tr": "G harfi gibi, ama el aşağı bakar.", "cue_en": "Like G, but the hand points downward.", "confusable_with": ["G"] },
+    { "letter": "R", "difficulty": "medium", "cue_tr": "İşaret ve orta parmak çaprazlanır.", "cue_en": "Index and middle fingers cross over each other.", "confusable_with": ["U", "V"] },
+    { "letter": "S", "difficulty": "medium", "cue_tr": "Yumruk; başparmak parmakların önünde.", "cue_en": "Fist; thumb crossed in front of the fingers.", "confusable_with": ["A", "T"] },
+    { "letter": "T", "difficulty": "hard", "cue_tr": "Yumruk; başparmak işaret ve orta parmak arasında.", "cue_en": "Fist; thumb between the index and middle fingers.", "confusable_with": ["A", "S", "M", "N"] },
+    { "letter": "U", "difficulty": "medium", "cue_tr": "İşaret ve orta parmak bitişik, yukarı.", "cue_en": "Index and middle fingers up and held together.", "confusable_with": ["V", "R"] },
+    { "letter": "V", "difficulty": "easy", "cue_tr": "İşaret ve orta parmak ayrık (barış işareti).", "cue_en": "Index and middle fingers up and apart (peace sign).", "confusable_with": ["U", "R"] },
+    { "letter": "W", "difficulty": "easy", "cue_tr": "İşaret, orta ve yüzük parmağı yukarı (üç parmak).", "cue_en": "Index, middle and ring fingers up (three fingers).", "confusable_with": [] },
+    { "letter": "X", "difficulty": "medium", "cue_tr": "İşaret parmağı kanca gibi kıvrık.", "cue_en": "Index finger bent into a hook.", "confusable_with": [] },
+    { "letter": "Y", "difficulty": "easy", "cue_tr": "Başparmak ve serçe açık, diğerleri kapalı.", "cue_en": "Thumb and pinky out, the rest closed.", "confusable_with": [] }
+  ]
+}

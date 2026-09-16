@@ -1,0 +1,352 @@
+[
+  {
+    "word": "water",
+    "accuracy": 0.893,
+    "f1": 0.912,
+    "difficulty": "easy",
+    "sample_count": 75
+  },
+  {
+    "word": "sad",
+    "accuracy": 0.887,
+    "f1": 0.91,
+    "difficulty": "easy",
+    "sample_count": 80
+  },
+  {
+    "word": "uncle",
+    "accuracy": 0.886,
+    "f1": 0.909,
+    "difficulty": "easy",
+    "sample_count": 79
+  },
+  {
+    "word": "cow",
+    "accuracy": 0.914,
+    "f1": 0.908,
+    "difficulty": "easy",
+    "sample_count": 81
+  },
+  {
+    "word": "brown",
+    "accuracy": 0.95,
+    "f1": 0.899,
+    "difficulty": "easy",
+    "sample_count": 80
+  },
+  {
+    "word": "donkey",
+    "accuracy": 0.953,
+    "f1": 0.882,
+    "difficulty": "easy",
+    "sample_count": 86
+  },
+  {
+    "word": "lips",
+    "accuracy": 0.893,
+    "f1": 0.877,
+    "difficulty": "easy",
+    "sample_count": 84
+  },
+  {
+    "word": "shhh",
+    "accuracy": 0.829,
+    "f1": 0.872,
+    "difficulty": "easy",
+    "sample_count": 82
+  },
+  {
+    "word": "duck",
+    "accuracy": 0.875,
+    "f1": 0.851,
+    "difficulty": "easy",
+    "sample_count": 88
+  },
+  {
+    "word": "dad",
+    "accuracy": 0.816,
+    "f1": 0.838,
+    "difficulty": "easy",
+    "sample_count": 76
+  },
+  {
+    "word": "sick",
+    "accuracy": 0.833,
+    "f1": 0.823,
+    "difficulty": "easy",
+    "sample_count": 78
+  },
+  {
+    "word": "finish",
+    "accuracy": 0.84,
+    "f1": 0.814,
+    "difficulty": "easy",
+    "sample_count": 81
+  },
+  {
+    "word": "home",
+    "accuracy": 0.838,
+    "f1": 0.812,
+    "difficulty": "easy",
+    "sample_count": 80
+  },
+  {
+    "word": "food",
+    "accuracy": 0.823,
+    "f1": 0.807,
+    "difficulty": "easy",
+    "sample_count": 79
+  },
+  {
+    "word": "no",
+    "accuracy": 0.819,
+    "f1": 0.803,
+    "difficulty": "easy",
+    "sample_count": 72
+  },
+  {
+    "word": "have",
+    "accuracy": 0.887,
+    "f1": 0.792,
+    "difficulty": "easy",
+    "sample_count": 71
+  },
+  {
+    "word": "like",
+    "accuracy": 0.806,
+    "f1": 0.789,
+    "difficulty": "easy",
+    "sample_count": 72
+  },
+  {
+    "word": "thankyou",
+    "accuracy": 0.875,
+    "f1": 0.778,
+    "difficulty": "easy",
+    "sample_count": 72
+  },
+  {
+    "word": "hungry",
+    "accuracy": 0.778,
+    "f1": 0.773,
+    "difficulty": "medium",
+    "sample_count": 81
+  },
+  {
+    "word": "bird",
+    "accuracy": 0.821,
+    "f1": 0.744,
+    "difficulty": "easy",
+    "sample_count": 78
+  },
+  {
+    "word": "wait",
+    "accuracy": 0.687,
+    "f1": 0.736,
+    "difficulty": "medium",
+    "sample_count": 67
+  },
+  {
+    "word": "mouse",
+    "accuracy": 0.812,
+    "f1": 0.73,
+    "difficulty": "easy",
+    "sample_count": 80
+  },
+  {
+    "word": "bye",
+    "accuracy": 0.776,
+    "f1": 0.717,
+    "difficulty": "medium",
+    "sample_count": 85
+  },
+  {
+    "word": "mom",
+    "accuracy": 0.713,
+    "f1": 0.717,
+    "difficulty": "medium",
+    "sample_count": 80
+  },
+  {
+    "word": "hot",
+    "accuracy": 0.628,
+    "f1": 0.715,
+    "difficulty": "medium",
+    "sample_count": 78
+  },
+  {
+    "word": "please",
+    "accuracy": 0.726,
+    "f1": 0.711,
+    "difficulty": "medium",
+    "sample_count": 73
+  },
+  {
+    "word": "drink",
+    "accuracy": 0.699,
+    "f1": 0.707,
+    "difficulty": "medium",
+    "sample_count": 83
+  },
+  {
+    "word": "look",
+    "accuracy": 0.615,
+    "f1": 0.707,
+    "difficulty": "medium",
+    "sample_count": 96
+  },
+  {
+    "word": "pretend",
+    "accuracy": 0.605,
+    "f1": 0.705,
+    "difficulty": "medium",
+    "sample_count": 81
+  },
+  {
+    "word": "fireman",
+    "accuracy": 0.609,
+    "f1": 0.702,
+    "difficulty": "medium",
+    "sample_count": 87
+  },
+  {
+    "word": "brother",
+    "accuracy": 0.737,
+    "f1": 0.7,
+    "difficulty": "medium",
+    "sample_count": 76
+  },
+  {
+    "word": "toothbrush",
+    "accuracy": 0.64,
+    "f1": 0.691,
+    "difficulty": "medium",
+    "sample_count": 89
+  },
+  {
+    "word": "happy",
+    "accuracy": 0.808,
+    "f1": 0.686,
+    "difficulty": "easy",
+    "sample_count": 73
+  },
+  {
+    "word": "before",
+    "accuracy": 0.644,
+    "f1": 0.657,
+    "difficulty": "medium",
+    "sample_count": 73
+  },
+  {
+    "word": "hello",
+    "accuracy": 0.733,
+    "f1": 0.651,
+    "difficulty": "medium",
+    "sample_count": 75
+  },
+  {
+    "word": "hear",
+    "accuracy": 0.675,
+    "f1": 0.639,
+    "difficulty": "medium",
+    "sample_count": 80
+  },
+  {
+    "word": "yes",
+    "accuracy": 0.728,
+    "f1": 0.634,
+    "difficulty": "medium",
+    "sample_count": 81
+  },
+  {
+    "word": "talk",
+    "accuracy": 0.519,
+    "f1": 0.625,
+    "difficulty": "hard",
+    "sample_count": 77
+  },
+  {
+    "word": "listen",
+    "accuracy": 0.506,
+    "f1": 0.616,
+    "difficulty": "hard",
+    "sample_count": 89
+  },
+  {
+    "word": "who",
+    "accuracy": 0.585,
+    "f1": 0.608,
+    "difficulty": "hard",
+    "sample_count": 82
+  },
+  {
+    "word": "sleep",
+    "accuracy": 0.573,
+    "f1": 0.606,
+    "difficulty": "hard",
+    "sample_count": 75
+  },
+  {
+    "word": "dog",
+    "accuracy": 0.808,
+    "f1": 0.594,
+    "difficulty": "easy",
+    "sample_count": 78
+  },
+  {
+    "word": "can",
+    "accuracy": 0.553,
+    "f1": 0.587,
+    "difficulty": "hard",
+    "sample_count": 76
+  },
+  {
+    "word": "child",
+    "accuracy": 0.6,
+    "f1": 0.55,
+    "difficulty": "hard",
+    "sample_count": 60
+  },
+  {
+    "word": "go",
+    "accuracy": 0.467,
+    "f1": 0.53,
+    "difficulty": "hard",
+    "sample_count": 75
+  },
+  {
+    "word": "book",
+    "accuracy": 0.6,
+    "f1": 0.512,
+    "difficulty": "hard",
+    "sample_count": 70
+  },
+  {
+    "word": "sleepy",
+    "accuracy": 0.442,
+    "f1": 0.51,
+    "difficulty": "hard",
+    "sample_count": 86
+  },
+  {
+    "word": "all",
+    "accuracy": 0.438,
+    "f1": 0.474,
+    "difficulty": "hard",
+    "sample_count": 73
+  },
+  {
+    "word": "give",
+    "accuracy": 0.418,
+    "f1": 0.458,
+    "difficulty": "hard",
+    "sample_count": 79
+  },
+  {
+    "word": "open",
+    "accuracy": 0.333,
+    "f1": 0.427,
+    "difficulty": "hard",
+    "sample_count": 66
+  }
+]

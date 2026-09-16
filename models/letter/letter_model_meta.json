@@ -1,0 +1,33 @@
+{
+  "num_features": 93,
+  "feature_engineering": true,
+  "augmentation": true,
+  "augmentation_settings": {
+    "noise_std": 0.02,
+    "rotation_range": 45,
+    "scale_range": 0.2,
+    "multiplier": 5
+  },
+  "model_type": "LightGBM",
+  "accuracy_augmented_split": 0.9944,
+  "accuracy_held_out": 0.9935,
+  "held_out_test_samples": 8245,
+  "train_time_seconds": 80.8,
+  "inference_ms": 0.05,
+  "classes": 24,
+  "train_samples": 238251,
+  "test_samples": 42045,
+  "datasets": ["ASL Alphabet", "American Sign Language Dataset", "ASL_SemCom"],
+  "multi_person": true,
+  "model_comparison": {
+    "RandomForest": 0.985,
+    "XGBoost": 0.992,
+    "LightGBM": 0.994
+  },
+  "ablation": {
+    "FE_on_Aug_on": 0.994,
+    "FE_on_Aug_off": 0.988,
+    "FE_off_Aug_on": 0.332
+  },
+  "trained_at": "2026-03-13T22:12:53"
+}

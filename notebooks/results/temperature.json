@@ -1,0 +1,6 @@
+{
+  "T": 0.9853780269622803,
+  "ece_before": 0.02352475803247334,
+  "ece_after": 0.025193911042986645,
+  "usage": "Web inference icin logits / T uygulanir, sonra softmax hesaplanir."
+}

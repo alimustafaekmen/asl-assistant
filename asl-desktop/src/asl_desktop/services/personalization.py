@@ -1,0 +1,103 @@
+"""
+Kişiselleştirilmiş K-NN Modeli (Few-Shot Calibration)
+======================================================
+Kullanıcının başarısız okunan harfleri anında düzeltmesi için
+Mesafe Tabanlı Öğrenme (Metric Learning/KNN) uygular.
+Baz modele (LightGBM) dokunmadan kullanıcıya özel "yama" yapar.
+"""
+import logging
+import os
+
+import numpy as np
+
+from config.settings import MODELS_DIR, KNN_THRESHOLD, KNN_MAX_TEMPLATES
+
+_logger = logging.getLogger("ASL.Personalization")
+
+PROFILES_DIR = os.path.join(MODELS_DIR, "profiles")
+
+class PersonalizedKNN:
+    """
+    Kullanıcının eklediği referans el şablonlarını saklar ve
+    Cosine Similarity (Kosinüs Benzerliği) ile eşleştirir.
+    """
+    def __init__(self, threshold: float = KNN_THRESHOLD):
+        """
+        Args:
+            threshold: Benzerlik eşiği (1.0 = birebir aynı). 
+                       0.94-0.96 arası çok güvenli "kesin eşleşme" sınırıdır.
+        """
+        self.threshold = threshold
+        self.templates: dict[str, np.ndarray] = {}
+        self._load_templates()
+        
+    def _get_path(self) -> str:
+        os.makedirs(PROFILES_DIR, exist_ok=True)
+        return os.path.join(PROFILES_DIR, "user_templates.npz")
+        
+    def _load_templates(self) -> None:
+        """Kayitli profilleri diskten bellege ceker."""
+        path = self._get_path()
+        if os.path.exists(path):
+            data = np.load(path, allow_pickle=True)
+            for letter in data.files:
+                self.templates[letter] = data[letter]
+            _logger.info("KNN profilleri yuklendi: %d harf", len(self.templates))
+                
+    def save_templates(self) -> None:
+        """Profilleri diske kaydeder."""
+        path = self._get_path()
+        if self.templates:
+            np.savez(path, **self.templates)
+            
+    def record_template(self, letter: str, features: np.ndarray) -> None:
+        """
+        Kullanıcının anlık el özelliklerini (features) hafızaya ekler.
+        Sınırsız büyümesini engellemek için sadece son 50 örneği tutar.
+        """
+        if letter not in self.templates:
+            self.templates[letter] = np.array([features.flatten()])
+        else:
+            self.templates[letter] = np.vstack([self.templates[letter], features.flatten()])[-KNN_MAX_TEMPLATES:]
+        self.save_templates()
+        
+    def predict(self, features: np.ndarray) -> tuple[str, float] | None:
+        """
+        Yeni gelen kareyi (features), kaydedilmiş şablonlarla karşılaştırır.
+        Vectorized cosine similarity ile hızlı eşleştirme yapar.
+
+        Returns:
+            (harf, benzerlik) veya None (şablon yok / eşik altı)
+        """
+        if not self.templates:
+            return None
+
+        feat_flat = features.flatten().astype(np.float64)
+        norm_feat = np.linalg.norm(feat_flat)
+        if norm_feat < 1e-12:
+            return None
+
+        feat_unit = feat_flat / norm_feat
+        best_match: str | None = None
+        best_score: float = -1.0
+
+        for letter, temps in self.templates.items():
+            # Vectorized cosine similarity: (N, D) @ (D,) → (N,)
+            norms = np.linalg.norm(temps, axis=1, keepdims=True)
+            # Sıfır normlu şablonları maskele
+            valid_mask = (norms.squeeze() > 1e-12)
+            if not np.any(valid_mask):
+                continue
+            valid_temps = temps[valid_mask]
+            valid_norms = norms[valid_mask]
+            unit_temps = valid_temps / valid_norms
+            similarities = unit_temps @ feat_unit
+            max_sim = float(np.max(similarities))
+            if max_sim > best_score:
+                best_score = max_sim
+                best_match = letter
+
+        if best_match and best_score >= self.threshold:
+            return (best_match, best_score)
+
+        return None

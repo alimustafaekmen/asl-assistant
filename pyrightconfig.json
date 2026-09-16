@@ -1,0 +1,11 @@
+{
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Darwin",
+  "extraPaths": [
+    ".",
+    "asl-ml/src",
+    "asl-desktop/src"
+  ],
+  "reportMissingImports": "warning",
+  "reportMissingModuleSource": false
+}

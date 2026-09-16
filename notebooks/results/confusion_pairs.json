@@ -1,0 +1,152 @@
+[
+  {
+    "word_a": "listen",
+    "word_b": "hear",
+    "count": 23
+  },
+  {
+    "word_a": "can",
+    "word_b": "yes",
+    "count": 22
+  },
+  {
+    "word_a": "open",
+    "word_b": "book",
+    "count": 20
+  },
+  {
+    "word_a": "sleep",
+    "word_b": "sleepy",
+    "count": 19
+  },
+  {
+    "word_a": "who",
+    "word_b": "bird",
+    "count": 17
+  },
+  {
+    "word_a": "fireman",
+    "word_b": "hello",
+    "count": 16
+  },
+  {
+    "word_a": "please",
+    "word_b": "happy",
+    "count": 14
+  },
+  {
+    "word_a": "toothbrush",
+    "word_b": "yes",
+    "count": 14
+  },
+  {
+    "word_a": "sleepy",
+    "word_b": "before",
+    "count": 12
+  },
+  {
+    "word_a": "before",
+    "word_b": "have",
+    "count": 11
+  },
+  {
+    "word_a": "pretend",
+    "word_b": "hello",
+    "count": 11
+  },
+  {
+    "word_a": "sleepy",
+    "word_b": "sleep",
+    "count": 11
+  },
+  {
+    "word_a": "yes",
+    "word_b": "can",
+    "count": 11
+  },
+  {
+    "word_a": "all",
+    "word_b": "brother",
+    "count": 10
+  },
+  {
+    "word_a": "happy",
+    "word_b": "please",
+    "count": 10
+  },
+  {
+    "word_a": "give",
+    "word_b": "who",
+    "count": 9
+  },
+  {
+    "word_a": "go",
+    "word_b": "dog",
+    "count": 9
+  },
+  {
+    "word_a": "hear",
+    "word_b": "toothbrush",
+    "count": 9
+  },
+  {
+    "word_a": "sleepy",
+    "word_b": "home",
+    "count": 9
+  },
+  {
+    "word_a": "go",
+    "word_b": "mouse",
+    "count": 8
+  },
+  {
+    "word_a": "hot",
+    "word_b": "finish",
+    "count": 8
+  },
+  {
+    "word_a": "hot",
+    "word_b": "thankyou",
+    "count": 8
+  },
+  {
+    "word_a": "listen",
+    "word_b": "drink",
+    "count": 8
+  },
+  {
+    "word_a": "look",
+    "word_b": "drink",
+    "count": 8
+  },
+  {
+    "word_a": "open",
+    "word_b": "child",
+    "count": 8
+  },
+  {
+    "word_a": "shhh",
+    "word_b": "mouse",
+    "count": 8
+  },
+  {
+    "word_a": "bye",
+    "word_b": "mom",
+    "count": 7
+  },
+  {
+    "word_a": "pretend",
+    "word_b": "fireman",
+    "count": 7
+  },
+  {
+    "word_a": "brother",
+    "word_b": "dog",
+    "count": 6
+  },
+  {
+    "word_a": "brother",
+    "word_b": "donkey",
+    "count": 6
+  }
+]

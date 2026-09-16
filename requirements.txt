@@ -1,0 +1,75 @@
+# AI Destekli Isaret Dili Asistani - Calistirma Bagimliliklari
+# Ortam: conda activate isaret_dili
+#
+# Bu dosya MASAUSTU prototipini (`main.py`) ve EGITIM/HAZIRLIK scriptlerini
+# calistirmak icindir. Web runtime (`asl-web/`) bu paketlere ihtiyac duymaz —
+# tarayici onnxruntime-web@1.22.0 ve MediaPipe Tasks Vision'i CDN'den yukler.
+#
+# Validation/test/ONNX araclari icin: requirements-dev.txt
+
+# Temel
+numpy
+pandas
+
+# Kamera & Goruntu Isleme
+opencv-python
+pillow
+
+# El Tespiti (sadece masaustu/script tarafi — web runtime ETKILENMEZ)
+#
+# `mediapipe` Python paketi `asl-web/` web runtime'i icin GEREKLI DEGIL.
+# Web tarayicida MediaPipe Tasks Vision CDN'den yuklenir
+# (`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/...`).
+# Bu Python paketi yalnizca su iki kullanim icindir:
+#   1. Masaustu prototipi (main.py + src/holistic_detector.py + src/hand_detector.py)
+#   2. Veri hazirlik scriptleri (scripts/data_preparation/extract_*.py)
+#
+# Pin politikasi: Strict `mediapipe==0.10.18` PyPI'da Python 3.11/3.12 wheel'leri
+# olmasina ragmen baz\xb1 yeni gelistirme ortamlarinda (\xf6r. Python 3.13, belirli
+# pip resolver durumlari) kurulum uyumluluk sorunu cikarabilir. Bu nedenle ayni
+# 0.10 API serisi icinde kalmak \xfczere `>=0.10.18,<0.11` aralig\xb1 kullaniliyor.
+#
+# REFERANSLAR (PyPI):
+#   https://pypi.org/project/mediapipe/0.10.18/
+#   https://pypi.org/project/mediapipe/0.10.33/
+#
+# Etki analizi: 0.10.18 -> 0.10.30+ gecisi src/holistic_detector.py ve
+# src/hand_detector.py'in kullanidi `mp.solutions` API'si etrafindadir.
+# Bu API 0.10 serisi boyunca korunur; 0.11.x'te kaldir\xb1lacagi bekleniyor.
+# Model/data/feature contract `asl-web/` etkilenmez (web runtime CDN kullanir).
+#
+# Yeni venv'de kurulum dogrulamasi:
+#   python3 -m venv .venv-test
+#   source .venv-test/bin/activate
+#   pip install -r requirements-dev.txt
+#   python -c "import mediapipe as mp; print(mp.__version__)"
+#   python3 scripts/validation/check_runtime_assets.py
+mediapipe>=0.10.18,<0.11
+
+# Harf Tanima (ML)
+scikit-learn
+xgboost
+lightgbm  # macOS ARM sorun cikarirsa: conda install -c conda-forge lightgbm
+joblib
+
+# Kelime / Dinamik Harf Tanima (Deep Learning — PyTorch)
+torch
+torchvision
+# Not: macOS M4 Pro'da MPS backend otomatik kullanilir
+# Kaggle'da GPU (CUDA) otomatik kullanilir
+
+# Veri Isleme (Google ASL Signs - Parquet)
+pyarrow
+
+# Arayuz
+customtkinter
+
+# Ses Ciktisi
+pyttsx3
+
+# Gorsellesirme
+matplotlib
+seaborn
+
+# Opsiyonel
+# pyinstaller

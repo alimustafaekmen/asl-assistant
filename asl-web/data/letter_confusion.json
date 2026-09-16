@@ -1,0 +1,73 @@
+{
+  "schema_version": "letter-confusion-v1",
+  "note_tr": "ASL statik harflerinde el şekli olarak birbirine benzeyen gruplar. Kelime tarafındaki confusion_pairs.json'un harf karşılığı. Şimdilik referans/öğretim amaçlı; runtime gating'e bağlanması opsiyonel.",
+  "note_en": "Groups of ASL static letters that share a similar handshape. Letter-side counterpart of confusion_pairs.json. Reference/teaching data for now; wiring into runtime gating is optional.",
+  "groups": [
+    {
+      "letters": ["A", "S", "T"],
+      "reason_tr": "Üçü de yumruk; tek fark başparmağın yeri.",
+      "reason_en": "All three are fists; only the thumb position differs.",
+      "cues": {
+        "A": "Başparmak yumruğun yanında.",
+        "S": "Başparmak parmakların önünde.",
+        "T": "Başparmak işaret ve orta parmak arasında."
+      }
+    },
+    {
+      "letters": ["M", "N", "T"],
+      "reason_tr": "Başparmak parmakların altına kıvrılır; kaç parmağın örttüğü değişir.",
+      "reason_en": "The thumb tucks under the fingers; how many fingers cover it differs.",
+      "cues": {
+        "M": "Başparmak üç parmağın altında.",
+        "N": "Başparmak iki parmağın altında.",
+        "T": "Başparmak yalnız işaret parmağının altında."
+      }
+    },
+    {
+      "letters": ["U", "V", "R"],
+      "reason_tr": "İkisi de iki parmak; bitişik, ayrık veya çapraz olması ayırır.",
+      "reason_en": "All use two fingers; together, apart, or crossed tells them apart.",
+      "cues": {
+        "U": "İşaret ve orta parmak bitişik.",
+        "V": "İşaret ve orta parmak ayrık.",
+        "R": "İşaret ve orta parmak çapraz."
+      }
+    },
+    {
+      "letters": ["K", "P"],
+      "reason_tr": "Aynı el şekli; sadece yön değişir.",
+      "reason_en": "Same handshape; only the orientation differs.",
+      "cues": {
+        "K": "El yukarı bakar.",
+        "P": "El aşağı bakar."
+      }
+    },
+    {
+      "letters": ["G", "Q"],
+      "reason_tr": "Aynı el şekli; sadece yön değişir.",
+      "reason_en": "Same handshape; only the orientation differs.",
+      "cues": {
+        "G": "İşaret parmağı yana bakar.",
+        "Q": "İşaret parmağı aşağı bakar."
+      }
+    },
+    {
+      "letters": ["C", "O"],
+      "reason_tr": "İkisi de kavisli; halkanın kapalı olup olmadığı ayırır.",
+      "reason_en": "Both are curved; whether the ring closes tells them apart.",
+      "cues": {
+        "C": "Parmaklar açık bir 'C' bırakır.",
+        "O": "Parmaklar başparmakla tam halka yapar."
+      }
+    },
+    {
+      "letters": ["D", "F"],
+      "reason_tr": "İşaret parmağı ile başparmağın rolü yer değiştirir.",
+      "reason_en": "The roles of the index finger and thumb swap.",
+      "cues": {
+        "D": "İşaret yukarı, diğerleri başparmakla halka.",
+        "F": "İşaret ve başparmak halka, diğer üçü yukarı."
+      }
+    }
+  ]
+}

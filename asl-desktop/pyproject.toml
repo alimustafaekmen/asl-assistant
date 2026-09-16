@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "asl-desktop"
+version = "0.1.0"
+description = "Legacy desktop CustomTkinter prototype for ASL Assistant. Active product is `asl-web/`."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name = "Ali Mustafa Ekmen" },
+]
+license = { text = "Academic project" }
+
+dependencies = [
+  "numpy>=1.21",
+  "opencv-python>=4.5",
+  "pillow",
+  "mediapipe>=0.10.18,<0.11",
+  "scikit-learn",
+  "lightgbm",
+  "joblib",
+  "torch",
+  "customtkinter",
+  "pyttsx3",
+  "asl-ml",  # Shared ML/data helpers (sibling package; install with `pip install -e ../asl-ml`)
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",
+  "pytest-cov",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["asl_desktop*"]

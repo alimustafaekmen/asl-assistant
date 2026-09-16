@@ -1,0 +1,31 @@
+{
+  "_description": "ASL harfleri ve kelimeleri icin YouTube rehber video linkleri. Web runtime bu dosyayi okur; hedef link yoksa YouTube arama fallback'i kullanilir.",
+  "words": {
+    "hello": "https://www.youtube.com/watch?v=Zz711bmuUBw",
+    "bye": "https://www.youtube.com/watch?v=3rRQbEL31pc",
+    "yes": "https://www.youtube.com/watch?v=zKDPRl7Vv0I",
+    "no": "https://www.youtube.com/watch?v=zKDPRl7Vv0I",
+    "please": "https://www.youtube.com/watch?v=2-a95GYojl4",
+    "thankyou": "https://www.youtube.com/watch?v=wM7vu5SqB0I",
+    "finish": "https://www.youtube.com/watch?v=4P3ZroP7qNE",
+    "go": "https://www.youtube.com/watch?v=TMVULNk8eJY",
+    "drink": "https://www.youtube.com/watch?v=8EOTfhtOPvk",
+    "give": "https://www.youtube.com/watch?v=sHisLXk5XFY",
+    "look": "https://www.youtube.com/watch?v=BEQAjKdikfk",
+    "wait": "https://www.youtube.com/watch?v=cZ0LtMK2bVM",
+    "sleep": "https://www.youtube.com/watch?v=e9sKImacvuU",
+    "open": "https://www.youtube.com/watch?v=1ed4n_Lzo5Q",
+    "talk": "https://www.youtube.com/watch?v=-SFxjzKuAUw",
+    "mom": "https://www.youtube.com/watch?v=HnqGaVrdgqA",
+    "dad": "https://www.youtube.com/watch?v=5FNOTSTkJtA",
+    "child": "https://www.youtube.com/watch?v=LSeXC_T3iyQ",
+    "happy": "https://www.youtube.com/watch?v=_ZOqAI8EXLo",
+    "sad": "https://www.youtube.com/watch?v=QYYMBAEs6Vg",
+    "hungry": "https://www.youtube.com/watch?v=E0WWL1ERol0",
+    "sick": "https://www.youtube.com/watch?v=aaBzC_EZqPE",
+    "home": "https://www.youtube.com/watch?v=tbE0QedTfeI",
+    "food": "https://www.youtube.com/watch?v=TYKgvinRUKM",
+    "water": "https://www.youtube.com/watch?v=ZTetGr0Mp5k"
+  },
+  "alphabet_video": "https://www.youtube.com/watch?v=tkMg8g8vVUo"
+}

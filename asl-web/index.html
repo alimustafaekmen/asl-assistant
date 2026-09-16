@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f4f1ea" />
+    <title>ASL Assistant — ASL Harf Çeviri · Parmak Alfabesi</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div class="app-shell" data-view="home" data-mode="letter" data-theme="light">
+      <header class="topbar">
+        <a class="brand" href="#home" aria-label="ASL Assistant giriş ekranı" data-home-link>
+          <span class="brand-mark" aria-hidden="true">ASL</span>
+          <span>
+            <strong>ASL Assistant</strong>
+            <small>Harf çeviri · Öğrenme koçu</small>
+          </span>
+        </a>
+
+        <nav class="mode-tabs" aria-label="Uygulama modu">
+          <button class="mode-tab mode-tab--primary is-active" type="button" data-mode="letter">Harf Çeviri</button>
+          <button class="mode-tab mode-tab--primary" type="button" data-mode="coach">Öğrenme Koçu</button>
+          <span class="mode-tabs__divider" aria-hidden="true"></span>
+          <span class="mode-tabs__group-label" aria-hidden="true">ekstra</span>
+          <button class="mode-tab mode-tab--extra" type="button" data-mode="word">Kelime</button>
+          <button class="mode-tab mode-tab--extra" type="button" data-mode="test">Model Test</button>
+          <button class="mode-tab mode-tab--extra" type="button" data-mode="qr">QR</button>
+          <button class="mode-tab mode-tab--extra" type="button" data-mode="project">Proje</button>
+        </nav>
+
+        <div class="status-strip" aria-label="Sistem durumu">
+          <button class="status-pill theme-toggle" type="button" id="themeToggle" aria-label="Tema değiştir">Tema</button>
+          <span class="status-pill" id="cameraStatus"><span></span>Hazır</span>
+          <span class="status-pill" id="fpsLabel">-- fps</span>
+        </div>
+      </header>
+
+      <main>
+        <section class="home-screen" id="homeScreen" aria-labelledby="homeTitle">
+          <div class="home-hero">
+            <div class="home-copy">
+              <span class="eyebrow">Tarayıcıda çalışan ASL parmak alfabesi asistanı</span>
+              <h1 id="homeTitle">Kameranla ASL harflerini tanı, parmak alfabesini yaz.</h1>
+              <p>
+                ASL Assistant'ın çekirdek özelliği canlı harf tanımadır: MediaPipe
+                landmarkları ve ONNX modeliyle 24 statik ASL harfini tanır, metne
+                yazar ve sesli okur. Öğrenme koçu, kelime pratiği ve model testi ise
+                bu çekirdeği tamamlayan ekstra alanlardır.
+              </p>
+              <div class="home-actions">
+                <button class="button primary" type="button" data-go-mode="letter">Harf Çeviriyi Aç</button>
+                <button class="button" type="button" data-go-mode="coach">Öğrenme Koçu (harf)</button>
+                <span class="home-actions__extra">
+                  <span class="home-actions__extra-label">Ekstra:</span>
+                  <button class="button quiet" type="button" data-go-mode="word">Kelime</button>
+                  <button class="button quiet" type="button" data-go-mode="test">Model Testi</button>
+                  <button class="button quiet" type="button" data-go-mode="qr">QR</button>
+                </span>
+              </div>
+            </div>
+            <div class="home-preview" aria-label="Uygulama önizlemesi">
+              <div class="preview-camera">
+                <span class="preview-hand" aria-hidden="true">A</span>
+                <div class="preview-dots" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
+              <div class="preview-card">
+                <span>Anlık sonuç</span>
+                <strong>Harf: A</strong>
+                <small>Stabil · Öğrenme koçu hazır</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="home-grid" aria-label="Ana modüller">
+            <article class="home-card primary-card">
+              <span class="card-kicker">Ana ürün</span>
+              <h2>Harf Çeviri</h2>
+              <p>Canlı kameradan ASL harflerini tanır, metne ekler ve sesli okuma akışına bağlar.</p>
+              <button class="text-button" type="button" data-go-mode="letter">Başla →</button>
+            </article>
+            <article class="home-card support-card">
+              <span class="card-kicker">Ekstra · harf pratiği</span>
+              <h2>Öğrenme Koçu</h2>
+              <p>Hedef harf, tekrar, quiz ve anlık geri bildirimle harf öğrenmeyi yönlendirir.</p>
+              <button class="text-button" type="button" data-go-mode="coach">Pratik yap →</button>
+            </article>
+            <article class="home-card support-card">
+              <span class="card-kicker">Ekstra · araştırma / lab</span>
+              <h2>Kelime Pratik</h2>
+              <p>50 kelimelik modelle top-3 tahmin, demo kelime listesi ve sınırlılık notları sunar.</p>
+              <button class="text-button" type="button" data-go-mode="word">İncele →</button>
+            </article>
+          </div>
+
+          <section class="demo-strip" aria-label="Jüri demo akışı">
+            <div>
+              <strong>Önerilen jüri akışı</strong>
+              <span>1) Harf Çeviri → 2) Öğrenme Koçu Quiz → 3) Kelime Pratik ve araştırma bulguları</span>
+            </div>
+            <button class="button" type="button" data-go-mode="project">Proje özetini aç</button>
+          </section>
+        </section>
+
+        <section class="workspace" id="appWorkspace" aria-label="ASL Assistant çalışma alanı">
+          <section class="camera-column" aria-label="Kamera çalışma alanı">
+            <section class="mode-intro mode-intro--letter mode-only letter-only" aria-label="Harf Çeviri açıklaması">
+              <div>
+                <span class="eyebrow">Ana modül</span>
+                <h1>Harf Çeviri</h1>
+                <p>Canlı tahmini metne ekle, boşluk bırak, sil veya sesli oku. Kamera alanı bu modda ana odaktır.</p>
+              </div>
+            </section>
+
+            <section class="mode-intro mode-intro--coach mode-only coach-only" aria-label="Öğrenme Koçu açıklaması">
+              <div>
+                <span class="eyebrow">Ekstra · pratik ve quiz</span>
+                <h1>Öğrenme Koçu</h1>
+                <p>Hedef seç, kamerayı başlat, sonucu kontrol et. Harfte sabit el pozu, kelimede kısa hareket kaydı kullanılır.</p>
+              </div>
+            </section>
+
+            <section class="mode-intro mode-intro--word mode-only word-only" aria-label="Kelime Pratik açıklaması">
+              <div>
+                <span class="eyebrow">Ekstra · 50 kelime pratik</span>
+                <h1>Kelime Pratik</h1>
+                <p>Kelimeler 45 frame boyunca kaydedilir. Top-3 sonuç, kayıt kalitesi ve demo önerileri birlikte değerlendirilir.</p>
+              </div>
+            </section>
+
+            <div class="camera-stage" id="cameraStage" data-state="idle">
+              <video id="cameraVideo" class="camera-video" autoplay playsinline muted></video>
+              <div class="camera-empty" id="cameraEmpty">
+                <div class="camera-empty-icon" aria-hidden="true">◇</div>
+                <strong>Kamera bekleniyor</strong>
+                <span>Başlat'a basınca WebRTC ile canlı görüntü açılır.</span>
+              </div>
+              <canvas id="overlayCanvas" class="overlay-canvas" width="1280" height="720"></canvas>
+
+              <div class="stage-top">
+                <span class="camera-badge" id="modeBadge">Harf Modu</span>
+                <span class="camera-badge muted" id="latencyBadge">Hazır</span>
+              </div>
+
+              <div class="stage-result">
+                <div>
+                  <span id="resultKind">Harf</span>
+                  <strong id="primaryPrediction">?</strong>
+                </div>
+                <div class="confidence-ring" id="confidenceRing" style="--score: 0">
+                  <span id="confidenceText">--</span>
+                </div>
+              </div>
+
+              <div class="countdown" id="countdown" hidden>3</div>
+            </div>
+
+            <div class="control-bar" id="controlBar" aria-label="Mod kontrolleri">
+              <button class="button primary mode-only letter-only word-only" type="button" id="cameraToggle">Başlat</button>
+              <button class="button mode-only letter-only" type="button" id="manualAddLetter" title="Kısayol: Space">Harf Ekle</button>
+              <button class="button mode-only letter-only" type="button" id="insertSpace">Boşluk</button>
+              <button class="button mode-only letter-only" type="button" id="removeLastChar">Sil</button>
+              <button class="button mode-only letter-only" type="button" id="speakText">Sesli Oku</button>
+              <button class="button quiet mode-only letter-only" type="button" id="clearText">Temizle</button>
+
+              <button class="button mode-only word-only" type="button" id="recordWord">Kelime Kaydı Başlat</button>
+              <button class="button mode-only word-only" type="button" id="retryWord">Tekrar Dene</button>
+              <button class="button mode-only word-only" type="button" id="appendWordResult">Sonucu Metne Ekle</button>
+              <a class="button mode-only word-only" id="actionVideoLink" href="https://www.youtube.com/results?search_query=ASL+basic+words+tutorial" target="_blank" rel="noreferrer">Video Rehber</a>
+
+              <button class="button primary mode-only coach-only" type="button" id="coachStart">Çalışmayı Başlat</button>
+              <button class="button mode-only coach-only" type="button" id="coachCheck">Hedefi Kontrol Et</button>
+              <button class="button mode-only coach-only" type="button" id="coachNextTarget">Sonraki Hedef</button>
+              <a class="button mode-only coach-only" id="coachVideoLink" href="https://www.youtube.com/results?search_query=ASL+alphabet+tutorial" target="_blank" rel="noreferrer">Video Rehber</a>
+            </div>
+
+            <section class="transcript-panel" aria-label="Canlı çeviri çıktısı">
+              <div class="panel-heading">
+                <div>
+                  <span>Canlı çıktı</span>
+                  <h1 id="transcriptText">Henüz metin yok<span class="cursor">|</span></h1>
+                </div>
+                <button class="icon-button" type="button" id="copyText" title="Metni kopyala" aria-label="Metni kopyala">⧉</button>
+              </div>
+              <p id="confidenceMessage">Model sonucu burada güven seviyesine göre açıklanır.</p>
+              <div class="feedback-bar" id="feedbackBar" hidden></div>
+            </section>
+
+          </section>
+
+          <aside class="side-panel" aria-label="Mod paneli">
+            <section class="card prediction-card mode-card shared-card assistant-card">
+              <div class="card-heading">
+                <span>Canlı sonuç</span>
+                <strong id="decisionLabel">Beklemede</strong>
+              </div>
+              <div class="top3-list" id="top3List"></div>
+              <p class="card-note mode-only letter-only">Elini kadrajda tut; stabil harfi metne eklemek için ana butonları kullan.</p>
+              <p class="card-note mode-only word-only">Kayıt bittikten sonra önce top-3 sonucuna bak; emin değilsen tekrar dene.</p>
+              <p class="card-note mode-only coach-only">Önce hedefi seç, kamerayı başlat, sonra sonucu hedefle karşılaştır.</p>
+            </section>
+
+            <section class="reference-strip app-reference" aria-label="Mod referansları">
+              <div class="section-heading">
+                <div>
+                  <span id="referenceKicker">Hızlı referans</span>
+                  <h2 id="referenceTitle">Harf kartları</h2>
+                  <p id="referenceNote">Referans görseli ve video rehber hedefe göre güncellenir.</p>
+                </div>
+                <div class="reference-actions">
+                  <a class="button small" id="referenceVideoLink" href="https://www.youtube.com/results?search_query=ASL+alphabet+tutorial" target="_blank" rel="noreferrer" title="Desktop uygulamasındaki asl_video_links.json varsa birebir link, yoksa YouTube araması açılır">Video rehber</a>
+                  <button class="text-button" type="button" id="toggleReference">Göster</button>
+                </div>
+              </div>
+              <div class="reference-body compact" id="referenceBody" hidden>
+                <img id="referenceImage" src="./assets/signs/letters.png" alt="ASL harf referans görseli" />
+                <div class="reference-thumbs" id="referenceThumbs" hidden aria-label="Kelime referans sayfaları"></div>
+              </div>
+            </section>
+
+            <section class="card letter-actions-card mode-only letter-only">
+              <div class="card-heading">
+                <span>Harf metni</span>
+                <strong>Hızlı işlem</strong>
+              </div>
+              <p class="card-note">Stabil görünen harfi metne eklemek için butonu veya Space kısayolunu kullan.</p>
+              <div class="quick-actions">
+                <button class="button full" type="button" data-trigger="add-letter">Harf ekle</button>
+                <button class="button full" type="button" data-trigger="space">Boşluk ekle</button>
+              </div>
+            </section>
+
+            <section class="card coach-card mode-only coach-only" id="coachCard">
+              <div class="card-heading">
+                <span>Öğrenme koçu</span>
+                <strong id="coachScore">%0</strong>
+              </div>
+              <div class="coach-path">
+                <span>1. Hedef</span>
+                <span>2. Kamera</span>
+                <span>3. Kontrol</span>
+              </div>
+              <div class="coach-next-action" id="coachNextAction">
+                <span>Sıradaki adım</span>
+                <strong id="coachNextActionTitle">Hedef seç</strong>
+                <p id="coachNextActionText">Harf veya kelime seç, sonra çalışmayı başlat.</p>
+              </div>
+              <div class="coach-mode-switch" aria-label="Koç hedef tipi">
+                <button class="segmented-button is-active" type="button" id="coachLettersOnly">Harfler</button>
+                <button class="segmented-button" type="button" id="coachWordsOnly">Kelimeler</button>
+              </div>
+              <div class="coach-flow-switch" aria-label="Koç çalışma akışı">
+                <button class="segmented-button is-active" type="button" data-coach-flow="learn">Öğren</button>
+                <button class="segmented-button" type="button" data-coach-flow="practice">Pratik</button>
+                <button class="segmented-button" type="button" data-coach-flow="quiz">Quiz</button>
+              </div>
+              <label class="field-label" for="coachTarget">Hedef <span id="coachModeLabel">Harf çalışması</span></label>
+              <select id="coachTarget" class="select-input"></select>
+              <div class="coach-target">
+                <span id="coachTargetBig">A</span>
+                <p id="coachHint">Hedefi seçin ve kamerada kontrollü biçimde uygulayın.</p>
+              </div>
+              <div class="coach-flow-card">
+                <strong id="coachFlowTitle">Öğren</strong>
+                <p id="coachFlowText">Referans görseli inceleyin, video rehberi açın ve canlı algılanan sonucu hedefle karşılaştırın.</p>
+              </div>
+              <div class="coach-guide" aria-label="Öğrenme koçu kullanım adımları">
+                <div><strong>Harf</strong><span>El pozunu sabit tut, tahmini kontrol et.</span></div>
+                <div><strong>Kelime</strong><span>3-5 saniyelik hareket kaydı al, top-3 sonucu incele.</span></div>
+                <div><strong>Quiz</strong><span>Her doğru kontrolde skor ilerler.</span></div>
+              </div>
+              <div class="coach-progress" id="coachProgress"></div>
+              <details class="coach-tips compact-details" aria-label="Pratik ipuçları">
+                <summary>Uygulama ipuçları</summary>
+                <ul>
+                  <li>Harf çalışmasında el şekli 1 saniye sabit kalmalı.</li>
+                  <li>Kelime çalışmasında hareket 3–5 saniye içinde tamamlanmalı.</li>
+                  <li>Kelime için el, yüz ve omuzlar aynı anda kadrajda olmalı.</li>
+                </ul>
+              </details>
+            </section>
+
+            <section class="card word-state-card mode-only word-only" id="wordStateCard">
+              <div class="card-heading">
+                <span>Kelime akışı</span>
+                <strong id="wordStateLabel">IDLE</strong>
+              </div>
+              <div class="word-flow-steps" aria-label="Kelime kayıt akışı">
+                <span>1. Başlat</span>
+                <span>2. İşareti yap</span>
+                <span>3. Sonucu incele</span>
+              </div>
+              <div class="meter"><span id="frameProgress" style="width: 0%"></span></div>
+              <p id="wordStateHint">45 frame kaydedilir, sonra top-3 sonuç gösterilir.</p>
+              <div class="quality-pills" id="wordQualityPills" aria-label="Kayıt kalitesi">
+                <span data-quality="hand">El ?</span><span data-quality="face">Yüz ?</span><span data-quality="pose">Omuz ?</span>
+              </div>
+              <div class="word-result-guide" id="wordResultGuide" hidden>
+                <strong id="wordResultDecision">Sonuç bekleniyor</strong>
+                <span id="wordResultAction">Kayıt tamamlandığında model sonucu burada yorumlanır.</span>
+              </div>
+            </section>
+
+            <details class="card word-demo-card mode-only word-only">
+              <summary class="card-summary">
+                <span>Jüri demo önerileri</span>
+                <strong>Kısa liste</strong>
+              </summary>
+              <div class="word-group good">
+                <h3>Modelin rahat algıladığı kelimeler</h3>
+                <p id="wordDemoList">water · sad · uncle · cow · brown · donkey · lips · shhh · duck · dad</p>
+              </div>
+              <details class="word-group risky">
+                <summary>Dikkatli gösterilecek kelimeler</summary>
+                <p id="wordRiskList">open · give · all · sleepy · book · go · child · can</p>
+              </details>
+              <details class="word-group confusion">
+                <summary>Sık karışan çiftler</summary>
+                <p id="wordConfusionList">listen / hear · can / yes · open / book · sleep / sleepy · who / bird · fireman / hello</p>
+              </details>
+              <p class="card-note">Jüride önce rahat kelimelerle başla; karışan çiftleri modelin canlı sınırlılığı olarak açıkla.</p>
+            </details>
+
+            <details class="card word-library-card mode-only word-only">
+              <summary class="card-summary">
+                <span>50 kelime kütüphanesi</span>
+                <strong>Pratik</strong>
+              </summary>
+              <div class="word-categories">
+                <div><strong>Günlük</strong><span>water, home, food, drink, book, finish, wait, open, go, look, listen, hear, talk, thankyou, please</span></div>
+                <div><strong>Duygu / durum</strong><span>sad, happy, sleep, sleepy, sick, hungry, hot</span></div>
+                <div><strong>Hayvan</strong><span>bird, cow, dog, donkey, duck, mouse</span></div>
+                <div><strong>Aile / insan</strong><span>dad, mom, uncle, brother, child, fireman, who</span></div>
+                <div><strong>Diğer</strong><span>all, before, brown, bye, can, give, have, hello, like, lips, no, pretend, shhh, toothbrush, yes</span></div>
+              </div>
+            </details>
+
+            <details class="card model-card mode-card">
+              <summary class="card-summary">
+                <span>Model kartı</span>
+                <strong>Web hazır</strong>
+              </summary>
+              <dl class="model-facts">
+                <div><dt>Harf</dt><dd>24 sınıf · ONNX</dd></div>
+                <div><dt>Kelime</dt><dd>50 sınıf · SignTransformer</dd></div>
+                <div><dt>Sekans</dt><dd>45 frame + bool mask</dd></div>
+                <div><dt>Çıktı</dt><dd>Top-3 + eşik</dd></div>
+              </dl>
+              <button class="button full" type="button" id="offlineTest">Offline test</button>
+            </details>
+          </aside>
+
+          <section class="project-screen" id="projectScreen" hidden>
+            <div class="project-content">
+              <span class="eyebrow">Jüri anlatımı</span>
+              <h2>ASL Sign Language Assistant</h2>
+              <p class="project-subtitle">
+                Kamera görüntüsünden el/poz landmark'ları çıkaran, bu sayısal verileri ONNX
+                modelleriyle yorumlayan ve kullanıcıya harf, kelime, pratik ve test akışları
+                sunan tarayıcı tabanlı bir işaret dili asistanı.
+              </p>
+              <div class="project-actions" aria-label="Proje aksiyonları">
+                <button class="button primary" type="button" id="showDemoFlow">Demo Akışını Göster</button>
+                <button class="button" type="button" id="showTechSummary">Teknik Özeti Aç</button>
+              </div>
+
+              <div class="metric-row">
+                <div class="metric-card"><strong>24</strong><span>Statik harf sınıfı</span></div>
+                <div class="metric-card"><strong>50</strong><span>Kelime / hareket sınıfı</span></div>
+                <div class="metric-card"><strong>%71.4</strong><span>Kelime test macro F1</span></div>
+              </div>
+
+              <div class="project-section project-story">
+                <h3>Problem ve amaç</h3>
+                <p>
+                  Amaç, kullanıcının kameraya gösterdiği temel ASL harflerini ve seçili
+                  kelime hareketlerini tarayıcı içinde algılayıp okunabilir bir sonuca
+                  dönüştürmek. Proje yalnızca tahmin üretmeyi değil, öğrenme koçu ve model
+                  test ekranıyla modelin nasıl çalıştığını anlaşılır göstermeyi hedefler.
+                </p>
+                <div class="project-callout">
+                  <strong>Hocaya kısa anlatım</strong>
+                  <span>Görüntüyü doğrudan sunucuya göndermiyoruz; tarayıcıda landmark çıkarıp modeli yine tarayıcıda çalıştırıyoruz.</span>
+                </div>
+              </div>
+
+              <div class="project-section" id="demoFlowSection">
+                <h3>Jüri demo akışı</h3>
+                <div class="project-demo-grid">
+                  <div><strong>1. Harf Çeviri</strong><span>Kamerayı aç, A/B/L/Y gibi statik harfleri göster, canlı tahmini ve güven skorunu anlat.</span></div>
+                  <div><strong>2. Öğrenme Koçu</strong><span>Hedef seç, referans görseli aç, kontrol butonuyla hedefe uyumu göster.</span></div>
+                  <div><strong>3. Model Test</strong><span>Hazır JSON fixture çalıştır; modelin gerçek bir test girdisine verdiği top-3 çıktıyı göster.</span></div>
+                  <div><strong>4. Kelime Pratik</strong><span>Rahat kelimelerle başla; benzer hareketlerde top-3 ve tekrar deneme akışını açıkla.</span></div>
+                </div>
+              </div>
+
+              <div class="project-section" id="techSummarySection">
+                <h3>Teknik pipeline</h3>
+                <div class="pipeline-flow">
+                  <span class="pipeline-step">Kamera</span><span class="pipeline-arrow">→</span>
+                  <span class="pipeline-step">MediaPipe</span><span class="pipeline-arrow">→</span>
+                  <span class="pipeline-step">Landmark</span><span class="pipeline-arrow">→</span>
+                  <span class="pipeline-step">Feature</span><span class="pipeline-arrow">→</span>
+                  <span class="pipeline-step">ONNX</span><span class="pipeline-arrow">→</span>
+                  <span class="pipeline-step">Top-3 + Feedback</span>
+                </div>
+                <div class="project-model-grid">
+                  <article>
+                    <span>Harf modeli</span>
+                    <h4>Tek el pozu → 93 özellik</h4>
+                    <p>21 el landmark'ı normalize edilir; parmak mesafeleri, açıları, el kutusu ve parmak açık/kapalı bilgileri çıkarılır. LightGBM modeli 24 harften birini tahmin eder.</p>
+                  </article>
+                  <article>
+                    <span>Kelime modeli</span>
+                    <h4>45 frame → 168 özellik</h4>
+                    <p>Her kayıt 45 frame'e tamamlanır. Dominant el, el şekli, yüz/omuz ilişkisi ve hareket vektörleri SignTransformer modeline verilir.</p>
+                  </article>
+                </div>
+              </div>
+
+              <div class="project-section">
+                <h3>Veri ve değerlendirme</h3>
+                <div class="project-info-grid">
+                  <div>
+                    <strong>Harf verisi</strong>
+                    <span>Statik el pozlarından 93 boyutlu feature çıkarıldı. Web tarafında aynı feature sırası korunuyor.</span>
+                  </div>
+                  <div>
+                    <strong>Kelime verisi</strong>
+                    <span>Kaggle ASL Signs landmark/parquet verisi eğitimde kullanıldı; web demosu için küçük JSON fixture'lara dönüştürüldü.</span>
+                  </div>
+                  <div>
+                    <strong>Model çıktısı</strong>
+                    <span>Sonuç tek tahminle sınırlı değil; top-3 liste, güven skoru, kalite uyarısı ve tekrar deneme akışı gösteriliyor.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="project-section">
+                <h3>Canlı kullanım notu</h3>
+                <p>
+                  Harf modeli tek poz üzerinden daha stabil çalışır. Kelime modeli ise hareket
+                  süresi, omuz/yüz görünürlüğü, elin kadrajda kalması ve benzer işaret çiftleri
+                  nedeniyle canlıda daha hassastır. Bu yüzden kelime tarafında kullanıcıya
+                  kayıt kalitesi, top-3 sonuç ve tekrar deneme kararı birlikte gösterilir.
+                </p>
+              </div>
+
+              <div class="project-section project-footer">
+                <p>Ali Mustafa Ekmen | Yapay Zeka Uygulamaları Geliştirme</p>
+                <p>Kamera görüntüsü cihazda işlenir; demo statik web sitesi olarak çalışır.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="model-test-screen" id="modelTestScreen" hidden aria-labelledby="modelTestTitle">
+            <div class="model-test-header">
+              <div>
+                <span class="eyebrow">Model Test</span>
+                <h2 id="modelTestTitle">Test Verisiyle Canlı ONNX Çıktısı</h2>
+                <p>
+                  Hazır örnek seç veya JSON yükle. Kamera kullanılmaz; aynı web modeli doğrudan
+                  çalışır ve tahmin, güven skoru, top-3 ve süre net şekilde görünür.
+                </p>
+              </div>
+              <div class="model-test-badges" aria-label="Desteklenen test formatları">
+                <span>Kamera yok</span>
+                <span>Harf + Kelime</span>
+                <span>Top-3 sonuç</span>
+              </div>
+            </div>
+            <div class="model-test-brief" aria-label="Model test açıklaması">
+              <div>
+                <strong>1. Test verisi seçilir</strong>
+                <span>Hazır fixture kullanılır veya aynı formatta JSON yüklenir.</span>
+              </div>
+              <div>
+                <strong>2. Web modeli çalışır</strong>
+                <span>Tarayıcıdaki ONNX modeli, kamera açmadan bu girdiden tahmin üretir.</span>
+              </div>
+              <div>
+                <strong>3. Sonuç karşılaştırılır</strong>
+                <span>Tahmin, beklenen etiket, güven skoru ve top-3 birlikte gösterilir.</span>
+              </div>
+            </div>
+
+            <div class="model-test-grid">
+              <section class="card model-test-card" aria-label="Test girdisi">
+                <div class="card-heading">
+                  <span>1. Hızlı demo</span>
+                  <strong id="jurySampleStatus">Örnek bekleniyor</strong>
+                </div>
+                <p class="model-test-simple-copy">
+                  Jüride tek seçim yeterli: örnek yüklenir, tarayıcıdaki ONNX modeli çalışır, sonuç sağda görünür.
+                </p>
+                <div class="jury-quick-actions" aria-label="Hızlı jüri demo örnekleri">
+                  <button class="button primary" type="button" id="loadDemoLetter">Harf Modelini Test Et</button>
+                  <button class="button primary" type="button" id="loadDemoWord">Kelime Modelini Test Et</button>
+                </div>
+                <button class="button full quiet" type="button" id="runJurySample" disabled>Seçili Örneği Tekrar Çalıştır</button>
+                <div class="jury-process" id="juryProcessSteps" aria-label="Model test işlem adımları">
+                  <span data-step="sample">1. Örnek</span>
+                  <span data-step="validate">2. Kontrol</span>
+                  <span data-step="inference">3. Model</span>
+                  <span data-step="result">4. Sonuç</span>
+                </div>
+
+                <details class="jury-advanced">
+                  <summary>Gelişmiş: model tipi, farklı fixture veya JSON seç</summary>
+                  <div class="jury-task-switch" aria-label="Model tipi">
+                    <button class="segmented-button is-active" type="button" data-jury-task="letter">
+                      <strong>Harf Modeli</strong>
+                      <small>Tek el · 93 özellik</small>
+                    </button>
+                    <button class="segmented-button" type="button" data-jury-task="word">
+                      <strong>Kelime Modeli</strong>
+                      <small>45 frame · hareket</small>
+                    </button>
+                  </div>
+                  <p class="card-note" id="juryDomainHelp">
+                    Harf örnekleri tek frame 93D feature ile, kelime örnekleri 45 frame compact feature ve mask ile çalışır.
+                  </p>
+                  <div class="jury-library">
+                    <label class="field-label" for="jurySampleSelect">Hazır jüri örnekleri</label>
+                    <div class="jury-library-row">
+                      <select id="jurySampleSelect" class="select-input"></select>
+                      <button class="button" type="button" id="loadSelectedJurySample">Örneği Hazırla</button>
+                    </div>
+                  </div>
+                  <label class="file-drop" id="juryDropZone" for="jurySampleFile">
+                    <span>JSON fixture yükle veya buraya bırak</span>
+                    <small id="juryFileName">Harf: features[93]. Kelime: features[7560] + mask[45].</small>
+                  </label>
+                  <input id="jurySampleFile" class="visually-hidden" type="file" accept="application/json,.json" />
+                  <div class="sample-schema-note">
+                    <strong>JSON formatı</strong>
+                    <code>letter: features[93]</code>
+                    <code>word: features[7560], mask[45]</code>
+                  </div>
+                </details>
+              </section>
+
+              <section class="card model-output-card" aria-label="Model sonucu">
+                <div class="card-heading">
+                  <span>2. Sonuç</span>
+                  <strong id="juryMatchBadge">Beklemede</strong>
+                </div>
+                <div class="jury-prediction-hero">
+                  <span>Tahmin</span>
+                  <strong id="juryPredictedLabel">-</strong>
+                </div>
+                <div class="jury-result-main">
+                  <div>
+                    <span>Beklenen</span>
+                    <strong id="juryExpectedLabel">-</strong>
+                  </div>
+                  <div>
+                    <span>Güven</span>
+                    <strong id="juryConfidence">-</strong>
+                  </div>
+                  <div>
+                    <span>Süre</span>
+                    <strong id="juryLatency">-</strong>
+                  </div>
+                </div>
+                <div class="jury-top3-heading">MODELİN EN GÜÇLÜ 3 TAHMİNİ</div>
+                <div class="top3-list jury-top3" id="juryTop3List"></div>
+                <p class="card-note" id="juryResultNote">Fixture seçildiğinde burada tahmin özeti görünür.</p>
+              </section>
+            </div>
+
+            <details class="card model-sample-meta" aria-label="Fixture bilgisi">
+              <summary class="card-summary">
+                <span>Fixture ve jüri soru cevapları</span>
+                <strong id="juryTaskLabel">Detay</strong>
+              </summary>
+              <div class="card-heading">
+                <span>Fixture bilgisi</span>
+                <strong>Teknik detay</strong>
+              </div>
+              <dl class="model-facts">
+                <div><dt>Kaynak</dt><dd id="jurySourceLabel">-</dd></div>
+                <div><dt>Şema</dt><dd id="jurySchemaLabel">-</dd></div>
+                <div><dt>Ölçü</dt><dd id="juryShapeLabel">-</dd></div>
+                <div><dt>Gerçek frame</dt><dd id="juryMaskLabel">-</dd></div>
+              </dl>
+              <div class="jury-faq" aria-label="Jüri için kısa cevaplar">
+                <details>
+                  <summary>Bu sonuç resmi F1 skoru mu?</summary>
+                  <p>Hayır. Bu panel tek tek fixture üzerinde canlı tahmin gösterir. Resmi başarı değerleri eğitim/evaluasyon raporlarından gelir.</p>
+                </details>
+                <details>
+                  <summary>Harf ve kelime verisi neden farklı?</summary>
+                  <p>Harf modeli tek el pozundan çıkarılan 93 özellik kullanır. Kelime modeli hareket içerdiği için 45 frame boyunca 168 özellik ve mask bilgisi kullanır.</p>
+                </details>
+                <details>
+                  <summary>JSON neden kullanılıyor?</summary>
+                  <p>Tarayıcıya ham Kaggle/parquet dosyası yüklemek yerine, aynı eğitim pipeline'ından geçirilmiş küçük ve doğrulanabilir test fixture yüklenir.</p>
+                </details>
+                <details>
+                  <summary>Güven skoru nasıl okunmalı?</summary>
+                  <p>Güven skoru modelin bu tek girdideki softmax olasılığıdır. Top-3 listesi, modelin karıştırabileceği yakın alternatifleri görmeyi sağlar.</p>
+                </details>
+              </div>
+            </details>
+          </section>
+
+          <section class="qr-screen" id="qrScreen" hidden aria-labelledby="qrTitle">
+            <div class="qr-copy">
+              <span class="eyebrow">Jüri Telefon Demo</span>
+              <h2 id="qrTitle">QR kodu okut, canlı web sitesini aç.</h2>
+              <p>
+                Bu ekran sunum sırasında büyük ve okunabilir bir QR gösterir. Hoca telefon kamerasıyla
+                okuttuğunda site HTTPS üzerinden açılır; harf modeli için kamerayı başlatıp elini
+                gösterebilir.
+              </p>
+              <div class="qr-target-switch" aria-label="QR hedefi">
+                <button class="segmented-button is-active" type="button" data-qr-target="letter">
+                  <strong>Canlı Harf</strong>
+                  <small>Telefon kamerası ile en stabil demo</small>
+                </button>
+                <button class="segmented-button" type="button" data-qr-target="word">
+                  <strong>Kelime</strong>
+                  <small>Telefonla denenebilir, ışık/kadraj önemli</small>
+                </button>
+                <button class="segmented-button" type="button" data-qr-target="test">
+                  <strong>Model Test</strong>
+                  <small>Kamera gerektirmeyen yedek demo</small>
+                </button>
+              </div>
+              <ol class="qr-steps">
+                <li>Telefon kamerasıyla QR kodu okut.</li>
+                <li>Sayfa açılınca modellerin hazır olmasını bekle.</li>
+                <li>Canlı deneme için <strong>Kamerayı Başlat</strong> butonuna bas.</li>
+              </ol>
+              <div class="qr-actions">
+                <a class="button primary" id="qrOpenDemo" href="https://asl-demo.netlify.app/#letter" target="_blank" rel="noreferrer">Linki Aç</a>
+                <button class="button" type="button" id="qrCopyDemo">Linki Kopyala</button>
+              </div>
+              <p class="card-note" id="qrStatus">QR hazırlanıyor...</p>
+            </div>
+            <div class="qr-stage" aria-label="Canlı demo QR kodu">
+              <div class="qr-frame">
+                <div id="qrCanvas" class="qr-canvas" role="img" aria-label="ASL Assistant canlı demo QR kodu"></div>
+                <div class="qr-scanline" aria-hidden="true"></div>
+              </div>
+              <div class="qr-url" id="qrDemoUrl">https://asl-demo.netlify.app/#letter</div>
+            </div>
+          </section>
+        </section>
+      </main>
+
+      <!-- Referans görseli için tam ekran lightbox -->
+      <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-labelledby="lightboxTitle">
+        <button class="lightbox-close" id="lightboxClose" type="button" aria-label="Kapat (ESC)">×</button>
+        <div class="lightbox-content">
+          <h2 class="lightbox-title" id="lightboxTitle">ASL referans görseli</h2>
+          <img class="lightbox-image" id="lightboxImage" alt="" />
+          <p class="lightbox-hint">Kapatmak için ESC, arka plan veya × tuşunu kullan.</p>
+        </div>
+      </div>
+
+      <section class="debug-panel" id="debugPanel" hidden aria-label="Debug paneli">
+        <strong>Debug</strong>
+        <span id="debugMode">mode: letter</span>
+        <span id="debugConfidence">confidence: 0</span>
+        <span id="debugFrames">frames: 0</span>
+        <span id="debugLatency">latency: --</span>
+      </section>
+    </div>
+
+    <!-- ONNX Runtime Web -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/kjua@0.9.0/dist/kjua.min.js"></script>
+
+    <!-- MediaPipe Tasks Vision ESM loader is lazily imported in media/camera.js -->
+
+    <!-- Uygulama modülleri (sırayla, bağımlılık sırası) -->
+    <script src="js/ml/landmarks.js?v=9"></script>
+    <script src="js/ml/features.js?v=9"></script>
+    <script src="js/services/benchmark.js?v=9"></script>
+    <script src="js/ml/gating.js?v=9"></script>
+    <script src="js/ml/letter-model.js?v=9"></script>
+    <script src="js/ml/word-model.js?v=9"></script>
+    <script src="js/media/camera.js?v=9"></script>
+    <script src="js/core/app.js?v=9"></script>
+
+  </body>
+</html>

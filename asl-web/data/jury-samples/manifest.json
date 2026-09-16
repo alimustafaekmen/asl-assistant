@@ -1,0 +1,740 @@
+{
+  "schema_version": "asl-jury-manifest-v1",
+  "default_task": "letter",
+  "letter_count": 24,
+  "word_count": 51,
+  "letters": [
+    {
+      "id": "letter-a",
+      "label": "A",
+      "title": "Harf A",
+      "path": "./data/jury-samples/letters/letter-a.json",
+      "expected_label": "A",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-b",
+      "label": "B",
+      "title": "Harf B",
+      "path": "./data/jury-samples/letters/letter-b.json",
+      "expected_label": "B",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-c",
+      "label": "C",
+      "title": "Harf C",
+      "path": "./data/jury-samples/letters/letter-c.json",
+      "expected_label": "C",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-d",
+      "label": "D",
+      "title": "Harf D",
+      "path": "./data/jury-samples/letters/letter-d.json",
+      "expected_label": "D",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-e",
+      "label": "E",
+      "title": "Harf E",
+      "path": "./data/jury-samples/letters/letter-e.json",
+      "expected_label": "E",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-f",
+      "label": "F",
+      "title": "Harf F",
+      "path": "./data/jury-samples/letters/letter-f.json",
+      "expected_label": "F",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-g",
+      "label": "G",
+      "title": "Harf G",
+      "path": "./data/jury-samples/letters/letter-g.json",
+      "expected_label": "G",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-h",
+      "label": "H",
+      "title": "Harf H",
+      "path": "./data/jury-samples/letters/letter-h.json",
+      "expected_label": "H",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-i",
+      "label": "I",
+      "title": "Harf I",
+      "path": "./data/jury-samples/letters/letter-i.json",
+      "expected_label": "I",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-k",
+      "label": "K",
+      "title": "Harf K",
+      "path": "./data/jury-samples/letters/letter-k.json",
+      "expected_label": "K",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-l",
+      "label": "L",
+      "title": "Harf L",
+      "path": "./data/jury-samples/letters/letter-l.json",
+      "expected_label": "L",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-m",
+      "label": "M",
+      "title": "Harf M",
+      "path": "./data/jury-samples/letters/letter-m.json",
+      "expected_label": "M",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-n",
+      "label": "N",
+      "title": "Harf N",
+      "path": "./data/jury-samples/letters/letter-n.json",
+      "expected_label": "N",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-o",
+      "label": "O",
+      "title": "Harf O",
+      "path": "./data/jury-samples/letters/letter-o.json",
+      "expected_label": "O",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-p",
+      "label": "P",
+      "title": "Harf P",
+      "path": "./data/jury-samples/letters/letter-p.json",
+      "expected_label": "P",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-q",
+      "label": "Q",
+      "title": "Harf Q",
+      "path": "./data/jury-samples/letters/letter-q.json",
+      "expected_label": "Q",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-r",
+      "label": "R",
+      "title": "Harf R",
+      "path": "./data/jury-samples/letters/letter-r.json",
+      "expected_label": "R",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-s",
+      "label": "S",
+      "title": "Harf S",
+      "path": "./data/jury-samples/letters/letter-s.json",
+      "expected_label": "S",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-t",
+      "label": "T",
+      "title": "Harf T",
+      "path": "./data/jury-samples/letters/letter-t.json",
+      "expected_label": "T",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-u",
+      "label": "U",
+      "title": "Harf U",
+      "path": "./data/jury-samples/letters/letter-u.json",
+      "expected_label": "U",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-v",
+      "label": "V",
+      "title": "Harf V",
+      "path": "./data/jury-samples/letters/letter-v.json",
+      "expected_label": "V",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-w",
+      "label": "W",
+      "title": "Harf W",
+      "path": "./data/jury-samples/letters/letter-w.json",
+      "expected_label": "W",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-x",
+      "label": "X",
+      "title": "Harf X",
+      "path": "./data/jury-samples/letters/letter-x.json",
+      "expected_label": "X",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    },
+    {
+      "id": "letter-y",
+      "label": "Y",
+      "title": "Harf Y",
+      "path": "./data/jury-samples/letters/letter-y.json",
+      "expected_label": "Y",
+      "source": "data/processed/test_landmarks.csv",
+      "confidence": 1.0
+    }
+  ],
+  "words": [
+    {
+      "id": "word-all-01",
+      "label": "all",
+      "title": "Kelime all #1",
+      "path": "./data/jury-samples/words/word-all-01.json",
+      "expected_label": "all",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.09789920280366743,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-before-01",
+      "label": "before",
+      "title": "Kelime before #1",
+      "path": "./data/jury-samples/words/word-before-01.json",
+      "expected_label": "before",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.788316655274875,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-bird-01",
+      "label": "bird",
+      "title": "Kelime bird #1",
+      "path": "./data/jury-samples/words/word-bird-01.json",
+      "expected_label": "bird",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9843250203207967,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-book-01",
+      "label": "book",
+      "title": "Kelime book #1",
+      "path": "./data/jury-samples/words/word-book-01.json",
+      "expected_label": "book",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9611422532283241,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-brother-01",
+      "label": "brother",
+      "title": "Kelime brother #1",
+      "path": "./data/jury-samples/words/word-brother-01.json",
+      "expected_label": "brother",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9489405714682709,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-brown-01",
+      "label": "brown",
+      "title": "Kelime brown #1",
+      "path": "./data/jury-samples/words/word-brown-01.json",
+      "expected_label": "brown",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9933896028999596,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-bye-01",
+      "label": "bye",
+      "title": "Kelime bye #1",
+      "path": "./data/jury-samples/words/word-bye-01.json",
+      "expected_label": "bye",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9876360773433419,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-can-01",
+      "label": "can",
+      "title": "Kelime can #1",
+      "path": "./data/jury-samples/words/word-can-01.json",
+      "expected_label": "can",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.4303464641005305,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-child-01",
+      "label": "child",
+      "title": "Kelime child #1",
+      "path": "./data/jury-samples/words/word-child-01.json",
+      "expected_label": "child",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.21556558417709706,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-cow-01",
+      "label": "cow",
+      "title": "Kelime cow #1",
+      "path": "./data/jury-samples/words/word-cow-01.json",
+      "expected_label": "cow",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9479228212349488,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-dad-01",
+      "label": "dad",
+      "title": "Kelime dad #1",
+      "path": "./data/jury-samples/words/word-dad-01.json",
+      "expected_label": "dad",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.19729198844563062,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-dog-01",
+      "label": "dog",
+      "title": "Kelime dog #1",
+      "path": "./data/jury-samples/words/word-dog-01.json",
+      "expected_label": "dog",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.20316949702860349,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-donkey-01",
+      "label": "donkey",
+      "title": "Kelime donkey #1",
+      "path": "./data/jury-samples/words/word-donkey-01.json",
+      "expected_label": "donkey",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9942285850663686,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-drink-01",
+      "label": "drink",
+      "title": "Kelime drink #1",
+      "path": "./data/jury-samples/words/word-drink-01.json",
+      "expected_label": "drink",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9809149141516549,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-duck-01",
+      "label": "duck",
+      "title": "Kelime duck #1",
+      "path": "./data/jury-samples/words/word-duck-01.json",
+      "expected_label": "duck",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9871321674476108,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-finish-01",
+      "label": "finish",
+      "title": "Kelime finish #1",
+      "path": "./data/jury-samples/words/word-finish-01.json",
+      "expected_label": "finish",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9615802391769976,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-fireman-01",
+      "label": "fireman",
+      "title": "Kelime fireman #1",
+      "path": "./data/jury-samples/words/word-fireman-01.json",
+      "expected_label": "fireman",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.5552128814838233,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-food-01",
+      "label": "food",
+      "title": "Kelime food #1",
+      "path": "./data/jury-samples/words/word-food-01.json",
+      "expected_label": "food",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9901413504080494,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-give-01",
+      "label": "give",
+      "title": "Kelime give #1",
+      "path": "./data/jury-samples/words/word-give-01.json",
+      "expected_label": "give",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9952974710648582,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-give-smoke",
+      "label": "give",
+      "title": "Kelime give (smoke)",
+      "path": "./data/jury-samples/words/word-give-smoke.json",
+      "expected_label": "give",
+      "source": "notebooks/results/test_sample.json",
+      "confidence": 0.07602518796920776,
+      "kind": "deterministic-smoke"
+    },
+    {
+      "id": "word-go-01",
+      "label": "go",
+      "title": "Kelime go #1",
+      "path": "./data/jury-samples/words/word-go-01.json",
+      "expected_label": "go",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.8834143977965386,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-happy-01",
+      "label": "happy",
+      "title": "Kelime happy #1",
+      "path": "./data/jury-samples/words/word-happy-01.json",
+      "expected_label": "happy",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.8990304756037112,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-have-01",
+      "label": "have",
+      "title": "Kelime have #1",
+      "path": "./data/jury-samples/words/word-have-01.json",
+      "expected_label": "have",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9588228119016214,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-hear-01",
+      "label": "hear",
+      "title": "Kelime hear #1",
+      "path": "./data/jury-samples/words/word-hear-01.json",
+      "expected_label": "hear",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.7404475658877073,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-hello-01",
+      "label": "hello",
+      "title": "Kelime hello #1",
+      "path": "./data/jury-samples/words/word-hello-01.json",
+      "expected_label": "hello",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9252180093498444,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-home-01",
+      "label": "home",
+      "title": "Kelime home #1",
+      "path": "./data/jury-samples/words/word-home-01.json",
+      "expected_label": "home",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9549521476205256,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-hot-01",
+      "label": "hot",
+      "title": "Kelime hot #1",
+      "path": "./data/jury-samples/words/word-hot-01.json",
+      "expected_label": "hot",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9864164897629552,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-hungry-01",
+      "label": "hungry",
+      "title": "Kelime hungry #1",
+      "path": "./data/jury-samples/words/word-hungry-01.json",
+      "expected_label": "hungry",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9429895087990445,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-like-01",
+      "label": "like",
+      "title": "Kelime like #1",
+      "path": "./data/jury-samples/words/word-like-01.json",
+      "expected_label": "like",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.6614110789011831,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-lips-01",
+      "label": "lips",
+      "title": "Kelime lips #1",
+      "path": "./data/jury-samples/words/word-lips-01.json",
+      "expected_label": "lips",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9405317054336878,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-listen-01",
+      "label": "listen",
+      "title": "Kelime listen #1",
+      "path": "./data/jury-samples/words/word-listen-01.json",
+      "expected_label": "listen",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9117435115777641,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-look-01",
+      "label": "look",
+      "title": "Kelime look #1",
+      "path": "./data/jury-samples/words/word-look-01.json",
+      "expected_label": "look",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9384740805341336,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-mom-01",
+      "label": "mom",
+      "title": "Kelime mom #1",
+      "path": "./data/jury-samples/words/word-mom-01.json",
+      "expected_label": "mom",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9839930672623719,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-mouse-01",
+      "label": "mouse",
+      "title": "Kelime mouse #1",
+      "path": "./data/jury-samples/words/word-mouse-01.json",
+      "expected_label": "mouse",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9517005488349142,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-no-01",
+      "label": "no",
+      "title": "Kelime no #1",
+      "path": "./data/jury-samples/words/word-no-01.json",
+      "expected_label": "no",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9718920970083594,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-open-01",
+      "label": "open",
+      "title": "Kelime open #1",
+      "path": "./data/jury-samples/words/word-open-01.json",
+      "expected_label": "open",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.700192278576562,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-please-01",
+      "label": "please",
+      "title": "Kelime please #1",
+      "path": "./data/jury-samples/words/word-please-01.json",
+      "expected_label": "please",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.8217667186540856,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-pretend-01",
+      "label": "pretend",
+      "title": "Kelime pretend #1",
+      "path": "./data/jury-samples/words/word-pretend-01.json",
+      "expected_label": "pretend",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9886408505317626,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-sad-01",
+      "label": "sad",
+      "title": "Kelime sad #1",
+      "path": "./data/jury-samples/words/word-sad-01.json",
+      "expected_label": "sad",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9682799491092169,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-shhh-01",
+      "label": "shhh",
+      "title": "Kelime shhh #1",
+      "path": "./data/jury-samples/words/word-shhh-01.json",
+      "expected_label": "shhh",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9067908947947027,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-sick-01",
+      "label": "sick",
+      "title": "Kelime sick #1",
+      "path": "./data/jury-samples/words/word-sick-01.json",
+      "expected_label": "sick",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9723069979272235,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-sleep-01",
+      "label": "sleep",
+      "title": "Kelime sleep #1",
+      "path": "./data/jury-samples/words/word-sleep-01.json",
+      "expected_label": "sleep",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.7420723165593736,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-sleepy-01",
+      "label": "sleepy",
+      "title": "Kelime sleepy #1",
+      "path": "./data/jury-samples/words/word-sleepy-01.json",
+      "expected_label": "sleepy",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.22629487963651235,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-talk-01",
+      "label": "talk",
+      "title": "Kelime talk #1",
+      "path": "./data/jury-samples/words/word-talk-01.json",
+      "expected_label": "talk",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9493733313481789,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-thankyou-01",
+      "label": "thankyou",
+      "title": "Kelime thankyou #1",
+      "path": "./data/jury-samples/words/word-thankyou-01.json",
+      "expected_label": "thankyou",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.6752775585765683,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-toothbrush-01",
+      "label": "toothbrush",
+      "title": "Kelime toothbrush #1",
+      "path": "./data/jury-samples/words/word-toothbrush-01.json",
+      "expected_label": "toothbrush",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.88961019408819,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-uncle-01",
+      "label": "uncle",
+      "title": "Kelime uncle #1",
+      "path": "./data/jury-samples/words/word-uncle-01.json",
+      "expected_label": "uncle",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9750013750908993,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-wait-01",
+      "label": "wait",
+      "title": "Kelime wait #1",
+      "path": "./data/jury-samples/words/word-wait-01.json",
+      "expected_label": "wait",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9301017077534981,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-water-01",
+      "label": "water",
+      "title": "Kelime water #1",
+      "path": "./data/jury-samples/words/word-water-01.json",
+      "expected_label": "water",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9436352921671112,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-who-01",
+      "label": "who",
+      "title": "Kelime who #1",
+      "path": "./data/jury-samples/words/word-who-01.json",
+      "expected_label": "who",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9243601744129328,
+      "kind": "kaggle-heldout"
+    },
+    {
+      "id": "word-yes-01",
+      "label": "yes",
+      "title": "Kelime yes #1",
+      "path": "./data/jury-samples/words/word-yes-01.json",
+      "expected_label": "yes",
+      "source": "Kaggle ASL Signs test split",
+      "confidence": 0.9178800438583274,
+      "kind": "kaggle-heldout"
+    }
+  ],
+  "notes": [
+    "Letter fixtures are 93D feature vectors and cover all 24 deployed static classes.",
+    "Word fixture list currently includes the deterministic ONNX smoke sample. Real Kaggle held-out word samples must be exported from the Kaggle ASL Signs landmark files through the notebook feature pipeline into asl-sample-v1 JSON."
+  ]
+}
