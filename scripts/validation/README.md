@@ -1,8 +1,20 @@
-# scripts/validation
+# Validation Scripts
 
-Proje saglik kontrolleri ve web dogrulama yardimcilari.
+| Script | Purpose |
+|---|---|
+| `check_runtime_assets.py` | Validate deploy files, JSON/fixture schemas, source/deploy hashes, the notebook export manifest, ONNX I/O, and deterministic inference |
+| `verify_project_assets.py` | Report broader web, provenance, source-model, and local dataset readiness |
+| `generate_word_onnx_test_sample.py` | Regenerate the deterministic word fixture from the ONNX path |
 
-- `verify_project_assets.py`: dataset, model ve gerekli cikti dosyalarini raporlar.
-- `generate_word_onnx_test_sample.py`: final kelime ONNX modeli icin Python/Browser parity sample'i uretir.
+Run the standard checks from repository root:
 
-`generate_word_onnx_test_sample.py` eksik paketleri otomatik kurmaz; onnxruntime yoksa durup acik kurulum komutu verir. Bu, demo makinesinde beklenmeyen network/pip yan etkilerini engeller.
+```bash
+# Run from any configured Python environment.
+make validate
+make validate-full
+```
+
+The scripts do not install missing packages automatically. This avoids hidden
+network or environment changes on a demo machine. `generate_word_onnx_test_sample.py`
+updates the web fixture by default; writing notebook provenance requires its
+explicit option and should be treated as a model-export change.

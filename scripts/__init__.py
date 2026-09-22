@@ -1,1 +1,1 @@
-"""scripts — ASL Assistant egitim ve yardimci scriptler."""
+"""Data preparation, model training, evaluation, and validation commands."""

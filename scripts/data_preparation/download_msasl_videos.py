@@ -1,35 +1,31 @@
 #!/usr/bin/env python3
-"""
-MS-ASL Video İndirme Scripti
-=============================
-MS-ASL veri setindeki 50 hedef kelime için YouTube videolarını indirir.
+"""Download MS-ASL clips for an exploratory 50-word data experiment.
 
-Kullanım:
+This helper was not used to train the published 50-word web model, which uses
+Google ASL Signs data. It remains useful for reproducing the documented MS-ASL
+exploration.
+
+Examples:
     python scripts/data_preparation/download_msasl_videos.py
     python scripts/data_preparation/download_msasl_videos.py --workers 4 --retry-failed
     python scripts/data_preparation/download_msasl_videos.py --dry-run
     python scripts/data_preparation/download_msasl_videos.py --max-per-word 5  # test
 
-Çıktı:
+Outputs:
     data/raw/MS-ASL/videos/{class_id}_{word}/{split}_{idx}.mp4
     data/raw/MS-ASL/download_state.json   (resume desteği)
     data/raw/MS-ASL/download.log          (detaylı log)
 """
-import os
-import sys
-import json
-import time
-import logging
-import argparse
-import subprocess
-import shutil
-from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional
 
-# ============================================================
-# SABİTLER
-# ============================================================
+import argparse
+import json
+import logging
+import shutil
+import subprocess
+import sys
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MSASL_DIR = PROJECT_ROOT / "data" / "raw" / "MS-ASL"
@@ -37,55 +33,95 @@ DEFAULT_VIDEO_DIR = MSASL_DIR / "videos"
 DEFAULT_STATE_FILE = MSASL_DIR / "download_state.json"
 DEFAULT_LOG_FILE = MSASL_DIR / "download.log"
 
-# Bizim 50 kelime → MS-ASL class ID eşleştirmesi
-# Pre-flight check'te doğrulandı: 50/50 eşleşme
+# Target vocabulary mapped to MS-ASL class identifiers.
 WORD_TO_MSASL_CLASS = {
-    "hello": 0, "eat": 3, "food": 3, "no": 4, "happy": 5, "like": 6,
-    "finish": 12, "friend": 17, "mom": 19, "yes": 20, "good": 24,
-    "again": 26, "sad": 27, "need": 29, "dad": 31, "brother": 34,
-    "book": 38, "please": 47, "water": 48, "help": 50, "hungry": 54,
-    "different": 55, "drink": 56, "sick": 63, "name": 67, "day": 72,
-    "thankyou": 75, "go": 87, "big": 88, "work": 90, "know": 97,
-    "dog": 108, "have": 111, "home": 118, "all": 134, "hot": 135,
-    "can": 142, "more": 164, "cold": 177, "bye": 216, "new": 271,
-    "give": 288, "talk": 355, "sleep": 361, "before": 387, "wait": 400,
-    "child": 525, "look": 613, "open": 702, "come": 801,
+    "hello": 0,
+    "eat": 3,
+    "food": 3,
+    "no": 4,
+    "happy": 5,
+    "like": 6,
+    "finish": 12,
+    "friend": 17,
+    "mom": 19,
+    "yes": 20,
+    "good": 24,
+    "again": 26,
+    "sad": 27,
+    "need": 29,
+    "dad": 31,
+    "brother": 34,
+    "book": 38,
+    "please": 47,
+    "water": 48,
+    "help": 50,
+    "hungry": 54,
+    "different": 55,
+    "drink": 56,
+    "sick": 63,
+    "name": 67,
+    "day": 72,
+    "thankyou": 75,
+    "go": 87,
+    "big": 88,
+    "work": 90,
+    "know": 97,
+    "dog": 108,
+    "have": 111,
+    "home": 118,
+    "all": 134,
+    "hot": 135,
+    "can": 142,
+    "more": 164,
+    "cold": 177,
+    "bye": 216,
+    "new": 271,
+    "give": 288,
+    "talk": 355,
+    "sleep": 361,
+    "before": 387,
+    "wait": 400,
+    "child": 525,
+    "look": 613,
+    "open": 702,
+    "come": 801,
 }
 
-# Ters map: class_id → kelime listesi (eat/food aynı class'ı paylaşır)
+# Reverse mapping; multiple target words can share one MS-ASL class.
 CLASS_TO_WORDS: dict[int, list[str]] = {}
 for word, cid in WORD_TO_MSASL_CLASS.items():
     CLASS_TO_WORDS.setdefault(cid, []).append(word)
 
-# Benzersiz class ID'leri (48 adet — eat/food ve different/but ortak)
+# Unique source classes after shared mappings are collapsed.
 TARGET_CLASS_IDS = set(WORD_TO_MSASL_CLASS.values())
 
-# Kalıcı atlama sebepleri (tekrar denenmez)
+# Errors that should not be retried on a resumed download.
 PERMANENT_SKIP_REASONS = {
-    "unavailable", "private", "age_restricted", "deleted",
-    "account_terminated", "copyright", "removed",
+    "unavailable",
+    "private",
+    "age_restricted",
+    "deleted",
+    "account_terminated",
+    "copyright",
+    "removed",
 }
 
 
-# ============================================================
-# LOGGING
-# ============================================================
-
 def setup_logging(log_file: Path) -> logging.Logger:
-    """Konsol (INFO) + dosya (DEBUG) logger."""
+    """Create an INFO console logger and a DEBUG file logger."""
     logger = logging.getLogger("msasl_download")
     logger.setLevel(logging.DEBUG)
 
-    # Dosya handler
+    # Persist detailed diagnostics for resumable bulk downloads.
     log_file.parent.mkdir(parents=True, exist_ok=True)
     fh = logging.FileHandler(log_file, encoding="utf-8")
     fh.setLevel(logging.DEBUG)
-    fh.setFormatter(logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-    ))
+    fh.setFormatter(
+        logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    )
     logger.addHandler(fh)
 
-    # Konsol handler
+    # Keep interactive output concise.
     ch = logging.StreamHandler()
     ch.setLevel(logging.INFO)
     ch.setFormatter(logging.Formatter("%(message)s"))
@@ -94,16 +130,11 @@ def setup_logging(log_file: Path) -> logging.Logger:
     return logger
 
 
-# ============================================================
-# VERİ YÜKLEME
-# ============================================================
-
 def load_msasl_entries() -> list[dict]:
-    """MS-ASL JSON'larından hedef 48 class'a ait entry'leri yükle.
+    """Load entries for the target MS-ASL class identifiers.
 
     Returns:
-        Her entry: {word, ms_class, class_id, split, entry_idx,
-                     url, start_time, end_time, signer_id, box, ...}
+        Normalized metadata dictionaries for downloadable clips.
     """
     classes_path = MSASL_DIR / "MSASL_classes.json"
     with open(classes_path) as f:
@@ -121,7 +152,7 @@ def load_msasl_entries() -> list[dict]:
             if label not in TARGET_CLASS_IDS:
                 continue
 
-            # URL normalize (bazıları www. ile başlıyor)
+            # Normalize incomplete URLs found in the source metadata.
             url = item["url"]
             if url.startswith("www."):
                 url = "https://" + url
@@ -130,32 +161,30 @@ def load_msasl_entries() -> list[dict]:
 
             words = CLASS_TO_WORDS[label]
 
-            entries.append({
-                "entry_id": f"{split_name}_{idx}",
-                "words": words,              # Bu class'a ait kelimelerimiz
-                "ms_class": class_names[label],
-                "class_id": label,
-                "split": split_name,
-                "entry_idx": idx,
-                "url": url,
-                "start_time": item.get("start_time", 0.0),
-                "end_time": item.get("end_time", 0.0),
-                "signer_id": item.get("signer_id", -1),
-                "box": item.get("box"),
-                "width": item.get("width", 0),
-                "height": item.get("height", 0),
-                "fps": item.get("fps", 30.0),
-            })
+            entries.append(
+                {
+                    "entry_id": f"{split_name}_{idx}",
+                    "words": words,
+                    "ms_class": class_names[label],
+                    "class_id": label,
+                    "split": split_name,
+                    "entry_idx": idx,
+                    "url": url,
+                    "start_time": item.get("start_time", 0.0),
+                    "end_time": item.get("end_time", 0.0),
+                    "signer_id": item.get("signer_id", -1),
+                    "box": item.get("box"),
+                    "width": item.get("width", 0),
+                    "height": item.get("height", 0),
+                    "fps": item.get("fps", 30.0),
+                }
+            )
 
     return entries
 
 
-# ============================================================
-# STATE TRACKING (Resume Desteği)
-# ============================================================
-
 def load_state(state_file: Path) -> dict:
-    """Önceki indirme durumunu yükle."""
+    """Load resumable download state."""
     if state_file.exists():
         with open(state_file) as f:
             return json.load(f)
@@ -163,19 +192,15 @@ def load_state(state_file: Path) -> dict:
 
 
 def save_state(state: dict, state_file: Path) -> None:
-    """Durumu diske kaydet (crash-safe)."""
+    """Atomically persist resumable download state."""
     tmp = state_file.with_suffix(".tmp")
     with open(tmp, "w") as f:
         json.dump(state, f, indent=2, ensure_ascii=False)
     tmp.replace(state_file)
 
 
-# ============================================================
-# VIDEO İNDİRME
-# ============================================================
-
 def check_ytdlp() -> bool:
-    """yt-dlp kurulu mu kontrol et."""
+    """Return whether the ``yt-dlp`` executable is available."""
     return shutil.which("yt-dlp") is not None
 
 
@@ -185,23 +210,23 @@ def download_clip(
     logger: logging.Logger,
     max_retries: int = 2,
 ) -> dict:
-    """Tek bir video klibini indir.
+    """Download one time-bounded video clip.
 
     Returns:
-        {"status": "success"|"unavailable"|"error", "path": str, "reason": str}
+        A status dictionary with the local path and failure reason.
     """
     cid = entry["class_id"]
     ms_class = entry["ms_class"]
     entry_id = entry["entry_id"]
 
-    # Çıktı dizini: {class_id}_{ms_class_name}/
+    # Group clips by their source class identifier and sanitized name.
     safe_name = ms_class.replace(" ", "_").replace("/", "_")
     clip_dir = output_dir / f"{cid}_{safe_name}"
     clip_dir.mkdir(parents=True, exist_ok=True)
 
     output_path = clip_dir / f"{entry_id}.mp4"
 
-    # Zaten indirilmiş mi
+    # Reuse an existing non-empty clip when resuming.
     if output_path.exists() and output_path.stat().st_size > 1000:
         return {"status": "success", "path": str(output_path), "reason": "already_exists"}
 
@@ -209,19 +234,25 @@ def download_clip(
     start = entry["start_time"]
     end = entry["end_time"]
 
-    # yt-dlp ile indir
+    # Ask yt-dlp to fetch only the annotated sign interval.
     cmd = [
         "yt-dlp",
-        "-f", "bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo[height<=360]+bestaudio/best[height<=360]/best",
-        "--download-sections", f"*{start}-{end}",
+        "-f",
+        "bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo[height<=360]+bestaudio/best[height<=360]/best",
+        "--download-sections",
+        f"*{start}-{end}",
         "--force-keyframes-at-cuts",
-        "--merge-output-format", "mp4",
-        "-o", str(output_path),
+        "--merge-output-format",
+        "mp4",
+        "-o",
+        str(output_path),
         "--no-playlist",
         "--no-warnings",
         "--quiet",
-        "--socket-timeout", "30",
-        "--retries", "2",
+        "--socket-timeout",
+        "30",
+        "--retries",
+        "2",
         "--no-check-certificates",
         url,
     ]
@@ -245,21 +276,29 @@ def download_clip(
 
             stderr = result.stderr.lower()
 
-            # Kalıcı hatalar
-            if any(kw in stderr for kw in [
-                "video unavailable", "private video", "has been removed",
-                "account associated", "terminated", "copyright",
-                "this video is not available", "not available in your country",
-            ]):
+            # Classify permanent source failures so resume can skip them.
+            if any(
+                kw in stderr
+                for kw in [
+                    "video unavailable",
+                    "private video",
+                    "has been removed",
+                    "account associated",
+                    "terminated",
+                    "copyright",
+                    "this video is not available",
+                    "not available in your country",
+                ]
+            ):
                 return {"status": "unavailable", "path": "", "reason": "video_unavailable"}
 
             if "sign in to confirm" in stderr or "age" in stderr:
                 return {"status": "age_restricted", "path": "", "reason": "age_restricted"}
 
-            # Geçici hata — tekrar dene
+            # Retry transient downloader failures with a short backoff.
             if attempt < max_retries:
                 wait = (attempt + 1) * 5
-                logger.debug(f"  ⏳ {entry_id}: Retry {attempt+1}/{max_retries} ({wait}s)")
+                logger.debug(f"  ⏳ {entry_id}: Retry {attempt + 1}/{max_retries} ({wait}s)")
                 time.sleep(wait)
                 continue
 
@@ -267,7 +306,7 @@ def download_clip(
 
         except subprocess.TimeoutExpired:
             if attempt < max_retries:
-                logger.debug(f"  ⏳ {entry_id}: Timeout, retry {attempt+1}")
+                logger.debug(f"  ⏳ {entry_id}: Timeout, retry {attempt + 1}")
                 time.sleep(5)
                 continue
             return {"status": "error", "path": "", "reason": "timeout"}
@@ -277,10 +316,6 @@ def download_clip(
 
     return {"status": "error", "path": "", "reason": "max_retries_exceeded"}
 
-
-# ============================================================
-# ANA İNDİRME DÖNGÜSÜ
-# ============================================================
 
 def download_all(
     entries: list[dict],
@@ -292,27 +327,33 @@ def download_all(
     dry_run: bool = False,
     max_per_word: int = 0,
 ) -> dict:
-    """Tüm entry'leri paralel indir.
+    """Download all eligible entries with a bounded thread pool.
 
     Returns:
-        İstatistik dict
+        Aggregate status counts.
     """
     state = load_state(state_file)
-    stats = {"success": 0, "unavailable": 0, "age_restricted": 0,
-             "error": 0, "skipped": 0, "total": len(entries)}
+    stats = {
+        "success": 0,
+        "unavailable": 0,
+        "age_restricted": 0,
+        "error": 0,
+        "skipped": 0,
+        "total": len(entries),
+    }
 
-    # Filtreleme
+    # Remove completed or permanently failed entries from the work queue.
     to_download = []
     for entry in entries:
         eid = entry["entry_id"]
 
-        # Zaten başarılı
+        # Successful downloads never need to be repeated.
         if eid in state["completed"]:
             if state["completed"][eid].get("status") == "success":
                 stats["skipped"] += 1
                 continue
 
-        # Kalıcı hata
+        # Retry permanent failures only when explicitly requested.
         if eid in state["failed"]:
             reason = state["failed"][eid].get("reason", "")
             if reason in PERMANENT_SKIP_REASONS and not retry_failed:
@@ -321,7 +362,7 @@ def download_all(
 
         to_download.append(entry)
 
-    # max_per_word limiti
+    # Apply the optional per-source-class development limit.
     if max_per_word > 0:
         word_counts: dict[int, int] = {}
         limited = []
@@ -333,11 +374,13 @@ def download_all(
                 word_counts[cid] = count + 1
         to_download = limited
 
-    logger.info(f"İndirilecek: {len(to_download)} video "
-                f"(atlanıyor: {stats['skipped']}, toplam: {stats['total']})")
+    logger.info(
+        f"İndirilecek: {len(to_download)} video "
+        f"(atlanıyor: {stats['skipped']}, toplam: {stats['total']})"
+    )
 
     if dry_run:
-        # Class bazında dağılım göster
+        # Show the class distribution without touching external state.
         class_counts: dict[str, int] = {}
         for e in to_download:
             key = f"{e['class_id']}_{e['ms_class']}"
@@ -351,12 +394,12 @@ def download_all(
         logger.info("İndirilecek yeni video yok.")
         return stats
 
-    # Paralel indirme
+    # Download clips concurrently while updating one shared state file.
     completed_count = 0
     total_count = len(to_download)
 
     def _process(entry: dict) -> tuple[str, dict]:
-        # Rate limiting — her thread bir miktar beklesin
+        # Stagger workers slightly to reduce request bursts.
         time.sleep(0.5)
         result = download_clip(entry, output_dir, logger)
         return entry["entry_id"], result
@@ -390,11 +433,14 @@ def download_all(
                 state["failed"][eid] = {"status": status, "reason": "age_restricted"}
             else:
                 stats["error"] += 1
-                state["failed"][eid] = {"status": "error", "reason": result.get("reason", "unknown")}
+                state["failed"][eid] = {
+                    "status": "error",
+                    "reason": result.get("reason", "unknown"),
+                }
 
             completed_count += 1
 
-            # Her 10 video'da state kaydet + progress göster
+            # Persist progress periodically so an interruption is recoverable.
             if completed_count % 10 == 0 or completed_count == total_count:
                 save_state(state, state_file)
                 pct = completed_count / total_count * 100
@@ -404,22 +450,18 @@ def download_all(
                     f"🔞{stats['age_restricted']} ⚠️{stats['error']}"
                 )
 
-    # Son state kaydet
+    # Save the final state even when the last batch was smaller than ten.
     save_state(state, state_file)
     return stats
 
-
-# ============================================================
-# ÖZET RAPOR
-# ============================================================
 
 def print_summary(
     entries: list[dict],
     state: dict,
     logger: logging.Logger,
 ) -> None:
-    """Kelime bazında indirme özeti."""
-    # Class bazında sayımlar
+    """Print download coverage by source class and signer."""
+    # Aggregate source-class totals and successful clips.
     class_total: dict[int, int] = {}
     class_success: dict[int, int] = {}
 
@@ -462,7 +504,7 @@ def print_summary(
     if low_words:
         logger.info(f"\n⚠️ Düşük örnekli kelimeler: {', '.join(low_words)}")
 
-    # Signer çeşitliliği
+    # Report signer diversity for the exploratory dataset.
     signers = set()
     for info in state.get("completed", {}).values():
         if info.get("status") == "success":
@@ -470,13 +512,9 @@ def print_summary(
             if sid >= 0:
                 signers.add(sid)
     logger.info(f"\nBenzersiz signer: {len(signers)}")
-    logger.info(f"Google ASL Signs: 21 signer")
+    logger.info("Google ASL Signs: 21 signer")
     logger.info(f"MS-ASL eklendikten sonra: 21 + {len(signers)} = {21 + len(signers)}+ signer")
 
-
-# ============================================================
-# CLI
-# ============================================================
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -484,31 +522,43 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--output-dir", type=Path, default=DEFAULT_VIDEO_DIR,
+        "--output-dir",
+        type=Path,
+        default=DEFAULT_VIDEO_DIR,
         help=f"Video çıktı dizini (varsayılan: {DEFAULT_VIDEO_DIR})",
     )
     parser.add_argument(
-        "--workers", type=int, default=3,
+        "--workers",
+        type=int,
+        default=3,
         help="Paralel indirme thread sayısı (varsayılan: 3)",
     )
     parser.add_argument(
-        "--retry-failed", action="store_true",
+        "--retry-failed",
+        action="store_true",
         help="Daha önce başarısız olanları tekrar dene",
     )
     parser.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run",
+        action="store_true",
         help="İndirmeden ne indirileceğini göster",
     )
     parser.add_argument(
-        "--max-per-word", type=int, default=0,
+        "--max-per-word",
+        type=int,
+        default=0,
         help="Kelime başına max indirme (test için, 0=sınırsız)",
     )
     parser.add_argument(
-        "--state-file", type=Path, default=DEFAULT_STATE_FILE,
+        "--state-file",
+        type=Path,
+        default=DEFAULT_STATE_FILE,
         help="State dosyası yolu",
     )
     parser.add_argument(
-        "--log-file", type=Path, default=DEFAULT_LOG_FILE,
+        "--log-file",
+        type=Path,
+        default=DEFAULT_LOG_FILE,
         help="Log dosyası yolu",
     )
     return parser.parse_args()
@@ -522,24 +572,24 @@ def main() -> None:
     logger.info("MS-ASL Video İndirme Başlıyor")
     logger.info("=" * 60)
 
-    # yt-dlp kontrolü
+    # Fail before loading metadata if the external downloader is unavailable.
     if not check_ytdlp():
         logger.error("❌ yt-dlp kurulu değil! pip install yt-dlp")
         sys.exit(1)
 
-    # Entry'leri yükle
+    # Load the target subset metadata.
     logger.info("MS-ASL JSON'ları yükleniyor...")
     entries = load_msasl_entries()
     logger.info(f"  Hedef class sayısı: {len(TARGET_CLASS_IDS)}")
     logger.info(f"  Toplam entry: {len(entries)}")
 
-    # Signer dağılımı
+    # Report source signer coverage before downloading.
     signers = {e["signer_id"] for e in entries}
     logger.info(f"  Benzersiz signer: {len(signers)}")
 
-    # İndirme
+    # Run the resumable download.
     start_time = time.time()
-    stats = download_all(
+    download_all(
         entries=entries,
         output_dir=args.output_dir,
         state_file=args.state_file,
@@ -552,9 +602,9 @@ def main() -> None:
     elapsed = time.time() - start_time
 
     if not args.dry_run:
-        logger.info(f"\nİndirme tamamlandı: {elapsed:.0f} saniye ({elapsed/60:.1f} dakika)")
+        logger.info(f"\nİndirme tamamlandı: {elapsed:.0f} saniye ({elapsed / 60:.1f} dakika)")
 
-        # Özet
+        # Summarize the state written by the download loop.
         state = load_state(args.state_file)
         print_summary(entries, state, logger)
 

@@ -1,0 +1,12 @@
+name: asl-assistant
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - nodejs=24
+  - llvm-openmp
+  - pip
+  - pip:
+      - -r requirements-dev.txt
+      - -e ./asl-ml
+      - -e ./asl-desktop

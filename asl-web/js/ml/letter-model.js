@@ -1,22 +1,69 @@
-// ─── ONNX Harf Modeli ────────────────────────────────────────
-// LightGBM: input(1,93) → output(1,24)
+// Static-letter ONNX adapter.
+// LightGBM contract: input (1,93), output probabilities (1,24).
 
+/**
+ * The part of an ONNX Runtime Web session this app uses.
+ *
+ * Only the members both model adapters touch are described. The full CDN type
+ * tree is deliberately not copied into the source; a declaration file can cover
+ * the `ort` global later if a type checker needs it.
+ *
+ * @typedef {Object} OnnxSessionLike
+ * @property {string[]} inputNames
+ * @property {string[]} outputNames
+ * @property {(feeds: Record<string, unknown>, fetches?: string[]) => Promise<Record<string, OnnxTensorLike>>} run
+ */
+
+/**
+ * One named session output, as ONNX Runtime Web declares it.
+ *
+ * Older exports can materialize something else entirely, which is why
+ * _extractLetterProbs() takes unknown rather than this type.
+ *
+ * The element type follows the tensor's ONNX dtype, so it is not one JavaScript
+ * type across outputs: the letter graph's label output is int64 and arrives as
+ * a BigInt64Array, while its probabilities and the word graph's logits are
+ * float32. Callers convert with Number() rather than assume.
+ *
+ * @typedef {Object} OnnxTensorLike
+ * @property {ArrayLike<number | bigint>} data
+ */
+
+/**
+ * Class probabilities in model output order. Runtime invariant: one entry per
+ * class in the loaded label list.
+ *
+ * @typedef {number[]} ProbabilityVector
+ */
+
+/** @type {OnnxSessionLike | null} */
 let letterSession = null;
+/** @type {string[]} */
 let letterLabels = [];
+/** @type {string[]} */
 const DEFAULT_LETTER_LABELS = [
   "A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M",
   "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y",
 ];
 const LETTER_MODEL_URL = "./models/letter_model.onnx?v=20260430-nozipmap";
-// Aktif web ONNX çıkışı:
+// Published web export:
 //   label tensor(int64)[N], probabilities tensor(float)[N,24]
-// Eski LightGBM export'ları probabilities'i ZipMap seq(map) olarak verebilir;
-// fallback kodu geriye uyumluluk için korunur.
+// Older LightGBM exports may expose probabilities as ZipMap seq(map); the
+// label-only fallback is retained for backward compatibility.
+/** @type {string | null} */
 let letterProbOutputName = null;
 
+/**
+ * Create the letter session and load its label map.
+ *
+ * Never throws: a failure is reported as false so the app can keep running with
+ * whichever models did load.
+ *
+ * @returns {Promise<boolean>} True when the session and labels are ready.
+ */
 async function loadLetterModel() {
-  // Yeniden yüklemede ZipMap fallback bayraklarını sıfırla.
-  // Aksi halde önceki oturumdaki "fallback aktif" durumu sabit kalır.
+  // A fresh session must retry probability output instead of inheriting a
+  // previous session's fallback state.
   _letterProbsFailed = false;
   try {
     if (typeof ort === "undefined") {
@@ -37,7 +84,7 @@ async function loadLetterModel() {
     console.log("Letter ONNX inputs:", letterSession.inputNames);
     console.log("Letter ONNX outputs:", letterSession.outputNames);
 
-    // Etiketleri yükle
+    // Load the model's ordered label map.
     try {
       const res = await fetch("./data/letter_labels.json");
       const data = await res.json();
@@ -50,7 +97,7 @@ async function loadLetterModel() {
       letterLabels = [...DEFAULT_LETTER_LABELS];
     }
 
-    // İkinci çıkışı tercih et (LightGBM probabilities)
+    // Prefer the LightGBM probability tensor when available.
     letterProbOutputName =
       letterSession.outputNames.length > 1
         ? letterSession.outputNames[1]
@@ -65,22 +112,36 @@ async function loadLetterModel() {
   }
 }
 
-// ORT Web'in ZipMap (seq(map)) output'unu extract ederken `wasm-core-impl.ts:725`
-// içinde "Reading data from non-tensor typed value is not supported" hatası
-// fırlatabilir (özellikle 1.20.x'te). Bu durumda fallback: sadece "label"
-// output'unu (argmax int64) çek. Confidence kaybediliyor ama tahmin çalışır.
+// Some ORT Web versions cannot materialize ZipMap sequence/map outputs. When
+// that happens, request only the argmax label output. Classification continues,
+// but confidence then represents temporal stability rather than raw probability.
 let _letterProbsFailed = false;
 
+/**
+ * Classify one letter frame.
+ *
+ * Two output paths exist. The probability tensor gives real confidences and a
+ * top-three list. Some ONNX Runtime Web versions cannot materialize the older
+ * ZipMap sequence output; that failure latches and every later call takes the
+ * label-only path, which reports confidence 1.0 as a presence signal. The
+ * smoother turns those repeats into a temporal confidence, so the displayed
+ * value stays meaningful either way.
+ *
+ * @param {LetterFeatures93} features93 Letter features; length must be 93.
+ * @returns {Promise<PredictionResult | null>} Null when no model is loaded or
+ *   neither output path produced a usable label.
+ */
 async function predictLetter(features93) {
   if (!letterSession) return null;
 
   const t0 = performance.now();
 
   const input = new ort.Tensor("float32", features93, [1, 93]);
+  /** @type {Record<string, unknown>} */
   const feeds = {};
   feeds[letterSession.inputNames[0]] = input;
 
-  // Önce full run + probability tensor/ZipMap parse dene (top-3 + confidence)
+  // Try the full probability path first for confidence and top-three output.
   if (!_letterProbsFailed) {
     try {
       const results = await letterSession.run(feeds);
@@ -114,7 +175,7 @@ async function predictLetter(features93) {
     }
   }
 
-  // FALLBACK: sadece "label" output'unu çek (sequence output bypass)
+  // Compatibility path: request only the label and bypass sequence output.
   try {
     const labelName = letterSession.outputNames[0]; // "label"
     const results = await letterSession.run(feeds, [labelName]);
@@ -138,11 +199,8 @@ async function predictLetter(features93) {
     if (typeof recordBenchmark === "function") recordBenchmark("onnx", t1 - t0);
 
     const letter = letterLabels[labelIdx] || `cls_${labelIdx}`;
-    // ZipMap (seq(map)) ORT Web'de tüm sürümlerde okunamıyor (1.20-1.22 hepsi
-    // "Reading data from non-tensor typed value" atıyor). Tek frame için per-class
-    // probability extracting yok. ÇÖZÜM: confidence=1.0 (raw "label geldi" sinyali).
-    // Gerçek confidence smoother tarafında temporal stability ile hesaplanır:
-    // 5 frame'de N kez aynı label gelirse → confidence = N/5.
+    // The smoother converts repeated label-only predictions into a temporal
+    // confidence score. The per-frame value is therefore a presence signal.
     return {
       label: letter,
       confidence: 1.0,
@@ -154,6 +212,13 @@ async function predictLetter(features93) {
   }
 }
 
+/**
+ * Read a ZipMap-style map keyed by class index.
+ *
+ * @param {Map<unknown, unknown>} map
+ * @param {number} size Number of classes.
+ * @returns {ProbabilityVector} Zero-filled for any class the map omits.
+ */
 function _mapToProbsArray(map, size) {
   const arr = new Array(size).fill(0);
   for (const [key, val] of map.entries()) {
@@ -165,6 +230,13 @@ function _mapToProbsArray(map, size) {
   return arr;
 }
 
+/**
+ * Read a plain object keyed by class index.
+ *
+ * @param {Record<string, unknown>} obj
+ * @param {number} size Number of classes.
+ * @returns {ProbabilityVector} Zero-filled for any class the object omits.
+ */
 function _objToProbsArray(obj, size) {
   const arr = new Array(size).fill(0);
   for (const [k, v] of Object.entries(obj)) {
@@ -174,64 +246,77 @@ function _objToProbsArray(obj, size) {
   return arr;
 }
 
+/**
+ * Recover class probabilities from whatever shape the session returned.
+ *
+ * The output is treated as unknown and narrowed by inspection, because it
+ * varies with the ONNX export and the runtime version: a ZipMap sequence, a
+ * single map, a generic iterable, an array-like, a plain index-keyed object, or
+ * a tensor with a data buffer. Unknown iterables are only read a few entries
+ * deep so an unexpected shape cannot stall the frame.
+ *
+ * @param {unknown} out One named output of a session run.
+ * @param {number} size Number of classes.
+ * @returns {ProbabilityVector | null} Null when no supported shape matched.
+ */
 function _extractLetterProbs(out, size) {
   if (!out) return null;
 
-  // 1. Array<Map> — seq(map) — ORT Web typical output for ZipMap
+  // 1. Array<Map>: common ZipMap sequence representation.
   if (Array.isArray(out) && out.length > 0) {
     const first = out[0];
     if (first instanceof Map) return _mapToProbsArray(first, size);
     if (first && typeof first === "object") return _objToProbsArray(first, size);
   }
 
-  // 2. Tek Map (map(int64, float))
+  // 2. A single map(int64,float).
   if (out instanceof Map) return _mapToProbsArray(out, size);
 
-  // 3. Iterable (OnnxSequenceImpl, NodeList-tarzı objeler)
-  // Array değil ama iterate edilebilir.
+  // 3. Generic iterable, such as an internal ONNX sequence wrapper.
   if (out && typeof out !== "string" && typeof out[Symbol.iterator] === "function") {
     try {
       const arr = [];
-      for (const item of out) {
+      // The line above established that this value is iterable.
+      for (const item of /** @type {Iterable<unknown>} */ (out)) {
         arr.push(item);
-        if (arr.length >= 10) break; // güvenlik
+        if (arr.length >= 10) break; // Bound inspection of unknown iterables.
       }
       if (arr.length > 0) {
         const first = arr[0];
         if (first instanceof Map) return _mapToProbsArray(first, size);
-        if (first && typeof first === "object") return _objToProbsArray(first, size);
+        if (isRecord(first)) return _objToProbsArray(first, size);
         if (typeof first === "number") {
-          // Direkt prob array'i
+          // Direct probability array.
           return arr.map(Number);
         }
       }
     } catch (e) {
-      // not iterable, devam
+      // Continue with the remaining representations.
     }
   }
 
-  // 4. Index erişimi: out[0], out[1], ... (length varsa)
-  if (typeof out === "object" && typeof out.length === "number" && out.length > 0) {
+  // 4. Array-like index access when a length is exposed.
+  if (isRecord(out) && typeof out.length === "number" && out.length > 0) {
     try {
       const first = out[0];
       if (first instanceof Map) return _mapToProbsArray(first, size);
-      if (first && typeof first === "object") return _objToProbsArray(first, size);
+      if (isRecord(first)) return _objToProbsArray(first, size);
     } catch (e) {
       // skip
     }
   }
 
-  // 5. Plain object {key: val}
-  if (out && typeof out === "object" && out.constructor === Object) {
+  // 5. Plain object keyed by class index.
+  if (isRecord(out) && out.constructor === Object) {
     const keys = Object.keys(out);
     if (keys.length > 0 && !Number.isNaN(Number(keys[0]))) {
       return _objToProbsArray(out, size);
     }
   }
 
-  // 6. EN SON: Tensor { data }. Non-tensor'da throw atar — try/catch.
+  // 6. Tensor-like {data}; keep last because non-tensor access may throw.
   try {
-    const d = out.data;
+    const d = isRecord(out) ? out.data : undefined;
     if (d instanceof Float32Array || (Array.isArray(d) && typeof d[0] === "number")) {
       return Array.from(d);
     }
@@ -240,13 +325,19 @@ function _extractLetterProbs(out, size) {
     }
     if (d instanceof Map) return _mapToProbsArray(d, size);
   } catch (e) {
-    // Non-tensor: silent, devam
+    // Unsupported non-tensor output.
   }
 
-  // Hiçbir yöntem işlemedi
+  // No supported probability representation was found.
   return null;
 }
 
+/**
+ * Run one throwaway inference so the first real frame is not slowed by lazy
+ * WASM initialization.
+ *
+ * @returns {Promise<void>} Resolves even when the warmup itself fails.
+ */
 async function warmupLetterModel() {
   if (!letterSession) return;
   try {

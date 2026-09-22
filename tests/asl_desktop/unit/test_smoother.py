@@ -1,76 +1,53 @@
-"""
-PredictionSmoother birim testleri.
-Majority voting, guven esigi ve reset davranisini test eder.
-"""
+"""Behavior tests for prediction voting and confidence handling."""
+
+import pytest
+
 from asl_desktop.utils.smoother import PredictionSmoother
-from config.settings import CONFIDENCE_THRESHOLD, NEUTRAL_THRESHOLD
+from asl_desktop.config import NEUTRAL_THRESHOLD
 
 
-def test_consistent_prediction():
-    """Ayni harf ust uste gelince onaylanmali."""
-    s = PredictionSmoother(window_size=3)
-    # 1 entry, len=1, count=1 >= 0.5 → True
-    assert s.update("A", 0.9) == "A"
-    assert s.update("A", 0.9) == "A"    # 2/3
-    assert s.update("A", 0.9) == "A"    # 3/3
+def test_consistent_predictions_are_stable():
+    smoother = PredictionSmoother(window_size=3, confidence_threshold=0.5)
+    assert [smoother.update("A", 0.9) for _ in range(3)] == ["A", "A", "A"]
 
 
 def test_mixed_predictions():
-    """Farkli harfler gelince None donmeli (karar yok)."""
-    s = PredictionSmoother(window_size=3)
-    s.update("A", 0.9)
-    s.update("B", 0.9)
-    result = s.update("C", 0.9)
+    smoother = PredictionSmoother(window_size=3, confidence_threshold=0.5)
+    smoother.update("A", 0.9)
+    smoother.update("B", 0.9)
+    result = smoother.update("C", 0.9)
     assert result is None
 
 
-def test_low_confidence_ignored():
-    """Guven esiginin altindaki tahminler sayilmamali."""
-    s = PredictionSmoother(window_size=3)
-    s.update("A", 0.1)   # NEUTRAL_THRESHOLD altinda
-    s.update("A", 0.1)
-    result = s.update("A", 0.1)
-    assert result is None
+@pytest.mark.parametrize(
+    "confidence",
+    [0.0, max(0.0, NEUTRAL_THRESHOLD - 0.01), 0.49],
+)
+def test_predictions_below_acceptance_threshold_are_ignored(confidence):
+    smoother = PredictionSmoother(window_size=3, confidence_threshold=0.5)
+    assert smoother.update("A", confidence) is None
 
 
 def test_none_label():
-    """El bulunamadiysa None donmeli."""
-    s = PredictionSmoother(window_size=3)
-    assert s.update(None, 0.0) is None
-    assert s.update(None, 0.0) is None
+    smoother = PredictionSmoother(window_size=3, confidence_threshold=0.5)
+    assert smoother.update(None, 1.0) is None
+    assert smoother.get_smoothed_confidence() == 0.0
 
 
 def test_reset():
-    """Reset sonrasi gecmis temizlenmeli."""
-    s = PredictionSmoother(window_size=3)
-    s.update("A", 0.9)
-    s.update("A", 0.9)
-    s.reset()
-    # Reset sonrasi gecmis bos, yeni tahmin fresh start
-    # Tek entry: count=1 >= len(1)/2=0.5 → hala donuyor
-    # Ama farkli harf ile kontrol edelim:
-    s.update("B", 0.9)
-    s.update("C", 0.9)
-    result = s.update("D", 0.9)
-    # 3 farkli harf, hicbiri cogunluk degil
-    assert result is None
+    smoother = PredictionSmoother(window_size=3, confidence_threshold=0.5)
+    smoother.update("A", 0.8)
+    smoother.update("A", 1.0)
+    assert smoother.get_smoothed_confidence() == pytest.approx(0.9)
+
+    smoother.reset()
+
+    assert smoother.get_smoothed_confidence() == 0.0
+    assert smoother.update("B", 0.9) == "B"
 
 
 def test_smoothed_confidence():
-    """Ortalama guven skoru dogru hesaplanmali."""
-    s = PredictionSmoother(window_size=3)
-    s.update("A", 0.8)
-    s.update("A", 0.9)
-    s.update("A", 1.0)
-    avg = s.get_smoothed_confidence()
-    assert 0.89 < avg < 0.91  # ~0.9
-
-
-if __name__ == "__main__":
-    test_consistent_prediction()
-    test_mixed_predictions()
-    test_low_confidence_ignored()
-    test_none_label()
-    test_reset()
-    test_smoothed_confidence()
-    print("✅ test_smoother: 6/6 gecti")
+    smoother = PredictionSmoother(window_size=3, confidence_threshold=0.5)
+    for confidence in (0.8, 0.9, 1.0):
+        smoother.update("A", confidence)
+    assert smoother.get_smoothed_confidence() == pytest.approx(0.9)

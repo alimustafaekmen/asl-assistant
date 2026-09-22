@@ -5,7 +5,7 @@
 #  Sınıf: SAFE-TOOLING — runtime davranışını DEĞİŞTİRMEZ.
 #  Her hedef arkasındaki manuel komutla birebir aynı işi yapar.
 #
-#  Detaylı kullanım rehberi: docs/project-usage.md
+#  Detaylı kullanım rehberi: docs/getting-started.md
 #
 #  Hızlı kullanım:
 #    make help        → hedef listesi
@@ -18,7 +18,7 @@
 #  Cross-platform notlar:
 #    - macOS/Linux/Git Bash/WSL: doğrudan `make ...` çalışır.
 #    - Windows native PowerShell/cmd: `make` default gelmez.
-#      Manuel komutlar: docs/project-usage.md
+#      Manuel komutlar: docs/getting-started.md
 # ============================================================
 
 
@@ -37,7 +37,7 @@ ASL_ML_DIR     ?= ./asl-ml
 ASL_DESKTOP_DIR ?= ./asl-desktop
 DESKTOP_ENTRY  ?= asl-desktop/main.py
 PORT           ?= 8080
-KAGGLE_DIR     ?= data/raw/asl-signs-jury-subset
+KAGGLE_DIR     ?= data/raw/asl-signs-sample-subset
 SAMPLES_PER_WORD ?= 1
 
 
@@ -50,23 +50,24 @@ VERIFY_ASSETS  ?= $(VALIDATION_DIR)/verify_project_assets.py
 # ── Test seçimi ──────────────────────────────────────────────
 TEST_FAST      ?= tests/asl_ml/ tests/asl_desktop/unit/ tests/project/
 TEST_ALL       ?= tests/
-HEALTH_PYTHONPATH ?= $(CURDIR)/asl-ml/src:$(CURDIR)/asl-desktop/src
+TEST_PYTHONPATH  ?= $(CURDIR)/asl-ml/src:$(CURDIR)/asl-desktop/src
 
 
 # ── Bağımlılık manifestoları ────────────────────────────────
 REQS_DEV       ?= requirements-dev.txt
+JS_FILES       := $(shell find $(WEB_DIR)/js -type f -name '*.js' -print 2>/dev/null | sort)
+JS_TEST_FILES  := $(shell find tests/web -type f -name '*.test.js' -print 2>/dev/null | sort)
+TS_WEB_CONFIG  ?= tsconfig.web.json
+TSC            ?= node_modules/.bin/tsc
 
 
 # ── İleri kullanıcı kaçış kapısı ────────────────────────────
-# Conda/Miniforge base ortamına setup yapmaya izin vermek için 1 ver.
-# DEFAULT 0 (base bloklanır). Önerilmez — base ortamı kirletir.
-ALLOW_BASE_SETUP ?= 0
 
 
 # ── PHONY hedefler ──────────────────────────────────────────
-.PHONY: help doctor setup web frontend backend test test-full validate \
-        validate-full health models notebook-check scripts-check \
-        jury-fixtures docker desktop clean
+.PHONY: help doctor setup web frontend backend test test-full format format-check lint validate \
+        validate-full health js-check js-test js-typecheck models notebook-check scripts-check \
+        model-test-fixtures git-hygiene docker desktop clean
 
 .DEFAULT_GOAL := help
 
@@ -144,7 +145,7 @@ if is_apple_clt:
         'UYARI: Apple CommandLineTools Python kullaniliyor.',
         '  Bu Python ile "make setup" CALISTIRILAMAZ (guard tarafindan engellenir).',
         '  Cozum:',
-        '    Conda : conda activate <env> && make setup',
+        '    Conda : conda activate YOUR_ENV_NAME && make setup',
         '    venv  : python3 -m venv .venv && source .venv/bin/activate && make setup',
         '    Override: make setup PYTHON=$$CONDA_PREFIX/bin/python',
     ])
@@ -154,10 +155,9 @@ if is_base:
         '  Bu proje icin "make setup" base ortamiyla onerilmez ve default olarak BLOKLANIR.',
         '  Sebep: base ortami bircok proje tarafindan paylasilir, kolay kirlenir.',
         '  Proje ortamini aktive et:',
-        '    conda activate isaret_dili      # ya da senin proje env adın',
+        '    conda activate YOUR_ENV_NAME  # kendi ortam adinizi kullanin',
         '  veya yeni venv:',
         '    python3 -m venv .venv && source .venv/bin/activate && make setup',
-        '  Ileri kullanici (ONERILMEZ): make setup ALLOW_BASE_SETUP=1',
     ])
 if cp and cp not in exe:
     warnings.append([
@@ -177,7 +177,7 @@ if is_win:
     warnings.append([
         'NOT: Windows algilandi.',
         '  Makefile Git Bash / WSL / make saglayan terminalde calisir.',
-        '  PowerShell/cmd icin manuel komutlar: docs/project-usage.md',
+        '  PowerShell/cmd icin manuel komutlar: docs/getting-started.md',
     ])
 
 if warnings:
@@ -252,7 +252,7 @@ if state == 'apple_clt':
     print('  Hatali Python secilmis: Apple CommandLineTools Python.')
     print()
     print('Cozum:')
-    print('  conda activate isaret_dili')
+    print('  conda activate YOUR_ENV_NAME')
     print('  make doctor')
     print()
     print('Eger hala yanlissa:')
@@ -262,7 +262,7 @@ elif state == 'base':
     print('  Conda/Miniforge base ortam kullaniliyor. Bu proje icin ONERILMEZ.')
     print()
     print('Cozum:')
-    print('  conda activate isaret_dili')
+    print('  conda activate YOUR_ENV_NAME')
     print('  make doctor')
     print()
     print('Veya yeni venv:')
@@ -349,7 +349,6 @@ is_apple_clt = '/Library/Developer/CommandLineTools/' in exe
 cp = os.environ.get('CONDA_PREFIX', '')
 ce = os.environ.get('CONDA_DEFAULT_ENV', '')
 ve = os.environ.get('VIRTUAL_ENV', '')
-allow_base = os.environ.get('ALLOW_BASE_SETUP', '0') == '1'
 is_base = is_conda_base(exe, cp, ce)
 
 err = None
@@ -359,11 +358,11 @@ if is_apple_clt:
         f'  sys.executable = {exe}\n'
         '  Bu Python ile editable install basarisiz olur veya yanlis environment kirlenir.\n'
         '  Cozum:\n'
-        '    Conda    : conda activate <env> && make setup\n'
+        '    Conda    : conda activate YOUR_ENV_NAME && make setup\n'
         '    venv     : python3 -m venv .venv && source .venv/bin/activate && make setup\n'
         '    Override : make setup PYTHON=$$CONDA_PREFIX/bin/python'
     )
-elif is_base and not allow_base:
+elif is_base:
     err = (
         '[BLOCK] Conda/Miniforge base Python ile setup CALISTIRILAMAZ.\n'
         f'  sys.executable    = {exe}\n'
@@ -371,7 +370,7 @@ elif is_base and not allow_base:
         f'  CONDA_PREFIX      = {cp or "(bos)"}\n'
         '\n'
         '  Bu proje icin izole ortam kullan:\n'
-        '    conda activate isaret_dili      # ya da senin proje env adın\n'
+        '    conda activate YOUR_ENV_NAME  # kendi ortam adinizi kullanin\n'
         '    make doctor\n'
         '    make setup\n'
         '\n'
@@ -383,9 +382,6 @@ elif is_base and not allow_base:
         '    python3 -m venv .venv\n'
         '    source .venv/bin/activate\n'
         '    make setup\n'
-        '\n'
-        '  Ileri kullanici (ONERILMEZ — base ortamini kirletir):\n'
-        '    make setup ALLOW_BASE_SETUP=1'
     )
 elif cp and cp not in exe:
     err = (
@@ -406,8 +402,6 @@ if err is not None:
     print(err)
     sys.exit(2)
 else:
-    if is_base and allow_base:
-        print(f'[WARN] Base ortamda setup CALISIYOR (ALLOW_BASE_SETUP=1 verildi). ONERILMEZ.')
     print(f'[OK] Hedef Python ortami: {exe}')
 endef
 export SETUP_GUARD_PY
@@ -431,49 +425,52 @@ help:
 	@echo "  make web PORT=8081   Port doluysa farklı portta aç"
 	@echo "  make test            Hızlı Python unit testleri (setup eksikse net uyarır)"
 	@echo "  make test-full       Tüm Python testleri (integration dahil — bazıları MediaPipe gerektirir)"
+	@echo "  make format          Python kaynaklarını Ruff ile biçimlendir"
+	@echo "  make format-check    Python biçimini değiştirmeden doğrula"
+	@echo "  make lint            Python sözdizimi, adlar ve import düzenini denetle"
+	@echo "  make js-check        Tüm web JavaScript dosyalarının sözdizimini denetle"
+	@echo "  make js-test         Web modül sözleşmelerini node --test ile doğrula"
+	@echo "  make js-typecheck    JSDoc sözleşmelerini checkJs ile denetle (npm ci gerektirir)"
 	@echo "  make validate        Web runtime asset/model/data sağlık kontrolü (hash chain + ONNX I/O)"
 	@echo "  make validate-full   validate + dataset/Python script asset kontrolü"
 	@echo "  make health          Düzenleme sonrası hızlı genel sağlık kapısı"
 	@echo "  make models          Deploy model/data artifact sağlık kontrolü"
-	@echo "  make notebook-check  Kritik notebook/results dosyaları yerinde mi?"
+	@echo "  make notebook-check  Kritik notebook, model ve sonuç dosyaları yerinde mi?"
 	@echo "  make scripts-check   Önemli script entrypoint'leri yerinde mi?"
-	@echo "  make jury-fixtures   Lokal Kaggle subset'ten Model Test kelime fixture export"
+	@echo "  make git-hygiene     Ignore edilmesi gereken tracked dosya var mı?"
+	@echo "  make model-test-fixtures  Lokal Kaggle subset'ten Model Test kelime fixture export"
 	@echo "  make docker          Dockerfile yoksa güvenli açıklama verir"
 	@echo "  make desktop         Legacy masaüstü prototipini başlat (kamera + GUI gerekli)"
 	@echo "  make clean           Sadece cache (__pycache__, .pytest_cache, *.pyc) — data/model SILINMEZ"
 	@echo ""
 	@echo "Cross-platform:"
 	@echo "  macOS/Linux/Git Bash/WSL : doğrudan 'make ...' çalışır"
-	@echo "  Windows PowerShell/cmd   : manuel komutlar → docs/project-usage.md"
+	@echo "  Windows PowerShell/cmd   : manuel komutlar → docs/getting-started.md"
 	@echo ""
 	@echo "Yanlış Python ortamı şüphesi:"
 	@echo "  make doctor                                    # platform + ortam raporu"
 	@echo "  make doctor PYTHON=\$$CONDA_PREFIX/bin/python   # conda override"
 	@echo "  make setup  PYTHON=\$$CONDA_PREFIX/bin/python   # setup conda override"
 	@echo ""
-	@echo "Setup BLOCK eden ortamlar (default):"
+	@echo "Setup BLOCK eden ortamlar:"
 	@echo "  - Apple CommandLineTools Python"
 	@echo "  - Conda/Miniforge base ortamı (proje env aktive edilmeli)"
 	@echo "  - Conda/venv mismatch durumları"
 	@echo ""
-	@echo "İleri kullanıcı (ÖNERİLMEZ — base ortamı kirletir):"
-	@echo "  make setup ALLOW_BASE_SETUP=1"
-	@echo ""
-	@echo "Detaylı rehber: docs/project-usage.md"
+	@echo "Detaylı rehber: docs/getting-started.md"
 	@echo ""
 
 doctor:
 	@MAKE_PYTHON_VAR='$(PYTHON)' $(PYTHON) -c "$$DOCTOR_PY"
 
 setup:
-	@ALLOW_BASE_SETUP=$(ALLOW_BASE_SETUP) $(PYTHON) -c "$$SETUP_GUARD_PY"
+	@$(PYTHON) -c "$$SETUP_GUARD_PY"
 	@echo ""
 	@echo "── Aktif ortama kurulum ──────────────────"
 	@echo ""
-	$(PIP) install --upgrade pip setuptools wheel
 	$(PIP) install -r $(REQS_DEV)
-	$(PIP) install -e $(ASL_ML_DIR)
-	$(PIP) install -e $(ASL_DESKTOP_DIR)
+	$(PIP) install --no-deps -e $(ASL_ML_DIR)
+	$(PIP) install --no-deps -e $(ASL_DESKTOP_DIR)
 	@echo ""
 	@echo "✓ Kurulum tamam. Doğrulama: make doctor"
 	@echo ""
@@ -499,16 +496,43 @@ backend:
 	@echo ""
 
 test:
-	@$(PYTHON) -c "import importlib.util, sys; missing=[m for m in ('asl_ml','asl_desktop') if importlib.util.find_spec(m) is None]; print('Eksik proje paketi: ' + ', '.join(missing) + '. Çözüm: make setup') or sys.exit(2) if missing else None"
-	$(PYTEST) $(TEST_FAST)
+	PYTHONPATH="$(TEST_PYTHONPATH):$$PYTHONPATH" $(PYTEST) $(TEST_FAST)
 
 test-full:
-	@$(PYTHON) -c "import importlib.util, sys; missing=[m for m in ('asl_ml','asl_desktop') if importlib.util.find_spec(m) is None]; print('Eksik proje paketi: ' + ', '.join(missing) + '. Çözüm: make setup') or sys.exit(2) if missing else None"
-	$(PYTEST) $(TEST_ALL)
+	PYTHONPATH="$(TEST_PYTHONPATH):$$PYTHONPATH" $(PYTEST) $(TEST_ALL)
 
-validate:
-	@if command -v node >/dev/null 2>&1; then node --check $(WEB_DIR)/js/core/app.js; else echo "not: node yok, app.js syntax kontrolü atlandı"; fi
-	@if command -v node >/dev/null 2>&1; then node --check $(WEB_DIR)/js/media/camera.js; else echo "not: node yok, camera.js syntax kontrolü atlandı"; fi
+format:
+	$(PYTHON) -m ruff format asl-desktop asl-ml scripts
+
+format-check:
+	$(PYTHON) -m ruff format --check asl-desktop asl-ml scripts
+
+lint:
+	$(PYTHON) -m ruff check asl-desktop asl-ml scripts
+
+js-check:
+	@command -v node >/dev/null 2>&1 || { echo "✗ Node.js bulunamadı; JavaScript kontrolü çalıştırılamaz."; exit 1; }
+	@test -n "$(JS_FILES)" || { echo "✗ $(WEB_DIR)/js altında JavaScript dosyası bulunamadı."; exit 1; }
+	@for file in $(JS_FILES); do node --check "$$file" || exit 1; done
+	@echo "✓ JavaScript syntax kontrolü tamamlandı ($$(printf '%s\n' $(JS_FILES) | wc -l | tr -d ' ') dosya)."
+
+js-test:
+	@command -v node >/dev/null 2>&1 || { echo "✗ Node.js bulunamadı; JavaScript testleri çalıştırılamaz."; exit 1; }
+	@test -n "$(JS_TEST_FILES)" || { echo "✗ tests/web altında JavaScript testi bulunamadı."; exit 1; }
+	node --test $(JS_TEST_FILES)
+
+js-typecheck:
+	@command -v node >/dev/null 2>&1 || { echo "✗ Node.js bulunamadı; tip kontrolü çalıştırılamaz."; exit 1; }
+	@test -x "$(TSC)" || { \
+		echo "✗ TypeScript kurulu değil."; \
+		echo "  Bu yalnız geliştirici aracıdır; proje-yerel kurulum: npm ci"; \
+		echo "  Web uygulaması ve 'make health' bu paketi gerektirmez."; \
+		exit 1; \
+	}
+	$(TSC) --project $(TS_WEB_CONFIG)
+	@echo "✓ JSDoc tip kontrolü tamamlandı (checkJs, no-emit, $(TS_WEB_CONFIG))."
+
+validate: js-check
 	$(PYTHON) $(CHECK_RUNTIME)
 
 validate-full: validate
@@ -522,46 +546,62 @@ models: validate
 notebook-check:
 	@echo ""
 	@echo "── Notebook/provenance kontrolü ───────────"
-	@test -f notebooks/train_word_model_final.ipynb
-	@test -f notebooks/kelime-modeli-results.ipynb
-	@test -d notebooks/results
-	@test -f notebooks/results/word_model.onnx
-	@test -f notebooks/results/word_to_idx.json
-	@test -f notebooks/results/classification_report.txt
-	@echo "✓ Kritik notebook ve results dosyaları yerinde."
+	@test -f notebooks/word_50_training.ipynb
+	@test -f notebooks/word_50_training_results.ipynb
+	@test -f notebooks/word_25_desktop_training.ipynb
+	@test -d notebooks/word_50_results
+	@test -f models/word/web-50/word_model.onnx
+	@test -f models/word/web-50/word_labels.json
+	@test -f models/word/desktop-25/word_model.pt
+	@test -f models/word/desktop-25/word_labels.json
+	@test -f notebooks/word_50_results/classification_report.txt
+	@echo "✓ Kritik notebook, model ve sonuç dosyaları yerinde."
 
 scripts-check:
 	@echo ""
 	@echo "── Script entrypoint kontrolü ─────────────"
 	@test -f scripts/validation/check_runtime_assets.py
 	@test -f scripts/validation/verify_project_assets.py
-	@test -f scripts/evaluation/download_kaggle_jury_subset.py
-	@test -f scripts/evaluation/export_jury_word_samples.py
+	@test -f scripts/evaluation/download_kaggle_sample_subset.py
+	@test -f scripts/evaluation/export_model_test_word_samples.py
 	@echo "✓ Kritik validation/evaluation scriptleri yerinde."
 
-jury-fixtures:
+git-hygiene:
 	@echo ""
-	@echo "── Jury word fixture export ───────────────"
+	@echo "── Git ignore / index hijyeni ────────────"
+	@if ! command -v git >/dev/null 2>&1 || ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
+		echo "not: Git metadata yok, tracked-ignore kontrolu atlandi"; \
+	else \
+		tracked_ignored="$$(git ls-files -ci --exclude-standard | while IFS= read -r path; do [ -e "$$path" ] && printf '%s\n' "$$path"; done)"; \
+		if [ -n "$$tracked_ignored" ]; then \
+			echo "✗ .gitignore ile eslesen tracked dosyalar var:"; \
+			printf '%s\n' "$$tracked_ignored"; \
+			echo "Cozum: dosya politikasini dogrula; gerekiyorsa Git gecmisinden/index'ten cikar."; \
+			exit 1; \
+		fi; \
+		echo "✓ Ignore edilmesi gereken tracked dosya yok."; \
+	fi
+
+model-test-fixtures:
+	@echo ""
+	@echo "── Model Test word fixture export ─────────"
 	@echo "Kaggle subset: $(KAGGLE_DIR)"
 	@echo "Samples/word : $(SAMPLES_PER_WORD)"
-	$(PYTHON) scripts/evaluation/export_jury_word_samples.py --kaggle-dir $(KAGGLE_DIR) --samples-per-word $(SAMPLES_PER_WORD)
+	$(PYTHON) scripts/evaluation/export_model_test_word_samples.py --kaggle-dir $(KAGGLE_DIR) --samples-per-word $(SAMPLES_PER_WORD)
 
-health:
+health: lint format-check js-check js-test
 	@echo ""
 	@echo "── Project health gate ───────────────────"
-	@echo "Kapsam: JS syntax + runtime assets + provenance + parity + fast tests"
+	@echo "Kapsam: Git hygiene + JS syntax + JS modül testleri + runtime assets + provenance + parity + fast tests"
 	@echo ""
-	@if command -v node >/dev/null 2>&1; then node --check $(WEB_DIR)/js/ml/landmarks.js; else echo "not: node yok, landmarks.js syntax kontrolü atlandı"; fi
-	@if command -v node >/dev/null 2>&1; then node --check $(WEB_DIR)/js/ml/features.js; else echo "not: node yok, features.js syntax kontrolü atlandı"; fi
-	@if command -v node >/dev/null 2>&1; then node --check $(WEB_DIR)/js/media/camera.js; else echo "not: node yok, camera.js syntax kontrolü atlandı"; fi
-	@if command -v node >/dev/null 2>&1; then node --check $(WEB_DIR)/js/core/app.js; else echo "not: node yok, app.js syntax kontrolü atlandı"; fi
+	@$(MAKE) --no-print-directory git-hygiene
 	$(PYTHON) $(CHECK_RUNTIME)
 	$(PYTHON) $(VERIFY_ASSETS)
 	@$(MAKE) --no-print-directory notebook-check
 	@$(MAKE) --no-print-directory scripts-check
-	@if command -v node >/dev/null 2>&1 && [ -f tests/validation/check_word_feature_parity.py ]; then $(PYTHON) tests/validation/check_word_feature_parity.py; else echo "not: node yok veya script eksik, word parity atlandı"; fi
-	@if command -v node >/dev/null 2>&1 && [ -f tests/validation/check_letter_feature_parity.py ]; then $(PYTHON) tests/validation/check_letter_feature_parity.py; else echo "not: node yok veya script eksik, letter parity atlandı"; fi
-	PYTHONPATH="$(HEALTH_PYTHONPATH):$$PYTHONPATH" $(PYTEST) $(TEST_FAST)
+	$(PYTHON) tests/validation/check_word_feature_parity.py
+	$(PYTHON) tests/validation/check_letter_feature_parity.py
+	PYTHONPATH="$(TEST_PYTHONPATH):$$PYTHONPATH" $(PYTEST) $(TEST_FAST)
 	@echo ""
 	@echo "✓ Project health OK"
 
@@ -584,11 +624,10 @@ desktop:
 clean:
 	@echo ""
 	@echo "── Cache temizliği ────────────────────────"
-	@find . -type d -name '__pycache__' -prune -exec rm -rf {} + 2>/dev/null || true
-	@find . -type d -name '.pytest_cache' -prune -exec rm -rf {} + 2>/dev/null || true
-	@find . -type f -name '*.pyc' -delete 2>/dev/null || true
-	@echo "✓ Silindi : __pycache__, .pytest_cache, *.pyc"
+	@find . \( -path './.git' -o -path './.venv*' \) -prune -o -type d \( -name '__pycache__' -o -name '.pytest_cache' -o -name '*.egg-info' \) -exec rm -rf {} + 2>/dev/null || true
+	@find . \( -path './.git' -o -path './.venv*' \) -prune -o -type f \( -name '*.pyc' -o -name '*.pyo' -o -name '.DS_Store' \) -delete 2>/dev/null || true
+	@echo "✓ Silindi : proje cache'leri, *.egg-info, *.py[co], .DS_Store"
 	@echo ""
 	@echo "Korunan   : data/, models/, asl-web/models/, asl-web/data/,"
-	@echo "            notebooks/, .venv*, .gitignore, README'ler"
+	@echo "            notebooks/, .venv*, .git/, .gitignore, README'ler"
 	@echo ""

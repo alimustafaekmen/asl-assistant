@@ -7,21 +7,19 @@ name = "asl-ml"
 version = "0.1.0"
 description = "Shared Python ML/data utilities for ASL Assistant (letter feature engineering, landmark normalization, label-map I/O)"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.12,<3.13"
 authors = [
   { name = "Ali Mustafa Ekmen" },
 ]
-license = { text = "Academic project" }
 
 # Runtime dependencies (asl-web does NOT use this package)
 dependencies = [
-  "numpy>=1.21",
+  "numpy>=1.26,<2",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=7.0",
-  "pytest-cov",
+  "pytest>=9.1,<10",
 ]
 
 [tool.setuptools.packages.find]

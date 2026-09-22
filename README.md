@@ -1,225 +1,216 @@
-# 🤟 ASL Assistant
+# ASL Assistant
 
-**Real-time American Sign Language recognition that runs entirely in your browser — no server, no upload, 100% on-device.**
+ASL Assistant is a browser-based project for recognizing American Sign
+Language fingerspelling and selected isolated signs. The application performs landmark
+extraction and ONNX inference in the browser; it has no application backend and
+does not upload camera frames.
 
-ASL Assistant reads your webcam, recognizes **24 fingerspelling letters** and **50 word-signs**, and turns them into text and speech. Every frame is processed locally with MediaPipe landmarks + ONNX Runtime Web — the camera image never leaves your device. It's plain HTML/CSS/JavaScript: no build step, no framework, deployable to any static host.
+[Live demo](https://asl-demo.netlify.app/#letter) · [Getting started](docs/getting-started.md) · [Türkçe](README.tr.md) · [Documentation](docs/README.md)
 
-![Vanilla JS](https://img.shields.io/badge/Vanilla-HTML%2FCSS%2FJS-yellow)
-![ONNX Runtime Web](https://img.shields.io/badge/ONNX-Runtime%20Web%201.22-blue)
-![MediaPipe](https://img.shields.io/badge/MediaPipe-Tasks%20Vision%200.10-green)
-![On-device](https://img.shields.io/badge/Inference-On--device-success)
+## What it includes
 
-🔗 **Live demo:** [asl-demo.netlify.app](https://asl-demo.netlify.app/#letter) · 📇 Course project for an *AI Applications* class · 🎓 Portfolio build
+| Mode | Purpose |
+|---|---|
+| Letter translation | Recognizes the project's 24 supported static letter classes and builds text. |
+| Learning coach | Lets the user practise a selected letter or word and records local progress. |
+| Word practice | Runs a 50-class isolated-sign model and shows top-3 results. This is an experimental feature. |
+| Model Test | Runs deterministic JSON fixtures directly through the browser ONNX models. |
+| QR Demo | Opens the hosted letter, word, or model-test view on another device. |
 
-![ASL Assistant — letter recognition UI](docs/assets/project-ui-screenshot.png)
-
----
-
-## Why this project is interesting
-
-- **Two different problems, two right tools.** A *letter* is a single static hand pose; a *word* is a short motion sequence. They are not the same ML problem, so they get different pipelines: **LightGBM** on geometric features for letters, a **Transformer** on frame sequences for words.
-- **It actually runs the models in the browser.** The trained models are exported to ONNX and executed client-side with ONNX Runtime Web (WASM). This is a real inference app, not a notebook screenshot.
-- **Privacy by design.** No backend. The webcam feed is turned into numeric landmarks and classified on-device — nothing is uploaded. A static host (GitHub Pages / Netlify) is enough to ship it.
-- **Feature engineering over raw pixels.** 21 hand landmarks (63 raw values) become **93 engineered features** (distances, joint angles, finger states) for letters, and 168-D compact motion features for words.
-- **Honest, reproducible evaluation.** Word results use a **signer-independent** split (the same person never appears in both train and test). Python↔JS feature parity is unit-tested (`max_diff < 1e-4`), and a **Model Test** panel runs the real ONNX model on held-out fixtures live in the UI.
-
----
+The letter experience is the primary product. Word recognition is presented as
+a limited research demo because live performance is sensitive to signer,
+framing, motion speed, lighting, and landmark quality.
 
 ## Quick start
 
-The web app needs **no Python and no build** — just a static file server:
+No build step is required:
 
 ```bash
 cd asl-web
 python3 -m http.server 8080
-# open http://localhost:8080  (Chrome/Edge desktop recommended; mobile works too)
 ```
 
-> **Sanity check:** click **"Offline test"** in the UI. Expected deterministic output: `give @ 7.6%`. This runs the real word model on a bundled fixture and proves the whole pipeline (feature build → ONNX → softmax → top-3) works end to end.
+Open <http://localhost:8080>. Camera access works on `localhost` or an HTTPS
+origin; a plain HTTP LAN address is normally rejected by browsers.
 
-A camera demo needs an **HTTPS** origin (browsers block camera on plain-HTTP IPs), which is why the public demo is hosted on Netlify. The `#letter` hash opens the app directly in letter mode.
+Use **Offline test** for a camera-independent smoke test. The bundled word
+fixture should return `give` with approximately `0.0760` confidence. This is a
+runtime regression fixture, not an accuracy benchmark.
 
----
+## Model summary
 
-## The product (letter-first)
+| Pipeline | Letter model | Word model |
+|---|---|---|
+| Task | Static handshape classification | Isolated sign sequence classification |
+| Model | LightGBM | SignTransformer encoder |
+| Classes | 24 | 50 |
+| Input | 93 engineered features | 45 × 168 features + padding mask |
+| Reported test metric | 99.35% held-out accuracy | 71.92% accuracy; 0.714 macro-F1 |
+| Runtime | ONNX Runtime Web | ONNX Runtime Web |
 
-The **letter model is the hero** — it's the most reliable part and the core experience. Word mode and the learning coach are intentionally positioned as *extras / lab*.
+The two results are not directly comparable: they use different tasks,
+datasets, split strategies, and feature pipelines. The letter score describes
+held-out landmark data and should not be interpreted as guaranteed live-camera
+accuracy.
 
-| Mode | What it does |
-|---|---|
-| **Harf Çeviri** *(hero)* | Fingerspell A–Y live, append to a text line, speak it aloud. |
-| **Öğrenme Koçu** *(extra)* | Pick a target letter/word, practice against the camera, quiz + progress. |
-| **Kelime Pratik** *(lab)* | 50-word model with top-3 output and honest confusion/limitation notes. |
-| **Model Test** | Upload or pick a JSON fixture and see the raw ONNX prediction — no camera needed. |
+## Development overview
 
-*(The UI is in Turkish; this README is in English for reach. Letters J and Z are intentionally excluded — they involve motion, so they don't fit a static single-frame model.)*
+The first working application was a Python desktop prototype with the static
+letter model and a 25-word BiGRU+Attention pipeline. The project later moved to
+a distributable static web application and expanded the word experiments to 50
+classes. Feature ablations, sequence-length comparisons, and recurrent versus
+Transformer model comparisons led to the current 45 × 168 SignTransformer
+export.
 
----
+The desktop code remains available as a legacy prototype, while the browser app
+is the maintained product. The letter mode is the primary feature because its
+static-pose pipeline is substantially more reliable in live use. The 50-word
+mode is retained as an experimental, top-3-assisted result viewer rather than a
+fully reliable translator. See the [project journey](docs/project-journey.md)
+for the code-backed timeline, unused approaches, results, and major fixes.
 
-## Results
-
-All numbers below are from held-out evaluation, not training accuracy.
-
-### Letter model — LightGBM (24 classes)
-
-| Metric | Value |
-|---|---:|
-| Held-out accuracy | **99.35%** |
-| Augmented-split accuracy | 99.44% |
-| Classes | 24 (A–Y, no J/Z) |
-| Feature vector | 93-D (geometric) |
-| Train / test / held-out samples | 238,251 / 42,045 / 8,245 |
-| Avg. inference | ~0.05 ms |
-
-Static fingerspelling is well-separated by geometry, so a gradient-boosted model on engineered features is both accurate and tiny/fast — a good fit for the browser.
-
-### Word model — SignTransformer (50 classes)
-
-| Metric | Value |
-|---|---:|
-| Test accuracy | **71.92%** |
-| Test macro-F1 | **0.714** |
-| Best validation F1 | 0.803 |
-| Parameters | 446,195 |
-| Input | 45 frames × 168-D + padding mask |
-| Temperature (calibration) | 0.985 |
-| ONNX size | 1.77 MB |
-| Split | signer-independent (14 / 3 / 4 signers) |
-
-Words are genuinely harder: they contain motion, are sensitive to camera angle and speed, and several signs look alike. Rather than hide this, the UI shows **top-3** and a **confusion hint**, and the project frames word mode as an honest research surface.
-
-<details>
-<summary><b>Ablation & architecture studies (word model)</b></summary>
-
-**Feature ablation** — the 168-D compact set beat both smaller and larger sets (more features ≠ better):
-
-| Feature set | Dim | Test F1 |
-|---|---:|---:|
-| Raw landmarks | 321 | 0.581 |
-| Shape | 72 | 0.613 |
-| Shape + motion | 132 | 0.621 |
-| Pairwise + dominant | 444 | 0.671 |
-| **Compact (chosen)** | **168** | **0.699** |
-| Full | 519 | 0.639 |
-
-**Architecture comparison** — SignTransformer gave the best single-model result; the ensemble was stronger but heavier, so the lighter Transformer was chosen for deployment:
-
-| Model | Params | Test F1 |
-|---|---:|---:|
-| SmallGRU | 104,627 | 0.682 |
-| BiGRU | 602,739 | 0.700 |
-| ConvGRU | 338,259 | 0.702 |
-| **SignTransformer (chosen)** | **446,195** | **0.719** |
-| Ensemble | 1,048,934 | 0.733 |
-
-**Reliable words:** `water`, `sad`, `uncle`, `cow`, `brown` · **Hard words:** `open`, `give`, `all`, `sleepy`, `book`
-**Common confusions:** `listen↔hear`, `can↔yes`, `open↔book`, `sleep↔sleepy`, `who↔bird`
-
-</details>
-
----
-
-## How it works
+## Runtime architecture
 
 ```text
-Webcam / fixture
-  → MediaPipe (hand + pose + face landmarks)
-  → 321-D landmark vector
-  → feature engineering        (letters: 93-D · words: 168-D)
-  → ONNX model inference       (LightGBM · SignTransformer)
-  → smoothing / thresholds / top-3
-  → text + speech + feedback
+Camera or JSON fixture
+  -> MediaPipe landmarks
+  -> feature engineering
+       letter: 21 hand landmarks -> 93D
+       word:   321D holistic frame -> 168D x 45
+  -> ONNX Runtime Web (WASM)
+  -> smoothing, thresholds, top-3, feedback
+  -> text and optional speech
 ```
 
-**Letter features (93-D)** — from 21 hand landmarks:
-
-```text
-[0..62]   normalized 21 landmarks (wrist origin + middle-MCP scale)
-[63..67]  5 fingertip→wrist distances
-[68..71]  4 adjacent-fingertip distances
-[72..85]  14 finger joint angles
-[86..87]  bounding-box aspect / area
-[88..92]  5 finger-extended flags
-```
-
-**Word features (168-D per frame × 45 frames + bool mask)**:
-
-```text
-[0..62]    dominant-hand landmarks
-[63..92]   hand-shape features
-[93..104]  hand ↔ face/body distances
-[105..167] motion vectors (frame-to-frame)
-```
-
-The exact same feature math is implemented twice — in Python (training / source of truth) and in JavaScript (browser runtime) — and a parity test asserts they agree to `< 1e-4`.
-
----
-
-## Tech stack
-
-| Layer | Choice |
-|---|---|
-| Frontend | Vanilla HTML / CSS / JavaScript (no framework, no build) |
-| Landmarks | MediaPipe Tasks Vision (JS) |
-| Inference | ONNX Runtime Web (WASM) |
-| Letter training | LightGBM + scikit-learn |
-| Word training | PyTorch (exported to ONNX) |
-| Speech | Web Speech API |
-| Deploy | Static hosting (Netlify / GitHub Pages) |
-
----
+The web application is plain HTML, CSS, and JavaScript. It loads ONNX Runtime,
+MediaPipe Tasks Vision, and the QR helper from CDNs, so first load requires
+network access even though inference and camera processing stay on-device.
 
 ## Repository layout
 
 ```text
-asl-web/          🚀 the product — browser app (self-contained, static)
-  ├─ js/ml/       feature engineering + ONNX letter/word models
-  ├─ js/media/    camera + MediaPipe + frame loop
-  ├─ models/      letter_model.onnx · word_model.onnx
-  └─ data/        labels, fixtures, curriculum, jury samples
-asl-ml/           shared Python ML/data helpers (feature source of truth)
-asl-desktop/      legacy CustomTkinter prototype (kept runnable, not the product)
-scripts/          data prep · model training · validation
-notebooks/        word-model training record
-models/           letter-model source / provenance
-tests/            unit · parity · repo-guardrail tests
+asl-web/       Self-contained browser application and deploy artifacts
+asl-ml/        Shared Python ML contracts, features, and data helpers
+asl-desktop/   Legacy desktop prototype and its runtime configuration
+data/          Local dataset workspace; raw/generated data is ignored
+models/        Curated letter and word model artifacts
+notebooks/     Word-model training records, metrics, and figures
+scripts/       Data preparation, training, evaluation, and validation tools
+tests/         Python, repository, web-contract, and parity checks
+docs/          Maintained usage and technical documentation
 ```
 
-The browser app (`asl-web/`) is **fully self-contained** — it does not import any Python. The Python side is for training, validation, and the desktop prototype.
+`asl-web/` does not import the Python packages. Python is used for training,
+validation, fixture export, tests, and the desktop prototype.
 
----
+## Choose a setup
 
-## Validation
+### Web only
+
+The maintained application is static. It does not need the Python ML packages
+or a Node package install:
 
 ```bash
-python3 scripts/validation/check_runtime_assets.py     # deploy smoke test + provenance hashes
-python3 tests/validation/check_word_feature_parity.py  # Python ↔ JS feature parity
-pytest tests/asl_ml/ tests/asl_desktop/unit/ tests/project/
+make web
 ```
 
----
+Open <http://localhost:8080>. Use localhost or HTTPS for camera access.
 
-## Limitations & roadmap
+### Recommended Conda environment
 
-**Known limits (by design or scope):**
-- Word recognition is much weaker live than on curated data (motion, lighting, framing, MediaPipe jitter). It's a 50-word research demo, not general translation.
-- Letters J and Z (motion letters) are out of scope for the static model.
-- The web runtime currently loads MediaPipe / ONNX Runtime from a CDN.
+The public environment uses Python 3.12, Node 24, and an isolated environment
+named `asl-assistant`:
 
-**Next up:** local-vendored runtime (CDN-independent deploy), richer letter learning (per-letter curriculum + confusion drills), broader word coverage, and live-capture quality adaptation.
+```bash
+conda env create -f environment.yml
+conda activate asl-assistant
+make doctor
+make health
+```
 
----
+The name is a public default, not a Makefile requirement. `make setup` can
+repair or refresh dependencies inside any active, non-base Conda environment.
 
-## Data & credits
+### Alternative `venv`
 
-Word data derives from the **Google – Isolated Sign Language Recognition** landmark format on Kaggle, related to the **PopSign ASL v1.0** dataset (NeurIPS 2023 Datasets & Benchmarks). Letter data derives from public ASL alphabet datasets, converted to MediaPipe landmarks. Only tiny derived JSON fixtures are committed to this repo — no raw datasets.
+Create a Python 3.12 virtual environment, activate it, install Node 24
+separately, and then run the guarded setup command:
 
-- Kaggle — Isolated Sign Language Recognition: <https://www.kaggle.com/competitions/asl-signs>
-- PopSign ASL v1.0 (NeurIPS 2023): <https://openreview.net/forum?id=yEf8NSqTPu>
-- MediaPipe Tasks Vision · ONNX Runtime Web
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+make doctor
+make setup
+make health
+```
 
----
+On Windows PowerShell, activate with `.\.venv\Scripts\Activate.ps1`. See the
+[getting-started guide](docs/getting-started.md) for platform notes and direct
+commands.
 
-## License
+Common commands:
 
-© 2026 Ali Mustafa Ekmen. All rights reserved. Third-party runtimes and training datasets keep their own licenses.
+```bash
+make web             # serve asl-web/ on port 8080
+make health          # full routine safety gate
+make validate        # runtime assets, hashes, ONNX contracts, smoke fixture
+make test            # fast Python and repository tests
+make js-test         # browser module contracts, via node --test
+make git-hygiene     # fail if ignored/local-only files are tracked
+```
+
+### Optional: browser type checking
+
+The browser sources carry JSDoc type contracts. They can be checked with
+TypeScript in no-emit mode, which reports problems without producing any
+JavaScript:
+
+```bash
+npm ci               # project-local, development-only
+make js-typecheck    # checkJs over asl-web/js, no emit
+```
+
+This is the only command that needs a package install. Running the app, serving
+it, and `make health` all work without one, and the deployed sources stay the
+`.js` files the browser loads directly.
+
+## Documentation
+
+- [Documentation index](docs/README.md)
+- [Getting started](docs/getting-started.md)
+- [Turkish getting-started guide](docs/getting-started.tr.md)
+- [Architecture](docs/architecture.md)
+- [Models and data](docs/models-and-data.md)
+- [Project journey and research notes](docs/project-journey.md)
+- [Dataset sources and publication boundary](data/README.md)
+
+## Known limitations
+
+- J and Z are not supported. No trained or deployed J/Z model is included.
+- There is no explicit no-sign/unknown training class; thresholds only provide
+  a practical rejection mechanism.
+- The word model supports isolated signs, not continuous ASL translation.
+- Live word confidence is often much lower than offline test performance.
+- MediaPipe and ONNX browser dependencies are currently CDN-hosted.
+- The bundled Model Test fixtures demonstrate deterministic inference; they are
+  not the official complete held-out evaluation set.
+
+## Data and attribution
+
+The word model was trained in Kaggle on a 50-class subset of the
+[Google Isolated Sign Language Recognition competition](https://www.kaggle.com/competitions/asl-signs)
+data. The letter model was trained locally after combining landmark extractions
+from three ASL alphabet image sources. Raw datasets are intentionally not
+committed. Dataset roles, split sizes, environments, exclusions, and source
+links are documented in [Models and data](docs/models-and-data.md#training-data-and-environments).
+
+## Licensing
+
+No open-source license has been selected for this repository. Making the source
+public does not by itself grant permission to copy, modify, or redistribute it.
+The previously added MIT file was removed because it was not an explicit
+licensing decision. The displayed reference artwork was created for this
+project rather than sourced from a third-party stock library. Before accepting
+external reuse or contributions, choose a license deliberately and confirm
+that the model artifacts and training datasets can be distributed under
+compatible terms.

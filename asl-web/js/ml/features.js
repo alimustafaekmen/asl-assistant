@@ -1,17 +1,70 @@
-// ─── Compact 168D + Letter 93D Feature Engineering ──────────
+// Feature engineering for the 168D word and 93D letter contracts.
 //
-// Python build_compact_features (kelime) ve compute_letter_93d (harf)
-// fonksiyonlarının JS portu.
+// This browser implementation must preserve the feature order used during
+// training. Reordering a segment changes the model input contract.
 //
-// 168D Segment sırası:
-//   [0..62]    dominant el landmark    63D
-//   [63..92]   el şekil özellikleri    30D
-//   [93..104]  el-yüz mesafeleri       12D
-//   [105..167] hareket vektörleri      63D
+// 168D word layout:
+//   [0..62]    dominant-hand landmarks  63D
+//   [63..92]   hand-shape features      30D
+//   [93..104]  hand-to-face distances   12D
+//   [105..167] motion vectors           63D
 //
-// 93D harf feature (LightGBM input): tip-wrist + adjacent + pairwise + ext + bbox + 21 raw → toplam 93
-// Dikkat: training Python ile birebir eşleşmesi için detaylı doğrulama gerekir.
+// The 93D letter layout is documented beside computeLetterFeatures().
 
+/**
+ * One 3D point as a plain array, used by the geometry helpers.
+ *
+ * @typedef {[number, number, number] | number[]} Vec3
+ */
+
+/**
+ * One hand as 21 landmarks x 3 coordinates. Runtime invariant: length is 63.
+ *
+ * @typedef {Float32Array} Hand63
+ */
+
+/**
+ * Letter model input. Runtime invariant: length is 93, laid out as a normalized
+ * hand 0..62 followed by the 30D geometry block.
+ *
+ * @typedef {Float32Array} LetterFeatures93
+ */
+
+/**
+ * One frame of word model input. Runtime invariant: length is 168, laid out as
+ * dominant hand 0..62, shape 63..92, hand-to-face 93..104, motion 105..167.
+ *
+ * @typedef {Float32Array} WordFeatures168
+ */
+
+/**
+ * Letter motion diagnostics for one frame, measured on standardized raw
+ * landmarks before smoothing so it stays independent of the EMA state.
+ *
+ * @typedef {Object} LetterMotionStats
+ * @property {number} meanAbsDelta Mean absolute change against the previous frame.
+ * @property {number} ts Measurement timestamp in milliseconds.
+ */
+
+/**
+ * Read-only view of the letter landmark smoother, for the debug API.
+ *
+ * @typedef {Object} LetterSmoothingState
+ * @property {boolean} enabled
+ * @property {number} alpha EMA weight given to the current frame.
+ * @property {boolean} prevSet Whether a previous frame is being smoothed against.
+ */
+
+/**
+ * Build one frame of word model input.
+ *
+ * Motion is the delta against the previous frame, so the first frame of a
+ * recording has an all-zero motion segment.
+ *
+ * @param {Frame321D} frame321d Normalized holistic frame; length must be 321.
+ * @param {Frame321D | null} prevFrame321d Previous normalized frame, or null.
+ * @returns {WordFeatures168} Compact feature vector; length is 168.
+ */
 function buildCompactFeatures(frame321d, prevFrame321d) {
   const t0 = performance.now();
 
@@ -39,6 +92,18 @@ function buildCompactFeatures(frame321d, prevFrame321d) {
   return compact;
 }
 
+/**
+ * Build word model input for a whole recording.
+ *
+ * This differs from calling buildCompactFeatures() per frame in one way that
+ * matters: the dominant hand is chosen once across the entire recording, which
+ * is what the training pipeline does. Per-frame selection can switch hands
+ * mid-sign and silently change the model input.
+ *
+ * @param {Frame321D[]} seq321dFrames Normalized frames in recording order.
+ * @returns {WordFeatures168[]} One compact frame per input frame; empty for an
+ *   empty or missing sequence.
+ */
 function buildCompactSequenceFeatures(seq321dFrames) {
   const t0 = performance.now();
   if (!Array.isArray(seq321dFrames) || seq321dFrames.length === 0) return [];
@@ -73,6 +138,16 @@ function buildCompactSequenceFeatures(seq321dFrames) {
   return compactSeq;
 }
 
+/**
+ * Pick the more visible hand from one frame, in the word convention.
+ *
+ * A dominant left hand is mirrored by negating x, which is how the word model
+ * was trained. The letter path uses a different mirroring; see
+ * selectPrimaryHandForLetter().
+ *
+ * @param {Frame321D} frame321d
+ * @returns {Hand63} The dominant hand; length is 63.
+ */
 function computeDominantHand(frame321d) {
   const right = frame321d.slice(0, 63);
   const left = frame321d.slice(63, 126);
@@ -86,7 +161,7 @@ function computeDominantHand(frame321d) {
 
   if (rZeros <= lZeros) return new Float32Array(right);
 
-  // Sol el dominant — x mirror
+  // Mirror a dominant left hand into the right-hand training convention.
   const mirrored = new Float32Array(63);
   for (let i = 0; i < 63; i += 3) {
     mirrored[i] = -left[i];
@@ -96,6 +171,15 @@ function computeDominantHand(frame321d) {
   return mirrored;
 }
 
+/**
+ * Pick one dominant hand for a whole recording and return it per frame.
+ *
+ * The side is decided from the visibility totals across every frame, so a hand
+ * that disappears briefly does not flip the choice mid-recording.
+ *
+ * @param {Frame321D[]} seq321dFrames
+ * @returns {Hand63[]} One hand per input frame, all from the same side.
+ */
 function computeDominantHandSequence(seq321dFrames) {
   let rightZeros = 0;
   let leftZeros = 0;
@@ -123,12 +207,19 @@ function computeDominantHandSequence(seq321dFrames) {
   });
 }
 
+/**
+ * Build the word-model hand geometry block.
+ *
+ * Points are centred on the wrist and scaled by the wrist-to-middle-MCP
+ * distance, so the result is independent of hand size and screen position.
+ *
+ * @param {Hand63} hand63
+ * @returns {Float32Array} Geometry block; length is 30.
+ */
 function computeShapeFeatures(hand63) {
-  // Notebook compute_per_frame_shape_features ile birebir:
-  // 1) wrist'i merkez kabul et, palm_size = ||hand[9] - wrist|| ile normalize et
-  // 2) tüm mesafeleri NORMALIZED hand üzerinde hesapla
-  // 3) extension flag BINARY (1.0/0.0)
-  // 4) bbox NORMALIZED görünür noktalar üzerinde
+  // Match the training notebook: center on the wrist, scale by wrist-to-middle
+  // MCP distance, compute geometry on normalized points, and keep extension
+  // flags binary.
   const result = new Float32Array(30);
 
   const pts = [];
@@ -140,10 +231,10 @@ function computeShapeFeatures(hand63) {
   const MCPS = [1, 5, 9, 13, 17];
   const wrist = pts[0];
 
-  // palm_size = wrist → middle_mcp (landmark 9) mesafesi
+  // Palm scale is the wrist-to-middle-MCP distance (landmark 9).
   const palmSize = Math.max(dist3d(pts[9], wrist), 1e-8);
 
-  // Wrist-merkezli + palm_size ile normalize
+  // Center on the wrist and normalize by palm scale.
   const norm = pts.map((p) => [
     (p[0] - wrist[0]) / palmSize,
     (p[1] - wrist[1]) / palmSize,
@@ -152,47 +243,46 @@ function computeShapeFeatures(hand63) {
 
   let idx = 0;
 
-  // 5 fingertip-wrist mesafe (normalized origin = wrist)
+  // Five fingertip-to-wrist distances.
   for (const t of TIPS) result[idx++] = safeNorm(norm[t]);
 
-  // 4 adjacent tip mesafe
+  // Four adjacent-fingertip distances.
   for (let i = 0; i < TIPS.length - 1; i++) {
     result[idx++] = dist3d(norm[TIPS[i]], norm[TIPS[i + 1]]);
   }
 
-  // 10 pairwise tip mesafe
+  // Ten pairwise fingertip distances.
   for (let i = 0; i < TIPS.length; i++) {
     for (let j = i + 1; j < TIPS.length; j++) {
       result[idx++] = dist3d(norm[TIPS[i]], norm[TIPS[j]]);
     }
   }
 
-  // 5 finger extension flag — BINARY (1.0 / 0.0)
+  // Five binary finger-extension flags.
   for (let i = 0; i < 5; i++) {
     const tipDist = safeNorm(norm[TIPS[i]]);
     const mcpDist = safeNorm(norm[MCPS[i]]);
     result[idx++] = tipDist > mcpDist ? 1.0 : 0.0;
   }
 
-  // 3 PIP açısı: notebook for finger_position in [1,2,3] → MCP=[5,9,13], PIP=[6,10,14], DIP=[7,11,15]
-  // jointAngle(a, b, c) = b'deki açı (a-b ve c-b vektörleri arasında)
+  // Three PIP angles for the index, middle, and ring fingers.
   const angleTriples = [
-    [5, 6, 7],   // index PIP
-    [9, 10, 11], // middle PIP
-    [13, 14, 15],// ring PIP
+    [5, 6, 7],    // Index PIP
+    [9, 10, 11],  // Middle PIP
+    [13, 14, 15], // Ring PIP
   ];
   for (const [a, b, c] of angleTriples) {
     result[idx++] = wordJointAngle(norm[a], norm[b], norm[c]);
   }
 
-  // 2 bounding box (NORMALIZED, sıfır olmayan noktalar, sadece x,y ekseni)
+  // Bounding-box aspect ratio and area over visible normalized x/y points.
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
   let maxY = -Infinity;
   let visibleCount = 0;
   for (const p of norm) {
-    // Notebook: visible = np.any(normalized_hand != 0, axis=1)
+    // A point is visible when at least one normalized coordinate is non-zero.
     if (p[0] !== 0 || p[1] !== 0 || p[2] !== 0) {
       visibleCount++;
       if (p[0] < minX) minX = p[0];
@@ -211,7 +301,7 @@ function computeShapeFeatures(hand63) {
     result[idx++] = 0;
   }
 
-  // 1 ortalama fingertip mesafe (normalized)
+  // Mean normalized fingertip distance.
   let sumTip = 0;
   for (const t of TIPS) sumTip += safeNorm(norm[t]);
   result[idx++] = sumTip / 5;
@@ -219,18 +309,22 @@ function computeShapeFeatures(hand63) {
   return result;
 }
 
+/**
+ * Measure both hands against the face, in the published face index order.
+ *
+ * @param {Frame321D} frame321d
+ * @returns {Float32Array} Six values per hand, right then left; length is 12.
+ */
 function computeHandBodyRelations(frame321d) {
-  // Notebook FACE_INDICES sırasına göre (FINAL model):
-  // burun  (landmark 1)   → FACE_INDICES.indexOf(1)   = 32 → 126 + 32*3 = 222
-  // ağız   (landmark 13)  → FACE_INDICES.indexOf(13)  = 13 → 126 + 13*3 = 165
-  // alın   (landmark 168) → FACE_INDICES.indexOf(168) = 36 → 126 + 36*3 = 234
+  // Face offsets follow the final training FACE_INDICES order:
+  // nose 1 -> 222, mouth 13 -> 165, forehead 168 -> 234.
   const nose = [frame321d[222], frame321d[223], frame321d[224]];
   const mouth = [frame321d[165], frame321d[166], frame321d[167]];
   const forehead = [frame321d[234], frame321d[235], frame321d[236]];
 
   const result = new Float32Array(12);
 
-  // Sağ el: işaret tip = landmark 8 (offset 24..26), wrist 0..2
+  // Right index fingertip is at 24..26; right wrist is at 0..2.
   const rTip = [frame321d[24], frame321d[25], frame321d[26]];
   const rWrist = [frame321d[0], frame321d[1], frame321d[2]];
   result[0] = dist3d(rTip, nose);
@@ -240,7 +334,7 @@ function computeHandBodyRelations(frame321d) {
   result[4] = rTip[1] - nose[1];
   result[5] = dist3d(rTip, rWrist);
 
-  // Sol el
+  // Left hand uses the same local offsets after the 63D right-hand segment.
   const lTip = [frame321d[63 + 24], frame321d[63 + 25], frame321d[63 + 26]];
   const lWrist = [frame321d[63], frame321d[64], frame321d[65]];
   result[6] = dist3d(lTip, nose);
@@ -253,25 +347,32 @@ function computeHandBodyRelations(frame321d) {
   return result;
 }
 
-// ─── Harf modeli için 93D feature ───────────────────────────
-// Masaüstü Python pipeline ile birebir:
-// asl_ml.utils.landmarks::normalize_landmarks + asl_ml.features.letter_features::extract_features
-//   [0..62]    bilek merkezli, orta MCP mesafesiyle normalize edilmiş el
-//   [63..67]   fingertip-wrist mesafeleri (5)
-//   [68..71]   komşu fingertip mesafeleri (4)
-//   [72..85]   parmak eklem açıları (14)
-//   [86..87]   el bounding box aspect/area (2)
-//   [88..92]   parmak extended flag (5)
-
-// ─── Letter LandmarkSmoother (EMA) + motion metric ───
-// Desktop landmark_smoother.py ile aynı algoritma (α=0.6 default).
-// Mirror std SONRASI, normalize ÖNCESİ uygulanır → "right-hand standardized"
-// 63D koordinatlara EMA. Reset: hand kaybı, mode değişimi, kamera reset.
+// 93D letter layout, matching asl_ml.normalize_landmarks + extract_features:
+//   [0..62]    wrist-centered hand scaled by middle-MCP distance
+//   [63..67]   fingertip-to-wrist distances (5)
+//   [68..71]   adjacent-fingertip distances (4)
+//   [72..85]   finger-joint angles (14)
+//   [86..87]   hand bounding-box aspect ratio and area (2)
+//   [88..92]   finger-extension flags (5)
 //
-// Word pipeline ETKİLENMEZ — bu sadece computeLetterFeatures içinde aktif.
-let _letterPrevHandSmoothed = null; // Float32Array(63) | null
-let _letterLastMotion = null;       // {meanAbsDelta, ts} | null
+// Letter-only EMA and motion state run after handedness standardization and
+// before normalization. Word features do not use this state.
+/** @type {Hand63 | null} */
+let _letterPrevHandSmoothed = null;
+/** @type {LetterMotionStats | null} */
+let _letterLastMotion = null;
 
+/**
+ * Apply the letter-only EMA to one standardized hand.
+ *
+ * An all-zero hand means tracking was lost, so the smoother resets rather than
+ * easing the previous pose toward zero and reporting a pose that was never
+ * made.
+ *
+ * @param {Hand63} current63
+ * @returns {Hand63} The smoothed hand, or the input when smoothing is off or
+ *   there is nothing to smooth against.
+ */
 function _smoothLetterHand63(current63) {
   const enabled =
     typeof CONFIG !== "undefined" && CONFIG.LETTER_LANDMARK_SMOOTHING_ENABLED != null
@@ -282,7 +383,7 @@ function _smoothLetterHand63(current63) {
       ? CONFIG.LETTER_LANDMARK_SMOOTHING_ALPHA
       : 0.6;
 
-  // Hand "tamamen sıfır" ise reset (hand kaybı durumu)
+  // An all-zero hand means tracking was lost; reset temporal state.
   let allZero = true;
   for (let i = 0; i < 63; i++) {
     if (Math.abs(current63[i]) > 1e-8) { allZero = false; break; }
@@ -310,11 +411,15 @@ function _smoothLetterHand63(current63) {
   return out;
 }
 
+/**
+ * Measure frame-to-frame letter motion.
+ *
+ * @param {Hand63} current63
+ * @returns {LetterMotionStats} Zero delta on the first frame after a reset.
+ */
 function _computeLetterMotion63(current63) {
-  // current63 = mirror std + EMA sonrası "right-hand standardized" hand.
-  // Motion = mean(abs(current - prev)). prev null ise 0 döner.
-  // Bu fonksiyon EMA'dan ÖNCE prev'i tutmalı, ama EMA da prev kullanıyor.
-  // Çözüm: ayrı _letterPrevHandRawForMotion tut — EMA ile karışmasın.
+  // Motion is the mean absolute delta between standardized raw frames. Keep a
+  // separate previous frame so this metric remains independent of EMA state.
   if (!_letterPrevHandRawForMotion || _letterPrevHandRawForMotion.length !== 63) {
     _letterPrevHandRawForMotion = new Float32Array(current63);
     return { meanAbsDelta: 0, ts: performance.now() };
@@ -326,14 +431,23 @@ function _computeLetterMotion63(current63) {
   _letterPrevHandRawForMotion = new Float32Array(current63);
   return { meanAbsDelta: sum / 63, ts: performance.now() };
 }
+/** @type {Hand63 | null} */
 let _letterPrevHandRawForMotion = null;
 
+/**
+ * @returns {LetterMotionStats | null} Null until a letter frame has been
+ *   processed, and again after a reset.
+ */
 function getLastLetterMotion() {
   return _letterLastMotion;
 }
 
+/**
+ * Expose read-only smoothing state for diagnostics.
+ *
+ * @returns {LetterSmoothingState}
+ */
 function getLetterSmoothingState() {
-  // Debug için: enabled, alpha, prev'in olup olmadığı
   const enabled =
     typeof CONFIG !== "undefined" && CONFIG.LETTER_LANDMARK_SMOOTHING_ENABLED != null
       ? CONFIG.LETTER_LANDMARK_SMOOTHING_ENABLED
@@ -345,23 +459,41 @@ function getLetterSmoothingState() {
   return { enabled, alpha, prevSet: _letterPrevHandSmoothed != null };
 }
 
+/**
+ * Clear letter EMA and motion state.
+ *
+ * Called on mode changes, camera resets, and hand loss so a previous sign
+ * cannot leak into the next one.
+ *
+ * @returns {void}
+ */
 function resetLetterLandmarkSmoother() {
   _letterPrevHandSmoothed = null;
   _letterPrevHandRawForMotion = null;
   _letterLastMotion = null;
 }
 
+/**
+ * Build the letter model input from one frame.
+ *
+ * This is stateful: it updates the motion measurement and the EMA before
+ * normalizing. Call resetLetterLandmarkSmoother() when the temporal history
+ * should not carry over.
+ *
+ * @param {Frame321D} frame321d
+ * @returns {LetterFeatures93} Letter feature vector; length is 93.
+ */
 function computeLetterFeatures(frame321d) {
   const t0 = performance.now();
-  // 1. Primary el seç (mirror std sol el için x = 1 - x içinde)
+  // 1. Select and standardize the primary hand.
   const handPrimary = selectPrimaryHandForLetter(frame321d);
-  // 2. Motion metric (EMA öncesi raw delta — kullanıcı hareketini ölçer)
+  // 2. Measure raw motion before smoothing.
   _letterLastMotion = _computeLetterMotion63(handPrimary);
-  // 3. EMA smoothing (jitter düşür, normalize öncesi)
+  // 3. Reduce frame-to-frame jitter with EMA.
   const handSmoothed = _smoothLetterHand63(handPrimary);
-  // 4. Wrist+MCP normalize
+  // 4. Normalize by wrist origin and middle-MCP scale.
   const hand = normalizeHandForLetter(handSmoothed);
-  // 5. 30D shape features
+  // 5. Append the 30D geometric feature block.
   const shape = computeLetterShapeFeatures(hand);
 
   const out = new Float32Array(93);
@@ -374,18 +506,21 @@ function computeLetterFeatures(frame321d) {
   return out;
 }
 
+/**
+ * Pick the more visible hand from one frame, in the letter convention.
+ *
+ * MediaPipe x is normalized to [0,1], so a dominant left hand is mirrored with
+ * 1 - x rather than the word path's negation. Missing landmarks stay at zero so
+ * they are not mirrored into a spurious position.
+ *
+ * @param {Frame321D} frame321d
+ * @returns {Hand63} The primary hand, or 63 zeros when neither hand is visible.
+ */
 function selectPrimaryHandForLetter(frame321d) {
-  // Web harf modu MIRROR INVARIANCE sağlar:
-  // ASL alfabesi görsel olarak mirror invariant'tır (A harfi sağ veya sol elle
-  // yapılırsa kullanıcıya aynı görünür). AMA modeli besleyen ham landmark
-  // koordinatları mirror invariant DEĞİL — Group 0 (raw 63 normalized koord)
-  // x işaretleri farklı çıkar. Eğitim verisi (Kaggle ASL Alphabet) çoğunlukla
-  // sağ-el-yoğun olduğu için sol elle yanlış sınıfa kaymalar olur.
-  //
-  // Çözüm: sol el algılandığında landmark x'lerini mirror et (1 - x). Bu sayede
-  // her el "right-hand-standardized" formatta normalize_landmarks'a girer ve
-  // model her durumda tutarlı tahmin verir. Masaüstü Python'dan farklı (orada
-  // mirror yok) ama web kullanıcı deneyimi için DAHA İYİ.
+  // The training data is right-hand dominant, while raw landmark x coordinates
+  // differ between hands. Mirror detected left hands into the right-hand input
+  // convention before normalization to reduce this domain mismatch. This is an
+  // intentional web-runtime policy and differs from the desktop prototype.
   const right = frame321d.slice(0, 63);
   const left = frame321d.slice(63, 126);
 
@@ -395,9 +530,8 @@ function selectPrimaryHandForLetter(frame321d) {
   if (rightVisible === 0 && leftVisible === 0) return new Float32Array(63);
   if (rightVisible >= leftVisible) return new Float32Array(right);
 
-  // Sol el dominant → x mirror (1 - x) ile sağ-el formatına çevir.
-  // MediaPipe normalized image space [0..1] → mirror = 1 - x.
-  // Sıfır landmark'lar (algılanmamış noktalar) DOKUNULMAZ — yine 0 kalsın.
+  // MediaPipe x is normalized to [0,1], so left-hand mirroring uses 1-x.
+  // Preserve all-zero missing landmarks.
   const mirrored = new Float32Array(63);
   for (let i = 0; i < 21; i++) {
     const x = left[i * 3];
@@ -411,6 +545,12 @@ function selectPrimaryHandForLetter(frame321d) {
   return mirrored;
 }
 
+/**
+ * Count visible landmarks, not visible coordinates.
+ *
+ * @param {Hand63} hand63
+ * @returns {number} How many of the 21 landmarks have any non-zero coordinate.
+ */
 function _nonZeroTriplets(hand63) {
   let count = 0;
   for (let i = 0; i < 63; i += 3) {
@@ -425,6 +565,13 @@ function _nonZeroTriplets(hand63) {
   return count;
 }
 
+/**
+ * Centre a hand on the wrist and scale by the middle-MCP distance.
+ *
+ * @param {Hand63} hand63
+ * @returns {Hand63} Normalized hand, or 63 zeros when the reference distance is
+ *   degenerate; length is 63.
+ */
 function normalizeHandForLetter(hand63) {
   const pts = [];
   for (let i = 0; i < 21; i++) {
@@ -449,6 +596,12 @@ function normalizeHandForLetter(hand63) {
   return out;
 }
 
+/**
+ * Build the letter-model hand geometry block.
+ *
+ * @param {Hand63} hand63 Already normalized by normalizeHandForLetter().
+ * @returns {Float32Array} Geometry block; length is 30.
+ */
 function computeLetterShapeFeatures(hand63) {
   const result = new Float32Array(30);
   const pts = [];
@@ -504,6 +657,11 @@ function computeLetterShapeFeatures(hand63) {
   return result;
 }
 
+/**
+ * @param {Vec3} a
+ * @param {Vec3} b
+ * @returns {number} Euclidean distance.
+ */
 function dist3d(a, b) {
   const dx = a[0] - b[0];
   const dy = a[1] - b[1];
@@ -511,12 +669,28 @@ function dist3d(a, b) {
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
+/**
+ * Vector magnitude with a floor, so callers can divide by it safely.
+ *
+ * @param {Vec3} v
+ * @returns {number} Magnitude, never zero.
+ */
 function safeNorm(v) {
   return Math.max(Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]), 1e-8);
 }
 
+/**
+ * Angle in radians between vectors a-b and c-b, for the word contract.
+ *
+ * Degenerate vectors are floored by safeNorm(), so this returns a finite angle
+ * rather than NaN.
+ *
+ * @param {Vec3} a
+ * @param {Vec3} b Vertex.
+ * @param {Vec3} c
+ * @returns {number} Angle in radians.
+ */
 function wordJointAngle(a, b, c) {
-  // a-b ve c-b vektörleri arası açı (radyan)
   const v1 = [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
   const v2 = [c[0] - b[0], c[1] - b[1], c[2] - b[2]];
   const dot = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
@@ -526,8 +700,17 @@ function wordJointAngle(a, b, c) {
   return Math.acos(cos);
 }
 
+/**
+ * Angle in radians between vectors a-b and c-b, for the letter contract.
+ *
+ * Unlike the word variant, a missing or degenerate joint is reported as zero.
+ *
+ * @param {Vec3} a
+ * @param {Vec3} b Vertex.
+ * @param {Vec3} c
+ * @returns {number} Angle in radians, or 0 when degenerate.
+ */
 function jointAngle(a, b, c) {
-  // Harf pipeline kontratı: eksik/sıfır eklemde açı 0 döner.
   const v1 = [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
   const v2 = [c[0] - b[0], c[1] - b[1], c[2] - b[2]];
   const dot = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];

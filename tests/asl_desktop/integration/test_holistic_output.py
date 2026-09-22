@@ -1,108 +1,101 @@
-"""
-HolisticDetector çıktı doğrulama testleri.
+"""Deterministic contract tests for holistic landmark extraction.
 
-detect() sözleşmesi:
-  - Tüm landmark sıfırsa → (None, False)   [boş frame / MediaPipe bulamadı]
-  - Landmark varsa       → (ndarray(321,), bool)
-  - NaN hiçbir zaman olmamalı (forward-fill sıfır döndürür, NaN değil)
-  - hands_detected sadece gerçek el görüldüğünde True
-
-Boş (siyah) frame'de MediaPipe genellikle hiçbir landmark üretmez →
-detect() (None, False) döner. Bu testte bunu kabul edip doğruluyoruz.
+MediaPipe model startup and camera/GL availability are environment smoke
+checks, not extraction logic. These tests replace the detector backend with
+small result objects so every branch is exercised without a webcam or GPU
+context.
 """
+
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
 pytest.importorskip("cv2")
 pytest.importorskip("mediapipe")
 
-from asl_desktop.detection.holistic_detector import HolisticDetector
-
-EXPECTED_SHAPE = (321,)  # 107 landmark × 3
-
-
-def _make_detector() -> HolisticDetector:
-    """Create HolisticDetector, or skip when MediaPipe cannot open a GL context."""
-    try:
-        return HolisticDetector()
-    except RuntimeError as exc:
-        pytest.skip(f"MediaPipe HolisticDetector bu ortamda baslatilamadi: {exc}")
+from asl_desktop.detection.holistic_detector import (
+    NUM_FACE,
+    NUM_FEATURES,
+    NUM_LEFT_HAND,
+    NUM_POSE,
+    NUM_RIGHT_HAND,
+    HolisticDetector,
+)
+from asl_desktop.utils.landmark_smoother import LandmarkSmoother
 
 
-def _blank_frame(h: int = 480, w: int = 640) -> np.ndarray:
-    """Siyah (boş) kamera frame'i — MediaPipe'ın üretimde görebileceği en kötü durum."""
-    return np.zeros((h, w, 3), dtype=np.uint8)
+def _landmark_group(count: int, *, offset: float = 0.0):
+    points = [
+        SimpleNamespace(x=offset + i * 0.01, y=offset + i * 0.02, z=-i * 0.005)
+        for i in range(count)
+    ]
+    return SimpleNamespace(landmark=points)
 
 
-@pytest.fixture(scope="module")
-def detector():
-    """Modül genelinde tek HolisticDetector (MediaPipe init maliyetli)."""
-    return _make_detector()
+def _detector_for(results) -> HolisticDetector:
+    detector = HolisticDetector.__new__(HolisticDetector)
+    detector.holistic = SimpleNamespace(process=lambda _: results)
+    detector._last_results = None
+    detector._smoother = LandmarkSmoother(alpha=1.0)
+    detector._last_right_hand = np.zeros(NUM_RIGHT_HAND * 3, dtype=np.float32)
+    detector._last_left_hand = np.zeros(NUM_LEFT_HAND * 3, dtype=np.float32)
+    detector._last_face = np.zeros(NUM_FACE * 3, dtype=np.float32)
+    detector._last_pose = np.zeros(NUM_POSE * 3, dtype=np.float32)
+    return detector
 
 
-def test_detect_returns_tuple(detector):
-    """detect() her zaman 2-tuple döndürmeli: (ndarray|None, bool)."""
-    result = detector.detect(_blank_frame())
-    assert isinstance(result, tuple) and len(result) == 2, "detect() 2-tuple dondurmeli"
-    keypoints, hands_detected = result
-    assert isinstance(hands_detected, bool), "hands_detected bool olmali"
-    assert keypoints is None or isinstance(keypoints, np.ndarray), (
-        "keypoints None veya ndarray olmali"
+def _results(*, right=None, left=None, face=None, pose=None):
+    return SimpleNamespace(
+        right_hand_landmarks=right,
+        left_hand_landmarks=left,
+        face_landmarks=face,
+        pose_landmarks=pose,
     )
 
 
-def test_output_shape_when_not_none(detector):
-    """Keypoints None değilse shape (321,) olmalı."""
-    keypoints, _ = detector.detect(_blank_frame())
-    if keypoints is not None:
-        assert keypoints.shape == EXPECTED_SHAPE, (
-            f"Beklenen {EXPECTED_SHAPE}, alınan {keypoints.shape}"
-        )
+def _frame() -> np.ndarray:
+    return np.zeros((16, 16, 3), dtype=np.uint8)
 
 
-def test_output_no_nan_when_not_none(detector):
-    """Keypoints None değilse NaN içermemeli (forward-fill sıfır döndürür)."""
-    keypoints, _ = detector.detect(_blank_frame())
-    if keypoints is not None:
-        assert not np.any(np.isnan(keypoints.astype(np.float32))), "Çıktıda NaN var!"
+def test_completely_empty_result_returns_explicit_absence():
+    keypoints, hands_detected = _detector_for(_results()).detect(_frame())
+
+    assert keypoints is None
+    assert hands_detected is False
 
 
-def test_hands_detected_false_on_blank(detector):
-    """Boş frame'de el olmadığı için hands_detected=False olmalı."""
-    _, hands_detected = detector.detect(_blank_frame())
-    assert hands_detected is False, "Boş frame'de el tespit edilmemeli"
+@pytest.mark.parametrize("side", ["right", "left"])
+def test_either_hand_produces_finite_321d_output(side):
+    kwargs = {side: _landmark_group(21, offset=0.1)}
+    keypoints, hands_detected = _detector_for(_results(**kwargs)).detect(_frame())
+
+    assert hands_detected is True
+    assert keypoints is not None
+    assert keypoints.shape == (NUM_FEATURES,)
+    assert keypoints.dtype == np.float32
+    assert np.all(np.isfinite(keypoints))
 
 
-def test_output_shape_multiple_frames(detector):
-    """Ardışık 5 frame'de — None değilse — shape ve NaN garantisi bozulmamalı."""
-    for i in range(5):
-        keypoints, _ = detector.detect(_blank_frame())
-        if keypoints is not None:
-            assert keypoints.shape == EXPECTED_SHAPE, f"Frame {i}: shape bozuldu"
-            assert not np.any(np.isnan(keypoints.astype(np.float32))), f"Frame {i}: NaN var"
+def test_face_without_hands_preserves_the_idle_signal():
+    detector = _detector_for(_results(face=_landmark_group(478, offset=0.2)))
+
+    keypoints, hands_detected = detector.detect(_frame())
+
+    assert keypoints is not None
+    assert keypoints.shape == (NUM_FEATURES,)
+    assert hands_detected is False
 
 
-def test_forward_fill_no_nan_after_absence():
-    """
-    El görünmeyince forward-fill devreye girmeli, NaN oluşmamalı.
-    Cache başlangıçta sıfır → boş frame'lerde de NaN üretmemeli.
-    """
-    fresh = _make_detector()  # temiz cache
-    for _ in range(3):
-        keypoints, _ = fresh.detect(_blank_frame())
-        if keypoints is not None:
-            assert not np.any(np.isnan(keypoints.astype(np.float32))), (
-                "Forward-fill sonrası NaN var!"
-            )
-            assert keypoints.shape == EXPECTED_SHAPE
+def test_missing_hand_uses_previous_hand_values_but_not_detection_flag():
+    detector = _detector_for(_results(right=_landmark_group(21, offset=0.1)))
+    first, first_detected = detector.detect(_frame())
+    detector.holistic = SimpleNamespace(
+        process=lambda _: _results(face=_landmark_group(478, offset=0.2))
+    )
 
+    second, second_detected = detector.detect(_frame())
 
-if __name__ == "__main__":
-    det = HolisticDetector()
-    test_detect_returns_tuple(det)
-    test_output_shape_when_not_none(det)
-    test_output_no_nan_when_not_none(det)
-    test_hands_detected_false_on_blank(det)
-    test_output_shape_multiple_frames(det)
-    test_forward_fill_no_nan_after_absence()
-    print("✅ test_holistic_output: 6/6 geçti")
+    assert first is not None and first_detected is True
+    assert second is not None and second_detected is False
+    assert np.any(detector._last_right_hand != 0)

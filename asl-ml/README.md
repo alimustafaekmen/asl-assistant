@@ -1,73 +1,53 @@
 # asl-ml
 
-> **Shared Python ML/data utilities** for the ASL Assistant project.
->
-> The browser runtime (`asl-web/`) does NOT depend on this package — it ships
-> its own JavaScript implementation and reads contracts from `docs/current/`.
+`asl-ml` is the reusable Python-side ML contract layer. It keeps landmark
+normalization, the 93D static-letter feature implementation, label-map I/O,
+and the small set of preprocessing constants that training and Python
+inference must share.
 
-This package consolidates Python helpers that are used across multiple
-project layers:
+The browser application does not import this package. `asl-web/` contains a
+separate JavaScript implementation whose outputs are checked against the
+Python contract with parity tests.
 
-- **Letter feature engineering** (93D LightGBM input pipeline)
-- **Landmark normalization** (wrist origin + middle MCP scale)
-- **Label-map I/O helpers** (JSON load/save/invert)
-- **Filesystem helpers** (`ensure_dir`)
+## Contents
 
-## Consumers
-
-| Layer | Uses asl-ml? | Where |
-|---|---|---|
-| `asl-desktop/` (legacy desktop prototype) | ✅ | `from asl_ml.utils import normalize_landmarks` etc. |
-| `scripts/data_preparation/` | ✅ | landmark extraction |
-| `scripts/model_training/` | ✅ | letter model training |
-| `scripts/validation/` | ✅ (indirect) | offline test sample generation |
-| `tests/asl_ml/` | ✅ | unit tests for FE + utils |
-| `asl-web/` (browser runtime) | ❌ | JS implementation in `asl-web/js/ml/` |
-
-## Layout
-
-```
-asl-ml/
-├── src/
-│   └── asl_ml/
-│       ├── features/
-│       │   ├── __init__.py
-│       │   └── letter_features.py     # 93D extract_features (LightGBM)
-│       └── utils/
-│           ├── __init__.py            # public API re-exports
-│           ├── landmarks.py           # normalize_landmarks
-│           ├── labels.py              # load/save/invert_label_map
-│           └── io.py                  # ensure_dir
-├── README.md
-└── pyproject.toml
+```text
+src/asl_ml/
+├── config.py                       shared 21-landmark, 24-class, and augmentation defaults
+├── features/letter_features.py   93D letter feature extraction
+└── utils/
+    ├── landmarks.py              wrist-origin/scale normalization
+    ├── labels.py                 label-map load/save/invert helpers
+    └── io.py                     filesystem helper
 ```
 
-## Install (editable)
+Consumers include data-preparation and letter-training scripts, Python tests,
+and the desktop prototype. UI colors, camera lifecycle policy, desktop model
+paths, and web thresholds do not belong here.
+
+This separation gives `asl-ml` one clear role: it is the canonical Python
+implementation of model-adjacent preprocessing, not a second application and
+not a generic dumping ground for project settings. Future reusable word
+feature extraction may be added only after it can be tested against the
+notebook and browser contracts.
+
+## Install and test
 
 ```bash
-pip install -e asl-ml
+# Activate any isolated Python environment first.
+python -m pip install -e ./asl-ml
+python -m pytest tests/asl_ml
 ```
 
-After install:
+Public imports:
 
 ```python
-from asl_ml.utils import normalize_landmarks, load_label_map, ensure_dir
 from asl_ml.features.letter_features import extract_features
+from asl_ml.utils import ensure_dir, load_label_map, normalize_landmarks
+from asl_ml.config import NUM_LANDMARKS, STATIC_LETTERS
 ```
 
-## Contract
-
-The 93D feature breakdown and landmark normalization rules are documented
-in `docs/current/model-contract.md`. **Do not change** the feature order,
-normalization formula, or output dtype without updating both this package
-and the JavaScript implementation in `asl-web/js/ml/features.js`.
-
-Numerical parity is verified by `scripts/validation/check_runtime_assets.py`
-(offline ONNX test produces `give @ %7.6` with Δconf ≈ 0).
-
-## Testing
-
-```bash
-pip install -e asl-ml[dev]
-pytest tests/asl_ml/
-```
+The 93D order and normalization are protected by the
+[models and data contract](../docs/models-and-data.md). Update the Python and
+JavaScript paths together and run the letter parity checks before changing
+them.

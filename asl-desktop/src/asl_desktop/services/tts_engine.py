@@ -1,29 +1,20 @@
-"""
-Ses Motoru (Text-to-Speech)
-============================
-- pyttsx3 ile offline sesli okuma
-- Ayri daemon thread (kamera donmasini onler)
-- Queue tabanli asenkron konusma
-"""
+"""Non-blocking offline text-to-speech service for the desktop app."""
+
 import logging
-import threading
 import queue
+import threading
 
 import pyttsx3
 
-from config.settings import TTS_RATE, TTS_VOLUME, TTS_JOIN_TIMEOUT
+from asl_desktop.config import TTS_JOIN_TIMEOUT, TTS_RATE, TTS_VOLUME
 
 _logger = logging.getLogger("ASL.TTS")
 
 
 class TTSEngine:
-    """
-    Thread-safe pyttsx3 wrapper.
+    """Run ``pyttsx3`` work on a dedicated daemon thread.
 
-    pyttsx3 macOS'ta ana thread'de calismazsa sorun cikarir.
-    Bu sinif pyttsx3'u kendi daemon thread'inde calistirir.
-
-    Kullanim:
+    Example:
         tts = TTSEngine()
         tts.start()
         tts.speak("Hello World")
@@ -38,7 +29,7 @@ class TTSEngine:
         self._running = False
 
     def start(self) -> None:
-        """TTS daemon thread'ini baslatir."""
+        """Start the speech worker if it is not already running."""
         if self._running:
             return
         self._running = True
@@ -46,7 +37,7 @@ class TTSEngine:
         self._thread.start()
 
     def _worker(self) -> None:
-        """Daemon thread: pyttsx3 motorunu olusturur ve queue'dan okur."""
+        """Create the speech engine and process queued text."""
         try:
             engine = pyttsx3.init()
         except (RuntimeError, OSError) as e:
@@ -60,7 +51,7 @@ class TTSEngine:
         while self._running:
             try:
                 text = self._queue.get(timeout=0.5)
-                if text is None:  # Durdurma sinyali
+                if text is None:  # Sentinel inserted by ``stop``.
                     break
                 engine.say(text)
                 engine.runAndWait()
@@ -75,14 +66,14 @@ class TTSEngine:
             pass
 
     def speak(self, text: str) -> None:
-        """Konusma kuyruguna metin ekler (non-blocking). Otomatik baslatir."""
+        """Queue non-empty text for speech, starting the worker as needed."""
         if not self._running:
             self.start()
         if self._running and text:
             self._queue.put(text)
 
     def stop(self) -> None:
-        """TTS motorunu durdurur."""
+        """Stop the worker and wait briefly for it to exit."""
         self._running = False
         self._queue.put(None)
         if self._thread and self._thread.is_alive():

@@ -4,7 +4,7 @@
 Diagnostic parity test for the WORD 168D compact feature pipeline.
 
 Compares the notebook contract (a pure-Python port of the relevant
-`notebooks/train_word_model_final.ipynb` cells) against the live web
+`notebooks/word_50_training.ipynb` cells) against the live web
 JavaScript runtime (`asl-web/js/ml/landmarks.js` + `features.js`,
 executed under Node).
 
@@ -12,13 +12,14 @@ Output: CSV-like rows with one of three statuses:
 
     PASS       max_abs_diff < 1e-4 — Python and JS produce equivalent
                168D features for this fixture. Used as the parity bar.
-    KNOWN_GAP  fixture is expected to expose a documented divergence.
-               Reported so we can quantify the gap; not a CI failure.
+    KNOWN_GAP  fixture is expected to expose a documented divergence
+               (see `docs/models-and-data.md`). Reported so we can quantify the
+               gap; not a CI failure.
     FAIL       fixture was expected to PASS but did not. Returns
                exit code 1 — investigate before any runtime change.
 
 This script intentionally:
-  - does NOT touch `notebooks/train_word_model_final.ipynb`
+  - does NOT touch `notebooks/word_50_training.ipynb`
   - does NOT touch any model artifact or runtime JSON
   - does NOT modify the web runtime
   - exits 0 when only PASS and KNOWN_GAP rows are present, so it can
@@ -44,13 +45,13 @@ import numpy as np
 
 # ----------------------------------------------------------------------------
 # 1. Notebook contract port — pure Python, copied from
-#    notebooks/train_word_model_final.ipynb cells 1 (constants), 6
+#    notebooks/word_50_training.ipynb cells 1 (constants), 6
 #    (normalize_shoulders), and 10 (per-frame shape, dominant hand,
 #    hand-body, build_compact_features).
 #
 #    DO NOT edit these to chase a parity diff — they are the trained
 #    contract. If the notebook contract truly changes, the artifact
-#    chain in notebooks/results/ must change first and these constants
+#    chain in models/word/web-50/ must change first and these constants
 #    must be re-synced.
 # ----------------------------------------------------------------------------
 
@@ -461,10 +462,10 @@ def main() -> int:
     print("WORD 168D FEATURE PARITY — diagnostic (PASS / KNOWN_GAP / FAIL)")
     print("=" * 78)
     print(f"Project root:    {PROJECT_ROOT}")
-    print(f"Python contract: notebooks/train_word_model_final.ipynb cells 1, 6, 10")
+    print(f"Python contract: notebooks/word_50_training.ipynb cells 1, 6, 10")
     print(f"JS runtime:      asl-web/js/ml/landmarks.js, asl-web/js/ml/features.js")
     print(f"PASS tolerance:  max_abs_diff < 1e-4")
-    print(f"KNOWN_GAP rules: documented divergences")
+    print("KNOWN_GAP rules: documented divergences in docs/models-and-data.md")
     print()
     print("fixture,python_shape,js_shape,max_abs_diff,status,note")
 

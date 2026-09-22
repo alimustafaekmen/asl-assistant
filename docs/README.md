@@ -1,70 +1,32 @@
-# docs/
+# Documentation
 
-Dokümantasyon haritası. Bu klasör **proje sahibinin ve yeni gelen
-geliştiricinin** ihtiyaç duyduğu tüm referans bilgileri tutar.
+ASL Assistant keeps a small set of documents, each with one purpose. Start
+with the root [README](../README.md) for the project overview.
 
-## Önce ne okumalıyım?
+| Document | Audience | Purpose |
+|---|---|---|
+| [Getting started](getting-started.md) | Users and developers | Run the web app, prepare a Python environment, validate the project, and troubleshoot common problems. |
+| [Başlangıç rehberi (Türkçe)](getting-started.tr.md) | Kullanıcılar ve geliştiriciler | Web uygulamasını çalıştırın, izole ortam kurun ve projeyi doğrulayın. |
+| [Architecture](architecture.md) | Developers | Understand component boundaries, browser pipelines, repository layout, state, and failure modes. |
+| [Models and data](models-and-data.md) | ML developers and reviewers | Inspect feature order, ONNX I/O, labels, runtime JSON, evaluation scope, and artifact provenance. |
+| [Project journey](project-journey.md) | Researchers and contributors | Follow the desktop-to-web evolution, experiments, engineering problems, lessons, limitations, and relation to sign-recognition research. |
+| [Data workspace](../data/README.md) | ML developers | See which datasets trained the published models, which sources were only explored, and what stays outside Git. |
 
-```text
-1) ../README.md              kısa tanıtım, hızlı başlangıç, yönlendirme tablosu
-2) ../HANDBOOK.md            yolculuk-bazlı detaylı rehber
-3) docs/project-usage.md     güncel terminal komutları + cross-platform kurulum + sorun giderme
-4) ilgili klasör README'si   (asl-web/, asl-ml/, scripts/, …)
-5) docs/current/*            teknik kontrat / pipeline detayları
-```
+## Reading paths
 
-## Kullanım kılavuzu
+- To try the application: README → Getting started.
+- To change browser code: Architecture → Models and data.
+- To inspect or replace a model: Models and data → the referenced training
+  source and validation scripts.
+- To trace dataset use: Data workspace → Models and data.
+- To understand why the project made its current choices: Project journey.
 
-| Doküman | İçerik |
-|---|---|
-| [`project-usage.md`](project-usage.md) | Cross-platform kullanım: macOS ARM/Intel, Windows, Linux + Makefile + conda/venv + ortam kontrolü + sorun giderme |
+## Documentation rules
 
-## Aktif teknik dokümanlar
-
-> Bu dosyalar **kırmızı çizgi** tutar. İçeriği değiştirmek istiyorsan önce
-> oku, sonra `asl-web/` runtime ile birlikte güncelle ve hash chain'i
-> doğrula.
-
-| Doküman | İçerik |
-|---|---|
-| [`current/model-contract.md`](current/model-contract.md) | Harf 93D + Kelime 168D feature breakdown, ONNX I/O sözleşmesi, ZipMap fallback |
-| [`current/data-contract.md`](current/data-contract.md) | `asl-web/data/` JSON şemaları + provenance hash chain (9 dosya çifti) |
-| [`current/runtime-pipeline.md`](current/runtime-pipeline.md) | Tarayıcı inference akışı: kameradan tahmin gösterimine, smoother formülü, threshold'lar |
-| [`current/project-structure.md`](current/project-structure.md) | Repo katman rehberi (web / shared / legacy) |
-| [`current/system-architecture.md`](current/system-architecture.md) | Jüri "tam hakimiyet rehberi" — kapsamlı sistem mimarisi (1247 satır) |
-
-## Demo ve kullanım dokümanları
-
-| Doküman | İçerik |
-|---|---|
-| [`current/demo-plan.md`](current/demo-plan.md) | Jüri sunumu adım adım — kontrol listesi, kolay/zor kelime sırası, yedek video |
-| [`current/word-model-card.md`](current/word-model-card.md) | Kelime modeli per-word performans bantları (GREEN/YELLOW/ORANGE/RED) + confusion çiftleri + güvenli demo kelime listesi |
-| [`current/ui-ux-guide.md`](current/ui-ux-guide.md) | UI/UX tasarım sistemi: renk paleti, spacing/typography token'ları, modül hiyerarşisi, responsive davranış, JS class/ID kontratı, yeni component pattern'i |
-
-## Sınır (`docs/current/` içinde tarihsel-niteliklı tek dosya)
-
-| Doküman | Durum |
-|---|---|
-| [`current/project-history.md`](current/project-history.md) | "Proje yapım süreci ve öğrenilen dersler" — tarihsel anlatım, ama portfolyo değeri için `docs/current/`'ta tutulur (ileride taşınabilir) |
-
-## Arşiv
-
-| Klasör | İçerik |
-|---|---|
-| [`archive/historical/`](archive/historical/) | Eski proje durum raporu, geliştirme planı, project overview ve dosya audit snapshot'ları (2026-04-30'da `docs/current/`'tan taşındı). Hepsinin başında "Tarihsel arşiv" banner'ı vardır. |
-| [`archive/analysis/`](archive/analysis/) | Eski strateji + analiz + plan dokümanları |
-| [`archive/notes/`](archive/notes/) | Literatür / cevap notları |
-
-## Görseller
-
-Dokümanlarda kullanılan görseller [`assets/`](assets/) altında tutulur.
-Yeni görsellerde boşluk ve Türkçe karakter yerine `kebab-case` dosya adı
-tercih edilir.
-
-## Bu klasör dışındaki ana referanslar
-
-| Dosya | Rolü |
-|---|---|
-| [`../README.md`](../README.md) | Kök tanıtım + yönlendirme |
-| [`../HANDBOOK.md`](../HANDBOOK.md) | Yolculuk-bazlı detaylı rehber |
-| [`../CHANGELOG.md`](../CHANGELOG.md) | Değişiklik geçmişi |
+- Working code and exported artifact metadata take precedence over prose.
+- Metrics must name their dataset and evaluation scope. Browser fixtures are
+  regression samples, not a substitute for held-out evaluation.
+- Letter and word recognition are separate tasks and must not share claims,
+  thresholds, or reliability language without evidence.
+- Changes to feature order, labels, ONNX I/O, runtime JSON, or artifact sources
+  must update [Models and data](models-and-data.md) in the same change.

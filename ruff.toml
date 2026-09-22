@@ -1,0 +1,31 @@
+target-version = "py312"
+line-length = 100
+
+extend-exclude = [
+  ".venv*",
+  "data",
+  "legacy",
+  "notebooks",
+]
+
+[format]
+docstring-code-format = true
+line-ending = "lf"
+quote-style = "double"
+
+[lint]
+# Keep the first repository-wide lint gate focused on high-signal correctness
+# and import hygiene. Broader style rules can be adopted incrementally without
+# forcing behavior changes in the legacy desktop and training workflows.
+select = ["E4", "E7", "E9", "F", "I"]
+
+[lint.per-file-ignores]
+# These entry points intentionally bootstrap local ``src`` directories before
+# importing sibling packages. The desktop app also sets the CustomTkinter theme
+# before importing views that construct widgets.
+"asl-desktop/src/asl_desktop/app/asl_app.py" = ["E402"]
+"scripts/data_preparation/extract_static_letter_landmarks.py" = ["E402"]
+"scripts/data_preparation/merge_static_letter_datasets.py" = ["E402"]
+"scripts/model_training/train_dynamic_jz_model.py" = ["E402"]
+"scripts/model_training/train_static_letter_model.py" = ["E402"]
+"scripts/validation/verify_project_assets.py" = ["E402"]

@@ -1,25 +1,19 @@
-"""
-Hareket Algilayici (Motion Tracker)
-===================================
-Iki frame arasindaki el hareketinin hizini (velocity) hesaplar.
-El sabitlendiginde tahmin yapilmasini saglayarak "hareket bulanikligini" omler.
-"""
+"""Estimate landmark motion so letter inference can wait for a stable pose."""
+
 import numpy as np
 
-from config.settings import VELOCITY_THRESHOLD
+from asl_desktop.config import VELOCITY_THRESHOLD
 
 
 class MotionTracker:
-    """
-    Landmark koordinatlarinin zamansal degisimini (hizini) takip eder.
-    El ivmeli hareket ediyorsa (geçiş) True, sabit pozisyondaysa False döner.
-    """
+    """Track mean landmark displacement over a short frame history."""
+
     def __init__(self, history_size: int = 3, threshold: float = VELOCITY_THRESHOLD):
-        """
+        """Configure the history window and stability threshold.
+
         Args:
-            history_size: Hiz hesabi icin tutulacak frame sayisi.
-            threshold: Sabit/Hareketli ayrimini yapan hiz esigi.
-                       (L2 norm cinsinden, normalize edilmis uzayda)
+            history_size: Number of frames retained for the speed estimate.
+            threshold: Mean L2 displacement above which the hand is moving.
         """
         self.history_size = history_size
         self.threshold = threshold
@@ -27,22 +21,20 @@ class MotionTracker:
         self._current_speed: float = 0.0
 
     def update(self, landmarks: np.ndarray | None) -> bool:
-        """
-        Yeni frame'i ekler ve elin hareket halinde olup olmadigini dondurur.
+        """Add one frame and report whether inference should remain suppressed.
 
         Args:
-            landmarks: (63,) shape'li normalize edilmis landmark veya None.
+            landmarks: A normalized landmark vector, or ``None``.
 
         Returns:
-            is_moving: El hareketliyse True (tahminleri sustur),
-                       sabitse False (tahmin yap).
+            ``True`` while the hand is moving or insufficient history exists.
         """
         if landmarks is None:
             self._history.clear()
             self._current_speed = 0.0
-            return True  # El yoksa hareket halinde kabul et (guvenli)
+            return True  # Suppress inference when no hand is visible.
 
-        # Harf↔Kelime mod geçişinde shape değişir (63D↔321D) → history temizle
+        # Letter/word mode changes the vector width from 63D to 321D.
         if self._history and self._history[-1].shape != landmarks.shape:
             self._history.clear()
 
@@ -52,21 +44,21 @@ class MotionTracker:
             self._history.pop(0)
 
         if len(self._history) < self.history_size:
-            return True  # Yeterli veri yoksa hareket halinde kabul et
+            return True  # Wait for a complete history before accepting a pose.
 
-        # Ardisik frameler arasi L2 mesafe (hiz/velocity)
+        # Average the L2 displacement between adjacent frames.
         displacements = []
         for i in range(1, len(self._history)):
-            dist = float(np.linalg.norm(self._history[i] - self._history[i-1]))
+            dist = float(np.linalg.norm(self._history[i] - self._history[i - 1]))
             displacements.append(dist)
 
         self._current_speed = sum(displacements) / len(displacements)
-        
+
         return self._current_speed > self.threshold
 
     @property
     def speed(self) -> float:
-        """Hesaplanan anlik hiz (debug icin)."""
+        """Return the latest displacement estimate for diagnostics."""
         return self._current_speed
 
     def reset(self) -> None:

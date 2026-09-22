@@ -1,31 +1,37 @@
-// ─── MediaPipe Landmark → 321D Vektör / 321D Landmark Vector ──
+// MediaPipe results to the fixed 321D word-model landmark vector.
 //
-// TR: MediaPipe sonuçlarını (el + yüz + gövde) tek bir 321 sayılık düz
-//     vektöre çevirir. Bu sıra, modelin eğitildiği notebook'taki
-//     load_single_parquet çıktısıyla BİREBİR AYNI olmak zorundadır;
-//     sıra bozulursa model "farklı bir dil" görür ve yanlış tahmin eder.
-// EN: Flattens MediaPipe results (hands + face + pose) into one 321-float
-//     vector. The order MUST match the training notebook exactly —
-//     if the order drifts, the model sees garbage and mispredicts.
+// Feature order must match the final training notebook. A dimensionally valid
+// vector with a different order will still run but produce invalid predictions.
 //
-// 321D SIRASI / LAYOUT:
-//   [0..62]    sağ el / right hand   (21 nokta × 3)
-//   [63..125]  sol el / left hand    (21 nokta × 3)
-//   [126..245] yüz / face            (40 seçili nokta × 3)
-//   [246..320] gövde / pose          (25 seçili nokta × 3)
+// Layout:
+//   [0..62]    right hand  (21 landmarks x 3)
+//   [63..125]  left hand   (21 landmarks x 3)
+//   [126..245] face        (40 selected landmarks x 3)
+//   [246..320] pose        (25 selected landmarks x 3)
 //
-// FACE_INDICES — train_word_model_final.ipynb CELL 1'den birebir kopya.
-// (Eski V4 meta'dan farklıdır — bu FINAL modelin sırasıdır.)
-// FACE_INDICES is copied verbatim from the final training notebook.
+// FACE_INDICES is copied from notebooks/word_50_training.ipynb and belongs to
+// the published 50-word model contract.
 
+/**
+ * One normalized holistic frame in the published 321D layout.
+ *
+ * JSDoc cannot express the length, so it stays a runtime invariant: the value
+ * is always a Float32Array of exactly 321 values, laid out as right hand 0..62,
+ * left hand 63..125, face 126..245, pose 246..320.
+ *
+ * @typedef {Float32Array} Frame321D
+ */
+
+/** @type {number[]} */
 const FACE_INDICES = [
-  61, 146, 91, 181, 84, 17, 314, 405, 321, 375,    // Dudak dış (10)
-  78, 191, 80, 13, 312, 308,                       // Dudak iç  (6)
-  33, 133, 159, 145, 263, 362, 386, 374,           // Göz       (8)
-  70, 63, 105, 66, 300, 293, 334, 296,             // Kaş       (8)
-  1, 2, 98, 327, 168, 197, 195, 5,                 // Burun+alın(8)
+  61, 146, 91, 181, 84, 17, 314, 405, 321, 375,    // Outer lips (10)
+  78, 191, 80, 13, 312, 308,                       // Inner lips (6)
+  33, 133, 159, 145, 263, 362, 386, 374,           // Eyes (8)
+  70, 63, 105, 66, 300, 293, 334, 296,             // Eyebrows (8)
+  1, 2, 98, 327, 168, 197, 195, 5,                 // Nose and forehead (8)
 ];
 
+/** @type {number[]} */
 const POSE_INDICES = [
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
   23, 24, 25, 26, 27, 28, 29, 30,
@@ -34,24 +40,38 @@ const POSE_INDICES = [
 console.assert(FACE_INDICES.length === 40, "FACE_INDICES 40 eleman olmalı");
 console.assert(POSE_INDICES.length === 25, "POSE_INDICES 25 eleman olmalı");
 
-// TR: MediaPipe bazen listeyi "kişi başına liste" olarak iç içe döndürür;
-//     biz her zaman ilk kişinin noktalarını kullanırız.
-// EN: MediaPipe may nest lists per detected person; we always take the
-//     first person's landmarks.
+/**
+ * Resolve one landmark list from either shape MediaPipe returns.
+ *
+ * Hand results are nested by detected person; pose and face results are already
+ * flat. This single-user app always takes the first detected person.
+ *
+ * @param {LandmarkList | LandmarkList[] | null | undefined} maybeNested
+ * @returns {LandmarkList | null} Null when nothing was detected.
+ */
 function _firstList(maybeNested) {
   if (!maybeNested) return null;
   if (Array.isArray(maybeNested) && maybeNested.length > 0) {
-    // İç eleman array ise (multi-person), ilkini al
+    // Nested array: select the first detected person.
     if (Array.isArray(maybeNested[0])) return maybeNested[0];
-    return maybeNested; // Düz dizi
+    // A non-array first element means this is already a flat landmark list.
+    // Inspecting one element to classify the whole array is not something a
+    // type guard can express, so the narrowing is stated here.
+    return /** @type {LandmarkList} */ (maybeNested);
   }
   return null;
 }
 
-// TR: Görünmeyen parça (ör. sol el yoksa) vektörde 0 olarak kalır — model
-//     eğitimde de eksik parçaları 0 olarak gördü, bu yüzden sorun değildir.
-// EN: Missing parts (e.g. no left hand) stay 0 in the vector — training
-//     used the same convention, so zeros are expected, not an error.
+/**
+ * Flatten a MediaPipe frame into the published 321D layout.
+ *
+ * Every group is optional. A missing or short group stays zero-filled rather
+ * than shifting the following groups, which is how the training pipeline
+ * represents an undetected body part.
+ *
+ * @param {Partial<MediaPipeFrameResult> | null | undefined} holisticResult
+ * @returns {Frame321D} Always 321 values, even for an empty result.
+ */
 function landmarksTo321D(holisticResult) {
   const vec = new Float32Array(321);
   if (!holisticResult) return vec;
@@ -101,17 +121,19 @@ function landmarksTo321D(holisticResult) {
   return vec;
 }
 
-// TR: Kelime modeli için normalizasyon — tüm noktaları omuz merkezine göre
-//     kaydırır ve omuz genişliğine böler. Böylece kişinin ekrandaki yeri ve
-//     kameraya uzaklığı modelin kararını etkilemez.
-//     Omuzlar görünmüyorsa notebook'taki min-max fallback'e düşer.
-// EN: Word-model normalization — recenter on the shoulder midpoint and
-//     scale by shoulder width, so position/distance to camera don't matter.
-//     Falls back to the notebook's min-max normalization when shoulders
-//     are not visible.
+/**
+ * Centre visible landmarks on the shoulder midpoint and scale by shoulder width.
+ *
+ * Zero-valued landmarks are left at zero, so an undetected group stays
+ * undetected instead of being translated to a spurious position. When the
+ * shoulders are missing or coincident, the notebook-compatible min-max fallback
+ * runs instead.
+ *
+ * @param {Frame321D} frame321d
+ * @returns {Frame321D} A new frame; the input is not modified.
+ */
 function normalizeShoulders(frame321d) {
-  // Sol omuz / left shoulder:  pose 11 → 246 + 11*3 = 279
-  // Sağ omuz / right shoulder: pose 12 → 246 + 12*3 = 282
+  // Pose 11 (left shoulder) starts at 279; pose 12 (right) starts at 282.
   const LS_OFF = 279;
   const RS_OFF = 282;
 
@@ -145,12 +167,19 @@ function normalizeShoulders(frame321d) {
   return out;
 }
 
+/**
+ * Scale a frame by the min-max range of its non-zero values.
+ *
+ * This is the notebook-compatible path used when shoulders are unavailable. A
+ * frame with no visible landmarks returns all zeros, and a frame whose values
+ * share one magnitude is passed through unscaled, so the result is always
+ * finite.
+ *
+ * @param {Frame321D} frame321d
+ * @returns {Frame321D} A new frame; the input is not modified.
+ */
 function normalizeShouldersFallbackMinMax(frame321d) {
-  // TR: Notebook parity — omuzlar yoksa sıfır-olmayan değerler üzerinde
-  //     min-max normalizasyonu yapılır; sıfırlar "eksik landmark" anlamına
-  //     geldiği için sıfır olarak korunur.
-  // EN: Notebook parity — min-max over non-zero values when shoulders are
-  //     missing; zeros mean "missing landmark" and must stay zero.
+  // Preserve zero-valued missing landmarks while scaling non-zero values.
   let minValue = Infinity;
   let maxValue = -Infinity;
   for (let i = 0; i < frame321d.length; i++) {

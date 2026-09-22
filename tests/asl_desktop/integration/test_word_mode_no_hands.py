@@ -1,22 +1,21 @@
-"""
-"dad" bug regresyon testi.
-hands_detected=False iken kelime buffer'i bos kalmali.
+"""Desktop word-buffer and no-hands regression tests.
 
-Kök neden:
-  holistic_detector.detect() forward-fill ile her zaman 321D vektör döndürür,
-  hands_detected=False olsa bile. Eski kod tek if ile kontrol ediyordu:
-      if not hands_detected or not is_moving:   # is_moving=True (yüz hareketi) bunu bypass ediyordu
-  Düzeltme: hands_detected=False iken add_frame() HIÇ çağrılmıyor.
-
-Bu testler SequenceClassifier buffer'ının bu invariant'ı koruduğunu doğrular.
+The important regression is tested at the orchestration boundary: forwarded
+face/body landmarks must not reach ``SequenceClassifier.add_frame`` when no
+hand was detected.
 """
+from types import SimpleNamespace
+from unittest.mock import Mock
+
 import numpy as np
 import pytest
 
 pytest.importorskip("torch")
+pytest.importorskip("customtkinter")
 
 from asl_desktop.models.sequence_classifier import SequenceClassifier
-from config.settings import SEQUENCE_LENGTH
+from asl_desktop.ui.translation_view import TranslationView
+from asl_desktop.config import SEQUENCE_LENGTH, WORD_IDLE_RESET_FRAMES
 
 WORD_FEATURE_DIM = 321  # Holistic: 107 landmark × 3
 
@@ -28,20 +27,58 @@ def test_buffer_empty_on_init():
     assert clf.buffer_progress == 0.0
 
 
-def test_buffer_unchanged_when_add_frame_not_called():
-    """
-    hands_detected=False → add_frame() çağrılmıyor → buffer boş kalmalı.
+def _word_view_without_gui() -> TranslationView:
+    """Build only the state used by _process_word_mode; do not start Tk."""
+    view = TranslationView.__new__(TranslationView)
+    view._word_loaded = True
+    view._cooldown_frames = 0
+    view._word_idle_frames = 0
+    view._current_prediction = "stale"
+    view._current_confidence = 0.9
+    view._word_classifier = Mock(buffer_progress=0.0)
+    view._motion_tracker = SimpleNamespace(speed=0.0)
+    view._logger = Mock()
+    view._prediction_label = Mock()
+    view._confidence_label = Mock()
+    view._top3_label = Mock()
+    view._buffer_progress_label = Mock()
+    return view
 
-    Bu test, düzeltmenin invariant'ını doğrular:
-    "El yoksa buffer'a dokunma."
-    """
-    clf = SequenceClassifier(model_type="word")
 
-    # Simüle: hands_detected=False → add_frame() HİÇ çağrılmadı
-    # (app.py'deki if not hands_detected: return frame bloğu)
-    # Buffer değişmemeli:
-    assert len(clf._frame_buffer) == 0, "El yokken buffer bos olmali"
-    assert clf.buffer_progress == 0.0
+def test_no_hands_never_reaches_word_classifier():
+    view = _word_view_without_gui()
+    frame = np.zeros((8, 8, 3), dtype=np.uint8)
+    forwarded_landmarks = np.ones(WORD_FEATURE_DIM, dtype=np.float32)
+
+    returned = TranslationView._process_word_mode(
+        view,
+        forwarded_landmarks,
+        frame,
+        is_moving=True,
+        hands_detected=False,
+    )
+
+    assert returned is frame
+    view._word_classifier.add_frame.assert_not_called()
+    assert view._current_prediction == ""
+    assert view._current_confidence == 0.0
+
+
+def test_prolonged_hand_absence_resets_stale_word_buffer():
+    view = _word_view_without_gui()
+    view._word_idle_frames = WORD_IDLE_RESET_FRAMES - 1
+
+    TranslationView._process_word_mode(
+        view,
+        np.ones(WORD_FEATURE_DIM, dtype=np.float32),
+        np.zeros((8, 8, 3), dtype=np.uint8),
+        is_moving=True,
+        hands_detected=False,
+    )
+
+    view._word_classifier.add_frame.assert_not_called()
+    view._word_classifier.reset_buffer.assert_called_once_with()
+    assert view._word_idle_frames == 0
 
 
 def test_buffer_fills_only_when_add_frame_called():
@@ -86,12 +123,3 @@ def test_no_prediction_without_model():
     assert result is None, "Modelsiz durumda tahmin yapilmamali"
     # Buffer da dokunulmamali
     assert len(clf._frame_buffer) == 0
-
-
-if __name__ == "__main__":
-    test_buffer_empty_on_init()
-    test_buffer_unchanged_when_add_frame_not_called()
-    test_buffer_fills_only_when_add_frame_called()
-    test_buffer_reset_clears_all_frames()
-    test_no_prediction_without_model()
-    print("✅ test_word_mode_no_hands: 5/5 geçti")

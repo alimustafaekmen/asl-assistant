@@ -1,32 +1,27 @@
+"""MediaPipe hand detection for the desktop letter pipeline.
+
+The detector extracts and normalizes one 21-landmark hand, applies temporal
+smoothing, and can draw the detected landmarks on the input frame.
 """
-MediaPipe El Tespiti
-====================
-- 21 keypoint (63 ozellik) cikarimi
-- Otomatik normalizasyon
-- Overlay cizimi
-- Context manager destegi
-"""
+
 import logging
 
 import cv2
-import numpy as np
 import mediapipe as mp
-
+import numpy as np
+from asl_ml.config import MIN_DETECTION_CONFIDENCE, MIN_TRACKING_CONFIDENCE, NUM_HANDS
 from asl_ml.utils import normalize_landmarks
+
+from asl_desktop.config import LANDMARK_QUALITY_THRESHOLD
 from asl_desktop.utils.landmark_smoother import LandmarkSmoother
-from config.settings import (
-    NUM_HANDS, MIN_DETECTION_CONFIDENCE, MIN_TRACKING_CONFIDENCE,
-    LANDMARK_QUALITY_THRESHOLD,
-)
 
 _logger = logging.getLogger("ASL.HandDetector")
 
 
 class HandDetector:
-    """
-    MediaPipe Hands wrapper.
+    """Small lifecycle-safe wrapper around MediaPipe Hands.
 
-    Kullanim:
+    Example:
         with HandDetector() as det:
             keypoints, frame = det.detect_and_draw(frame)
     """
@@ -44,21 +39,15 @@ class HandDetector:
         self._smoother = LandmarkSmoother(alpha=smoothing_alpha)
 
     def detect(self, frame: np.ndarray) -> np.ndarray | None:
-        """
-        Frame'den normalize edilmis (63,) keypoint dizisi dondurur.
-        El bulunamazsa None dondurur.
-        """
+        """Return a normalized ``(63,)`` vector, or ``None`` when no hand is usable."""
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         self._last_results = self.hands.process(rgb)
 
         if self._last_results.multi_hand_landmarks:
-            # Quality gate: MediaPipe handedness confidence score kontrolu
+            # Reject low-confidence detections before smoothing them into state.
             handedness_score = 1.0
             if self._last_results.multi_handedness:
-                handedness_score = (
-                    self._last_results.multi_handedness[0]
-                    .classification[0].score
-                )
+                handedness_score = self._last_results.multi_handedness[0].classification[0].score
             if handedness_score < LANDMARK_QUALITY_THRESHOLD:
                 self._smoother.reset()
                 return None
@@ -74,18 +63,20 @@ class HandDetector:
         return None
 
     def draw_landmarks(self, frame: np.ndarray) -> np.ndarray:
-        """Son detect() sonuclarini frame uzerine cizer."""
+        """Draw landmarks produced by the most recent ``detect`` call."""
         if self._last_results and self._last_results.multi_hand_landmarks:
             for h in self._last_results.multi_hand_landmarks:
                 self.mp_draw.draw_landmarks(
-                    frame, h, self.mp_hands.HAND_CONNECTIONS,
+                    frame,
+                    h,
+                    self.mp_hands.HAND_CONNECTIONS,
                     self.mp_draw.DrawingSpec(color=(0, 220, 100), thickness=2, circle_radius=3),
                     self.mp_draw.DrawingSpec(color=(255, 255, 255), thickness=1),
                 )
         return frame
 
     def detect_and_draw(self, frame: np.ndarray) -> tuple[np.ndarray | None, np.ndarray]:
-        """Tek cagrida hem keypoint cikarir hem cizim yapar."""
+        """Extract keypoints and draw their overlay in one call."""
         keypoints = self.detect(frame)
         frame = self.draw_landmarks(frame)
         return keypoints, frame
@@ -93,8 +84,7 @@ class HandDetector:
     @property
     def hand_detected(self) -> bool:
         return (
-            self._last_results is not None
-            and self._last_results.multi_hand_landmarks is not None
+            self._last_results is not None and self._last_results.multi_hand_landmarks is not None
         )
 
     def close(self) -> None:
@@ -102,8 +92,8 @@ class HandDetector:
             try:
                 self.hands.close()
             except Exception as exc:
-                # Cleanup yolu: kapatma asamasinda hata kritik degil
-                # (MediaPipe Hands zaten release edilmis olabilir).
+                # Closing is idempotent from the caller's perspective; MediaPipe
+                # may already have released its native resources.
                 _logger.debug("HandDetector.close() swallow: %s", exc)
             self.hands = None
 

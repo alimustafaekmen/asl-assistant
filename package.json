@@ -1,0 +1,13 @@
+{
+  "name": "asl-assistant-web-tooling",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Development-only tooling for the ASL Assistant browser app. The app itself needs no package install.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.web.json"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

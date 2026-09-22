@@ -1,12 +1,13 @@
-# scripts/model_training
+# Model Training Scripts
 
-Legacy Python model egitim komutlari.
+| Script | Purpose |
+|---|---|
+| `train_static_letter_model.py` | Train/evaluate the 24-class 93D letter pipeline and export model records |
+| `train_dynamic_jz_model.py` | Reserved experimental utility; no trained J/Z artifact is included or deployed |
 
-- `train_static_letter_model.py`: 24 statik harf icin LightGBM/RF/XGBoost/MLP/Conv1D karsilastirmasi ve model kaydi.
-- `train_dynamic_jz_model.py`: J/Z dinamik harfleri icin kamera verisi toplama ve LSTM egitimi.
+The final 50-word web model is not trained here; its source workflow is
+`notebooks/word_50_training.ipynb`.
 
-Cikti kurali:
-
-- Harf modeli `models/letter/` altina yazilir.
-- J/Z modeli `models/letter/dynamic_jz/` altina yazilir.
-- 50 kelime final web modeli bu klasorden degil, `notebooks/train_word_model_final.ipynb` sonuc paketinden gelir.
+Static-letter outputs belong under `models/letter/`. A newly trained artifact
+must not replace the deployed ONNX until labels, feature contract, deterministic
+fixture, hashes, tests, and browser behavior have been validated together.

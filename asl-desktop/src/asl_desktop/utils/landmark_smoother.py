@@ -1,39 +1,29 @@
-"""
-Temporal Landmark Smoothing — EMA Filtresi
-==========================================
-Frame-to-frame landmark jitter'ini azaltmak icin
-Exponential Moving Average (EMA) uygular.
+"""Exponential moving average for reducing frame-to-frame landmark jitter."""
 
-Canli kamera kullaniminda MediaPipe landmark'lari frame'ler
-arasinda titresebilir. EMA bu titresimi yumusatarak modele
-daha temiz girdi saglar.
-"""
 import numpy as np
 
 
 class LandmarkSmoother:
-    """Exponential Moving Average tabanli landmark yumusatici."""
+    """Maintain an exponential moving average of a landmark vector."""
 
     def __init__(self, alpha: float = 0.6):
-        """
+        """Configure the smoothing response.
+
         Args:
-            alpha: Yumusatma katsayisi (0-1).
-                   1.0 = yumusatma yok (ham deger),
-                   0.0 = sadece gecmis (cok yavas tepki).
-                   0.5-0.7 arasi iyi bir denge saglar.
+            alpha: Weight of the current frame in the range 0-1. A value of
+                ``1.0`` disables smoothing; lower values respond more slowly.
         """
         self.alpha = alpha
         self._prev: np.ndarray | None = None
 
     def smooth(self, landmarks: np.ndarray) -> np.ndarray:
-        """
-        Yeni landmark vektorune EMA uygular.
+        """Apply the moving average to one landmark vector.
 
         Args:
-            landmarks: (63,) veya (N,) normalize edilmis landmark dizisi
+            landmarks: A normalized one-dimensional landmark vector.
 
         Returns:
-            Yumusatilmis landmark dizisi (ayni boyut)
+            A smoothed vector with the same shape.
         """
         if self._prev is None or self._prev.shape != landmarks.shape:
             self._prev = landmarks.copy()
@@ -44,5 +34,5 @@ class LandmarkSmoother:
         return smoothed
 
     def reset(self):
-        """Onceki durumu sifirlar (el kaybolunca cagrilmali)."""
+        """Forget temporal state, for example after the hand disappears."""
         self._prev = None

@@ -1,38 +1,72 @@
-# ============================================================
-#  ASL Sign Language Assistant — .gitignore
-# ============================================================
-#  Bu dosya repo'ya yanlışlıkla giren büyük/cache/local dosyaları
-#  filtreler. Web runtime asset'lerinin (asl-web/models/*.onnx,
-#  asl-web/data/*.json) git'e GİREBİLDİĞİNDEN emin olmak için
-#  models/ kurallarına leading-slash anchor uygulanır.
+# ASL Sign Language Assistant
 #
-#  Son kapsamli denetim: 2026-09-16 (GitHub hazirligi)
-# ============================================================
+# Public repository policy:
+# - Keep the deployable web app, source code, tests, technical docs, and the
+#   small runtime/provenance artifacts required by validation.
+# - Exclude local datasets, environments, credentials, caches, personal notes,
+#   historical experiments, and editor state.
+#
+# Important: root-level /models rules are anchored deliberately. They must not
+# hide deploy-critical files under /asl-web/models or /asl-web/data.
 
-# ── Python cache ─────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Operating-system and editor metadata
+# -----------------------------------------------------------------------------
+.DS_Store
+._*
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+
+/.vscode/
+/.idea/
+/.fleet/
+/.zed/
+/.history/
+*.swp
+*.swo
+*~
+
+# -----------------------------------------------------------------------------
+# Secrets and machine-local configuration
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.template
+.envrc
+.direnv/
+
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+
+/credentials.json
+/credentials-*.json
+/client_secret*.json
+/service-account*.json
+/service_account*.json
+/kaggle.json
+/kaggle/
+/.kaggle/
+
+# -----------------------------------------------------------------------------
+# Python environments, caches, coverage, and build artifacts
+# -----------------------------------------------------------------------------
+.venv*/
+venv/
+env/
+__pypackages__/
+
 __pycache__/
-**/__pycache__/
 *.py[cod]
 *$py.class
 
-# ── Package/build artifacts ──────────────────────────────────
-*.egg-info/
-**/*.egg-info/
-.eggs/
-dist/
-build/
-*.egg
-pip-wheel-metadata/
-wheelhouse/
-__pypackages__/
-
-# ── Test / coverage / type-check cache ───────────────────────
 .pytest_cache/
-**/.pytest_cache/
-.coverage
-.coverage.*
-coverage.xml
-htmlcov/
 .mypy_cache/
 .ruff_cache/
 .hypothesis/
@@ -42,150 +76,92 @@ htmlcov/
 .tox/
 .nox/
 
-# ── Sanal ortam (.venv, .venv-clean, venv vb.) ───────────────
-.venv*/
-**/.venv*/
-venv/
-env/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.prof
 
-# ── Yerel ortam / gizli bilgiler ─────────────────────────────
-# Gercek degerleri ignore et; yalnizca bos ornek sablonlar commit edilebilir.
-.env
-.env.*
-!.env.example
-!.env.template
-*.pem
-*.key
-*.p12
-*.pfx
-id_rsa*
-id_ed25519*
-/credentials.json
-/client_secret*.json
-/service-account*.json
-/service_account*.json
+*.egg-info/
+.eggs/
+*.egg
+build/
+dist/
+wheelhouse/
+pip-wheel-metadata/
 
-# ── IDE ─────────────────────────────────────────────────────
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# ── macOS ───────────────────────────────────────────────────
-.DS_Store
-._*
-.AppleDouble
-.LSOverride
-
-# Windows Explorer metadata
-Thumbs.db
-Desktop.ini
-
-# ── Yerel arac ve servis ciktilari ──────────────────────────────
-.cache/
+# -----------------------------------------------------------------------------
+# JavaScript, browser-test, and static-hosting local output
+# -----------------------------------------------------------------------------
 node_modules/
+.cache/
+.parcel-cache/
+.vite/
 .netlify/
 playwright-report/
 test-results/
 blob-report/
 
-# ── Model dosyaları (büyük dosyalar) ────────────────────────
-# KRITIK: Leading slash ile root models/ klasörüne anchor edildi.
-# Anchor olmadan `models/**/*.onnx` deseni asl-web/models/'i de
-# yakalar → web ONNX'leri yanlışlıkla ignore edilirdi (deploy bozulurdu).
-# Bu sayede asl-web/models/*.onnx ve asl-web/data/*.json git'e GİREBİLİR.
-/models/*.pkl
-/models/*.h5
-/models/*.onnx
-/models/*.keras
-/models/*.pt
-/models/*.pth
-/models/*.png
+# The QR view is generated in the browser. Locally exported QR snapshots are
+# disposable and can become stale when the public URL changes.
+/asl-web/assets/qr-*.svg
+/asl-web/assets/qr-*.png
+
+# -----------------------------------------------------------------------------
+# Jupyter and generated notebook state
+# -----------------------------------------------------------------------------
+.ipynb_checkpoints/
+/wandb/
+/mlruns/
+/lightning_logs/
+/tensorboard/
+/checkpoints/
+
+# -----------------------------------------------------------------------------
+# Local datasets and generated model artifacts
+# -----------------------------------------------------------------------------
+/data/raw/
+/data/processed/
+/data/reference/
+
+# Root /models contains curated training/provenance artifacts. Generated model
+# files remain ignored by default; only the explicitly listed, documented
+# letter and word artifacts are published.
 /models/**/*.pkl
 /models/**/*.h5
-/models/**/*.onnx
 /models/**/*.keras
 /models/**/*.pt
 /models/**/*.pth
 /models/**/*.png
 /models/**/*.csv
+/models/**/*.onnx
+/models/profiles/
 
-# ── models/ provenance EXCEPTION (text dosyalar git'te kalır) ─
-# Letter model meta + label map küçük JSON dosyaları korunur.
-# Aktif no-zipmap ONNX, web artifact'iyle ayni blob'u kullanan provenance
-# kaynagidir; public hash-chain testinin temiz klonda calismasi icin korunur.
-# Eski ZipMap modeli ve diger egitim ciktilari ignore edilmeye devam eder.
 !/models/**/*.json
 !/models/**/README.md
+!/models/letter/letter_model.pkl
 !/models/letter/onnx_exports/letter_model_static_24_web_no_zipmap.onnx
+!/models/word/web-50/word_model.onnx
+!/models/word/web-50/word_model.pt
+!/models/word/desktop-25/word_model.pt
 
-# ── Eski deney notebook çıktıları ────────────────────────────
-legacy/old_notebooks/**/outputs/*.pt
-legacy/old_notebooks/**/outputs/*.pth
-legacy/old_notebooks/**/outputs/*.onnx
-legacy/old_notebooks/**/outputs/*.data
-legacy/old_notebooks/**/outputs/*.json
-legacy/old_notebooks/**/outputs/*.png
+# -----------------------------------------------------------------------------
+# Project-local history
+# -----------------------------------------------------------------------------
+# Historical experiments that are not required by the published project.
+/legacy/
 
-# ── Eski training/ klasörü (artık legacy/word-training-experiments/) ─
-# 2026-04-26 refactor öncesi top-level training/ vardı; artık yok.
-# Aşağıdaki satırlar pasifleştirildi (eski yapı için referans olarak yorum):
-# training/checkpoints/*
-# !training/checkpoints/README.md
-# training/results/*
-# !training/results/README.md
-
-# ── Veri dosyaları (büyük, 3+ GB) ────────────────────────────
-# Tüm data/raw ve data/processed git dışında.
-# /data/reference/ küçük JSON dosyaları için güvenlik:
-/data/raw/
-/data/processed/
-/data/reference/*.json
-
-# Kaggle API token / local credentials. Never commit.
-/kaggle/
-/.kaggle/
-/kaggle.json
-
-# ── Jupyter ─────────────────────────────────────────────────
-.ipynb_checkpoints/
-**/.ipynb_checkpoints/
-
-# ── Log ─────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Logs, temporary files, editor backups, and archive bundles
+# -----------------------------------------------------------------------------
 *.log
 *.pid
-
-# ── Gecici/editor yedekleri ───────────────────────────────────
 *.bak
 *.orig
 *.tmp
 *.temp
 
-# ── Backup tar/klasörleri (kontrollü pattern) ────────────────
-# Tar arsivleri ile acikca backup adlandirilan klasorleri yakalar.
-# ZIP paketleri public-repo politikasi geregi asagida ayrica engellenir.
-*.tar.gz
-backup-*
-asl-assistant-backup-*/
-asl-assistant-full-backup-*/
-asl-assistant-code-backup-*
-
-
-# ── Arşiv paketleri — public repo'da istenmez ────────────────
-# Archive/build zip bundles must never reach the public repo.
-# (Geçmişte kök dizine 3 adet .zip commit edilmişti; tekrar kaçmasın.)
 *.zip
-
-# ── Kişisel notlar / mülakat / jüri hazırlığı (sadece kök) ────
-# Personal notes and jury-prep docs — keep out of the public repo.
-# Anchored to root so `git add -A` cannot leak them; may contain PII.
-/Isaret-Dili-Mülakat.md
-/MULAKAT_*.md
-/project.md
-/JURI_*.md
-/JURI_*.pdf
-/*_REHBERI.md
-/*_RAPORU.md
-/KOD_HAKIMIYET_REHBERI.md
-/ASL_ASSISTANT_PROJE_RAPORU.md
+*.tar
+*.tar.gz
+*.tgz

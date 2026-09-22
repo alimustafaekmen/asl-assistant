@@ -7,6 +7,7 @@ Modules:
 The browser runtime (`asl-web/js/ml/features.js::computeLetterFeatures`)
 implements the same algorithm in JavaScript.
 """
+
 from asl_ml.features.letter_features import extract_features
 
 __all__ = ["extract_features"]

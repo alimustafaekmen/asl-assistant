@@ -1,35 +1,8 @@
-# Validation, Test ve Geliştirme Bağımlılıkları
-# ==============================================
-#
-# Bu dosya web runtime ICIN GEREKLI DEGIL — `asl-web/` tarayicida CDN'den
-# kendi onnxruntime-web@1.22.0'ini yukler. Asagidaki paketler offline
-# Python araclari icindir:
-#
-#   - scripts/validation/verify_project_assets.py
-#       (asl-web/{models,data} sağlik kontrolu, ONNX I/O dogrulamasi)
-#   - scripts/validation/generate_word_onnx_test_sample.py
-#       (notebooks/results/test_sample.json uretici)
-#   - scripts/validation/check_runtime_assets.py
-#       (asl-web/ runtime hash chain dogrulamasi)
-#   - tests/integration/test_word_mode_no_hands.py
-#       (kelime ONNX dummy + test_sample tabanli inference)
-#   - tests/unit/*.py
-#       (FE + utils + smoother unit testleri)
-#
-# Kurulum:
-#   pip install -r requirements.txt        # Calistirma + masaustu prototip
-#   pip install -r requirements-dev.txt    # + validation + test + ONNX araclari
+# Development, validation, and test dependencies.
+# Includes the desktop/offline dependencies declared in requirements.txt.
+# The static browser application itself has no Python package requirement.
 
-# Calistirma bagimliliklarini bu ortama da getir
 -r requirements.txt
 
-# ─── ONNX (validation + offline test sample uretimi) ─────────────────
-onnx>=1.15
-onnxruntime>=1.16
-
-# ─── Test framework ──────────────────────────────────────────────────
-pytest>=7.0
-pytest-cov
-
-# ─── Type checking (opsiyonel) ──────────────────────────────────────
-# mypy  # pyrightconfig.json ile pyright tercih edildi
+# Formatting and lightweight static checks used by `make format-check` and `make lint`.
+ruff==0.16.8

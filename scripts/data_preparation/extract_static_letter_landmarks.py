@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
-============================================================
-  Landmark Çıkarma — Görsellerden MediaPipe Keypoint CSV
-============================================================
+Extract normalized hand landmarks from static-letter image folders.
 
-Görsel klasörlerinden MediaPipe ile 21 keypoint (63 özellik) çıkarır
-ve normalize ederek CSV dosyasına kaydeder.
+Each image is processed with MediaPipe Hands and written as one CSV row with a
+label followed by 63 normalized coordinates. J and Z are excluded by the
+default 24-letter class contract.
 
-Kullanım:
+Examples:
   python scripts/data_preparation/extract_static_letter_landmarks.py \\
     --input "data/raw/ASL Alphabet/asl_alphabet_train/asl_alphabet_train" \\
     --output "data/processed/asl_alphabet_landmarks.csv" \\
@@ -18,27 +17,34 @@ Kullanım:
     --output "data/processed/mediapipe_processed_landmarks.csv" \\
     --max-per-class 3000
 
-Çıktı CSV formatı:
+Output schema:
   label, f0, f1, f2, ..., f62
   A, 0.0, 0.123, -0.045, ...
 """
+
+import argparse
+import csv
 import os
 import sys
 import time
-import argparse
-import csv
-import numpy as np
-import cv2
 
-# Proje kökünü ekle
+import cv2
+import numpy as np
+
+# Resolve the local Python ML package when the script is run from a fresh clone.
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, PROJECT_ROOT)
+ASL_ML_SRC = os.path.join(PROJECT_ROOT, "asl-ml", "src")
+if ASL_ML_SRC not in sys.path:
+    sys.path.insert(0, ASL_ML_SRC)
 
 import mediapipe as mp
-from config.settings import (
-    NUM_LANDMARKS, NUM_HANDS, MIN_DETECTION_CONFIDENCE, STATIC_LETTERS,
+from asl_ml.config import (
+    MIN_DETECTION_CONFIDENCE,
+    NUM_HANDS,
+    NUM_LANDMARKS,
+    STATIC_LETTERS,
 )
-from asl_ml.utils import normalize_landmarks, ensure_dir
+from asl_ml.utils import ensure_dir, normalize_landmarks
 
 
 def extract_landmarks(
@@ -47,17 +53,16 @@ def extract_landmarks(
     max_per_class: int = 0,
     letters: list = None,
 ) -> dict:
-    """
-    Görsel klasörlerinden landmark çıkarır ve CSV'ye kaydeder.
+    """Extract landmarks from class folders and write them to CSV.
 
     Args:
-        input_dir:      Harf klasörlerinin bulunduğu kök dizin
-        output_csv:     Çıktı CSV dosyası
-        max_per_class:  Sınıf başına max görsel (0=sınırsız)
-        letters:        İşlenecek harfler (None=STATIC_LETTERS)
+        input_dir: Root directory containing one folder per letter.
+        output_csv: Destination CSV path.
+        max_per_class: Maximum images per letter; zero means unlimited.
+        letters: Letters to process; defaults to ``STATIC_LETTERS``.
 
     Returns:
-        stats: {harf: {'found': n, 'missed': n, 'total_images': n}}
+        Per-letter counts for detected, missed, and total images.
     """
     if letters is None:
         letters = STATIC_LETTERS
@@ -75,7 +80,7 @@ def extract_landmarks(
     total_found = 0
     total_missed = 0
 
-    # CSV header
+    # Keep the header aligned with the flat 63D landmark contract.
     header = ["label"] + [f"f{i}" for i in range(NUM_LANDMARKS * 3)]
 
     with open(output_csv, "w", newline="") as f:
@@ -84,7 +89,7 @@ def extract_landmarks(
 
         for letter in letters:
             letter_start = time.time()
-            # Büyük/küçük harf klasör arama
+            # Accept either uppercase or lowercase class-folder names.
             letter_dir = None
             for name_try in [letter.upper(), letter.lower()]:
                 candidate = os.path.join(input_dir, name_try)
@@ -97,11 +102,14 @@ def extract_landmarks(
                 stats[letter] = {"found": 0, "missed": 0, "total_images": 0}
                 continue
 
-            # Görselleri listele
-            images = sorted([
-                f for f in os.listdir(letter_dir)
-                if f.lower().endswith((".jpg", ".jpeg", ".png", ".bmp"))
-            ])
+            # Process supported image formats in deterministic filename order.
+            images = sorted(
+                [
+                    f
+                    for f in os.listdir(letter_dir)
+                    if f.lower().endswith((".jpg", ".jpeg", ".png", ".bmp"))
+                ]
+            )
             total_images = len(images)
 
             if max_per_class > 0:
@@ -127,7 +135,7 @@ def extract_landmarks(
                     raw = np.array(lms, dtype=np.float32)
                     kp = normalize_landmarks(raw)
 
-                    # NaN kontrolü
+                    # Reject non-finite vectors before they reach the dataset.
                     if np.any(np.isnan(kp)):
                         missed += 1
                         continue
@@ -162,8 +170,7 @@ def extract_landmarks(
     total_seen = total_found + total_missed
     print(f"\n  Toplam: {total_found} örnek, {len(letters)} sınıf, {elapsed:.0f}s")
     if total_seen:
-        print(f"  Başarı oranı: {total_found}/{total_seen} "
-              f"({total_found/total_seen*100:.1f}%)")
+        print(f"  Başarı oranı: {total_found}/{total_seen} ({total_found / total_seen * 100:.1f}%)")
     else:
         print("  Başarı oranı: hesaplanamadı (görüntü bulunamadı)")
     print(f"  Kayıt: {output_csv}")
@@ -177,19 +184,24 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--input", required=True,
+        "--input",
+        required=True,
         help="Harf klasörlerinin bulunduğu kök dizin",
     )
     parser.add_argument(
-        "--output", required=True,
+        "--output",
+        required=True,
         help="Çıktı CSV dosyası yolu",
     )
     parser.add_argument(
-        "--max-per-class", type=int, default=0,
+        "--max-per-class",
+        type=int,
+        default=0,
         help="Sınıf başına max görsel sayısı (0=sınırsız)",
     )
     parser.add_argument(
-        "--include-jz", action="store_true",
+        "--include-jz",
+        action="store_true",
         help="J ve Z harflerini de dahil et (varsayılan: sadece statik harfler)",
     )
     args = parser.parse_args()
@@ -216,16 +228,16 @@ def main():
         letters=letters,
     )
 
-    # Özet tablo
-    print(f"\n{'─'*50}")
+    # Print per-class extraction coverage.
+    print(f"\n{'─' * 50}")
     print(f"  {'Harf':>5}  {'Bulunan':>8}  {'Kaçan':>6}  {'Başarı':>7}")
-    print(f"{'─'*50}")
+    print(f"{'─' * 50}")
     for letter, s in sorted(stats.items()):
         total = s["found"] + s["missed"]
         rate = s["found"] / total * 100 if total > 0 else 0
         flag = "⚠" if rate < 80 else "✓"
         print(f"  {flag} {letter:>3}  {s['found']:>8}  {s['missed']:>6}  {rate:>6.1f}%")
-    print(f"{'─'*50}")
+    print(f"{'─' * 50}")
 
 
 if __name__ == "__main__":

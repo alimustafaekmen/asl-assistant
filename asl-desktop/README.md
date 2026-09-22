@@ -1,112 +1,74 @@
 # asl-desktop
 
-> ⚠ **Legacy desktop prototype.** The active product is `asl-web/` (browser
-> runtime). This package is kept for reference / experimentation.
+`asl-desktop` is the legacy CustomTkinter prototype. The active product is the
+browser application under `asl-web/`; this package is retained for reference,
+experiments, and desktop-specific tests.
 
-A CustomTkinter-based desktop application that uses MediaPipe Hands +
-Holistic, scikit-learn LightGBM letter classifier, and PyTorch sequence
-classifier. Predates the browser runtime.
+## Responsibilities
 
-## Layout
-
-```
-asl-desktop/
-├── src/
-│   └── asl_desktop/
-│       ├── app/
-│       │   └── asl_app.py            # ASLApp main controller
-│       ├── camera/
-│       │   └── camera_widget.py
-│       ├── detection/
-│       │   ├── hand_detector.py      # MediaPipe Hands wrapper
-│       │   └── holistic_detector.py  # MediaPipe Holistic wrapper
-│       ├── models/
-│       │   ├── letter_classifier.py  # LightGBM (.pkl) + ONNX
-│       │   └── sequence_classifier.py # PyTorch sequence (.pt)
-│       ├── services/
-│       │   ├── personalization.py    # KNN user profile
-│       │   └── tts_engine.py         # pyttsx3 TTS
-│       ├── ui/
-│       │   ├── translation_view.py   # Çeviri modu
-│       │   └── learning_coach_view.py # Öğrenme koçu
-│       └── utils/
-│           ├── landmark_smoother.py
-│           ├── motion_tracker.py
-│           └── smoother.py
-├── main.py                           # Entry point
-├── README.md
-└── pyproject.toml
+```text
+src/asl_desktop/
+├── app/         application controller
+├── camera/      camera widget
+├── config.py    desktop paths, camera, thresholds, UI, and model defaults
+├── detection/   Python MediaPipe wrappers
+├── models/      letter and sequence classifier wrappers
+├── services/    personalization and text-to-speech
+├── ui/          translation and coach views
+└── utils/       smoothing and motion helpers
 ```
 
-## Dependencies
+It depends on `asl-ml` and the local Python ML/GUI stack. Shared landmark and
+class-domain values come from `asl_ml.config`; desktop-only paths, camera
+behavior, thresholds, UI values, and the 25-word artifact contract live in
+`asl_desktop.config`. The browser keeps an independent JavaScript config.
 
-- **`asl-ml`** (sibling package): shared landmark normalization +
-  letter features + label I/O
-- **`config/`** (root-level shared config): paths, thresholds,
-  device detection, dataset constants
-- Python ML stack: numpy, opencv-python, mediapipe, scikit-learn,
-  lightgbm, torch, customtkinter, pyttsx3
+This removes the former root `config/` package and prevents training tools
+from depending on desktop UI settings. Visual similarity between desktop and
+web still does not imply inference parity.
 
-## Install (editable)
+The desktop word path is the earlier 25-class BiGRU+Attention implementation:
+30 frames of 321D holistic landmarks. It does not load the browser's 50-class,
+45 × 168 SignTransformer. See the
+[project journey](../docs/project-journey.md) for the verified
+transition between these versions.
+
+## Install and run
+
+The recommended public setup creates the isolated Python 3.12 environment and
+installs Node 24 for the repository checks:
 
 ```bash
-pip install -r requirements-dev.txt    # numpy, onnx, onnxruntime, pytest, ...
-pip install -e ./asl-ml                # shared ML/data helpers
-pip install -e ./asl-desktop           # depends on asl-ml (sibling editable)
+conda env create -f environment.yml
+conda activate asl-assistant
+make doctor
+make desktop
 ```
 
-Modern pip (≥24) sibling editable install'ları çözer — `asl-desktop`
-`pyproject.toml`'unun `dependencies = ["asl-ml"]` satırı çalışır çünkü
-önce `asl-ml` editable install edildi. Eğer **eski pip** kullanıyorsanız:
+For an existing isolated Conda environment or Python 3.12 `venv`, run
+`make setup` before `make desktop`. Setup refuses Conda base and installs the
+two local packages in editable mode after the pinned requirements. See the
+[getting-started guide](../docs/getting-started.md) for direct commands and
+platform notes.
+
+The application requires a GUI session and camera permission. On macOS,
+LightGBM also requires an OpenMP runtime; `environment.yml` includes
+`llvm-openmp`. The 25-word checkpoint is published under
+`models/word/desktop-25/`; J/Z remains unavailable because no trained J/Z model
+is included. Personalization profiles and newly generated training artifacts
+remain local-only.
+
+Python pickle/joblib model files are scikit-learn-version sensitive. The pinned
+requirements match the published letter artifact's scikit-learn 1.8.0 runtime.
+If the artifact is replaced, update and validate that contract together. This
+does not affect the browser's ONNX models.
+
+## Test
 
 ```bash
-pip install --upgrade pip   # pip ≥ 24 zorunlu
+python -m pytest tests/asl_desktop/unit
+python -m pytest tests/asl_desktop/integration
 ```
 
-## Run
-
-> **⚠ ÖNKOŞUL**: `python3 asl-desktop/main.py` editable install gerektirir.
-> Aksi halde `ModuleNotFoundError: No module named 'asl_desktop'`.
-
-```bash
-# 1) Önce install (her geliştirici makinesinde TEK SEFERLİK):
-pip install -r requirements-dev.txt
-pip install -e ./asl-ml          # paylaşılan ML helpers
-pip install -e ./asl-desktop     # depends on asl-ml (sibling editable)
-
-# 2) Sonra çalıştır:
-python3 asl-desktop/main.py
-```
-
-Doğrudan `python3 asl-desktop/main.py` editable install yapmadan **fail**
-çünkü `main.py` içinde:
-```python
-from asl_desktop.app.asl_app import ASLApp
-```
-import zinciri var; `asl_desktop` paketi PYTHONPATH'te bulunmalı.
-
-## What this app does NOT do
-
-This is the **legacy** desktop variant; it does NOT power the active
-demo. Differences vs `asl-web/`:
-
-| | asl-desktop (this) | asl-web (active) |
-|---|---|---|
-| UI | CustomTkinter | HTML/CSS/Vanilla JS |
-| MediaPipe | Python `mp.solutions` | MediaPipe Tasks Vision JS |
-| Letter model | scikit-learn `.pkl` | ONNX (asl-web/models/) |
-| Word model | PyTorch `.pt` | ONNX SignTransformer |
-| Distribution | Local install | GitHub Pages (zero install) |
-| Active? | Reference / legacy | ✅ Production |
-
-The two implementations share the **model+data contract** documented in
-`docs/current/model-contract.md` and `docs/current/data-contract.md`.
-
-## Tests
-
-```bash
-pytest tests/asl_desktop/
-```
-
-Note: integration tests require MediaPipe + camera + ONNX models. Unit
-tests are MediaPipe-independent.
+Integration tests may require MediaPipe, ONNX/PyTorch artifacts, and camera
+access. See [tests/README.md](../tests/README.md).

@@ -1,42 +1,20 @@
 #!/usr/bin/env python3
-"""
-============================================================
-  asl-web/ Runtime Asset Smoke Test
-============================================================
+"""Run fast integrity checks for the deployable ``asl-web`` application.
 
-Web runtime'inin (`asl-web/`) deploy oncesi hizli sağlik kontrolu.
-GitHub Pages'e push'tan once veya CI'da kosturulmasi onerilir.
+The command verifies required files and minimum sizes, JSON schemas, Model Test
+fixtures, source-to-deploy hashes, the curated Kaggle export manifest, and
+optionally ONNX input/output contracts. It intentionally skips local dataset
+inspection; use ``verify_project_assets.py`` for the broader repository audit.
 
-(EN) Fast pre-deploy smoke test for the web runtime (asl-web/): checks that
-critical files exist, JSON parses, web assets still match their source hashes
-(drift check), and — if onnxruntime is installed — that the ONNX I/O contract
-holds. Exit 0 = safe to deploy, 1 = fix before deploying.
-
-Yaptiklari:
-  1. asl-web/ icindeki kritik dosyalarin mevcudiyeti + boyutu
-  2. asl-web/data/*.json parse edilebilir + sema dogrulamasi
-  3. asl-web/{models,data} ↔ source (notebooks/results, models/letter)
-     hash chain karsilastirmasi (drift kontrolu)
-  4. ONNX dosyalari icin opsiyonel I/O sozlesmesi dogrulamasi
-     (onnx/onnxruntime kuruluysa)
-
-Bu script `verify_project_assets.py`'in WEB-FOCUSED altkumesidir; dataset
-indirme/landmark cikarma adimlarini ATLAR. Hizli demo-oncesi kontrol icin.
-
-Kullanim:
+Examples:
   python scripts/validation/check_runtime_assets.py
   python scripts/validation/check_runtime_assets.py --verbose
   python scripts/validation/check_runtime_assets.py --check-onnx   # onnx kurulu olsun
 
-Cikis kodu:
-  0  Tum kontroller gecti (deploy guvenli)
-  1  En az bir kritik kontrol fail (deploy ETME, once duzelt)
-
-Bkz:
-  docs/current/data-contract.md  (provenance hash chain tablosu)
-  docs/current/model-contract.md  (ONNX I/O sozlesmesi)
-============================================================
+Exit status is zero when every required check passes and one otherwise. See
+``docs/models-and-data.md`` for model provenance and ONNX contracts.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -44,17 +22,17 @@ import hashlib
 import json
 import os
 import sys
-from typing import Iterable
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 WEB_DIR = os.path.join(PROJECT_ROOT, "asl-web")
 WEB_DATA_DIR = os.path.join(WEB_DIR, "data")
 WEB_MODELS_DIR = os.path.join(WEB_DIR, "models")
-NOTEBOOKS_RESULTS = os.path.join(PROJECT_ROOT, "notebooks", "results")
+NOTEBOOKS_RESULTS = os.path.join(PROJECT_ROOT, "notebooks", "word_50_results")
 LETTER_MODEL_DIR = os.path.join(PROJECT_ROOT, "models", "letter")
+WORD_MODEL_DIR = os.path.join(PROJECT_ROOT, "models", "word", "web-50")
 
-# Web runtime asset minimum boyut (KB) — yanlislikla bos dosya commit edilirse fark eder
+# Minimum sizes catch accidentally truncated deploy assets.
 MIN_SIZES_KB = {
     "asl-web/models/word_model.onnx": 1500,
     "asl-web/models/letter_model.onnx": 10000,
@@ -67,14 +45,6 @@ MIN_SIZES_KB = {
     "asl-web/data/test_sample.json": 100,
     "asl-web/index.html": 5,
     "asl-web/css/style.css": 5,
-    "asl-web/js/core/app.js": 20,
-    "asl-web/js/media/camera.js": 10,
-    "asl-web/js/ml/landmarks.js": 2,
-    "asl-web/js/ml/features.js": 5,
-    "asl-web/js/ml/letter-model.js": 4,
-    "asl-web/js/ml/word-model.js": 3,
-    "asl-web/js/ml/gating.js": 2,
-    "asl-web/js/services/benchmark.js": 0.5,
     "asl-web/assets/signs/letters.png": 10,
     "asl-web/assets/signs/kelime.png": 100,
     "asl-web/assets/signs/word-1.png": 100,
@@ -84,35 +54,60 @@ MIN_SIZES_KB = {
     "asl-web/assets/signs/word-5.png": 100,
 }
 
-# Source → web hash chain (drift olursa runtime kaynaktan ayrilmis)
+# The browser scripts are split across feature modules and the layout keeps
+# changing, so they are checked as a directory instead of file by file: no
+# module may be truncated, and the bundle as a whole may not shrink unnoticed.
+WEB_JS_DIR = os.path.join(WEB_DIR, "js")
+WEB_JS_MIN_KB = 0.5
+WEB_JS_TOTAL_MIN_KB = 120
+
+# Source-to-deploy hash pairs detect unreviewed runtime drift.
 PROVENANCE_PAIRS = [
-    ("word_model.onnx",
-     os.path.join(WEB_MODELS_DIR, "word_model.onnx"),
-     os.path.join(NOTEBOOKS_RESULTS, "word_model.onnx")),
-    ("letter_model.onnx",
-     os.path.join(WEB_MODELS_DIR, "letter_model.onnx"),
-     os.path.join(LETTER_MODEL_DIR, "onnx_exports", "letter_model_static_24_web_no_zipmap.onnx")),
-    ("word_labels.json",
-     os.path.join(WEB_DATA_DIR, "word_labels.json"),
-     os.path.join(NOTEBOOKS_RESULTS, "word_to_idx.json")),
-    ("letter_labels.json",
-     os.path.join(WEB_DATA_DIR, "letter_labels.json"),
-     os.path.join(LETTER_MODEL_DIR, "letter_label_map.json")),
-    ("temperature.json",
-     os.path.join(WEB_DATA_DIR, "temperature.json"),
-     os.path.join(NOTEBOOKS_RESULTS, "temperature.json")),
-    ("per_word_stats.json",
-     os.path.join(WEB_DATA_DIR, "per_word_stats.json"),
-     os.path.join(NOTEBOOKS_RESULTS, "per_word_stats.json")),
-    ("confusion_pairs.json",
-     os.path.join(WEB_DATA_DIR, "confusion_pairs.json"),
-     os.path.join(NOTEBOOKS_RESULTS, "confusion_pairs.json")),
-    ("curriculum.json",
-     os.path.join(WEB_DATA_DIR, "curriculum.json"),
-     os.path.join(NOTEBOOKS_RESULTS, "curriculum.json")),
-    ("test_sample.json",
-     os.path.join(WEB_DATA_DIR, "test_sample.json"),
-     os.path.join(NOTEBOOKS_RESULTS, "test_sample.json")),
+    (
+        "word_model.onnx",
+        os.path.join(WEB_MODELS_DIR, "word_model.onnx"),
+        os.path.join(WORD_MODEL_DIR, "word_model.onnx"),
+    ),
+    (
+        "letter_model.onnx",
+        os.path.join(WEB_MODELS_DIR, "letter_model.onnx"),
+        os.path.join(LETTER_MODEL_DIR, "onnx_exports", "letter_model_static_24_web_no_zipmap.onnx"),
+    ),
+    (
+        "word_labels.json",
+        os.path.join(WEB_DATA_DIR, "word_labels.json"),
+        os.path.join(WORD_MODEL_DIR, "word_labels.json"),
+    ),
+    (
+        "letter_labels.json",
+        os.path.join(WEB_DATA_DIR, "letter_labels.json"),
+        os.path.join(LETTER_MODEL_DIR, "letter_label_map.json"),
+    ),
+    (
+        "temperature.json",
+        os.path.join(WEB_DATA_DIR, "temperature.json"),
+        os.path.join(WORD_MODEL_DIR, "temperature.json"),
+    ),
+    (
+        "per_word_stats.json",
+        os.path.join(WEB_DATA_DIR, "per_word_stats.json"),
+        os.path.join(NOTEBOOKS_RESULTS, "per_word_stats.json"),
+    ),
+    (
+        "confusion_pairs.json",
+        os.path.join(WEB_DATA_DIR, "confusion_pairs.json"),
+        os.path.join(NOTEBOOKS_RESULTS, "confusion_pairs.json"),
+    ),
+    (
+        "curriculum.json",
+        os.path.join(WEB_DATA_DIR, "curriculum.json"),
+        os.path.join(NOTEBOOKS_RESULTS, "curriculum.json"),
+    ),
+    (
+        "test_sample.json",
+        os.path.join(WEB_DATA_DIR, "test_sample.json"),
+        os.path.join(NOTEBOOKS_RESULTS, "test_sample.json"),
+    ),
 ]
 
 
@@ -143,8 +138,8 @@ def _warn(msg: str) -> None:
 
 
 def check_file_existence_and_size() -> bool:
-    """Web runtime'inin tum kritik dosyalari mevcut mu + minimum boyutta mi?"""
-    print("\n[1/4] Dosya mevcudiyet + minimum boyut kontrolu")
+    """Check required runtime files and their minimum sizes."""
+    print("\n[1/6] Dosya mevcudiyet + minimum boyut kontrolu")
     ok = True
     for rel_path, min_kb in MIN_SIZES_KB.items():
         abs_path = os.path.join(PROJECT_ROOT, rel_path)
@@ -158,12 +153,36 @@ def check_file_existence_and_size() -> bool:
             ok = False
         else:
             _ok(f"{rel_path}: {actual_kb:.1f} KB")
+
+    scripts = sorted(
+        os.path.join(root, name)
+        for root, _, names in os.walk(WEB_JS_DIR)
+        for name in names
+        if name.endswith(".js")
+    )
+    if not scripts:
+        _fail("asl-web/js: JavaScript modulu bulunamadi")
+        return False
+
+    total_kb = 0.0
+    for abs_path in scripts:
+        rel_path = os.path.relpath(abs_path, PROJECT_ROOT)
+        actual_kb = _file_kb(abs_path)
+        total_kb += actual_kb
+        if actual_kb < WEB_JS_MIN_KB:
+            _fail(f"{rel_path}: COK KUCUK ({actual_kb:.1f} KB < {WEB_JS_MIN_KB} KB)")
+            ok = False
+    if total_kb < WEB_JS_TOTAL_MIN_KB:
+        _fail(f"asl-web/js: TOPLAM COK KUCUK ({total_kb:.1f} KB < {WEB_JS_TOTAL_MIN_KB} KB)")
+        ok = False
+    else:
+        _ok(f"asl-web/js: {len(scripts)} modul, toplam {total_kb:.1f} KB")
     return ok
 
 
 def check_json_schemas() -> bool:
-    """asl-web/data/*.json dosyalari parse edilebilir + sema kurali esliyor mu?"""
-    print("\n[2/4] JSON sema kontrolu")
+    """Validate parseability and core schemas for deploy JSON files."""
+    print("\n[2/6] JSON sema kontrolu")
     ok = True
 
     schemas = {
@@ -193,7 +212,9 @@ def check_json_schemas() -> bool:
             expect = schema["expect_count"]
             indices = sorted(int(v) for v in data.values())
             if len(data) != expect or indices != list(range(expect)):
-                _fail(f"{filename}: dense {expect} eleman bekleniyor; len={len(data)}, indices={indices[:5]}...")
+                _fail(
+                    f"{filename}: dense {expect} eleman bekleniyor; len={len(data)}, indices={indices[:5]}..."
+                )
                 ok = False
             else:
                 _ok(f"{filename}: dense {expect} sinif (0..{expect - 1})")
@@ -219,10 +240,12 @@ def check_json_schemas() -> bool:
                 ok = False
             else:
                 real_frames = sum(1 for v in mask if v)
-                _ok(f"test_sample.json: features={len(features)}, mask={len(mask)} (gercek={real_frames}/45), expected={expected_word}")
+                _ok(
+                    f"test_sample.json: features={len(features)}, mask={len(mask)} (gercek={real_frames}/45), expected={expected_word}"
+                )
         elif kind == "stats":
             if not isinstance(data, dict) or len(data) < 1:
-                _fail(f"per_word_stats.json: bos veya yanlis tip")
+                _fail("per_word_stats.json: bos veya yanlis tip")
                 ok = False
             else:
                 sample_key = next(iter(data))
@@ -232,7 +255,9 @@ def check_json_schemas() -> bool:
                     _fail(f"per_word_stats.json: '{sample_key}' kayitinda eksik alan: {missing}")
                     ok = False
                 else:
-                    _ok(f"per_word_stats.json: {len(data)} kelime stat (ornek '{sample_key}': f1={fields['f1']}, difficulty={fields['difficulty']})")
+                    _ok(
+                        f"per_word_stats.json: {len(data)} kelime stat (ornek '{sample_key}': f1={fields['f1']}, difficulty={fields['difficulty']})"
+                    )
         elif kind == "pairs":
             if not isinstance(data, list) or len(data) < 1:
                 _fail("confusion_pairs.json: bos veya yanlis tip")
@@ -243,14 +268,116 @@ def check_json_schemas() -> bool:
                     _fail(f"confusion_pairs.json: ilk eleman 'word_a'/'word_b' icermiyor: {sample}")
                     ok = False
                 else:
-                    _ok(f"confusion_pairs.json: {len(data)} cift (ornek: {sample['word_a']} ↔ {sample['word_b']})")
+                    _ok(
+                        f"confusion_pairs.json: {len(data)} cift (ornek: {sample['word_a']} ↔ {sample['word_b']})"
+                    )
 
     return ok
 
 
+def check_model_test_fixtures() -> bool:
+    """Validate the deployable fixture registry and every referenced sample."""
+    print("\n[3/6] Model Test fixture paketi")
+    manifest_path = os.path.join(WEB_DATA_DIR, "model-test-samples", "manifest.json")
+    if not os.path.exists(manifest_path):
+        _fail("model-test-samples/manifest.json: yok")
+        return False
+
+    try:
+        with open(manifest_path, encoding="utf-8") as handle:
+            manifest = json.load(handle)
+    except (OSError, json.JSONDecodeError) as exc:
+        _fail(f"Model Test manifest parse hatasi: {exc}")
+        return False
+
+    ok = True
+    if manifest.get("schema_version") != "asl-model-test-manifest-v1":
+        _fail("Model Test manifest schema_version gecersiz")
+        ok = False
+
+    registered: set[str] = set()
+    registered_ids: set[str] = set()
+    expected_tasks = {"letters": "letter", "words": "word"}
+
+    for section, expected_task in expected_tasks.items():
+        entries = manifest.get(section)
+        if not isinstance(entries, list):
+            _fail(f"Model Test manifest '{section}' listesi eksik")
+            ok = False
+            continue
+
+        for entry in entries:
+            sample_id = entry.get("id") if isinstance(entry, dict) else None
+            raw_path = entry.get("path") if isinstance(entry, dict) else None
+            if not isinstance(sample_id, str) or not isinstance(raw_path, str):
+                _fail(f"Model Test {section}: id/path gecersiz")
+                ok = False
+                continue
+            if sample_id in registered_ids or raw_path in registered:
+                _fail(f"Model Test duplicate kayit: {sample_id} / {raw_path}")
+                ok = False
+                continue
+
+            registered_ids.add(sample_id)
+            registered.add(raw_path)
+            rel_path = raw_path.removeprefix("./")
+            if not rel_path.startswith("data/model-test-samples/") or ".." in rel_path.split("/"):
+                _fail(f"Model Test guvensiz/gecersiz path: {raw_path}")
+                ok = False
+                continue
+
+            sample_path = os.path.join(WEB_DIR, rel_path)
+            try:
+                with open(sample_path, encoding="utf-8") as handle:
+                    sample = json.load(handle)
+            except (OSError, json.JSONDecodeError) as exc:
+                _fail(f"Model Test sample okunamadi: {raw_path} ({exc})")
+                ok = False
+                continue
+
+            features = sample.get("features")
+            expected_len = 93 if expected_task == "letter" else 45 * 168
+            if sample.get("schema_version") != "asl-sample-v1":
+                _fail(f"{raw_path}: schema_version gecersiz")
+                ok = False
+            if sample.get("task") != expected_task:
+                _fail(f"{raw_path}: task={sample.get('task')}, beklenen={expected_task}")
+                ok = False
+            if not isinstance(features, list) or len(features) != expected_len:
+                _fail(f"{raw_path}: features uzunlugu {expected_len} olmali")
+                ok = False
+            if expected_task == "word":
+                mask = sample.get("mask")
+                if (
+                    not isinstance(mask, list)
+                    or len(mask) != 45
+                    or not all(isinstance(v, bool) for v in mask)
+                ):
+                    _fail(f"{raw_path}: 45 boolean mask bekleniyor")
+                    ok = False
+
+    fixture_root = os.path.join(WEB_DATA_DIR, "model-test-samples")
+    actual = {
+        "./" + os.path.relpath(os.path.join(root, filename), WEB_DIR).replace(os.sep, "/")
+        for root, _, files in os.walk(fixture_root)
+        for filename in files
+        if filename.endswith(".json") and filename != "manifest.json"
+    }
+    if actual != registered:
+        _fail(
+            "Model Test manifest/file drift: "
+            f"kayitsiz={sorted(actual - registered)}, eksik={sorted(registered - actual)}"
+        )
+        ok = False
+
+    if ok:
+        _ok(f"Model Test: {len(registered)} fixture, manifest ve semalar uyumlu")
+    return ok
+
+
 def check_provenance() -> bool:
-    """asl-web ↔ source hash chain dogrulamasi."""
-    print("\n[3/4] Provenance hash chain (asl-web ↔ kaynak)")
+    """Verify that deploy artifacts match their documented source copies."""
+    print("\n[4/6] Provenance hash chain (asl-web ↔ kaynak)")
     ok = True
     for label, web_path, source_path in PROVENANCE_PAIRS:
         web_hash = _sha256(web_path)
@@ -260,7 +387,9 @@ def check_provenance() -> bool:
             ok = False
             continue
         if src_hash is None:
-            _warn(f"{label}: kaynak dosya yok ({source_path}) — gelistirme ortami eksik, web run OK")
+            _warn(
+                f"{label}: kaynak dosya yok ({source_path}) — gelistirme ortami eksik, web run OK"
+            )
             continue
         if web_hash == src_hash:
             _ok(f"{label}: {web_hash[:16]}... (web == kaynak)")
@@ -273,9 +402,63 @@ def check_provenance() -> bool:
     return ok
 
 
+def check_export_manifest() -> bool:
+    """Validate the original Kaggle bundle manifest against curated paths."""
+    print("\n[5/6] Word export manifesti")
+    manifest_path = os.path.join(NOTEBOOKS_RESULTS, "manifest.json")
+    try:
+        with open(manifest_path, encoding="utf-8") as handle:
+            manifest = json.load(handle)
+    except (OSError, json.JSONDecodeError) as exc:
+        _fail(f"word_50_results/manifest.json okunamadi: {exc}")
+        return False
+
+    entries = manifest.get("files")
+    if not isinstance(entries, list):
+        _fail("Word export manifest 'files' listesi eksik")
+        return False
+
+    ok = True
+    if manifest.get("num_files") != len(entries) + 1:
+        _fail("Word export num_files, manifest haric entry sayisiyla uyusmuyor")
+        ok = False
+
+    renamed = {
+        "word_model.onnx": os.path.join(WORD_MODEL_DIR, "word_model.onnx"),
+        "final_model.pt": os.path.join(WORD_MODEL_DIR, "word_model.pt"),
+        "word_to_idx.json": os.path.join(WORD_MODEL_DIR, "word_labels.json"),
+        "temperature.json": os.path.join(WORD_MODEL_DIR, "temperature.json"),
+    }
+
+    for entry in entries:
+        filename = entry.get("filename") if isinstance(entry, dict) else None
+        if not isinstance(filename, str):
+            _fail("Word export manifest filename gecersiz")
+            ok = False
+            continue
+        path = renamed.get(filename, os.path.join(NOTEBOOKS_RESULTS, filename))
+        if not os.path.isfile(path) and filename.endswith(".png"):
+            path = os.path.join(NOTEBOOKS_RESULTS, "figures", filename)
+        if not os.path.isfile(path):
+            _fail(f"Word export hedefi yok: {filename}")
+            ok = False
+            continue
+        if os.path.getsize(path) != entry.get("size_bytes"):
+            _fail(f"Word export boyut uyusmazligi: {filename}")
+            ok = False
+            continue
+        if _sha256(path) != entry.get("sha256"):
+            _fail(f"Word export hash uyusmazligi: {filename}")
+            ok = False
+
+    if ok:
+        _ok(f"Word export: {len(entries)} dosyanin boyut ve SHA-256 degeri uyumlu")
+    return ok
+
+
 def check_onnx_contracts(verbose: bool = False) -> bool:
-    """ONNX I/O sozlesmesi dogrulamasi (onnx/onnxruntime kuruluysa)."""
-    print("\n[4/4] ONNX I/O sozlesmesi")
+    """Validate ONNX input/output contracts when ONNX Runtime is available."""
+    print("\n[6/6] ONNX I/O sozlesmesi")
     try:
         import onnxruntime as ort  # type: ignore
     except ImportError:
@@ -284,10 +467,10 @@ def check_onnx_contracts(verbose: bool = False) -> bool:
 
     ok = True
 
-    # WORD model
+    # Word model: 45 x 168 float input plus a boolean validity mask.
     word_path = os.path.join(WEB_MODELS_DIR, "word_model.onnx")
     if not os.path.exists(word_path):
-        _fail(f"word_model.onnx yok")
+        _fail("word_model.onnx yok")
         return False
     sess = ort.InferenceSession(word_path)
     in_names = [i.name for i in sess.get_inputs()]
@@ -305,11 +488,13 @@ def check_onnx_contracts(verbose: bool = False) -> bool:
     if word_ok:
         _ok(f"word_model: input={in_names}, output={out_names}, shapes OK")
     else:
-        _fail(f"word_model SHAPE MISMATCH: inputs={list(zip(in_names, in_shapes))}, outputs={list(zip(out_names, out_shapes))}")
-        print(f"      Beklenen: input(1,45,168) + mask(1,45) → output(1,50)")
+        _fail(
+            f"word_model SHAPE MISMATCH: inputs={list(zip(in_names, in_shapes))}, outputs={list(zip(out_names, out_shapes))}"
+        )
+        print("      Beklenen: input(1,45,168) + mask(1,45) → output(1,50)")
         ok = False
 
-    # LETTER model
+    # Letter model: one 93D engineered feature vector.
     letter_path = os.path.join(WEB_MODELS_DIR, "letter_model.onnx")
     if not os.path.exists(letter_path):
         _fail("letter_model.onnx yok")
@@ -330,17 +515,24 @@ def check_onnx_contracts(verbose: bool = False) -> bool:
         and out_shapes2[1][1:] == [24]
     )
     if letter_ok:
-        _ok(f"letter_model: input={in_names2}, output={out_names2}, probabilities=tensor(float)[N,24]")
+        _ok(
+            f"letter_model: input={in_names2}, output={out_names2}, probabilities=tensor(float)[N,24]"
+        )
     else:
-        _fail(f"letter_model SHAPE MISMATCH: inputs={list(zip(in_names2, in_shapes2))}, outputs={list(zip(out_names2, out_shapes2, out_types2))}")
-        print("      Beklenen: input(N,93) → label tensor(int64)[N] + probabilities tensor(float)[N,24]")
+        _fail(
+            f"letter_model SHAPE MISMATCH: inputs={list(zip(in_names2, in_shapes2))}, outputs={list(zip(out_names2, out_shapes2, out_types2))}"
+        )
+        print(
+            "      Beklenen: input(N,93) → label tensor(int64)[N] + probabilities tensor(float)[N,24]"
+        )
         ok = False
 
-    # OPSIYONEL: test_sample.json ile inference + ground truth
+    # Optionally verify deterministic inference against the smoke fixture.
     sample_path = os.path.join(WEB_DATA_DIR, "test_sample.json")
     if os.path.exists(sample_path):
         try:
             import numpy as np  # type: ignore
+
             sample = json.load(open(sample_path, encoding="utf-8"))
             features = np.array(sample["features"], dtype=np.float32).reshape(1, 45, 168)
             mask = np.array([sample["mask"]], dtype=bool)
@@ -360,9 +552,13 @@ def check_onnx_contracts(verbose: bool = False) -> bool:
             conf_diff = abs(probs[top1] - sample.get("expected_confidence", 0))
 
             if predicted == expected and conf_diff < 1e-3:
-                _ok(f"offline test: {predicted} @ {probs[top1]:.4f} (Δconf={conf_diff:.2e}) — ground truth {expected}")
+                _ok(
+                    f"offline test: {predicted} @ {probs[top1]:.4f} (Δconf={conf_diff:.2e}) — ground truth {expected}"
+                )
             else:
-                _fail(f"offline test FAIL: predicted={predicted} ({probs[top1]:.4f}), expected={expected} (Δconf={conf_diff:.2e})")
+                _fail(
+                    f"offline test FAIL: predicted={predicted} ({probs[top1]:.4f}), expected={expected} (Δconf={conf_diff:.2e})"
+                )
                 ok = False
         except (ImportError, KeyError, ValueError) as exc:
             _warn(f"offline test atlandi: {exc}")
@@ -373,10 +569,14 @@ def check_onnx_contracts(verbose: bool = False) -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser(description="asl-web/ runtime sağlik kontrolu")
     parser.add_argument("--verbose", "-v", action="store_true", help="Daha detayli cikti")
-    parser.add_argument("--check-onnx", action="store_true",
-                        help="onnxruntime ile ONNX inference + ground truth dogrulamasi (varsayilan: aktif)")
-    parser.add_argument("--no-onnx", action="store_true",
-                        help="ONNX kontrolunu atla (sadece dosya/json/hash)")
+    parser.add_argument(
+        "--check-onnx",
+        action="store_true",
+        help="onnxruntime ile ONNX inference + ground truth dogrulamasi (varsayilan: aktif)",
+    )
+    parser.add_argument(
+        "--no-onnx", action="store_true", help="ONNX kontrolunu atla (sadece dosya/json/hash)"
+    )
     args = parser.parse_args()
 
     print("=" * 60)
@@ -385,11 +585,13 @@ def main() -> int:
 
     file_ok = check_file_existence_and_size()
     json_ok = check_json_schemas()
+    fixtures_ok = check_model_test_fixtures()
     hash_ok = check_provenance()
+    export_ok = check_export_manifest()
     onnx_ok = True if args.no_onnx else check_onnx_contracts(args.verbose)
 
     print("\n" + "=" * 60)
-    overall = file_ok and json_ok and hash_ok and onnx_ok
+    overall = file_ok and json_ok and fixtures_ok and hash_ok and export_ok and onnx_ok
     if overall:
         print("  SONUC: \033[32m✓ DEPLOY GUVENLI\033[0m")
     else:
@@ -401,9 +603,15 @@ def main() -> int:
         if not file_ok:
             print("  - Eksik/kucuk dosyalar: source dosyadan yeniden kopyala")
         if not json_ok:
-            print("  - JSON sema hatasi: docs/current/data-contract.md kontrol et")
+            print("  - JSON sema hatasi: docs/models-and-data.md kontrol et")
+        if not fixtures_ok:
+            print("  - Model Test manifest/fixture paketini yeniden export et")
         if not hash_ok:
-            print("  - Hash drift: notebook/script yeniden calistirilmis olabilir, source'tan kopyala")
+            print(
+                "  - Hash drift: notebook/script yeniden calistirilmis olabilir, source'tan kopyala"
+            )
+        if not export_ok:
+            print("  - Word export manifesti ile curated dosyalari yeniden eslestir")
         if not onnx_ok:
             print("  - ONNX shape mismatch: model yeniden export edilmis ama web kopyasi eski")
         print()

@@ -1,13 +1,48 @@
-// ─── ONNX Kelime Modeli ──────────────────────────────────────
-// SignTransformer: input(1,45,168) + mask(1,45) → output(1,50)
-// Tarayıcıda WASM backend ile çalışır.
+// Word-model ONNX adapter.
+// SignTransformer contract: input (1,45,168), mask (1,45), output (1,50).
+// Inference runs through the ONNX Runtime Web WASM backend.
 
+/**
+ * Flattened word model input. Runtime invariant: length is 45 * 168 = 7560,
+ * frame-major. predictWord() rejects any other length.
+ *
+ * @typedef {Float32Array} WordFeatures45x168
+ */
+
+/**
+ * Word model padding mask. Runtime invariant: length is 45, where true marks a
+ * real frame and false marks padding. The exported ONNX graph inverts this
+ * itself, so it must not be pre-inverted here.
+ *
+ * @typedef {boolean[]} WordMask45
+ */
+
+/**
+ * Mask tensor element type. The published graph varies by export, so the
+ * adapter tries these in order until one is accepted.
+ *
+ * @typedef {"bool" | "uint8" | "int64"} WordMaskDtype
+ */
+
+/** @type {OnnxSessionLike | null} */
 let wordSession = null;
+/** Calibration temperature exported with the model; 1.0 disables calibration. */
 let temperature = 1.0;
+/** @type {string[]} */
 let wordLabels = [];
-let wordMaskDtype = "bool"; // bool|uint8|int64 — runtime'da belirlenir
+/** @type {WordMaskDtype} Resolved at runtime by trying each dtype in turn. */
+let wordMaskDtype = "bool";
+/** @type {WordMaskDtype[]} */
 const WORD_MASK_DTYPES = ["bool", "uint8", "int64"];
 
+/**
+ * Create the word session and load its calibration temperature and label map.
+ *
+ * Never throws: a failure is reported as false, and a missing or unusable
+ * temperature file falls back to 1.0 so inference still runs.
+ *
+ * @returns {Promise<boolean>} True when the session and labels are ready.
+ */
 async function loadWordModel() {
   try {
     if (typeof ort === "undefined") {
@@ -15,7 +50,7 @@ async function loadWordModel() {
       return false;
     }
 
-    // WASM dosya yollarını CDN'e yönlendir (worker dosyaları için gerekli)
+    // Point ORT worker and WASM asset resolution at the pinned CDN version.
     if (ort.env && ort.env.wasm) {
       ort.env.wasm.wasmPaths =
         "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/";
@@ -29,7 +64,7 @@ async function loadWordModel() {
     console.log("Word ONNX inputs:", wordSession.inputNames);
     console.log("Word ONNX outputs:", wordSession.outputNames);
 
-    // Temperature
+    // Load the calibration temperature exported with the model.
     try {
       const tempRes = await fetch("./data/temperature.json");
       if (!tempRes.ok) throw new Error(`HTTP ${tempRes.status}`);
@@ -43,7 +78,7 @@ async function loadWordModel() {
       temperature = 1.0;
     }
 
-    // Label mapping
+    // Load the ordered output-label mapping.
     const labelsRes = await fetch("./data/word_labels.json");
     if (!labelsRes.ok) throw new Error(`word_labels.json HTTP ${labelsRes.status}`);
     const labelsData = await labelsRes.json();
@@ -63,6 +98,17 @@ async function loadWordModel() {
   }
 }
 
+/**
+ * Build the padding mask tensor in the requested element type.
+ *
+ * The mask is passed through as-is: true marks a real frame. The exported graph
+ * performs its own attention-mask inversion, so inverting here would silently
+ * feed the model the padding instead of the recording.
+ *
+ * @param {WordMask45} mask45 Padding mask; length must be 45.
+ * @param {WordMaskDtype} [dtype] Defaults to the dtype currently in force.
+ * @returns {unknown} An ort.Tensor for the session feed.
+ */
 function _buildMaskTensor(mask45, dtype = wordMaskDtype) {
   if (dtype === "bool") return new ort.Tensor("bool", mask45.map(Boolean), [1, 45]);
   if (dtype === "uint8") {
@@ -73,6 +119,11 @@ function _buildMaskTensor(mask45, dtype = wordMaskDtype) {
   return new ort.Tensor("int64", i, [1, 45]);
 }
 
+/**
+ * Move to the next mask element type after the session rejected the current one.
+ *
+ * @returns {boolean} False when every dtype has been tried.
+ */
 function _advanceMaskDtype() {
   const idx = WORD_MASK_DTYPES.indexOf(wordMaskDtype);
   if (idx < 0 || idx >= WORD_MASK_DTYPES.length - 1) return false;
@@ -80,6 +131,23 @@ function _advanceMaskDtype() {
   return true;
 }
 
+/**
+ * Classify one word recording.
+ *
+ * The input length and mask length are checked here rather than trusted from
+ * the type, because a wrong shape would otherwise reach the session and fail
+ * with an opaque runtime error.
+ *
+ * If the session rejects the mask tensor, the next element type is tried and
+ * the run is repeated. The published graph varies by export, so this is a
+ * compatibility path, not error recovery.
+ *
+ * @param {WordFeatures45x168} features45x168 Flattened input; length must be 7560.
+ * @param {WordMask45} mask45 Padding mask; length must be 45.
+ * @returns {Promise<PredictionResult | null>} Null when no model is loaded.
+ * @throws {Error} When the input or mask length is wrong, or when the session
+ *   fails with every supported mask element type.
+ */
 async function predictWord(features45x168, mask45) {
   if (!wordSession) return null;
   if (!features45x168 || features45x168.length !== 45 * 168) {
@@ -97,6 +165,7 @@ async function predictWord(features45x168, mask45) {
 
   while (!results) {
     try {
+      /** @type {Record<string, unknown>} */
       const feeds = {};
       feeds[wordSession.inputNames[0]] = inputTensor;
       if (wordSession.inputNames.length > 1) {
@@ -119,8 +188,11 @@ async function predictWord(features45x168, mask45) {
   const t1 = performance.now();
   if (typeof recordBenchmark === "function") recordBenchmark("onnx", t1 - t0);
 
-  // Temperature → softmax → top-K
-  const calibrated = Array.from(logits).map((x) => x / temperature);
+  // Apply temperature calibration, softmax, and top-k selection. Each logit is
+  // converted rather than trusted to be a number: the tensor element type
+  // follows the ONNX dtype. This graph exports float32, where Number() is the
+  // identity, but the conversion keeps the code honest about the contract.
+  const calibrated = Array.from(logits, (x) => Number(x) / temperature);
   const probs = stableSoftmax(calibrated);
 
   const indexed = probs.map((p, i) => ({
@@ -137,6 +209,12 @@ async function predictWord(features45x168, mask45) {
   };
 }
 
+/**
+ * Softmax with the maximum subtracted first, so large logits cannot overflow.
+ *
+ * @param {number[]} logits Temperature-calibrated logits.
+ * @returns {number[]} Probabilities summing to 1.
+ */
 function stableSoftmax(logits) {
   const max = Math.max(...logits);
   const exps = logits.map((x) => Math.exp(x - max));
@@ -144,6 +222,12 @@ function stableSoftmax(logits) {
   return exps.map((x) => x / sum);
 }
 
+/**
+ * Run one throwaway inference so the first real recording is not slowed by lazy
+ * WASM initialization.
+ *
+ * @returns {Promise<void>} Resolves even when the warmup itself fails.
+ */
 async function warmupWordModel() {
   if (!wordSession) return;
   try {

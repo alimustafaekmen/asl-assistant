@@ -117,5 +117,5 @@
   "source": "data/processed/test_landmarks.csv",
   "source_row_index": 56,
   "feature_contract": "letter-93d-v1",
-  "note": "Jury-ready static letter fixture: 93D feature vector for direct web ONNX inference."
+  "note": "Model Test static letter fixture: 93D feature vector for direct web ONNX inference."
 }

@@ -1,73 +1,73 @@
-"""
-Kişiselleştirilmiş K-NN Modeli (Few-Shot Calibration)
-======================================================
-Kullanıcının başarısız okunan harfleri anında düzeltmesi için
-Mesafe Tabanlı Öğrenme (Metric Learning/KNN) uygular.
-Baz modele (LightGBM) dokunmadan kullanıcıya özel "yama" yapar.
-"""
+"""Few-shot letter personalization with cosine-similarity templates."""
+
 import logging
 import os
 
 import numpy as np
 
-from config.settings import MODELS_DIR, KNN_THRESHOLD, KNN_MAX_TEMPLATES
+from asl_desktop.config import KNN_MAX_TEMPLATES, KNN_THRESHOLD, MODELS_DIR
 
 _logger = logging.getLogger("ASL.Personalization")
 
 PROFILES_DIR = os.path.join(MODELS_DIR, "profiles")
 
+
 class PersonalizedKNN:
-    """
-    Kullanıcının eklediği referans el şablonlarını saklar ve
-    Cosine Similarity (Kosinüs Benzerliği) ile eşleştirir.
-    """
+    """Persist user-recorded hand templates and match them by cosine similarity."""
+
     def __init__(self, threshold: float = KNN_THRESHOLD):
-        """
+        """Initialize the template store.
+
         Args:
-            threshold: Benzerlik eşiği (1.0 = birebir aynı). 
-                       0.94-0.96 arası çok güvenli "kesin eşleşme" sınırıdır.
+            threshold: Minimum cosine similarity; ``1.0`` is an exact match.
         """
         self.threshold = threshold
         self.templates: dict[str, np.ndarray] = {}
         self._load_templates()
-        
+
     def _get_path(self) -> str:
         os.makedirs(PROFILES_DIR, exist_ok=True)
         return os.path.join(PROFILES_DIR, "user_templates.npz")
-        
+
     def _load_templates(self) -> None:
-        """Kayitli profilleri diskten bellege ceker."""
+        """Load persisted templates into memory."""
         path = self._get_path()
         if os.path.exists(path):
             data = np.load(path, allow_pickle=True)
             for letter in data.files:
                 self.templates[letter] = data[letter]
             _logger.info("KNN profilleri yuklendi: %d harf", len(self.templates))
-                
+
     def save_templates(self) -> None:
-        """Profilleri diske kaydeder."""
+        """Persist all in-memory templates."""
         path = self._get_path()
         if self.templates:
             np.savez(path, **self.templates)
-            
-    def record_template(self, letter: str, features: np.ndarray) -> None:
-        """
-        Kullanıcının anlık el özelliklerini (features) hafızaya ekler.
-        Sınırsız büyümesini engellemek için sadece son 50 örneği tutar.
+
+    def record_template(self, letter: str, features: np.ndarray, *, persist: bool = True) -> None:
+        """Record one feature vector and retain only the configured recent set.
+
+        Args:
+            letter: Target letter for the template.
+            features: Feature vector to append.
+            persist: Write the full template store immediately. Batch callers
+                can defer this and call :meth:`save_templates` once.
         """
         if letter not in self.templates:
             self.templates[letter] = np.array([features.flatten()])
         else:
-            self.templates[letter] = np.vstack([self.templates[letter], features.flatten()])[-KNN_MAX_TEMPLATES:]
-        self.save_templates()
-        
+            self.templates[letter] = np.vstack([self.templates[letter], features.flatten()])[
+                -KNN_MAX_TEMPLATES:
+            ]
+        if persist:
+            self.save_templates()
+
     def predict(self, features: np.ndarray) -> tuple[str, float] | None:
-        """
-        Yeni gelen kareyi (features), kaydedilmiş şablonlarla karşılaştırır.
-        Vectorized cosine similarity ile hızlı eşleştirme yapar.
+        """Match a feature vector against recorded templates.
 
         Returns:
-            (harf, benzerlik) veya None (şablon yok / eşik altı)
+            The best ``(letter, similarity)`` pair above the threshold, or
+            ``None`` when no template qualifies.
         """
         if not self.templates:
             return None
@@ -84,8 +84,8 @@ class PersonalizedKNN:
         for letter, temps in self.templates.items():
             # Vectorized cosine similarity: (N, D) @ (D,) → (N,)
             norms = np.linalg.norm(temps, axis=1, keepdims=True)
-            # Sıfır normlu şablonları maskele
-            valid_mask = (norms.squeeze() > 1e-12)
+            # Zero-norm templates do not define a cosine similarity.
+            valid_mask = norms.squeeze() > 1e-12
             if not np.any(valid_mask):
                 continue
             valid_temps = temps[valid_mask]

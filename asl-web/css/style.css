@@ -319,7 +319,7 @@ a { color: var(--primary); text-decoration: none; }
 .word-group.risky { border-left:4px solid var(--warning); }
 
 /* ──────────────────────────────────────────────────────────
-   Word chips — Jüri demo kartı için
+   Word chips — live-use guidance card
    wordDemoList / wordRiskList / wordConfusionList içindeki
    `<p>` elemanı artık chip'leri tutan flex container'a dönüşür.
    ────────────────────────────────────────────────────────── */
@@ -543,7 +543,7 @@ a { color: var(--primary); text-decoration: none; }
   font-size:16px;
 }
 .model-test-badges,
-.jury-task-switch {
+.model-test-task-switch {
   display:flex;
   flex-wrap:wrap;
   gap:8px;
@@ -596,7 +596,7 @@ a { color: var(--primary); text-decoration: none; }
   border-left:4px solid var(--primary);
   box-shadow:none;
 }
-.model-test-card .jury-task-switch {
+.model-test-card .model-test-task-switch {
   display:grid;
   grid-template-columns:repeat(2, minmax(0, 1fr));
   gap:10px;
@@ -699,27 +699,27 @@ a { color: var(--primary); text-decoration: none; }
   color:var(--primary);
   font-weight:800;
 }
-.jury-library {
+.model-test-library {
   margin-top:14px;
 }
-.jury-quick-actions {
+.model-test-quick-actions {
   display:grid;
   grid-template-columns:repeat(2, minmax(0, 1fr));
   gap:8px;
   margin-top:14px;
 }
-.jury-library-row {
+.model-test-library-row {
   display:grid;
   grid-template-columns:minmax(0, 1fr) auto;
   gap:8px;
 }
-.jury-process {
+.model-test-process {
   display:grid;
   grid-template-columns:repeat(4, minmax(0, 1fr));
   gap:6px;
   margin-top:12px;
 }
-.jury-process span {
+.model-test-process span {
   padding:7px 8px;
   border-radius:var(--radius-sm);
   background:var(--surface-muted);
@@ -728,15 +728,15 @@ a { color: var(--primary); text-decoration: none; }
   font-weight:850;
   text-align:center;
 }
-.jury-process span[data-state="done"] {
+.model-test-process span[data-state="done"] {
   background:var(--success-soft);
   color:var(--success);
 }
-.jury-process[data-status="error"] span {
+.model-test-process[data-status="error"] span {
   background:var(--danger-soft);
   color:var(--danger);
 }
-.jury-prediction-hero {
+.model-test-prediction-hero {
   display:grid;
   gap:6px;
   padding:18px;
@@ -745,32 +745,32 @@ a { color: var(--primary); text-decoration: none; }
   background:linear-gradient(180deg, var(--primary-soft), var(--surface));
   border:1px solid color-mix(in srgb, var(--primary), transparent 72%);
 }
-.jury-prediction-hero span {
+.model-test-prediction-hero span {
   color:var(--muted);
   text-transform:uppercase;
   letter-spacing:.06em;
   font-size:12px;
   font-weight:850;
 }
-.jury-prediction-hero strong {
+.model-test-prediction-hero strong {
   color:var(--text-strong);
   font-size:clamp(40px, 7vw, 76px);
   line-height:.95;
   overflow-wrap:anywhere;
 }
-.jury-result-main {
+.model-test-result-main {
   display:grid;
   grid-template-columns:repeat(3, minmax(0, 1fr));
   gap:10px;
   margin-bottom:14px;
 }
-.jury-result-main > div {
+.model-test-result-main > div {
   min-width:0;
   padding:12px;
   border-radius:var(--radius);
   background:var(--surface-muted);
 }
-.jury-result-main span {
+.model-test-result-main span {
   display:block;
   color:var(--muted);
   text-transform:uppercase;
@@ -778,14 +778,14 @@ a { color: var(--primary); text-decoration: none; }
   font-size:11px;
   font-weight:850;
 }
-.jury-result-main strong {
+.model-test-result-main strong {
   display:block;
   margin-top:4px;
   color:var(--text-strong);
   font-size:22px;
   overflow-wrap:anywhere;
 }
-.jury-top3-heading {
+.model-test-top3-heading {
   margin:2px 0 8px;
   color:var(--muted);
   letter-spacing:.06em;
@@ -795,31 +795,31 @@ a { color: var(--primary); text-decoration: none; }
 .model-output-card .card-heading strong[data-match="yes"] { color:var(--success); }
 .model-output-card .card-heading strong[data-match="no"] { color:var(--danger); }
 .model-output-card .card-heading strong[data-match="unknown"] { color:var(--warning); }
-.jury-top3 {
+.model-test-top3 {
   margin-bottom:12px;
 }
 .model-sample-meta {
   margin-top:16px;
 }
-.jury-faq {
+.model-test-faq {
   display:grid;
   grid-template-columns:repeat(2, minmax(0, 1fr));
   gap:10px;
   margin-top:12px;
 }
-.jury-faq details {
+.model-test-faq details {
   border:1px solid var(--border);
   border-radius:var(--radius);
   background:var(--surface);
   padding:10px 12px;
 }
-.jury-faq summary {
+.model-test-faq summary {
   color:var(--text-strong);
   cursor:pointer;
   font-weight:850;
   font-size:13px;
 }
-.jury-faq p {
+.model-test-faq p {
   margin:8px 0 0;
   color:var(--muted);
   font-size:13px;
@@ -991,10 +991,10 @@ a { color: var(--primary); text-decoration: none; }
   .model-test-grid { grid-template-columns:1fr; }
   .qr-screen { grid-template-columns:1fr; min-height:auto; }
   .qr-target-switch { grid-template-columns:1fr; }
-  .jury-library-row { grid-template-columns:1fr; }
-  .jury-quick-actions { grid-template-columns:1fr; }
-  .jury-result-main { grid-template-columns:repeat(2, minmax(0, 1fr)); }
-  .jury-faq { grid-template-columns:1fr; }
+  .model-test-library-row { grid-template-columns:1fr; }
+  .model-test-quick-actions { grid-template-columns:1fr; }
+  .model-test-result-main { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  .model-test-faq { grid-template-columns:1fr; }
 }
 @media (max-width: 720px) {
   body { font-size:15px; }
@@ -1006,9 +1006,9 @@ a { color: var(--primary); text-decoration: none; }
   .camera-stage { min-height: 360px; border-radius:18px; }
   .control-bar .button { flex: 1 1 100%; }
   .quick-actions, .model-facts, .metric-row { grid-template-columns:1fr; }
-  .model-test-card .jury-task-switch { grid-template-columns:1fr; }
-  .jury-result-main { grid-template-columns:1fr; }
-  .jury-process { grid-template-columns:1fr 1fr; }
+  .model-test-card .model-test-task-switch { grid-template-columns:1fr; }
+  .model-test-result-main { grid-template-columns:1fr; }
+  .model-test-process { grid-template-columns:1fr 1fr; }
   .coach-target { align-items:flex-start; }
   .coach-progress { grid-template-columns: repeat(4, 1fr); }
   .status-strip #fpsLabel { display:none; }
@@ -1717,7 +1717,7 @@ details.card {
   }
 }
 
-/* Final presentation polish: make the app feel like guided product flows. */
+/* Guided product-flow refinements. */
 .assistant-card {
   border-left:4px solid var(--success);
 }
@@ -1883,19 +1883,19 @@ details.card {
 .compact-details,
 .word-demo-card,
 .model-sample-meta,
-.jury-advanced {
+.model-test-advanced {
   overflow:hidden;
 }
 
 .word-demo-card > .card-summary,
 .model-sample-meta > .card-summary,
-.jury-advanced > summary {
+.model-test-advanced > summary {
   cursor:pointer;
 }
 
 .word-demo-card[open] > .card-summary,
 .model-sample-meta[open] > .card-summary,
-.jury-advanced[open] > summary {
+.model-test-advanced[open] > summary {
   margin-bottom:12px;
 }
 
@@ -1945,16 +1945,16 @@ details.card {
   opacity:.62;
 }
 
-.jury-quick-actions {
+.model-test-quick-actions {
   grid-template-columns:repeat(2, minmax(0, 1fr));
 }
 
-.jury-quick-actions .button {
+.model-test-quick-actions .button {
   min-height:56px;
   font-size:15px;
 }
 
-.jury-advanced {
+.model-test-advanced {
   margin-top:12px;
   padding:12px;
   border:1px solid var(--border);
@@ -1962,23 +1962,23 @@ details.card {
   background:var(--surface);
 }
 
-.jury-advanced > summary {
+.model-test-advanced > summary {
   color:var(--text-strong);
   font-weight:850;
 }
 
-.jury-advanced .jury-task-switch {
+.model-test-advanced .model-test-task-switch {
   margin-top:12px;
 }
 
-.jury-advanced .card-note {
+.model-test-advanced .card-note {
   margin:10px 0 0;
   padding:10px;
   border-radius:var(--radius);
   background:var(--surface-muted);
 }
 
-.jury-advanced .sample-schema-note {
+.model-test-advanced .sample-schema-note {
   margin-top:10px;
   background:var(--surface-muted);
 }
@@ -2036,15 +2036,15 @@ details.card {
     font-size:34px;
   }
 
-  .jury-quick-actions {
+  .model-test-quick-actions {
     grid-template-columns:1fr;
   }
 
-  .jury-quick-actions .button {
+  .model-test-quick-actions .button {
     min-height:50px;
   }
 
-  .jury-advanced {
+  .model-test-advanced {
     padding:10px;
   }
 }

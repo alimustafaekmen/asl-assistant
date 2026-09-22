@@ -1,0 +1,515 @@
+# Models and Data
+
+This document is the contract between training, exported artifacts, validation,
+and browser inference. A tensor can have the correct shape while containing
+features or labels in the wrong order; dimensions alone are not sufficient.
+
+## Scope and reported results
+
+| Pipeline | Letter model | Word model |
+|---|---|---|
+| Task | 24 static ASL letters | 50 isolated ASL signs |
+| Model | LightGBM | SignTransformer encoder |
+| Input | 93 engineered features | 45 × 168 features plus mask |
+| Recorded test result | 99.35% held-out landmark accuracy | 71.92% accuracy; 0.714 macro-F1 |
+| Primary runtime | ONNX Runtime Web | ONNX Runtime Web |
+
+These results are not directly comparable. They use different tasks, datasets,
+splits, and feature pipelines. The letter result is not a guarantee of webcam
+accuracy, and the word result describes isolated signs rather than continuous
+ASL translation.
+
+## Training data and environments
+
+The two models were trained independently. They do not share a dataset, split,
+or training environment.
+
+### Static-letter model
+
+The final 24-class letter model was trained on the project owner's local
+machine. Three image sources were converted to MediaPipe hand landmarks and
+then merged:
+
+| Source | Role in the final model | Usable landmark rows |
+|---|---|---:|
+| [ASL Alphabet](https://www.kaggle.com/datasets/grassknoted/asl-alphabet) | Main image source | 52,419 |
+| [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset) | Additional signer and capture variation | 962 |
+| Local `ASL_SemCom` subset, associated with [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) | Additional alphabet images | 1,580 |
+
+The merged landmark table contained 54,961 samples. The preparation pipeline
+created 46,716 training rows and a separate 8,245-row held-out split. Images
+were reduced to 63 normalized hand coordinates; training then produced the 93D
+feature vector described below. J and Z were excluded throughout, so neither
+the data split nor the trained model contains them.
+
+The [MediaPipe Processed ASL dataset](https://www.kaggle.com/datasets/vignonantoine/mediapipe-processed-asl-dataset)
+was downloaded and evaluated, but it was not part of the final merged training
+table. The preserved extraction runner records that the image-to-landmark path
+detected no usable hands for that source. The final model metadata likewise
+lists only the three sources above.
+
+The row counts describe successfully extracted landmarks, not the original
+number of images published by each provider. Raw images and generated CSV files
+are local-only and are not distributed in this repository.
+
+At the time of review, the provider pages label ASL Alphabet as GPL-2.0 and the
+American Sign Language Dataset as CC0. The `ASL_SemCom` source terms are not
+recorded precisely enough in this repository to authorize redistribution, so
+its raw images must remain local unless the upstream terms are verified.
+
+### Isolated-word model
+
+The 50-word model was trained in a Kaggle notebook environment using only the
+[Google Isolated Sign Language Recognition competition dataset](https://www.kaggle.com/competitions/asl-signs).
+The source dataset contains MediaPipe Holistic landmarks for roughly 100,000
+isolated-sign recordings, 250 labels, and 21 signers. The project selected 50
+classes with at least 300 available recordings, prioritizing common words.
+
+The split is signer-independent: a person appears in exactly one partition.
+The exported experiment record contains:
+
+| Partition | Signers | Samples |
+|---|---:|---:|
+| Training | 14 | 12,723 |
+| Validation | 3 | 2,658 |
+| Test | 4 | 3,918 |
+
+Training and export ran in the Kaggle-hosted notebook workflow. The executed
+record reports two Tesla T4 devices (14.6 GB each) and marks `cuda:0` as the
+active device; the workflow used one GPU rather than distributed training. The
+notebook, result JSON, PyTorch checkpoint, and ONNX export remain the evidence
+for the recorded experiment.
+
+The competition rules identify the data as CC BY 4.0 and also impose the
+competition-specific access and use terms. Those terms do not automatically
+license this repository's source code or every derived artifact; each
+publication decision must be evaluated separately.
+
+### Explored data that is not a final-model source
+
+The local workspace also contains tools or remnants for two additional paths:
+
+- MediaPipe Processed ASL was evaluated for letter extraction, but the
+  preserved run produced no usable hand detections and the dataset was excluded
+  from the final 54,961-row merge.
+- MS-ASL download and landmark-extraction scripts were created as a possible
+  word-data extension. Neither published word model was trained with MS-ASL.
+  MS-ASL is distributed under the Computational Use of Data Agreement, so it
+  must not be described as unrestricted open data.
+
+The small local Google-competition subset under `data/raw/` is used only to
+export browser fixtures. It is not an additional training partition.
+
+## Letter model contract
+
+| Field | Value |
+|---|---|
+| Classes | 24 static letters; J and Z are not included |
+| Web artifact | `asl-web/models/letter_model.onnx` |
+| Source artifact | `models/letter/onnx_exports/letter_model_static_24_web_no_zipmap.onnx` |
+| Python artifact | `models/letter/letter_model.pkl` |
+| Training source | `scripts/model_training/train_static_letter_model.py` |
+| Input | `float32 (1, 93)` |
+| Outputs | `label: int64 (N)` and `probabilities: float32 (N, 24)` |
+
+### Letter training flow
+
+The final artifact record and the retained code describe this pipeline:
+
+```text
+labelled alphabet images
+  -> MediaPipe Hands: one detected hand, 21 landmarks × xyz
+  -> wrist/hand-size normalization: 63 values
+  -> merge, duplicate removal, anomaly filtering
+  -> stratified source split: 46,716 train + 8,245 held-out rows
+  -> training rows only: original + five augmented variants
+  -> 93D feature engineering
+  -> model comparison
+  -> LightGBM classifier
+  -> Python pickle and label map
+  -> no-ZipMap ONNX artifact for the browser
+```
+
+The extraction code uses MediaPipe Hands in static-image mode, keeps the first
+detected hand, and reads its 21 `(x, y, z)` landmarks. Images with no detected
+hand do not produce a training row. Only the 24 labels in `STATIC_LETTERS` are
+retained.
+
+The merge utility removes exact duplicates, non-finite values, and rows with a
+feature more than ten standard deviations from the merged mean. It supports
+class undersampling, but the preserved final CSV files are not class-balanced:
+their class counts differ. The final data should therefore be described as a
+stratified split, not as a balanced dataset.
+
+### Landmark normalization
+
+Each detected hand starts as 63 MediaPipe coordinates. Normalization performs
+two operations:
+
+1. subtract landmark `0` (the wrist) from every point, moving the wrist to the
+   origin;
+2. divide every coordinate by the distance from the wrist to landmark `9`
+   (the middle-finger MCP joint).
+
+This reduces sensitivity to the hand's position in the frame and its apparent
+size. If the reference distance is at most `1e-6`, the function returns a zero
+vector instead of dividing by an unstable value.
+
+### Landmark augmentation
+
+Augmentation is applied to normalized 63D training landmarks before feature
+engineering. For every original row, the code retains the original and creates
+five synthetic variants. Each variant receives, in order:
+
+| Operation | Code-backed setting | Intended variation |
+|---|---:|---|
+| Gaussian noise | standard deviation `0.02` | Landmark jitter |
+| XY rotation | uniform from `-45°` to `+45°` | In-plane hand rotation |
+| XYZ scale | uniform from `0.8` to `1.2` | Apparent hand-size variation |
+
+The preserved 46,716-row training CSV therefore becomes 280,296 rows before
+the model-comparison split: one original plus five augmented rows per source
+sample. Horizontal mirroring is not part of training augmentation. The script
+also does not set a NumPy seed before generating noise, angles, and scales, so
+rerunning augmentation is not byte-for-byte deterministic.
+
+### Letter feature engineering
+
+Feature engineering combines the normalized coordinates with explicit hand
+geometry. The order is a frozen model contract:
+
+```text
+[0..62]   63  normalized 21 hand landmarks
+[63..67]   5  fingertip-to-wrist distances
+[68..71]   4  adjacent fingertip distances
+[72..85]  14  finger joint angles
+[86..87]   2  bounding-box aspect ratio and area
+[88..92]   5  finger-extended flags
+```
+
+The derived groups are calculated as follows:
+
+- fingertip distances use landmarks `4, 8, 12, 16, 20` relative to the wrist;
+- adjacent distances cover thumb-index through ring-pinky fingertip pairs;
+- 14 joint angles are measured in radians from three-point joint triplets;
+- the bounding box contributes XY aspect ratio and normalized area;
+- each binary extended flag checks whether the fingertip is farther from the
+  wrist than that finger's MCP joint.
+
+Degenerate joint angles return zero, cosine values are clipped before
+`arccos`, and the final vector replaces NaN or infinite values with zero. Unit
+tests verify the 93-value shape, ordering, finite output, angle range,
+non-negative distances, binary flags, and deterministic feature extraction.
+
+### Model comparison and recorded results
+
+The current training script can compare Random Forest, XGBoost, LightGBM (or
+SVM when LightGBM is unavailable), MLP, and a small 1D CNN. It reports accuracy,
+five-fold cross-validation accuracy, per-class F1, training time, and inference
+time. The preserved final metadata records the three classical candidates used
+for the final decision:
+
+| Model | Recorded accuracy |
+|---|---:|
+| Random Forest | 0.985 |
+| XGBoost | 0.992 |
+| LightGBM | 0.994 |
+
+The selected pickle is a 24-class LightGBM model with 300 estimators, learning
+rate `0.1`, 31 leaves, unrestricted tree depth, and random seed `42`. It accepts
+93 features and returns class probabilities. Labels are sorted alphabetically
+and stored as dense indices `0..23` in `letter_label_map.json`.
+
+The artifact metadata also records this ablation:
+
+| Configuration | Recorded accuracy |
+|---|---:|
+| 93D features + augmentation | 0.994 |
+| 93D features without augmentation | 0.988 |
+| Raw 63D landmarks + augmentation | 0.332 |
+
+Within this experiment, engineered hand geometry contributed much more than
+augmentation alone. These values describe the preserved run; they are not a
+claim that the same gains will hold for every camera or signer.
+
+### Evaluation caveat
+
+The metadata distinguishes an internal augmented split (`0.9944`) from the
+separate 8,245-row held-out result (`0.9935`). The internal split is created
+after augmentation, so transformed variants of one source row can fall on both
+sides of that split. It is useful for model comparison but is not a completely
+independent generalization test.
+
+The held-out figure is the stronger recorded result because those rows were
+separated before training augmentation. However, the current script only loads
+an optional test CSV and does not execute the held-out evaluation. The score is
+preserved in `letter_model_meta.json`, but the exact evaluation step is a known
+reproducibility gap and should not be presented as fully regenerated by the
+current command.
+
+### Browser parity and export boundary
+
+The Python feature implementation is
+`asl_ml.features.letter_features`; the browser port is
+`asl-web/js/ml/features.js`. A parity diagnostic feeds deterministic hands to
+both implementations and requires a maximum absolute difference below `1e-4`.
+
+The browser additionally standardizes a detected left hand by mirroring its x
+coordinates and applies landmark EMA smoothing before normalization. These are
+live-runtime stability steps, not training augmentation.
+
+The active ONNX export disables ZipMap and exposes a plain probability tensor.
+The historical ZipMap export must not be deployed because ONNX Runtime Web
+cannot reliably consume its sequence/map probability output. A label-only
+fallback remains for backward safety; confidence in that fallback represents
+temporal label stability rather than raw LightGBM probability.
+
+The retained training script writes the pickle, label map, metadata, and
+evaluation figures, but it does not contain the pickle-to-ONNX conversion step.
+The repository preserves and hash-checks the active ONNX artifact and verifies
+its top-1 output against the pickle on deterministic fixtures. Reproducing the
+exact ONNX export command remains a separate documented gap.
+
+## Word models
+
+Two word models are preserved for different runtimes. The desktop prototype
+uses the earlier 25-class BiGRU + Attention checkpoint in
+`models/word/desktop-25/`. It expects 30 frames of 321 holistic landmark values
+and is documented by `notebooks/word_25_desktop_training.ipynb`. Its metadata
+records approximately 86.7% test accuracy on that experiment's split.
+
+The browser uses the later 50-class SignTransformer below. It expects a
+45-frame compact 168D representation plus a padding mask. The two checkpoints,
+label maps, and feature contracts are incompatible; neither is a fallback for
+the other.
+
+### Web 50-class contract
+
+| Field | Value |
+|---|---|
+| Task | 50-class isolated-sign classification |
+| Model | Encoder-only SignTransformer, 446,195 parameters |
+| Web artifact | `asl-web/models/word_model.onnx` |
+| Source artifact | `models/word/web-50/word_model.onnx` |
+| Training source | `notebooks/word_50_training.ipynb` |
+| Executed record | `notebooks/word_50_training_results.ipynb` |
+| Feature input | `float32 (1, 45, 168)` |
+| Mask input | `bool (1, 45)` |
+| Output | logits, `float32 (1, 50)` |
+| Temperature | `asl-web/data/temperature.json` |
+
+Mask semantics are fixed:
+
+```text
+True  = real frame
+False = padding
+```
+
+The ONNX graph performs the attention-mask inversion internally. JavaScript
+must not reverse these values.
+
+### Notebook export names and repository names
+
+The Kaggle notebook writes a flat export bundle. The repository uses clearer
+runtime-oriented names and separates models from evaluation reports:
+
+| Kaggle export name | Curated repository path | Deployed copy |
+|---|---|---|
+| `word_model.onnx` | `models/word/web-50/word_model.onnx` | `asl-web/models/word_model.onnx` |
+| `final_model.pt` | `models/word/web-50/word_model.pt` | Not loaded by the browser |
+| `word_to_idx.json` | `models/word/web-50/word_labels.json` | `asl-web/data/word_labels.json` |
+| `temperature.json` | `models/word/web-50/temperature.json` | `asl-web/data/temperature.json` |
+| reports and figures | `notebooks/word_50_results/` | Selected JSON only |
+
+`manifest.json` retains the flat Kaggle export names so its hashes can be
+checked against the corresponding curated files. Its `num_files` value also
+counts `manifest.json` itself; the `files` array cannot contain a hash of the
+manifest without becoming self-referential, so it contains the other files.
+
+### Landmark frame order
+
+```text
+[0..62]     63  right hand: 21 × xyz
+[63..125]   63  left hand: 21 × xyz
+[126..245] 120  selected face points: 40 × xyz
+[246..320]  75  selected pose points: 25 × xyz
+```
+
+Frames are shoulder-normalized. When shoulder coordinates are unavailable,
+the browser applies the notebook-compatible nonzero min-max fallback.
+
+### Compact feature order
+
+```text
+[0..62]     63  dominant-hand landmarks
+[63..92]    30  hand-shape features
+[93..104]   12  hand-to-face/body distances
+[105..167]  63  frame-to-frame dominant-hand motion
+```
+
+Dominant hand selection occurs once across the complete sequence. A selected
+left hand is mirrored to the training convention, and motion for the first
+frame is zero. Final inference must build features from the normalized sequence
+buffer, not from independently selected per-frame hands.
+
+Post-processing is:
+
+```text
+logits / temperature -> stable softmax -> top-3 labels
+```
+
+Word predictions require explicit user acceptance and are never automatically
+appended to the transcript.
+
+## Word model interpretation
+
+The signer-independent notebook split produced:
+
+| Metric | Value |
+|---|---:|
+| Test accuracy | 0.7192 |
+| Test macro-F1 | 0.7140 |
+| Best validation F1 | 0.803 |
+| Temperature | 0.9854 |
+
+Per-class F1 varies substantially:
+
+| Band | Classes | Examples |
+|---|---:|---|
+| F1 ≥ 0.85 | 9 | water, sad, uncle, cow, brown |
+| 0.70 ≤ F1 < 0.85 | 22 | dad, sick, finish, home, food |
+| 0.50 ≤ F1 < 0.70 | 16 | happy, hear, listen, sleep, book |
+| F1 < 0.50 | 3 | all, give, open |
+
+Common exported confusion pairs include `listen/hear`, `can/yes`,
+`open/book`, `sleep/sleepy`, and `who/bird`. The UI may explain a close pair,
+but the hint does not alter the classifier result.
+
+Temperature scaling changed recorded ECE only slightly (`0.0235` before and
+`0.0252` after). It must not be described as a material calibration gain.
+Confidence is a model score, not a probability that an arbitrary live sign is
+correct.
+
+The model is intended for an educational and engineering demonstration with
+one isolated sign per recording. It is not suitable for continuous translation,
+sentence understanding, accessibility-critical communication, identity
+inference, or high-stakes decisions.
+
+## Runtime data files
+
+| File | Purpose | Contract |
+|---|---|---|
+| `letter_labels.json` | Letter output map | 24 dense indices; J and Z are not supported |
+| `word_labels.json` | Word output map | 50 dense indices in export order |
+| `temperature.json` | Word calibration | Numeric `T` plus evaluation metadata |
+| `per_word_stats.json` | Per-class summary | 50 accuracy/F1/difficulty records |
+| `confusion_pairs.json` | Word ambiguity data | Ordered word pairs and counts |
+| `curriculum.json` | Word learning order | 50 word records |
+| `letter_curriculum.json` | Curated letter guidance | `letter-curriculum-v1` |
+| `letter_confusion.json` | Curated look-alike groups | `letter-confusion-v1` |
+| `asl_video_links.json` | Optional tutorial links | Alphabet link and word map |
+| `test_sample.json` | Legacy word smoke fixture | 7560 features and 45 mask values |
+| `letter_test_sample.json` | Letter fixture | `asl-sample-v1`, 93 features |
+| `model-test-samples/manifest.json` | Fixture index | `asl-model-test-manifest-v1` |
+
+Label maps use `{label: integer_index}` objects. Indices must be unique, dense,
+and start at zero. Sorting or rebuilding a map independently from its model can
+silently change every output meaning.
+
+Letter curriculum and confusion files are hand-curated teaching references.
+They are not model outputs and are not currently part of runtime gating.
+
+## Model Test fixture contract
+
+One fixture contains one task:
+
+```json
+{
+  "schema_version": "asl-sample-v1",
+  "task": "letter",
+  "sample_id": "letter-a",
+  "features": [0.0],
+  "expected_label": "A"
+}
+```
+
+A real letter array has 93 finite numbers. A word fixture uses the same schema
+with task `word`, 7560 finite feature values (`45 × 168`), and 45 boolean mask
+values. The manifest must reference every bundled fixture exactly once.
+
+The dedicated `test_sample.json` smoke file predates the published schema and
+contains 30 real frames followed by 15 padded frames. Its expected result is
+`give` at approximately `0.0760` confidence. The browser retains compatibility
+with this file and validates task-specific dimensions and values rather than
+rejecting a file only because a schema string is absent.
+
+Bundled fixtures are deterministic regression samples. Metrics computed over
+them are not the official notebook test result unless the complete held-out
+protocol is reproduced.
+
+## Artifact provenance
+
+Word exports:
+
+```text
+models/word/web-50/word_model.onnx     -> asl-web/models/word_model.onnx
+models/word/web-50/word_labels.json    -> asl-web/data/word_labels.json
+models/word/web-50/temperature.json    -> asl-web/data/temperature.json
+notebooks/word_50_results/per_word_stats.json  -> asl-web/data/per_word_stats.json
+notebooks/word_50_results/confusion_pairs.json -> asl-web/data/confusion_pairs.json
+notebooks/word_50_results/curriculum.json      -> asl-web/data/curriculum.json
+notebooks/word_50_results/test_sample.json     -> asl-web/data/test_sample.json
+```
+
+Letter exports:
+
+```text
+models/letter/onnx_exports/letter_model_static_24_web_no_zipmap.onnx
+  -> asl-web/models/letter_model.onnx
+models/letter/letter_label_map.json
+  -> asl-web/data/letter_labels.json
+```
+
+Validation compares these pairs with SHA-256 and checks ONNX I/O. Exact hashes
+are not copied into documentation because the mapping, not a stale hash string,
+is the durable contract.
+
+## Data publication boundary
+
+Raw images, videos, parquet files, generated CSVs, downloaded Kaggle subsets,
+and private reference data stay outside the public repository. Only small,
+reviewed runtime JSON and deterministic feature fixtures belong in
+`asl-web/data/`. Dataset access and redistribution terms remain those of the
+original providers.
+
+The public source/role manifest is `data/README.md`. It distinguishes data used
+for training from sources that were only explored or used for fixture export.
+
+## Safe update procedure
+
+1. Produce the new source artifact from its training script or notebook.
+2. Move the model, labels, calibration, and evaluation exports as one version.
+3. Regenerate affected deterministic fixtures.
+4. Update the fixture manifest when paths change.
+5. Run `make health` and inspect every provenance result.
+6. Test offline fixture inference and the relevant camera mode in a browser.
+7. Update this document and `CHANGELOG.md` when metrics or behavior change.
+
+## Reproducibility records
+
+- Letter metadata: `models/letter/letter_model_meta.json`
+- Final word notebook: `notebooks/word_50_training.ipynb`
+- Executed final-word record: `notebooks/word_50_training_results.ipynb`
+- Desktop word notebook: `notebooks/word_25_desktop_training.ipynb`
+- Word artifact registry: `models/word/`
+- Word experiments: `notebooks/word_50_results/all_experiment_results.json`
+- Word report: `notebooks/word_50_results/classification_report.txt`
+- Word export metadata: `notebooks/word_50_results/manifest.json`
+- Feature parity: `tests/validation/`
+- Repository and fixture contracts: `tests/project/`
+
+## Related documents
+
+- [Architecture](architecture.md)
+- [Project journey](project-journey.md)
+- [Getting started](getting-started.md)

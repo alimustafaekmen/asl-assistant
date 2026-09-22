@@ -4,12 +4,13 @@ Originally located at `src/utils.py` (asl-desktop legacy). Moved here because
 label maps are model contract data shared across training scripts, validation,
 tests, and the desktop prototype.
 """
+
 import json
 import os
 
 
 def save_label_map(label_map: dict, filepath: str) -> None:
-    """Label map'i JSON olarak kaydeder."""
+    """Write a label-to-index mapping as UTF-8-compatible JSON."""
     d = os.path.dirname(filepath)
     if d:
         os.makedirs(d, exist_ok=True)
@@ -18,11 +19,11 @@ def save_label_map(label_map: dict, filepath: str) -> None:
 
 
 def load_label_map(filepath: str) -> dict:
-    """JSON'dan label map yukler. {str_label: int_idx} formatinda."""
+    """Load a ``{label: index}`` mapping from JSON."""
     with open(filepath, "r") as f:
         return json.load(f)
 
 
 def invert_label_map(label_map: dict) -> dict:
-    """Label map'i ters cevirir: {int_idx: str_label}."""
+    """Return the inverse ``{index: label}`` mapping."""
     return {int(v): k for k, v in label_map.items()}

@@ -1,83 +1,84 @@
-# tests
+# Tests
 
-Project Python tests, organized by package being tested.
+The test suite separates fast deterministic checks from optional desktop
+integrations.
 
 ```text
 tests/
-├── asl_ml/
-│   └── unit/                # asl-ml package tests (FE + utils)
-│       ├── test_letter_features.py    # 93D extract_features regression
-│       └── test_utils.py              # normalize_landmarks + label I/O
-├── asl_desktop/
-│   ├── unit/                # asl-desktop package tests (light)
-│   │   ├── test_landmark_smoother.py
-│   │   └── test_smoother.py
-│   └── integration/         # require MediaPipe + camera + ONNX
-│       ├── test_holistic_output.py
-│       ├── test_letter_classifier.py
-│       └── test_word_mode_no_hands.py
-├── project/                 # repo guardrails + web data/model contracts
-│   ├── test_repo_guardrails.py
-│   └── test_web_contracts.py
-├── validation/              # (placeholder for future smoke tests against scripts/validation/)
-├── smoke/                   # (placeholder for asl-web parity tests, future)
-├── conftest.py              # adds project root to sys.path
-└── README.md                # this file
+├── asl_ml/unit/             93D feature and utility units
+├── asl_desktop/unit/        pure smoothing logic
+├── asl_desktop/integration/ MediaPipe/model/camera-dependent checks
+├── project/                 Git hygiene, lightweight schemas, and browser wiring
+├── validation/              Python/JavaScript feature and model parity tools
+└── fixtures/                parity support fixtures
 ```
 
-## What is tested
-
-| Test directory | Covers | MediaPipe required? | Camera required? |
-|---|---|---|---|
-| `tests/asl_ml/unit/` | `asl_ml.utils` + `asl_ml.features.letter_features` | ❌ | ❌ |
-| `tests/asl_desktop/unit/` | smoothers (pure logic) | ❌ | ❌ |
-| `tests/project/` | repo guardrails, Git hygiene, web runtime contracts | ❌ | ❌ |
-| `tests/asl_desktop/integration/` | MediaPipe pipeline + LightGBM/ONNX | ✅ | ✅ (some) |
-| `tests/validation/` | (placeholder) | — | — |
-| `tests/smoke/` | (placeholder — future asl-web JS↔Python parity) | — | — |
-
-> The browser runtime (`asl-web/`) currently has **no automated test
-> coverage**; manual browser testing is documented in `asl-web/README.md`
-> and `docs/current/runtime-pipeline.md`. The numerical Python↔JS feature
-> parity is verified ad-hoc by Node scripts (see commit history).
-
-## Running
+## Fast suite
 
 ```bash
-# Editable install for asl-ml + asl-desktop
-pip install -r requirements-dev.txt
-pip install -e asl-ml
-pip install -e asl-desktop
-
-# Hızlı: unit + proje guardrail testleri (kamera/model bağımsız)
-pytest tests/asl_ml/ tests/asl_desktop/unit/ tests/project/
-
-# Tam: unit + integration (MediaPipe + ONNX gerekir)
-pytest tests/
-
-# Kapsamlı (coverage)
-pytest --cov=asl_ml --cov=asl_desktop tests/
+# Run from any configured Python environment.
+make test
 ```
 
-If PyTorch / MediaPipe / OpenCV missing, integration tests `skip`
-(import error gracefully handled by `conftest.py`); unit tests still run.
+Equivalent command:
 
-## Imports
-
-Tests follow the new package layout:
-
-```python
-# asl-ml package
-from asl_ml.utils import normalize_landmarks, load_label_map
-from asl_ml.features.letter_features import extract_features
-
-# asl-desktop package
-from asl_desktop.utils.smoother import PredictionSmoother
-from asl_desktop.utils.landmark_smoother import LandmarkSmoother
-from asl_desktop.models.letter_classifier import LetterClassifier
-from asl_desktop.models.sequence_classifier import SequenceClassifier
-from asl_desktop.detection.holistic_detector import HolisticDetector
-
-# Shared root config (NOT moved into either package)
-from config.settings import LETTER_MODEL_PATH, SEQUENCE_LENGTH, CONFIDENCE_THRESHOLD
+```bash
+python -m pytest tests/asl_ml tests/asl_desktop/unit tests/project
 ```
+
+Project tests verify, among other things:
+
+- ignored/local-only files are not tracked;
+- published notebook names and documentation references resolve;
+- shared ML, desktop, and browser configuration stay in their owning layers;
+- classic browser script order and DOM bindings remain valid;
+- label maps, temperature, the smoke fixture, and Model Test manifest satisfy
+  their lightweight contracts;
+- manual word acceptance, sequence-level features, reference assets, and QR
+  deep links stay wired.
+
+The portable tests follow three rules:
+
+- numeric inputs are fixed fixtures rather than unseeded random values;
+- model adapters use small deterministic fakes instead of loading large or
+  platform-specific artifacts;
+- repository/UI checks assert public contracts and parsed HTML structure, not
+  line numbers, formatting, or an exact list of every future document.
+
+Large model/image existence, source-to-deploy hashes, ONNX loading, every
+Model Test fixture file, and the complete notebook export manifest are checked
+by `make validate`, not duplicated in the fast pytest suite. This keeps
+`make test` useful in a source-only checkout while `make health` still combines
+both layers before deployment.
+
+## Parity diagnostics
+
+```bash
+python tests/validation/check_letter_feature_parity.py
+python tests/validation/check_letter_model_parity.py
+python tests/validation/check_word_feature_parity.py
+```
+
+The JavaScript parity checks require Node. Word feature parity is expected to
+report `PASS=6, KNOWN_GAP=0, FAIL=0`.
+
+## Full suite
+
+```bash
+make test-full
+```
+
+Desktop integration tests may skip when MediaPipe, model dependencies, or a
+camera are unavailable. A skip does not validate the missing integration; it
+only allows the portable suite to continue.
+
+The holistic extraction tests use deterministic MediaPipe-shaped results and
+do not require a camera or graphics context. The optional real-model smoke test
+is kept separate because LightGBM may require a platform OpenMP runtime.
+
+## Browser boundary
+
+Static tests catch many browser-wiring errors, but they do not
+drive a real camera or validate browser permissions. After browser changes, run
+`make health`, serve the app, and complete the manual checklist in
+[Architecture](../docs/architecture.md).

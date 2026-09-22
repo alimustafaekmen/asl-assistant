@@ -95,9 +95,9 @@
             </article>
           </div>
 
-          <section class="demo-strip" aria-label="Jüri demo akışı">
+          <section class="demo-strip" aria-label="Önerilen kullanım akışı">
             <div>
-              <strong>Önerilen jüri akışı</strong>
+              <strong>Önerilen kullanım akışı</strong>
               <span>1) Harf Çeviri → 2) Öğrenme Koçu Quiz → 3) Kelime Pratik ve araştırma bulguları</span>
             </div>
             <button class="button" type="button" data-go-mode="project">Proje özetini aç</button>
@@ -305,8 +305,8 @@
 
             <details class="card word-demo-card mode-only word-only">
               <summary class="card-summary">
-                <span>Jüri demo önerileri</span>
-                <strong>Kısa liste</strong>
+                <span>Canlı kullanım notları</span>
+                <strong>Örnek kelimeler</strong>
               </summary>
               <div class="word-group good">
                 <h3>Modelin rahat algıladığı kelimeler</h3>
@@ -320,7 +320,7 @@
                 <summary>Sık karışan çiftler</summary>
                 <p id="wordConfusionList">listen / hear · can / yes · open / book · sleep / sleepy · who / bird · fireman / hello</p>
               </details>
-              <p class="card-note">Jüride önce rahat kelimelerle başla; karışan çiftleri modelin canlı sınırlılığı olarak açıkla.</p>
+              <p class="card-note">Önce daha kararlı kelimeleri deneyin; karışan çiftleri canlı kelime modelinin bilinen sınırlılıkları olarak değerlendirin.</p>
             </details>
 
             <details class="card word-library-card mode-only word-only">
@@ -354,7 +354,7 @@
 
           <section class="project-screen" id="projectScreen" hidden>
             <div class="project-content">
-              <span class="eyebrow">Jüri anlatımı</span>
+              <span class="eyebrow">Proje özeti</span>
               <h2>ASL Sign Language Assistant</h2>
               <p class="project-subtitle">
                 Kamera görüntüsünden el/poz landmark'ları çıkaran, bu sayısal verileri ONNX
@@ -381,13 +381,13 @@
                   test ekranıyla modelin nasıl çalıştığını anlaşılır göstermeyi hedefler.
                 </p>
                 <div class="project-callout">
-                  <strong>Hocaya kısa anlatım</strong>
+                  <strong>Kısa teknik özet</strong>
                   <span>Görüntüyü doğrudan sunucuya göndermiyoruz; tarayıcıda landmark çıkarıp modeli yine tarayıcıda çalıştırıyoruz.</span>
                 </div>
               </div>
 
               <div class="project-section" id="demoFlowSection">
-                <h3>Jüri demo akışı</h3>
+                <h3>Önerilen inceleme akışı</h3>
                 <div class="project-demo-grid">
                   <div><strong>1. Harf Çeviri</strong><span>Kamerayı aç, A/B/L/Y gibi statik harfleri göster, canlı tahmini ve güven skorunu anlat.</span></div>
                   <div><strong>2. Öğrenme Koçu</strong><span>Hedef seç, referans görseli aç, kontrol butonuyla hedefe uyumu göster.</span></div>
@@ -449,7 +449,7 @@
               </div>
 
               <div class="project-section project-footer">
-                <p>Ali Mustafa Ekmen | Yapay Zeka Uygulamaları Geliştirme</p>
+                <p>ASL Assistant · Tarayıcı tabanlı landmark ve ONNX çıkarımı</p>
                 <p>Kamera görüntüsü cihazda işlenir; demo statik web sitesi olarak çalışır.</p>
               </div>
             </div>
@@ -490,50 +490,50 @@
               <section class="card model-test-card" aria-label="Test girdisi">
                 <div class="card-heading">
                   <span>1. Hızlı demo</span>
-                  <strong id="jurySampleStatus">Örnek bekleniyor</strong>
+                  <strong id="modelTestSampleStatus">Örnek bekleniyor</strong>
                 </div>
                 <p class="model-test-simple-copy">
-                  Jüride tek seçim yeterli: örnek yüklenir, tarayıcıdaki ONNX modeli çalışır, sonuç sağda görünür.
+                  Bir örnek seçildiğinde tarayıcıdaki ONNX modeli çalışır ve sonuç sağda görünür.
                 </p>
-                <div class="jury-quick-actions" aria-label="Hızlı jüri demo örnekleri">
+                <div class="model-test-quick-actions" aria-label="Hızlı model test örnekleri">
                   <button class="button primary" type="button" id="loadDemoLetter">Harf Modelini Test Et</button>
                   <button class="button primary" type="button" id="loadDemoWord">Kelime Modelini Test Et</button>
                 </div>
-                <button class="button full quiet" type="button" id="runJurySample" disabled>Seçili Örneği Tekrar Çalıştır</button>
-                <div class="jury-process" id="juryProcessSteps" aria-label="Model test işlem adımları">
+                <button class="button full quiet" type="button" id="runModelTestSample" disabled>Seçili Örneği Tekrar Çalıştır</button>
+                <div class="model-test-process" id="modelTestProcessSteps" aria-label="Model test işlem adımları">
                   <span data-step="sample">1. Örnek</span>
                   <span data-step="validate">2. Kontrol</span>
                   <span data-step="inference">3. Model</span>
                   <span data-step="result">4. Sonuç</span>
                 </div>
 
-                <details class="jury-advanced">
+                <details class="model-test-advanced">
                   <summary>Gelişmiş: model tipi, farklı fixture veya JSON seç</summary>
-                  <div class="jury-task-switch" aria-label="Model tipi">
-                    <button class="segmented-button is-active" type="button" data-jury-task="letter">
+                  <div class="model-test-task-switch" aria-label="Model tipi">
+                    <button class="segmented-button is-active" type="button" data-model-test-task="letter">
                       <strong>Harf Modeli</strong>
                       <small>Tek el · 93 özellik</small>
                     </button>
-                    <button class="segmented-button" type="button" data-jury-task="word">
+                    <button class="segmented-button" type="button" data-model-test-task="word">
                       <strong>Kelime Modeli</strong>
                       <small>45 frame · hareket</small>
                     </button>
                   </div>
-                  <p class="card-note" id="juryDomainHelp">
+                  <p class="card-note" id="modelTestDomainHelp">
                     Harf örnekleri tek frame 93D feature ile, kelime örnekleri 45 frame compact feature ve mask ile çalışır.
                   </p>
-                  <div class="jury-library">
-                    <label class="field-label" for="jurySampleSelect">Hazır jüri örnekleri</label>
-                    <div class="jury-library-row">
-                      <select id="jurySampleSelect" class="select-input"></select>
-                      <button class="button" type="button" id="loadSelectedJurySample">Örneği Hazırla</button>
+                  <div class="model-test-library">
+                    <label class="field-label" for="modelTestSampleSelect">Hazır model test örnekleri</label>
+                    <div class="model-test-library-row">
+                      <select id="modelTestSampleSelect" class="select-input"></select>
+                      <button class="button" type="button" id="loadSelectedModelTestSample">Örneği Hazırla</button>
                     </div>
                   </div>
-                  <label class="file-drop" id="juryDropZone" for="jurySampleFile">
+                  <label class="file-drop" id="modelTestDropZone" for="modelTestSampleFile">
                     <span>JSON fixture yükle veya buraya bırak</span>
-                    <small id="juryFileName">Harf: features[93]. Kelime: features[7560] + mask[45].</small>
+                    <small id="modelTestFileName">Harf: features[93]. Kelime: features[7560] + mask[45].</small>
                   </label>
-                  <input id="jurySampleFile" class="visually-hidden" type="file" accept="application/json,.json" />
+                  <input id="modelTestSampleFile" class="visually-hidden" type="file" accept="application/json,.json" />
                   <div class="sample-schema-note">
                     <strong>JSON formatı</strong>
                     <code>letter: features[93]</code>
@@ -545,48 +545,48 @@
               <section class="card model-output-card" aria-label="Model sonucu">
                 <div class="card-heading">
                   <span>2. Sonuç</span>
-                  <strong id="juryMatchBadge">Beklemede</strong>
+                  <strong id="modelTestMatchBadge">Beklemede</strong>
                 </div>
-                <div class="jury-prediction-hero">
+                <div class="model-test-prediction-hero">
                   <span>Tahmin</span>
-                  <strong id="juryPredictedLabel">-</strong>
+                  <strong id="modelTestPredictedLabel">-</strong>
                 </div>
-                <div class="jury-result-main">
+                <div class="model-test-result-main">
                   <div>
                     <span>Beklenen</span>
-                    <strong id="juryExpectedLabel">-</strong>
+                    <strong id="modelTestExpectedLabel">-</strong>
                   </div>
                   <div>
                     <span>Güven</span>
-                    <strong id="juryConfidence">-</strong>
+                    <strong id="modelTestConfidence">-</strong>
                   </div>
                   <div>
                     <span>Süre</span>
-                    <strong id="juryLatency">-</strong>
+                    <strong id="modelTestLatency">-</strong>
                   </div>
                 </div>
-                <div class="jury-top3-heading">MODELİN EN GÜÇLÜ 3 TAHMİNİ</div>
-                <div class="top3-list jury-top3" id="juryTop3List"></div>
-                <p class="card-note" id="juryResultNote">Fixture seçildiğinde burada tahmin özeti görünür.</p>
+                <div class="model-test-top3-heading">MODELİN EN GÜÇLÜ 3 TAHMİNİ</div>
+                <div class="top3-list model-test-top3" id="modelTestTop3List"></div>
+                <p class="card-note" id="modelTestResultNote">Fixture seçildiğinde burada tahmin özeti görünür.</p>
               </section>
             </div>
 
             <details class="card model-sample-meta" aria-label="Fixture bilgisi">
               <summary class="card-summary">
-                <span>Fixture ve jüri soru cevapları</span>
-                <strong id="juryTaskLabel">Detay</strong>
+                <span>Fixture ve teknik sorular</span>
+                <strong id="modelTestTaskLabel">Detay</strong>
               </summary>
               <div class="card-heading">
                 <span>Fixture bilgisi</span>
                 <strong>Teknik detay</strong>
               </div>
               <dl class="model-facts">
-                <div><dt>Kaynak</dt><dd id="jurySourceLabel">-</dd></div>
-                <div><dt>Şema</dt><dd id="jurySchemaLabel">-</dd></div>
-                <div><dt>Ölçü</dt><dd id="juryShapeLabel">-</dd></div>
-                <div><dt>Gerçek frame</dt><dd id="juryMaskLabel">-</dd></div>
+                <div><dt>Kaynak</dt><dd id="modelTestSourceLabel">-</dd></div>
+                <div><dt>Şema</dt><dd id="modelTestSchemaLabel">-</dd></div>
+                <div><dt>Ölçü</dt><dd id="modelTestShapeLabel">-</dd></div>
+                <div><dt>Gerçek frame</dt><dd id="modelTestMaskLabel">-</dd></div>
               </dl>
-              <div class="jury-faq" aria-label="Jüri için kısa cevaplar">
+              <div class="model-test-faq" aria-label="Model testi hakkında kısa cevaplar">
                 <details>
                   <summary>Bu sonuç resmi F1 skoru mu?</summary>
                   <p>Hayır. Bu panel tek tek fixture üzerinde canlı tahmin gösterir. Resmi başarı değerleri eğitim/evaluasyon raporlarından gelir.</p>
@@ -609,11 +609,11 @@
 
           <section class="qr-screen" id="qrScreen" hidden aria-labelledby="qrTitle">
             <div class="qr-copy">
-              <span class="eyebrow">Jüri Telefon Demo</span>
+              <span class="eyebrow">Telefon üzerinden deneyin</span>
               <h2 id="qrTitle">QR kodu okut, canlı web sitesini aç.</h2>
               <p>
-                Bu ekran sunum sırasında büyük ve okunabilir bir QR gösterir. Hoca telefon kamerasıyla
-                okuttuğunda site HTTPS üzerinden açılır; harf modeli için kamerayı başlatıp elini
+                Bu ekran başka bir cihazdan kolayca açılabilen bir QR kod gösterir. Telefon kamerasıyla
+                okutulduğunda site HTTPS üzerinden açılır; harf modeli için kamerayı başlatıp elinizi
                 gösterebilir.
               </p>
               <div class="qr-target-switch" aria-label="QR hedefi">
@@ -678,13 +678,24 @@
     <!-- MediaPipe Tasks Vision ESM loader is lazily imported in media/camera.js -->
 
     <!-- Uygulama modülleri (sırayla, bağımlılık sırası) -->
+    <script src="js/core/config.js?v=9"></script>
+    <script src="js/core/runtime.js?v=9"></script>
     <script src="js/ml/landmarks.js?v=9"></script>
     <script src="js/ml/features.js?v=9"></script>
     <script src="js/services/benchmark.js?v=9"></script>
     <script src="js/ml/gating.js?v=9"></script>
     <script src="js/ml/letter-model.js?v=9"></script>
     <script src="js/ml/word-model.js?v=9"></script>
+    <script src="js/media/overlay.js?v=9"></script>
     <script src="js/media/camera.js?v=9"></script>
+    <script src="js/ml/live-inference.js?v=9"></script>
+    <script src="js/ui/prediction.js?v=9"></script>
+    <script src="js/ui/transcript.js?v=9"></script>
+    <script src="js/ui/word-flow.js?v=9"></script>
+    <script src="js/ui/coach.js?v=9"></script>
+    <script src="js/ui/reference.js?v=9"></script>
+    <script src="js/ui/qr.js?v=9"></script>
+    <script src="js/ui/model-test.js?v=9"></script>
     <script src="js/core/app.js?v=9"></script>
 
   </body>
