@@ -1,10 +1,10 @@
 """Fast checks for web runtime data/model contracts."""
+
 from __future__ import annotations
 
 import json
 import math
 from pathlib import Path, PurePosixPath
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -98,9 +98,7 @@ def test_model_test_sample_manifest_covers_letter_domain_and_word_contract() -> 
     assert manifest.get("letter_count") == len(letters)
     assert manifest.get("word_count") == len(words)
     assert {item["label"] for item in letters} == set("ABCDEFGHIKLMNOPQRSTUVWXY")
-    assert {item["label"] for item in words} == set(
-        _load_json("asl-web/data/word_labels.json")
-    )
+    assert {item["label"] for item in words} == set(_load_json("asl-web/data/word_labels.json"))
 
 
 def test_desktop_word_metadata_describes_the_25_class_contract() -> None:

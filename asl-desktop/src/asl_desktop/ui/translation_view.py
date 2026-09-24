@@ -290,7 +290,7 @@ class TranslationView(ctk.CTkFrame):
         self._word_img_label = ctk.CTkLabel(self._word_ref_frame, text="")
         self._word_img_label.pack(fill="both", expand=True, padx=4, pady=(2, 2))
         self._load_guide_image(
-            os.path.join(ASSET_SIGNS_DIR, "kelime.png"),
+            os.path.join(ASSET_SIGNS_DIR, "word-25.png"),
             "_word_ref_ctk_img",
             self._word_img_label,
             480,

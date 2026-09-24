@@ -9,13 +9,13 @@ model. It feeds deterministic 93D fixtures to:
 
 and checks whether top-1 labels match.
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
 import numpy as np
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PKL_PATH = PROJECT_ROOT / "models" / "letter" / "letter_model.pkl"

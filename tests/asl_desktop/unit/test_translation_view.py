@@ -4,7 +4,6 @@ from types import SimpleNamespace
 from unittest.mock import Mock, call
 
 import numpy as np
-
 from asl_desktop.ui.translation_view import TranslationView
 
 

@@ -21,6 +21,7 @@ import argparse
 import gc
 import json
 import logging
+import sys
 import time
 from pathlib import Path
 from typing import Optional
@@ -555,6 +556,35 @@ def load_msasl_entries_for_extraction(msasl_dir: Path) -> dict[str, dict]:
     return entries
 
 
+def validate_outputs(output_dir: Path, logger: logging.Logger) -> dict:
+    """Check the parquet files already written, and nothing else.
+
+    This reads only `output_dir`. Auditing existing outputs must not require
+    the raw MS-ASL metadata or the downloaded clips: someone who has the
+    extracted landmarks but not the source corpus is exactly who runs this.
+
+    Returns:
+        Counts of the files read and the ones that did not hold a usable clip.
+    """
+    logger.info("\n[VALIDATE] Mevcut parquet dosyalarını kontrol ediyorum...")
+    parquet_count = 0
+    bad_count = 0
+    for pq in sorted(output_dir.rglob("*.parquet")):
+        try:
+            df = pd.read_parquet(pq)
+            frames = df["frame"].nunique()
+            types = set(df["type"].unique())
+            if frames < 5 or "right_hand" not in types and "left_hand" not in types:
+                logger.warning(f"  ⚠️ {pq.name}: {frames} frame, types={types}")
+                bad_count += 1
+            parquet_count += 1
+        except Exception as e:
+            logger.error(f"  ❌ {pq.name}: {e}")
+            bad_count += 1
+    logger.info(f"Toplam parquet: {parquet_count}, sorunlu: {bad_count}")
+    return {"validated": parquet_count, "invalid": bad_count}
+
+
 def extract_all(
     video_dir: Path,
     output_dir: Path,
@@ -562,7 +592,6 @@ def extract_all(
     state_file: Path,
     logger: logging.Logger,
     use_crop: bool = True,
-    validate_only: bool = False,
 ) -> dict:
     """Process every downloaded video and persist accepted landmarks."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -583,30 +612,12 @@ def extract_all(
         "skipped": 0,
         "no_metadata": 0,
         "total": len(video_files),
+        "validated": 0,
+        "invalid": 0,
     }
     reject_reasons: dict[str, int] = {}
     word_success: dict[int, int] = {}
     word_total: dict[int, int] = {}
-
-    # Validation mode reads existing outputs without re-running MediaPipe.
-    if validate_only:
-        logger.info("\n[VALIDATE] Mevcut parquet dosyalarını kontrol ediyorum...")
-        parquet_count = 0
-        bad_count = 0
-        for pq in output_dir.rglob("*.parquet"):
-            try:
-                df = pd.read_parquet(pq)
-                frames = df["frame"].nunique()
-                types = set(df["type"].unique())
-                if frames < 5 or "right_hand" not in types and "left_hand" not in types:
-                    logger.warning(f"  ⚠️ {pq.name}: {frames} frame, types={types}")
-                    bad_count += 1
-                parquet_count += 1
-            except Exception as e:
-                logger.error(f"  ❌ {pq.name}: {e}")
-                bad_count += 1
-        logger.info(f"Toplam parquet: {parquet_count}, sorunlu: {bad_count}")
-        return stats
 
     # Process clips in deterministic entry-id order.
     total = len(video_files)
@@ -871,7 +882,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
+def main() -> int:
     args = parse_args()
 
     # Apply the CLI override to the module-level quality gate.
@@ -879,6 +890,13 @@ def main() -> None:
     MIN_HAND_FRAME_RATIO = args.min_hand_ratio
 
     logger = setup_logging(args.output_dir)
+
+    # Auditing existing outputs comes first, because it needs neither the
+    # downloaded clips nor the MS-ASL metadata. Loading those before this
+    # branch made the audit fail for anyone without the raw corpus.
+    if args.validate_only:
+        stats = validate_outputs(args.output_dir, logger)
+        return 1 if stats["invalid"] else 0
 
     logger.info("=" * 60)
     logger.info("MS-ASL Landmark Extraction Başlıyor")
@@ -903,11 +921,7 @@ def main() -> None:
         state_file=args.state_file,
         logger=logger,
         use_crop=not args.no_crop,
-        validate_only=args.validate_only,
     )
-
-    if args.validate_only:
-        return
 
     elapsed = time.time() - start_time
     logger.info(f"\nExtraction tamamlandı: {elapsed:.0f}s ({elapsed / 60:.1f} dk)")
@@ -921,7 +935,8 @@ def main() -> None:
 
     # Persist a reusable coverage report.
     generate_metadata(args.output_dir, args.state_file, logger)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

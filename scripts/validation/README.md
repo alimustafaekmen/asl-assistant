@@ -18,3 +18,5 @@ The scripts do not install missing packages automatically. This avoids hidden
 network or environment changes on a demo machine. `generate_word_onnx_test_sample.py`
 updates the web fixture by default; writing notebook provenance requires its
 explicit option and should be treated as a model-export change.
+
+After replacing `asl-web/models/letter_model.onnx`, regenerate the copy the browser downloads with `gzip -9 -n -c asl-web/models/letter_model.onnx > asl-web/models/letter_model.onnx.gz`; `check_runtime_assets.py` fails until the two match.

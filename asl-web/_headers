@@ -1,0 +1,13 @@
+# Response headers for the published site. Netlify reads this file from the
+# publish directory on every deploy method, including a drag-and-drop upload of
+# asl-web/, which never includes the root netlify.toml.
+#
+# The CSP is Report-Only on purpose: ONNX Runtime and MediaPipe compile WASM
+# and load code and models from two CDNs, so it is enforced only after a real
+# browser has run every mode on the deployed site without a violation.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(), geolocation=()
+  X-Frame-Options: DENY
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; connect-src 'self' https://cdn.jsdelivr.net https://storage.googleapis.com; worker-src 'self' blob:; img-src 'self' data: blob:; style-src 'self'; style-src-attr 'unsafe-inline'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'

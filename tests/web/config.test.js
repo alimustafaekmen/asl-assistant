@@ -113,8 +113,7 @@ test("the reference gallery keeps the five split word pages", () => {
 
   assert.deepEqual(
     [...assets.wordPages],
-    [1, 2, 3, 4, 5].map((page) => `./assets/signs/word-${page}.png`),
+    [1, 2, 3, 4, 5].map((page) => `./assets/signs/word-50-${page}.png`),
   );
   assert.equal(assets.letter.src, "./assets/signs/letters.png");
-  assert.equal(assets.wordPoster.src, "./assets/signs/kelime.png");
 });

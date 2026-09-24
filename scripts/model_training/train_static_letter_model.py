@@ -39,8 +39,13 @@ from sklearn.metrics import (
     confusion_matrix,
     f1_score,
 )
-from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.model_selection import cross_val_score
 from sklearn.neural_network import MLPClassifier
+
+try:
+    from .data_split import prepare_evaluation_split
+except ImportError:  # Direct script execution: python scripts/model_training/...
+    from data_split import prepare_evaluation_split
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -359,26 +364,25 @@ def train_single_model(
     model_type: str = "rf",
     use_features: bool = True,
     use_augment: bool = True,
+    X_external: np.ndarray | None = None,
+    y_external_str: np.ndarray | None = None,
 ) -> tuple:
     """Train, evaluate, and persist one selected model family.
 
     Returns:
         The fitted model, label map, test accuracy, and metadata.
     """
-    # Encode labels in stable alphabetical order.
-    unique = sorted(set(y_str))
-    label_map = {lbl: i for i, lbl in enumerate(unique)}
-    y = np.array([label_map[label] for label in y_str], dtype=np.int32)
+    label_map, X_train, X_test, y_train, y_test, evaluation_source = prepare_evaluation_split(
+        X,
+        y_str,
+        X_external,
+        y_external_str,
+    )
 
     print(f"\n  Sınıf sayısı: {len(label_map)}")
-    print(f"  Toplam örnek: {len(y)}")
+    print(f"  Toplam örnek: {len(y_train) + len(y_test)}")
     print(f"  Özellik boyutu: {X.shape[1]}")
-
-    # Preserve class ratios in the held-out split.
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.15, random_state=42, stratify=y
-    )
-    print(f"  Train: {len(y_train)}, Test: {len(y_test)}")
+    print(f"  Train: {len(y_train)}, Test: {len(y_test)} ({evaluation_source})")
 
     # Build the requested estimator.
     model = _create_model(model_type)
@@ -410,7 +414,15 @@ def train_single_model(
     print(f"  Eğitim süresi:  {train_time:.1f}s")
     print(f"  Inference:      {inference_ms:.3f}ms/tahmin")
     print(f"{'=' * 50}")
-    print(classification_report(y_test, y_pred, target_names=target_names, zero_division=0))
+    print(
+        classification_report(
+            y_test,
+            y_pred,
+            labels=list(range(len(target_names))),
+            target_names=target_names,
+            zero_division=0,
+        )
+    )
 
     # Persist the fitted Python model and label contract.
     os.makedirs(os.path.dirname(LETTER_MODEL_PATH), exist_ok=True)
@@ -433,6 +445,7 @@ def train_single_model(
         "classes": len(label_map),
         "train_samples": int(len(y_train)),
         "test_samples": int(len(y_test)),
+        "evaluation_source": evaluation_source,
         "trained_at": datetime.now().isoformat(),
     }
     meta_path = os.path.splitext(LETTER_MODEL_PATH)[0] + "_meta.json"
@@ -451,28 +464,27 @@ def train_full_comparison(
     y_str: np.ndarray,
     use_features: bool = True,
     use_augment: bool = True,
+    X_external: np.ndarray | None = None,
+    y_external_str: np.ndarray | None = None,
 ) -> tuple:
     """Compare five model families and persist the best held-out result.
 
     Returns:
         Best model, label map, accuracy, and all comparison results.
     """
-    # Encode labels once so every model sees the same targets.
-    unique = sorted(set(y_str))
-    label_map = {lbl: i for i, lbl in enumerate(unique)}
-    y = np.array([label_map[label] for label in y_str], dtype=np.int32)
+    label_map, X_train, X_test, y_train, y_test, evaluation_source = prepare_evaluation_split(
+        X,
+        y_str,
+        X_external,
+        y_external_str,
+    )
     inv_map = {v: k for k, v in label_map.items()}
     target_names = [inv_map[i] for i in sorted(inv_map.keys())]
 
     print(f"\n  Sınıf sayısı: {len(label_map)}")
-    print(f"  Toplam örnek: {len(y)}")
+    print(f"  Toplam örnek: {len(y_train) + len(y_test)}")
     print(f"  Özellik boyutu: {X.shape[1]}")
-
-    # Reuse one stratified split across all candidates.
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.15, random_state=42, stratify=y
-    )
-    print(f"  Train: {len(y_train)}, Test: {len(y_test)}")
+    print(f"  Train: {len(y_train)}, Test: {len(y_test)} ({evaluation_source})")
 
     # Four conventional estimators and one compact neural baseline.
     model_configs = [
@@ -549,7 +561,15 @@ def train_full_comparison(
     print(f"\n{'=' * 60}")
     print(f"  ★ KAZANAN: {best_name} (Accuracy: {best_acc:.4f})")
     print(f"{'=' * 60}")
-    print(classification_report(y_test, best_pred, target_names=target_names, zero_division=0))
+    print(
+        classification_report(
+            y_test,
+            best_pred,
+            labels=list(range(len(target_names))),
+            target_names=target_names,
+            zero_division=0,
+        )
+    )
 
     # Persist the selected model and its contracts.
     os.makedirs(os.path.dirname(LETTER_MODEL_PATH), exist_ok=True)
@@ -576,6 +596,7 @@ def train_full_comparison(
         "classes": len(label_map),
         "train_samples": int(len(y_train)),
         "test_samples": int(len(y_test)),
+        "evaluation_source": evaluation_source,
         "trained_at": datetime.now().isoformat(),
     }
     meta_path = os.path.splitext(LETTER_MODEL_PATH)[0] + "_meta.json"
@@ -651,7 +672,7 @@ def _model_display_name(model_type: str) -> str:
 
 def _save_confusion_matrix(y_test, y_pred, target_names, accuracy):
     """Save the held-out confusion matrix heatmap."""
-    cm = confusion_matrix(y_test, y_pred)
+    cm = confusion_matrix(y_test, y_pred, labels=list(range(len(target_names))))
     fig, ax = plt.subplots(figsize=(14, 12))
     sns.heatmap(
         cm,
@@ -950,6 +971,8 @@ def main():
 
     use_features = not args.no_features
     use_augment = not args.no_augment
+    X_external = None
+    y_external_str = None
 
     # Load a pre-extracted landmark CSV when requested.
     if args.from_csv:
@@ -985,8 +1008,14 @@ def main():
         X = train_df.drop(columns=["label"]).values.astype(np.float32)
         print(f"\n  Yüklendi: {len(X)} örnek, {len(set(y_str))} sınıf, {X.shape[1]}D")
 
-        if test_csv and os.path.exists(test_csv):
+        if test_csv and not os.path.exists(test_csv):
+            print(f"\n❌ HATA: Test CSV bulunamadı: {test_csv}")
+            sys.exit(1)
+
+        if test_csv:
             test_df = _pd.read_csv(test_csv)
+            y_external_str = test_df["label"].values
+            X_external = test_df.drop(columns=["label"]).values.astype(np.float32)
             print(f"  Test CSV: {len(test_df)} örnek yüklendi ({test_csv})")
 
         # Augment only the raw landmark rows.
@@ -1059,6 +1088,8 @@ def main():
 
     if use_features:
         X = apply_feature_engineering(X)
+        if X_external is not None:
+            X_external = apply_feature_engineering(X_external)
     else:
         print("  Feature engineering atlandı (63D ham koordinatlar kullanılacak).")
 
@@ -1073,6 +1104,8 @@ def main():
             y_str,
             use_features=use_features,
             use_augment=use_augment,
+            X_external=X_external,
+            y_external_str=y_external_str,
         )
     else:
         model, label_map, acc, metadata = train_single_model(
@@ -1081,6 +1114,8 @@ def main():
             model_type=args.model,
             use_features=use_features,
             use_augment=use_augment,
+            X_external=X_external,
+            y_external_str=y_external_str,
         )
 
     t_total = time.time() - t0

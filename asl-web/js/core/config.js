@@ -59,7 +59,6 @@
 /**
  * @typedef {Object} ReferenceAssets
  * @property {ReferenceAsset} letter Alphabet reference card.
- * @property {ReferenceAsset} wordPoster Combined 50-word poster.
  * @property {string[]} wordPages The five readable word reference pages, in order.
  */
 
@@ -103,7 +102,7 @@ const CONFIG = {
   LETTER_MOTION_DEBUG_ENABLED: true,
   LETTER_MOTION_GATE_ENABLED: false,
   LETTER_MOTION_GATE_THRESHOLD: 0.08,
-  DEMO_PUBLIC_URL: "https://asl-demo.netlify.app/",
+  DEMO_PUBLIC_URL: "https://asl-assistant.netlify.app/",
   DEBUG_MODE: false,
 };
 
@@ -172,16 +171,12 @@ const REFERENCE_ASSETS = {
     src: "./assets/signs/letters.png",
     alt: "ASL harf referans görseli",
   },
-  wordPoster: {
-    src: "./assets/signs/kelime.png",
-    alt: "ASL 50 kelime genel referans posteri",
-  },
   wordPages: [
-    "./assets/signs/word-1.png",
-    "./assets/signs/word-2.png",
-    "./assets/signs/word-3.png",
-    "./assets/signs/word-4.png",
-    "./assets/signs/word-5.png",
+    "./assets/signs/word-50-1.png",
+    "./assets/signs/word-50-2.png",
+    "./assets/signs/word-50-3.png",
+    "./assets/signs/word-50-4.png",
+    "./assets/signs/word-50-5.png",
   ],
 };
 

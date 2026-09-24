@@ -243,7 +243,7 @@ a { color: var(--primary); text-decoration: none; }
 @media (min-width: 769px) { .camera-stage { aspect-ratio: 16/9; min-height: 520px; } }
 .camera-video { width:100%; height:100%; object-fit:cover; transform: scaleX(-1); display:block; }
 .overlay-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
-.camera-empty { position:absolute; inset:0; display:grid; place-items:center; text-align:center; padding:30px; color: var(--muted); background: linear-gradient(135deg, var(--surface-muted), var(--bg)); }
+.camera-empty { position:absolute; inset:0; display:grid; place-items:center; align-content:center; text-align:center; padding:30px; color: var(--muted); background: linear-gradient(135deg, var(--surface-muted), var(--bg)); }
 .camera-empty strong { display:block; margin-top:10px; color:var(--text); font-size:18px; }
 .camera-empty span { display:block; margin-top:6px; max-width:340px; }
 .camera-empty-icon { width:68px; height:68px; border-radius:50%; display:grid; place-items:center; background: var(--surface-raised); border:1px solid var(--border); color:var(--primary); font-size:26px; box-shadow:var(--shadow-sm); }

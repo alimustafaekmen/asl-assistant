@@ -5,6 +5,29 @@ step-by-step refactor logs are intentionally kept out of the repository.
 
 ## Unreleased
 
+### Web application
+
+- Models now download when they are first needed — starting the camera, a
+  word recording, the offline check, or a Model Test run — instead of on every
+  page open.
+- Served the letter model gzip-compressed (2.1 MB instead of 12.6 MB), with a
+  fallback to the uncompressed file.
+- Replaced the sign reference images: a new alphabet chart, five word pages for
+  the 50-word web model, and a 25-word page for the desktop app.
+- Added a favicon, a page description, and a link preview image.
+- The camera placeholder now says that the image stays on the device, and the
+  word record button asks for the camera instead of claiming to be loading.
+- Global keyboard shortcuts no longer fire while typing in a form control.
+
+### Security and deployment
+
+- Pinned the MediaPipe landmark models to a fixed version instead of `latest`.
+- Added Subresource Integrity to the CDN scripts.
+- Added response headers — `nosniff`, a camera-only permissions policy,
+  framing denial, a referrer policy — and a report-only Content Security Policy.
+- Moved the demo to https://asl-assistant.netlify.app/ and documented the
+  manual deploy.
+
 ### Documentation and repository hygiene
 
 - Added separate web-only, Conda, and `venv` setup paths in English and
@@ -16,8 +39,8 @@ step-by-step refactor logs are intentionally kept out of the repository.
 - Focused the repository on maintained source, documentation, tests, and the
   artifacts required to run and validate the project.
 - Added a Git hygiene check that fails when ignored files remain tracked.
-- Removed the automatically added MIT declaration pending an explicit project
-  licensing decision.
+- Replaced the MIT declaration in the README with the PolyForm
+  Noncommercial License 1.0.0.
 - Replaced machine-specific environment instructions with portable Conda and
   `.venv` workflows.
 - Renamed event-specific fixture paths and commands to the neutral
@@ -41,6 +64,8 @@ step-by-step refactor logs are intentionally kept out of the repository.
 - Kept runtime/provenance hash checks for both deployed ONNX models.
 - Added static browser UI contract tests and repository guardrails.
 - Added letter and word feature-parity diagnostics.
+- Validation now fails when the compressed letter model drifts from the
+  deployed model, or when a page link does not resolve.
 
 ### Runtime maintenance
 

@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-
 from asl_desktop.utils.landmark_smoother import LandmarkSmoother
 
 

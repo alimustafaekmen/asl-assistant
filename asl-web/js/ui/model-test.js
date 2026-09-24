@@ -499,8 +499,9 @@ function normalizeMask(value) {
 /**
  * Run the loaded fixture against its model.
  *
- * The matching model is loaded on demand when the normal startup path did not
- * load it, so the panel works even if the app started without models.
+ * A run is a first need for its model, so the model loads here when nothing
+ * has loaded it yet. The download is kept out of the measured time, which
+ * reports inference alone.
  *
  * @returns {Promise<void>} Resolves after reporting a failure to the user.
  */
@@ -511,29 +512,31 @@ async function runModelTestSample() {
     return;
   }
 
+  const isWord = sample.task === "word";
   try {
-    if (els.modelTestSampleStatus) els.modelTestSampleStatus.textContent = "Model çalışıyor";
+    // The download is not inference, so it is named as what it is.
+    if (els.modelTestSampleStatus) {
+      els.modelTestSampleStatus.textContent =
+        (isWord ? wordSession : letterSession) ? "Model çalışıyor" : "Model yükleniyor";
+    }
     if (els.runModelTestSample) {
       els.runModelTestSample.disabled = true;
       els.runModelTestSample.textContent = "Model Çalışıyor";
     }
     updateModelTestProcess("running");
 
+    if (!(await (isWord ? ensureWordModel() : ensureLetterModel()))) {
+      throw new Error(isWord ? "Kelime modeli yüklenemedi" : "Harf modeli yüklenemedi");
+    }
+    if (els.modelTestSampleStatus) els.modelTestSampleStatus.textContent = "Model çalışıyor";
+
     let result = null;
     const t0 = performance.now();
-    if (sample.task === "word") {
+    if (isWord) {
       if (typeof predictWord !== "function") throw new Error("word-model.js yüklenmemiş");
-      if (typeof wordSession !== "undefined" && !wordSession) {
-        const ok = await loadWordModel();
-        if (!ok) throw new Error("Kelime modeli yüklenemedi");
-      }
       result = await predictWord(sample.features, sample.mask);
     } else {
       if (typeof predictLetter !== "function") throw new Error("letter-model.js yüklenmemiş");
-      if (typeof letterSession !== "undefined" && !letterSession) {
-        const ok = await loadLetterModel();
-        if (!ok) throw new Error("Harf modeli yüklenemedi");
-      }
       result = await predictLetter(sample.features);
     }
     const elapsed = performance.now() - t0;
@@ -638,6 +641,12 @@ function showModelTestError(message) {
 }
 
 /**
+ * One step of the Model Test progress strip, as its data-step value.
+ *
+ * @typedef {"sample" | "validate" | "inference" | "result"} ModelTestProcessStep
+ */
+
+/**
  * Mark how far the fixture has progressed through the four process steps.
  *
  * @param {ModelTestProcessStatus} status
@@ -645,6 +654,7 @@ function showModelTestError(message) {
  */
 function updateModelTestProcess(status) {
   if (!els.modelTestProcessSteps) return;
+  /** @type {Record<ModelTestProcessStatus, ModelTestProcessStep[]>} */
   const activeByStatus = {
     idle: [],
     loading: ["sample"],
@@ -653,10 +663,12 @@ function updateModelTestProcess(status) {
     done: ["sample", "validate", "inference", "result"],
     error: [],
   };
+  // Held as strings because membership is tested against dataset values.
+  /** @type {Set<string>} */
   const active = new Set(activeByStatus[status] || []);
   els.modelTestProcessSteps.dataset.status = status;
   queryElements("[data-step]", els.modelTestProcessSteps).forEach((step) => {
-    step.dataset.state = active.has(step.dataset.step) ? "done" : "";
+    step.dataset.state = active.has(step.dataset.step ?? "") ? "done" : "";
   });
 }
 
@@ -686,11 +698,8 @@ async function runOfflineCheck() {
       throw new Error("word-model.js yüklenmemiş");
     }
 
-    // Load the model on demand when the regular startup path did not.
-    if (typeof wordSession !== "undefined" && !wordSession) {
-      const ok = await loadWordModel();
-      if (!ok) throw new Error("Model yüklenemedi");
-    }
+    // The check is a first need for the word model.
+    if (!(await loadModelsWithStatus({ word: true }))) throw new Error("Model yüklenemedi");
 
     // Load the deterministic runtime smoke fixture.
     const sampleRes = await fetch("./data/test_sample.json", { cache: "no-store" });

@@ -23,9 +23,14 @@
  * Bring the app up, in the order the modules depend on.
  *
  * Preferences, coach options, and event bindings come first so the UI is
- * usable; the fixture manifest and the route are applied next; models load
- * last, because they are the slowest step and nothing before them needs one.
- * The render loop starts only after all of that.
+ * usable; the fixture manifest and the route are applied next, then the render
+ * loop starts.
+ *
+ * No model loads here. A bare URL opens letter mode, but most visitors never
+ * start the camera, so the models wait for their first real need: the camera
+ * starting in a mode that runs one, a word recording, the offline check, or a
+ * Model Test run. The word guidance data is a few kilobytes and loads last;
+ * its panel renders once that fetch has settled.
  *
  * @returns {Promise<void>}
  */
@@ -40,76 +45,97 @@ async function init() {
   setMode(modeFromHash(window.location.hash), { syncHash: false });
   updatePrediction({ label: "?", confidence: 0, alternatives: [] });
 
-  await loadModelsWithStatus();
-
   requestAnimationFrame(renderLoop);
+
+  await loadGatingData();
+  renderWordGuidancePanel();
 }
 
 /**
- * Load the letter and word models and report what became available.
+ * Which models a live camera mode runs.
  *
- * Each loader is optional, so a half-loaded app still runs: the status line
- * says which model is missing rather than failing outright.
+ * Coach needs both, because its target can move between a letter and a word
+ * while the camera stays on. The informational screens run none.
  *
- * @returns {Promise<void>} Resolves even when no model loaded.
+ * @param {AppMode} mode
+ * @returns {{letter: boolean, word: boolean}}
  */
-async function loadModelsWithStatus() {
-  setMessage("Modeller yükleniyor...", "maybe");
-  els.latencyBadge.textContent = "Modeller yükleniyor";
+function liveModelNeeds(mode) {
+  return {
+    letter: mode === "letter" || mode === "coach",
+    word: mode === "word" || mode === "coach",
+  };
+}
+
+/**
+ * Load the models a task needs, the first time it needs them, and say so.
+ *
+ * Each model loads once however often it is asked for, so this returns at once
+ * for a model that is already loaded and then leaves the status line alone.
+ * Progress is reported only when a download is actually under way. Each model
+ * is optional, so a half-loaded app still runs: the status line says which one
+ * is missing rather than failing outright.
+ *
+ * While the camera is on, the badge reports the camera and MediaPipe, so model
+ * progress goes to the message line alone.
+ *
+ * @param {{letter?: boolean, word?: boolean}} needs
+ * @returns {Promise<boolean>} True when every needed model is ready. Never rejects.
+ */
+async function loadModelsWithStatus(needs) {
+  /** @param {string} text */
+  const setBadge = (text) => {
+    if (!state.cameraOn) els.latencyBadge.textContent = text;
+  };
+  // Whether each model was already loaded is read before its load is asked
+  // for, so a download that starts here is reported.
+  /** @type {{label: string, loaded: boolean, ready: Promise<boolean>}[]} */
+  const models = [];
+  if (needs.letter) {
+    models.push({ label: "Harf", loaded: !!letterSession, ready: ensureLetterModel() });
+  }
+  if (needs.word) {
+    models.push({ label: "Kelime", loaded: !!wordSession, ready: ensureWordModel() });
+  }
+  const downloading = models.some((model) => !model.loaded);
+  if (downloading) {
+    setMessage("Modeller yükleniyor...", "maybe");
+    setBadge("Modeller yükleniyor");
+  }
+
   try {
-    const tasks = [];
-    // Preserve task positions so Promise.all results map back to each loader.
-    const idx = { letter: -1, word: -1, gating: -1 };
-    if (typeof loadLetterModel === "function") {
-      idx.letter = tasks.length;
-      tasks.push(loadLetterModel());
-    }
-    if (typeof loadWordModel === "function") {
-      idx.word = tasks.length;
-      tasks.push(loadWordModel());
-    }
-    if (typeof loadGatingData === "function") {
-      idx.gating = tasks.length;
-      tasks.push(loadGatingData());
-    }
-    const results = await Promise.all(tasks);
-    const letterOk = idx.letter >= 0 ? results[idx.letter] : false;
-    const wordOk = idx.word >= 0 ? results[idx.word] : false;
-    renderWordGuidancePanel();
+    const results = await Promise.all(models.map((model) => model.ready));
+    const allReady = results.every(Boolean);
+    if (!downloading) return allReady;
 
-    if (wordOk && typeof warmupWordModel === "function") {
-      await warmupWordModel();
-    }
-    if (letterOk && typeof warmupLetterModel === "function") {
-      await warmupLetterModel();
-    }
-
-    const status = [];
-    if (letterOk) status.push("Harf ✓");
-    if (wordOk) status.push("Kelime ✓");
-
-    if (status.length === 2) {
-      setMessage(`Modeller hazır: ${status.join(", ")}. Kamerayı başlatabilirsiniz.`, "good");
-      els.latencyBadge.textContent = "Hazır";
+    const status = models.filter((_, i) => results[i]).map((model) => `${model.label} ✓`);
+    if (allReady) {
+      setMessage(`Modeller hazır: ${status.join(", ")}.`, "good");
+      setBadge("Hazır");
     } else if (status.length) {
       setMessage(
         `Yalnızca ${status.join(", ")} yüklendi. Network sekmesinde 404 var mı kontrol edin.`,
         "low",
       );
-      els.latencyBadge.textContent = "Yarım yükleme";
+      setBadge("Yarım yükleme");
     } else {
       setMessage(
         "Model yüklenemedi. ./models/ altında ONNX dosyaları var mı? Network sekmesini kontrol edin.",
         "low",
       );
-      els.latencyBadge.textContent = "Model yok";
+      setBadge("Model yok");
     }
+    return allReady;
   } catch (err) {
     console.error("Model yükleme hatası:", err);
     setMessage("Model yüklenemedi: " + err.message, "low");
-    els.latencyBadge.textContent = "Hata";
+    setBadge("Hata");
+    return false;
   }
 }
+
+/** Whether bindEvents() has already run; see the guard in bindEvents(). */
+let _eventsBound = false;
 
 /**
  * Wire every DOM listener.
@@ -117,10 +143,19 @@ async function loadModelsWithStatus() {
  * Bindings stay in one place on purpose. Spreading them across the feature
  * modules would make it impossible to see what the page reacts to.
  *
+ * Calling this a second time is a no-op. Every binding here adds a listener
+ * rather than replacing one, so a second call would leave two of each and every
+ * click would fire twice; nothing at the call site would show it. The guard is
+ * the smallest thing that makes the function safe to call again, which is what
+ * rebuilding part of a screen would want to do.
+ *
  * @returns {void}
  */
 function bindEvents() {
-  queryElements(".mode-tab").forEach((tab) => {
+  if (_eventsBound) return;
+  _eventsBound = true;
+
+  queryAllUi("mode-tab").forEach((tab) => {
     tab.addEventListener("click", () => setMode(tab.dataset.mode));
   });
 
@@ -203,11 +238,20 @@ function bindEvents() {
   });
 
   window.addEventListener("keydown", (event) => {
+    // Ctrl-modified, so it cannot collide with typing and stays available
+    // wherever focus is.
     if (event.ctrlKey && event.key.toLowerCase() === "d") {
       event.preventDefault();
       state.debug = !state.debug;
       els.debugPanel.hidden = !state.debug;
+      return;
     }
+    // Any other modified key belongs to the browser: Cmd+C and Ctrl+C are
+    // copy, not "clear the transcript".
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    // Everything below is an unmodified key, which belongs to the focused
+    // control whenever there is one that consumes typing.
+    if (isEditableTarget(event.target)) return;
     // Space appends the current prediction only in letter mode. The on-screen
     // control calls the same transcript function instead of simulating a key event.
     if (event.code === "Space" && state.mode === "letter") {
@@ -230,13 +274,13 @@ function bindEvents() {
  * @returns {void}
  */
 function showHome() {
-  if (state.cameraOn && typeof stopCamera === "function") {
+  if ((state.cameraOn || _cameraStartAttempt) && typeof stopCamera === "function") {
     stopCamera();
   }
   if (els.appShell) {
     els.appShell.dataset.view = "home";
   }
-  queryElements(".mode-tab").forEach((tab) => tab.classList.remove("is-active"));
+  queryAllUi("mode-tab").forEach((tab) => tab.classList.remove("is-active"));
 }
 
 /**
@@ -307,7 +351,7 @@ function setMode(mode, options = {}) {
   if (options.syncHash !== false && window.location.hash !== `#${mode}`) {
     window.history.replaceState(null, "", `#${mode}`);
   }
-  const shell = els.appShell || queryElement(".app-shell");
+  const shell = els.appShell || queryUi("app-shell");
   if (shell) { shell.dataset.view = "app"; shell.dataset.mode = mode; }
   // Clear temporal state so predictions cannot leak across mode changes.
   if (typeof resetSmoother === "function") resetSmoother();
@@ -322,7 +366,7 @@ function setMode(mode, options = {}) {
   state.wordQualityWarnings = [];
   state.wordResultAssessment = null;
 
-  queryElements(".mode-tab").forEach((tab) => {
+  queryAllUi("mode-tab").forEach((tab) => {
     tab.classList.toggle("is-active", tab.dataset.mode === mode);
   });
 
@@ -339,11 +383,14 @@ function setMode(mode, options = {}) {
   if (els.qrScreen) {
     els.qrScreen.hidden = !isQr;
   }
-  queryElements(".camera-column, .side-panel").forEach((el) => {
+  queryAllUi("workspace-pane").forEach((el) => {
     el.hidden = isProject || isTest || isQr;
   });
   if (isQr) renderQrDemo();
   if (isProject || isTest || isQr) {
+    // These screens replace the camera workspace, so they release the camera
+    // exactly as returning home does.
+    if (state.cameraOn || _cameraStartAttempt) stopCamera();
     clearFeedback();
     syncActionBar();
     return;
@@ -371,7 +418,24 @@ function setMode(mode, options = {}) {
   updateReferenceForMode();
   syncRecordButton();
   syncActionBar();
+
+  // Entering a live mode with the camera already on is a first need for the
+  // models it runs; with the camera off, starting it will be.
+  if (state.cameraOn) loadModelsWithStatus(liveModelNeeds(state.mode));
 }
+
+/**
+ * The camera start waiting on getUserMedia, or null when none is.
+ *
+ * state.cameraOn turns true only once the stream arrives, so without this a
+ * second Start would open a second stream and a stop during the permission
+ * prompt would have nothing to stop. stopCamera() clears it, which is how the
+ * start learns, when its stream arrives, that it was cancelled. Each start
+ * gets its own token, so a cancelled start cannot take over a newer one.
+ *
+ * @type {object | null}
+ */
+let _cameraStartAttempt = null;
 
 /**
  * Start or stop the camera.
@@ -381,6 +445,9 @@ function setMode(mode, options = {}) {
  * actionable Turkish messages. MediaPipe failing to start is not fatal: the
  * camera stays on and the status line explains what is missing.
  *
+ * A granted camera is what starts the live models downloading; a refused one
+ * downloads nothing.
+ *
  * @returns {Promise<void>} Resolves after reporting any failure to the user.
  */
 async function toggleCamera() {
@@ -388,6 +455,8 @@ async function toggleCamera() {
     stopCamera();
     return;
   }
+  // A start is already waiting for the permission prompt.
+  if (_cameraStartAttempt) return;
 
   // Camera APIs require HTTPS, except on localhost.
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -399,11 +468,19 @@ async function toggleCamera() {
     return;
   }
 
+  const attempt = {};
+  _cameraStartAttempt = attempt;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false,
     });
+    // stopCamera() ran while the prompt was open, so this start was cancelled.
+    if (_cameraStartAttempt !== attempt) {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
+    _cameraStartAttempt = null;
     state.stream = stream;
     state.cameraOn = true;
     els.video.srcObject = stream;
@@ -414,6 +491,10 @@ async function toggleCamera() {
     els.cameraStatus.lastChild.textContent = "Kamera";
     els.latencyBadge.textContent = "Kamera açık";
 
+    // Starting the camera is the first need for the live models. They download
+    // alongside MediaPipe rather than after it; neither needs the other.
+    const liveModelsLoad = loadModelsWithStatus(liveModelNeeds(state.mode));
+
     if (typeof startMediaPipe === "function") {
       try {
         els.latencyBadge.textContent = "MediaPipe yükleniyor...";
@@ -422,6 +503,9 @@ async function toggleCamera() {
       } catch (err) {
         console.warn("MediaPipe başlatılamadı:", err);
         els.latencyBadge.textContent = "MediaPipe yok";
+        // Without MediaPipe no model can run, so this must be the message left
+        // standing, not a later "models ready".
+        await liveModelsLoad;
         setMessage(
           "MediaPipe modeli yüklenemedi. İnternet bağlantısını kontrol edin (CDN'den indiriliyor).",
           "low",
@@ -429,6 +513,7 @@ async function toggleCamera() {
       }
     }
   } catch (error) {
+    if (_cameraStartAttempt === attempt) _cameraStartAttempt = null;
     // Map standard browser media errors to actionable messages.
     let msg = "Kamera açılamadı.";
     switch (error?.name) {
@@ -470,6 +555,7 @@ async function toggleCamera() {
  * @returns {void}
  */
 function stopCamera() {
+  _cameraStartAttempt = null;
   state.stream?.getTracks().forEach((track) => track.stop());
   state.stream = null;
   state.cameraOn = false;

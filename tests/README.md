@@ -9,8 +9,10 @@ tests/
 ├── asl_desktop/unit/        pure smoothing logic
 ├── asl_desktop/integration/ MediaPipe/model/camera-dependent checks
 ├── project/                 Git hygiene, lightweight schemas, and browser wiring
+├── scripts/                 CLI behaviour: exit codes and command results
+├── smoke/                   end-to-end smoke entry points
 ├── validation/              Python/JavaScript feature and model parity tools
-└── fixtures/                parity support fixtures
+└── web/                     browser unit tests on Node's test runner
 ```
 
 ## Fast suite
@@ -76,9 +78,37 @@ The holistic extraction tests use deterministic MediaPipe-shaped results and
 do not require a camera or graphics context. The optional real-model smoke test
 is kept separate because LightGBM may require a platform OpenMP runtime.
 
+## What the UI contract tests protect
+
+The browser tests exist so the markup and the CSS can be reworked without the
+behaviour quietly coming loose. They protect:
+
+- **element lookups**: every id and `data-ui` hook a script resolves is present
+  in `index.html`, appears once where the code expects one, and the element
+  types the registry requires match the real tags;
+- **behaviour attributes**: `data-mode`, `data-go-mode`, `data-qr-target`,
+  `data-coach-flow`, `data-model-test-task`, `data-quality` and `data-step`
+  values stay inside the JSDoc union that governs each;
+- **the hook boundary**: no script finds an element by a presentation class, so
+  renaming a class cannot detach behaviour;
+- **references**: `for`, `aria-labelledby`, `aria-describedby` and
+  `aria-controls` point at ids that exist, and no inline `on*` handler hides
+  behaviour where tests cannot reach it;
+- **idempotency**: `bindEvents()` called twice leaves one listener of each, and
+  every list renderer rebuilds its rows instead of appending a second set;
+- **the registry's failure paths**: a missing required element fails while the
+  scripts load and names itself; an optional one resolves to null and leaves
+  its feature inert.
+
+They deliberately do **not** pin class order, whitespace, card counts, exact
+copy, or a rendered snapshot. Freezing the design is not the point; keeping the
+behaviour attached to it is.
+
 ## Browser boundary
 
 Static tests catch many browser-wiring errors, but they do not
-drive a real camera or validate browser permissions. After browser changes, run
-`make health`, serve the app, and complete the manual checklist in
+drive a real camera or validate browser permissions. Layout, focus, canvas
+geometry and media behaviour are outside the Node context by design: it stubs
+the DOM rather than laying it out. After browser changes, run `make health`,
+serve the app, and complete the manual checklist in
 [Architecture](../docs/architecture.md).

@@ -5,7 +5,7 @@ işaretleri tanıyan tarayıcı tabanlı bir projedir. Landmark çıkarma ve ONN
 çıkarımı tarayıcıda gerçekleşir; uygulama backend'i yoktur ve kamera
 kareleri sunucuya gönderilmez.
 
-[Canlı demo](https://asl-demo.netlify.app/#letter) · [Başlangıç rehberi](docs/getting-started.tr.md) · [English README](README.md) · [Dokümantasyon](docs/README.md)
+[Canlı demo](https://asl-assistant.netlify.app/#letter) · [Başlangıç rehberi](docs/getting-started.tr.md) · [English README](README.md) · [Dokümantasyon](docs/README.md)
 
 ## Neler var?
 
@@ -118,5 +118,8 @@ Ham veri setleri depoya eklenmez. Veri kaynakları ve kullanım sınırları
 referans görseller bu proje için hazırlanmıştır; üçüncü taraf
 stok görsel lisansına dayanmaz.
 
-Depo için henüz bir açık kaynak lisansı seçilmemiştir. Kodun public olması
-tek başına kopyalama, değiştirme veya yeniden dağıtma izni vermez.
+Kaynak kod [PolyForm Noncommercial License 1.0.0](LICENSE) kapsamında sunulur.
+Kişisel, eğitim ve araştırma amaçlı kullanım serbesttir; ticari kullanım için
+telif hakkı sahibinin izni gerekir. Eğitim veri setleri kendi koşullarına
+tabidir; bu koşullar [Models and data](docs/models-and-data.md) belgesinde
+kayıtlıdır.

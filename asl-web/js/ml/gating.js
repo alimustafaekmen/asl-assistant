@@ -61,9 +61,15 @@ let perWordStats = {};
  */
 async function loadGatingData() {
   try {
+    // Each fallback states its own shape; without it the empty literals widen
+    // to any[] and the guards below would be checking nothing.
     const tasks = [
-      fetch("./data/confusion_pairs.json").then((r) => r.json()).catch(() => []),
-      fetch("./data/per_word_stats.json").then((r) => r.json()).catch(() => ({})),
+      fetch("./data/confusion_pairs.json")
+        .then((r) => r.json())
+        .catch(() => /** @type {ConfusionPairRaw[]} */ ([])),
+      fetch("./data/per_word_stats.json")
+        .then((r) => r.json())
+        .catch(() => /** @type {Record<string, PerWordStat>} */ ({})),
     ];
     const [conf, stats] = await Promise.all(tasks);
     confusionPairs = Array.isArray(conf) ? conf : [];

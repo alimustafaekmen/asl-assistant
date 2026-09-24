@@ -42,6 +42,10 @@ function drawLandmarks(ctx, result, width, height, videoEl = null) {
   ctx.save();
 
   const videoRect = _getVideoCoverRect(videoEl, width, height);
+  /**
+   * @param {NormalizedLandmark} pt Normalized against the original frame.
+   * @returns {{x: number, y: number}} Canvas coordinates, already mirrored.
+   */
   const projectPoint = (pt) => {
     const rawX = videoRect.x + pt.x * videoRect.width;
     const rawY = videoRect.y + pt.y * videoRect.height;
@@ -49,6 +53,13 @@ function drawLandmarks(ctx, result, width, height, videoEl = null) {
     return { x: width - rawX, y: rawY };
   };
 
+  /**
+   * @param {NormalizedLandmark | null | undefined} pt Skipped when absent; an
+   *   index into a shorter list than expected yields undefined.
+   * @param {string} color Any CSS colour.
+   * @param {number} [radius]
+   * @returns {void}
+   */
   const drawDot = (pt, color, radius = 4) => {
     if (!pt) return;
     const { x, y } = projectPoint(pt);
@@ -58,6 +69,13 @@ function drawLandmarks(ctx, result, width, height, videoEl = null) {
     ctx.fill();
   };
 
+  /**
+   * @param {NormalizedLandmark | null | undefined} a
+   * @param {NormalizedLandmark | null | undefined} b
+   * @param {string} color
+   * @param {number} [lineWidth]
+   * @returns {void} Nothing is drawn unless both endpoints are present.
+   */
   const drawLine = (a, b, color, lineWidth = 2) => {
     if (!a || !b) return;
     const pa = projectPoint(a);
@@ -70,6 +88,11 @@ function drawLandmarks(ctx, result, width, height, videoEl = null) {
     ctx.stroke();
   };
 
+  /**
+   * @param {LandmarkList | null | undefined} hand The 21 hand landmarks.
+   * @param {string} color
+   * @returns {void}
+   */
   const drawHand = (hand, color) => {
     if (!hand || !hand.length) return;
     ctx.strokeStyle = color;
@@ -95,6 +118,11 @@ function drawLandmarks(ctx, result, width, height, videoEl = null) {
     (state.mode === "word" ||
       (state.mode === "coach" && typeof state.coachTarget === "string" && state.coachTarget.length > 1));
 
+  /**
+   * @param {LandmarkList | null | undefined} pose Full pose list; only the
+   *   shoulder, elbow, wrist and nose indices are read.
+   * @returns {void}
+   */
   const drawPoseKeypoints = (pose) => {
     if (!pose || !pose.length) return;
     const color = "rgba(200, 154, 62, 0.95)";
@@ -104,6 +132,11 @@ function drawLandmarks(ctx, result, width, height, videoEl = null) {
     [0, 11, 12, 13, 14, 15, 16].forEach((idx) => drawDot(pose[idx], color, idx === 0 ? 3.5 : 5));
   };
 
+  /**
+   * @param {LandmarkList | null | undefined} face Full face mesh; only a few
+   *   framing points are read.
+   * @returns {void}
+   */
   const drawFaceKeypoints = (face) => {
     if (!face || !face.length) return;
     const color = "rgba(81, 127, 141, 0.9)";
@@ -118,12 +151,21 @@ function drawLandmarks(ctx, result, width, height, videoEl = null) {
     drawFaceKeypoints(result.faceLandmarks);
   }
 
-  const rh = Array.isArray(result.rightHandLandmarks) && Array.isArray(result.rightHandLandmarks[0])
-    ? result.rightHandLandmarks[0]
-    : result.rightHandLandmarks;
-  const lh = Array.isArray(result.leftHandLandmarks) && Array.isArray(result.leftHandLandmarks[0])
-    ? result.leftHandLandmarks[0]
-    : result.leftHandLandmarks;
+  // Hands arrive nested by detected person and the first one is drawn. The
+  // else branch is reached only for an already-flat list or a nullish value,
+  // which camera.js no longer produces; it is kept as tolerance for the older
+  // Holistic shape. Inspecting one element to classify the array is not
+  // something a type guard can express, so the narrowing is stated here.
+  const rh = /** @type {LandmarkList | null} */ (
+    Array.isArray(result.rightHandLandmarks) && Array.isArray(result.rightHandLandmarks[0])
+      ? result.rightHandLandmarks[0]
+      : result.rightHandLandmarks
+  );
+  const lh = /** @type {LandmarkList | null} */ (
+    Array.isArray(result.leftHandLandmarks) && Array.isArray(result.leftHandLandmarks[0])
+      ? result.leftHandLandmarks[0]
+      : result.leftHandLandmarks
+  );
 
   drawHand(rh, "rgba(99, 179, 237, 0.92)");
   drawHand(lh, "rgba(31, 185, 129, 0.92)");

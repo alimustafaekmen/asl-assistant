@@ -25,7 +25,8 @@ declare namespace ort {
   }
 
   const InferenceSession: {
-    create(path: string, options?: Record<string, unknown>): Promise<OnnxSessionLike>;
+    /** A model URL, or the model's bytes when the app downloaded it itself. */
+    create(model: string | Uint8Array, options?: Record<string, unknown>): Promise<OnnxSessionLike>;
   };
 }
 

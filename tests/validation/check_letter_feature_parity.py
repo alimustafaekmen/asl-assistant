@@ -11,18 +11,17 @@ against the Python source-of-truth pipeline:
 Node.js gerektirir (features.js'i calistirmak icin); runtime asset'lerini
 degistirmez. / Requires Node.js to run features.js; modifies no runtime assets.
 """
+
 from __future__ import annotations
 
 import json
 import math
-import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 import numpy as np
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FEATURES_JS = PROJECT_ROOT / "asl-web" / "js" / "ml" / "features.js"
@@ -127,7 +126,11 @@ def main() -> int:
     fixtures = [
         ("right_slot", _frame321(right=right), right),
         ("left_slot_js_mirror", _frame321(left=left), right),
-        ("zero_hand", _frame321(right=np.zeros(63, dtype=np.float32)), np.zeros(63, dtype=np.float32)),
+        (
+            "zero_hand",
+            _frame321(right=np.zeros(63, dtype=np.float32)),
+            np.zeros(63, dtype=np.float32),
+        ),
     ]
 
     js_rows = _js_features([f[1] for f in fixtures])
@@ -142,8 +145,7 @@ def main() -> int:
         passed = py_out.shape == js_out.shape and diff < TOLERANCE
         ok = ok and passed
         print(
-            f"{name},{py_out.shape[0]},{js_out.shape[0]},"
-            f"{diff:.8g},{'PASS' if passed else 'FAIL'}"
+            f"{name},{py_out.shape[0]},{js_out.shape[0]},{diff:.8g},{'PASS' if passed else 'FAIL'}"
         )
     return 0 if ok else 1
 

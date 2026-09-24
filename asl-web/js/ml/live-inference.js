@@ -223,12 +223,13 @@ async function realInference(now) {
   if (!latestMediaPipeResult) return;
   if (_inferenceInFlight) return;
 
+  const isLetterContext =
+    state.mode === "letter" ||
+    (state.mode === "coach" && state.coachTarget?.length === 1);
+
   // Skip frames without hands. Letter contexts also reset temporal smoothing so
   // a previous sign cannot leak across a hand-loss gap.
   if (!latestMediaPipeResult.rightHandLandmarks && !latestMediaPipeResult.leftHandLandmarks) {
-    const isLetterContext =
-      state.mode === "letter" ||
-      (state.mode === "coach" && state.coachTarget?.length === 1);
     if (isLetterContext && typeof resetSmoother === "function") resetSmoother();
     return;
   }
@@ -242,6 +243,13 @@ async function realInference(now) {
   state.frameCount = (state.frameCount || 0) + 1;
   const tStart = performance.now();
   try {
+    // The letter model loads on first need, and the camera start or the mode
+    // switch that made this a letter context has asked for it. A frame never
+    // asks: after a failure it would start a download every 120 ms. Until the
+    // model has loaded and warmed up, frames are dropped here, the same as any
+    // frame that arrives while inference is in flight.
+    if (isLetterContext && (!letterSession || !(await ensureLetterModel()))) return;
+
     const raw = landmarksTo321D(latestMediaPipeResult);
     const normalized = normalizeShoulders(raw);
 

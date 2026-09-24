@@ -146,9 +146,11 @@ package install.
 
 ## Startup and camera lifecycle
 
-At startup, `core/app.js` loads labels and runtime JSON, initializes both ONNX
-sessions, restores local preferences, binds DOM events, and applies the URL
-hash. Camera initialization is deferred until the user requests it.
+At startup, `core/app.js` restores local preferences, binds DOM events, loads a
+few small runtime JSON files, and applies the URL hash. It loads no model: each
+ONNX session and its labels load the first time something needs them, usually
+the camera starting in a mode that runs that model. Camera initialization is
+deferred until the user requests it.
 
 Starting the camera:
 
@@ -228,9 +230,30 @@ must not be described as a cloud profile or formal learning assessment.
 
 ## UI contracts
 
-`core/runtime.js` binds elements by ID, and visibility depends on mode classes such as
-`mode-only`, `letter-only`, `word-only`, and `coach-only`. Renaming an ID or
-class requires coordinated HTML, CSS, JavaScript, and contract-test changes.
+The browser scripts reach the page through two mechanisms and nothing else.
+`core/runtime.js` binds elements by ID into the shared registry, and the few
+lookups that collect a group of elements resolve a `data-ui` hook through
+`queryUi()` / `queryAllUi()`. No script finds an element by a presentation
+class, which is what lets the design change without touching behaviour.
+
+That splits renaming into two different jobs:
+
+- **A class** (`camera-column`, `mode-tab`, `word-flow-steps`, and the mode
+  visibility classes `mode-only`, `letter-only`, `word-only`, `coach-only`,
+  which are CSS and HTML only) is a CSS and HTML change. No JavaScript is
+  involved, and the contract tests confirm it.
+- **An ID or a `data-ui` hook** is a behaviour contract. It needs the HTML, the
+  registry, and the hook catalogue in
+  `tests/project/test_web_ui_contracts.py` changed together.
+
+Elements are either required or optional, and the registry says which:
+`requireElement()` throws naming the id while the scripts load, so a dropped
+element is a startup error rather than a null dereference once its screen
+opens; optional ones resolve to null and every reader guards them.
+
+Event bindings run once and guard a second call, since each one adds a listener
+rather than replacing one. Render functions rebuild their root from state and
+start no listener, timer, fetch or model session.
 
 The UI follows three priorities:
 

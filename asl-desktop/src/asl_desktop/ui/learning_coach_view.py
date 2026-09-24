@@ -354,7 +354,7 @@ class LearningCoachView(ctk.CTkFrame):
             path = os.path.join(ASSET_SIGNS_DIR, "letters.png")
             self._ref_image_title.configure(text="ALFABE REHBERİ")
         else:
-            path = os.path.join(ASSET_SIGNS_DIR, "kelime.png")
+            path = os.path.join(ASSET_SIGNS_DIR, "word-25.png")
             self._ref_image_title.configure(text="KELİME REHBERİ")
 
         if os.path.exists(path):

@@ -34,6 +34,27 @@ let wordLabels = [];
 let wordMaskDtype = "bool";
 /** @type {WordMaskDtype[]} */
 const WORD_MASK_DTYPES = ["bool", "uint8", "int64"];
+/** The one shared load; see ensureWordModel(). @type {Promise<boolean> | null} */
+let _wordModelLoad = null;
+
+/**
+ * Load and warm the word model the first time something needs it.
+ *
+ * Shared, forgotten on failure, and warmed before it resolves, for the same
+ * reasons as ensureLetterModel().
+ *
+ * @returns {Promise<boolean>} True when the session is ready. Never rejects.
+ */
+function ensureWordModel() {
+  if (!_wordModelLoad) {
+    _wordModelLoad = loadWordModel().then(async (ok) => {
+      if (ok) await warmupWordModel();
+      else _wordModelLoad = null;
+      return ok;
+    });
+  }
+  return _wordModelLoad;
+}
 
 /**
  * Create the word session and load its calibration temperature and label map.

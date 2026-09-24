@@ -2,14 +2,15 @@
 """Run fast integrity checks for the deployable ``asl-web`` application.
 
 The command verifies required files and minimum sizes, JSON schemas, Model Test
-fixtures, source-to-deploy hashes, the curated Kaggle export manifest, and
-optionally ONNX input/output contracts. It intentionally skips local dataset
-inspection; use ``verify_project_assets.py`` for the broader repository audit.
+fixtures, source-to-deploy hashes, gzipped deploy copies, the curated Kaggle
+export manifest, and ONNX input/output contracts by default. It intentionally
+skips local dataset inspection; use ``verify_project_assets.py`` for the broader
+repository audit.
 
 Examples:
   python scripts/validation/check_runtime_assets.py
   python scripts/validation/check_runtime_assets.py --verbose
-  python scripts/validation/check_runtime_assets.py --check-onnx   # onnx kurulu olsun
+  python scripts/validation/check_runtime_assets.py --no-onnx
 
 Exit status is zero when every required check passes and one otherwise. See
 ``docs/models-and-data.md`` for model provenance and ONNX contracts.
@@ -18,97 +19,39 @@ Exit status is zero when every required check passes and one otherwise. See
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 import os
+import re
 import sys
+import zlib
+from collections.abc import Iterable
+from pathlib import Path
+from typing import NamedTuple
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in (None, ""):  # Allow running this file directly.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-WEB_DIR = os.path.join(PROJECT_ROOT, "asl-web")
-WEB_DATA_DIR = os.path.join(WEB_DIR, "data")
-WEB_MODELS_DIR = os.path.join(WEB_DIR, "models")
-NOTEBOOKS_RESULTS = os.path.join(PROJECT_ROOT, "notebooks", "word_50_results")
-LETTER_MODEL_DIR = os.path.join(PROJECT_ROOT, "models", "letter")
-WORD_MODEL_DIR = os.path.join(PROJECT_ROOT, "models", "word", "web-50")
+from scripts.validation.contracts import (  # noqa: E402
+    ALL_ARTIFACTS,
+    NOTEBOOKS_RESULTS,
+    PROJECT_ROOT,
+    WEB_DATA_DIR,
+    WEB_DIR,
+    WEB_MODELS_DIR,
+    WORD_MODEL_DIR,
+    gzip_pairs,
+    provenance_pairs,
+    relative,
+)
 
-# Minimum sizes catch accidentally truncated deploy assets.
-MIN_SIZES_KB = {
-    "asl-web/models/word_model.onnx": 1500,
-    "asl-web/models/letter_model.onnx": 10000,
-    "asl-web/data/word_labels.json": 0.5,
-    "asl-web/data/letter_labels.json": 0.2,
-    "asl-web/data/temperature.json": 0.1,
-    "asl-web/data/per_word_stats.json": 1,
-    "asl-web/data/confusion_pairs.json": 0.5,
-    "asl-web/data/curriculum.json": 1,
-    "asl-web/data/test_sample.json": 100,
-    "asl-web/index.html": 5,
-    "asl-web/css/style.css": 5,
-    "asl-web/assets/signs/letters.png": 10,
-    "asl-web/assets/signs/kelime.png": 100,
-    "asl-web/assets/signs/word-1.png": 100,
-    "asl-web/assets/signs/word-2.png": 100,
-    "asl-web/assets/signs/word-3.png": 100,
-    "asl-web/assets/signs/word-4.png": 100,
-    "asl-web/assets/signs/word-5.png": 100,
-}
-
-# The browser scripts are split across feature modules and the layout keeps
-# changing, so they are checked as a directory instead of file by file: no
-# module may be truncated, and the bundle as a whole may not shrink unnoticed.
-WEB_JS_DIR = os.path.join(WEB_DIR, "js")
-WEB_JS_MIN_KB = 0.5
-WEB_JS_TOTAL_MIN_KB = 120
+# Coarse floors that catch a truncated copy or a committed Git LFS pointer.
+# Source files are not in here: see check_web_sources().
+MIN_SIZES_KB = {relative(artifact.deploy_path): artifact.min_size_kb for artifact in ALL_ARTIFACTS}
 
 # Source-to-deploy hash pairs detect unreviewed runtime drift.
-PROVENANCE_PAIRS = [
-    (
-        "word_model.onnx",
-        os.path.join(WEB_MODELS_DIR, "word_model.onnx"),
-        os.path.join(WORD_MODEL_DIR, "word_model.onnx"),
-    ),
-    (
-        "letter_model.onnx",
-        os.path.join(WEB_MODELS_DIR, "letter_model.onnx"),
-        os.path.join(LETTER_MODEL_DIR, "onnx_exports", "letter_model_static_24_web_no_zipmap.onnx"),
-    ),
-    (
-        "word_labels.json",
-        os.path.join(WEB_DATA_DIR, "word_labels.json"),
-        os.path.join(WORD_MODEL_DIR, "word_labels.json"),
-    ),
-    (
-        "letter_labels.json",
-        os.path.join(WEB_DATA_DIR, "letter_labels.json"),
-        os.path.join(LETTER_MODEL_DIR, "letter_label_map.json"),
-    ),
-    (
-        "temperature.json",
-        os.path.join(WEB_DATA_DIR, "temperature.json"),
-        os.path.join(WORD_MODEL_DIR, "temperature.json"),
-    ),
-    (
-        "per_word_stats.json",
-        os.path.join(WEB_DATA_DIR, "per_word_stats.json"),
-        os.path.join(NOTEBOOKS_RESULTS, "per_word_stats.json"),
-    ),
-    (
-        "confusion_pairs.json",
-        os.path.join(WEB_DATA_DIR, "confusion_pairs.json"),
-        os.path.join(NOTEBOOKS_RESULTS, "confusion_pairs.json"),
-    ),
-    (
-        "curriculum.json",
-        os.path.join(WEB_DATA_DIR, "curriculum.json"),
-        os.path.join(NOTEBOOKS_RESULTS, "curriculum.json"),
-    ),
-    (
-        "test_sample.json",
-        os.path.join(WEB_DATA_DIR, "test_sample.json"),
-        os.path.join(NOTEBOOKS_RESULTS, "test_sample.json"),
-    ),
-]
+PROVENANCE_PAIRS = provenance_pairs()
 
 
 def _sha256(path: str) -> str | None:
@@ -138,7 +81,13 @@ def _warn(msg: str) -> None:
 
 
 def check_file_existence_and_size() -> bool:
-    """Check required runtime files and their minimum sizes."""
+    """Check required runtime artifacts exist and are not truncated.
+
+    The floors here are coarse and apply to binaries and curated data only:
+    they catch a partial copy or a Git LFS pointer committed in place of the
+    file. Source files are checked by their content in check_web_sources(),
+    because a size floor on source only forbids it getting smaller.
+    """
     print("\n[1/6] Dosya mevcudiyet + minimum boyut kontrolu")
     ok = True
     for rel_path, min_kb in MIN_SIZES_KB.items():
@@ -153,31 +102,90 @@ def check_file_existence_and_size() -> bool:
             ok = False
         else:
             _ok(f"{rel_path}: {actual_kb:.1f} KB")
+    return ok and check_web_sources()
 
-    scripts = sorted(
-        os.path.join(root, name)
-        for root, _, names in os.walk(WEB_JS_DIR)
-        for name in names
-        if name.endswith(".js")
-    )
-    if not scripts:
-        _fail("asl-web/js: JavaScript modulu bulunamadi")
-        return False
 
-    total_kb = 0.0
-    for abs_path in scripts:
-        rel_path = os.path.relpath(abs_path, PROJECT_ROOT)
-        actual_kb = _file_kb(abs_path)
-        total_kb += actual_kb
-        if actual_kb < WEB_JS_MIN_KB:
-            _fail(f"{rel_path}: COK KUCUK ({actual_kb:.1f} KB < {WEB_JS_MIN_KB} KB)")
-            ok = False
-    if total_kb < WEB_JS_TOTAL_MIN_KB:
-        _fail(f"asl-web/js: TOPLAM COK KUCUK ({total_kb:.1f} KB < {WEB_JS_TOTAL_MIN_KB} KB)")
-        ok = False
-    else:
-        _ok(f"asl-web/js: {len(scripts)} modul, toplam {total_kb:.1f} KB")
-    return ok
+def _loaded_local_scripts(html: str) -> set[str]:
+    """Local script paths index.html loads, relative to asl-web/."""
+    return {
+        src.split("?", 1)[0].removeprefix("./")
+        for src in re.findall(r'<script\b[^>]*\bsrc="([^"]+)"', html)
+        if not src.startswith("http")
+    }
+
+
+class WebSourceCheck(NamedTuple):
+    """What inspecting the browser sources found.
+
+    `issues` is empty when the sources are consistent; the counts are for the
+    success line, so the caller does not have to walk the directory again.
+    """
+
+    issues: list[str]
+    modules: int
+    stylesheets: int
+
+
+def find_web_source_issues(web_dir: Path) -> WebSourceCheck:
+    """Inspect the browser sources by what they contain, not by how large they are.
+
+    A shipped module that index.html never loads is dead weight, and a loaded
+    module that is not shipped is a blank page. Both are real deploy faults and
+    neither shows up in a byte count, while a byte count fails the first time
+    anything is minified or a module is genuinely simplified.
+
+    This prints nothing and reads nothing outside `web_dir`, so the faults it
+    reports can be produced in a test.
+    """
+    index_html = web_dir / "index.html"
+    if not index_html.is_file() or index_html.stat().st_size == 0:
+        return WebSourceCheck([f"{relative(index_html)}: bos veya bulunamadi"], 0, 0)
+    html = index_html.read_text(encoding="utf-8")
+
+    issues: list[str] = []
+
+    # Every local <link> must resolve, not only stylesheets: a renamed icon
+    # would otherwise 404 with nothing to report it.
+    links = [
+        href
+        for href in re.findall(r'<link\b[^>]*\bhref="([^"]+)"', html)
+        if not href.startswith("http")
+    ]
+    stylesheets = [href for href in links if href.split("?", 1)[0].endswith(".css")]
+    for href in links:
+        target = web_dir / href.split("?", 1)[0].removeprefix("./")
+        if not target.is_file() or target.stat().st_size == 0:
+            issues.append(f"{relative(target)}: index.html referansi bos veya eksik")
+
+    on_disk = {
+        str(path.relative_to(web_dir)).replace(os.sep, "/")
+        for path in (web_dir / "js").rglob("*.js")
+    }
+    if not on_disk:
+        issues.append("asl-web/js: JavaScript modulu bulunamadi")
+        return WebSourceCheck(issues, 0, len(stylesheets))
+
+    for name in sorted(name for name in on_disk if (web_dir / name).stat().st_size == 0):
+        issues.append(f"asl-web/{name}: BOS")
+
+    loaded = {src for src in _loaded_local_scripts(html) if src.startswith("js/")}
+    for name in sorted(loaded - on_disk):
+        issues.append(f"asl-web/{name}: index.html yukluyor ama dosya yok")
+    for name in sorted(on_disk - loaded):
+        issues.append(f"asl-web/{name}: dosya var ama index.html yuklemiyor")
+
+    return WebSourceCheck(issues, len(on_disk), len(stylesheets))
+
+
+def check_web_sources() -> bool:
+    """Report the browser source inspection to the user."""
+    result = find_web_source_issues(WEB_DIR)
+    for issue in result.issues:
+        _fail(issue)
+    if not result.issues:
+        _ok(f"asl-web/js: {result.modules} modul, tamami index.html tarafindan yukleniyor")
+        _ok(f"asl-web/css: {result.stylesheets} stylesheet referansi cozuldu")
+    return not result.issues
 
 
 def check_json_schemas() -> bool:
@@ -375,6 +383,36 @@ def check_model_test_fixtures() -> bool:
     return ok
 
 
+def find_gzip_drift(pairs: Iterable[tuple[str, Path, Path]]) -> list[str]:
+    """Gzipped copies that do not decompress to exactly their deploy file.
+
+    The browser loads the copy and falls back to the raw file, so a copy left
+    behind after a model is exported again would ship two different models,
+    one per code path, and nothing at runtime would notice. This prints nothing,
+    so the faults it reports can be produced in a test.
+    """
+    issues: list[str] = []
+    for name, compressed, raw in pairs:
+        if not compressed.is_file():
+            issues.append(f"{name}: bulunamadi ({relative(compressed)})")
+            continue
+        if not raw.is_file():
+            issues.append(f"{name}: acilmis hali {relative(raw)} yok")
+            continue
+        try:
+            with gzip.open(compressed, "rb") as handle:
+                data = handle.read()
+        except (OSError, EOFError, zlib.error) as exc:
+            issues.append(f"{name}: gzip olarak acilamadi ({exc})")
+            continue
+        if data != raw.read_bytes():
+            issues.append(
+                f"{name}: {relative(raw)} ile ayni degil"
+                f" → gzip -9 -n -c {relative(raw)} > {relative(compressed)}"
+            )
+    return issues
+
+
 def check_provenance() -> bool:
     """Verify that deploy artifacts match their documented source copies."""
     print("\n[4/6] Provenance hash chain (asl-web ↔ kaynak)")
@@ -399,6 +437,15 @@ def check_provenance() -> bool:
             print(f"      kaynak: {src_hash}")
             print(f"      → cp {source_path} {web_path}")
             ok = False
+
+    gzip_issues = find_gzip_drift(gzip_pairs())
+    for issue in gzip_issues:
+        _fail(issue)
+    if gzip_issues:
+        ok = False
+    else:
+        for name, _, raw in gzip_pairs():
+            _ok(f"{name}: acildiginda {relative(raw)} ile birebir ayni")
     return ok
 
 
@@ -566,18 +613,18 @@ def check_onnx_contracts(verbose: bool = False) -> bool:
     return ok
 
 
-def main() -> int:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse the explicit runtime-validation switches."""
     parser = argparse.ArgumentParser(description="asl-web/ runtime sağlik kontrolu")
     parser.add_argument("--verbose", "-v", action="store_true", help="Daha detayli cikti")
     parser.add_argument(
-        "--check-onnx",
-        action="store_true",
-        help="onnxruntime ile ONNX inference + ground truth dogrulamasi (varsayilan: aktif)",
-    )
-    parser.add_argument(
         "--no-onnx", action="store_true", help="ONNX kontrolunu atla (sadece dosya/json/hash)"
     )
-    args = parser.parse_args()
+    return parser.parse_args(argv)
+
+
+def main() -> int:
+    args = parse_args()
 
     print("=" * 60)
     print("  asl-web/ Runtime Asset Smoke Test")

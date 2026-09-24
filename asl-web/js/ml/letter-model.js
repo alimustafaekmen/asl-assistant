@@ -45,13 +45,66 @@ const DEFAULT_LETTER_LABELS = [
   "A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M",
   "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y",
 ];
-const LETTER_MODEL_URL = "./models/letter_model.onnx?v=20260430-nozipmap";
+const LETTER_MODEL_VERSION = "20260430-nozipmap";
+const LETTER_MODEL_URL = `./models/letter_model.onnx?v=${LETTER_MODEL_VERSION}`;
+// The same model gzipped: about 2.1 MB on the wire instead of 12.6 MB, because
+// the static host serves .onnx uncompressed. check_runtime_assets.py proves it
+// decompresses to exactly the raw file, which stays deployed as the fallback.
+const LETTER_MODEL_GZ_URL = `./models/letter_model.onnx.gz?v=${LETTER_MODEL_VERSION}`;
 // Published web export:
 //   label tensor(int64)[N], probabilities tensor(float)[N,24]
 // Older LightGBM exports may expose probabilities as ZipMap seq(map); the
 // label-only fallback is retained for backward compatibility.
 /** @type {string | null} */
 let letterProbOutputName = null;
+/** The one shared load; see ensureLetterModel(). @type {Promise<boolean> | null} */
+let _letterModelLoad = null;
+
+/**
+ * Load and warm the letter model the first time something needs it.
+ *
+ * Nothing loads it at startup. Every caller shares one promise, so asking twice
+ * downloads once and a caller arriving mid-download waits for the same one. A
+ * failed load is forgotten once it settles, so the next need tries again
+ * rather than inheriting the failure for the rest of the visit. The warmup is
+ * part of the promise, so no caller runs the session while it is warming up.
+ *
+ * @returns {Promise<boolean>} True when the session is ready. Never rejects.
+ */
+function ensureLetterModel() {
+  if (!_letterModelLoad) {
+    _letterModelLoad = loadLetterModel().then(async (ok) => {
+      if (ok) await warmupLetterModel();
+      else _letterModelLoad = null;
+      return ok;
+    });
+  }
+  return _letterModelLoad;
+}
+
+/**
+ * Download the gzipped letter model and return the model bytes.
+ *
+ * The gzip magic bytes are checked before decompressing. A host that sends the
+ * file with Content-Encoding: gzip has it decoded by fetch already, and those
+ * bytes are the model itself; decompressing them again would fail.
+ *
+ * @returns {Promise<Uint8Array>} The ONNX model, ready for InferenceSession.create().
+ * @throws {Error} When DecompressionStream is missing, the download fails, or
+ *   the stream is not valid gzip. The caller falls back to the raw file.
+ */
+async function fetchLetterModelBytes() {
+  if (typeof DecompressionStream === "undefined") {
+    throw new Error("DecompressionStream desteklenmiyor");
+  }
+  const res = await fetch(LETTER_MODEL_GZ_URL);
+  if (!res.ok) throw new Error(`${LETTER_MODEL_GZ_URL} HTTP ${res.status}`);
+  const body = new Uint8Array(await res.arrayBuffer());
+  if (body[0] !== 0x1f || body[1] !== 0x8b) return body;
+
+  const stream = new Blob([body]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
 
 /**
  * Create the letter session and load its label map.
@@ -76,10 +129,18 @@ async function loadLetterModel() {
         "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/";
     }
 
-    letterSession = await ort.InferenceSession.create(
-      LETTER_MODEL_URL,
-      { executionProviders: ["wasm"], graphOptimizationLevel: "all" },
-    );
+    const sessionOptions = { executionProviders: ["wasm"], graphOptimizationLevel: "all" };
+    try {
+      letterSession = await ort.InferenceSession.create(
+        await fetchLetterModelBytes(),
+        sessionOptions,
+      );
+    } catch (err) {
+      // Whatever went wrong on the compressed path, the raw file is deployed
+      // beside it and is the model this app has always loaded.
+      console.warn("Sıkıştırılmış harf modeli kullanılamadı, ham dosya yükleniyor:", err?.message || err);
+      letterSession = await ort.InferenceSession.create(LETTER_MODEL_URL, sessionOptions);
+    }
 
     console.log("Letter ONNX inputs:", letterSession.inputNames);
     console.log("Letter ONNX outputs:", letterSession.outputNames);
@@ -272,8 +333,15 @@ function _extractLetterProbs(out, size) {
   // 2. A single map(int64,float).
   if (out instanceof Map) return _mapToProbsArray(out, size);
 
-  // 3. Generic iterable, such as an internal ONNX sequence wrapper.
-  if (out && typeof out !== "string" && typeof out[Symbol.iterator] === "function") {
+  // 3. Generic iterable, such as an internal ONNX sequence wrapper. The value
+  // is unknown here, so reading a well-known symbol off it needs the index
+  // signature spelled out. The cast stays inside the condition so the earlier
+  // guards still short-circuit before the property is read.
+  if (
+    out &&
+    typeof out !== "string" &&
+    typeof (/** @type {Record<symbol, unknown>} */ (out))[Symbol.iterator] === "function"
+  ) {
     try {
       const arr = [];
       // The line above established that this value is iterable.

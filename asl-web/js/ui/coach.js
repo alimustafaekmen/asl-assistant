@@ -167,7 +167,7 @@ function updateCoachPanel() {
  * @returns {void}
  */
 function updateCoachPathSteps() {
-  const steps = queryElements(".coach-path span");
+  const steps = queryAllUi("coach-step");
   const activeIndex = state.cameraOn ? 2 : state.coachTarget ? 1 : 0;
   steps.forEach((step, index) => {
     step.dataset.state = index < activeIndex ? "done" : index === activeIndex ? "active" : "";
@@ -435,6 +435,11 @@ function renderWordGuidancePanel() {
     .map(readConfusionPair)
     .filter((p) => p.a && p.b);
 
+  // Each list is written only when it has something to say. The markup carries
+  // a hand-written fallback for all three, so leaving a list alone keeps that
+  // fallback visible when the published evaluation data did not load. This runs
+  // once, after the gating fetch has settled, so it cannot leave stale results
+  // from an earlier render.
   if (els.wordDemoList && easyItems.length) {
     els.wordDemoList.innerHTML = easyItems
       .map((item) => _wordChipHtml(item.word, item.f1, "good"))

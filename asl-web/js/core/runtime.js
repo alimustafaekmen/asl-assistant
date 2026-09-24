@@ -161,6 +161,49 @@ function queryElements(selector, root) {
 }
 
 /**
+ * Whether a key event belongs to a form control rather than to the page.
+ *
+ * The app's single-letter shortcuts would otherwise fight the user. Typing into
+ * a <select> performs type-ahead, so "c" over the coach target cleared the
+ * transcript and "m" left the screen; Space over a focused button was cancelled
+ * before it could activate it.
+ *
+ * @param {EventTarget | null} target The event's target.
+ * @returns {boolean} True when the focused element consumes plain typing.
+ */
+function isEditableTarget(target) {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  return ["INPUT", "SELECT", "TEXTAREA", "BUTTON"].includes(target.tagName);
+}
+
+/**
+ * Find every element carrying a stable UI hook.
+ *
+ * A hook is a data-ui attribute that exists only so the scripts can find the
+ * element. Nothing styles it, so renaming a CSS class cannot detach behaviour,
+ * and dropping the hook while editing the markup is a visible edit.
+ *
+ * @param {string} name Hook name, without the attribute syntax.
+ * @param {ParentNode} [root] Search root; defaults to the document.
+ * @returns {HTMLElement[]} Empty when the hook is absent.
+ */
+function queryAllUi(name, root) {
+  return queryElements(`[data-ui="${name}"]`, root);
+}
+
+/**
+ * Find the one element carrying a stable UI hook.
+ *
+ * @param {string} name Hook name, without the attribute syntax.
+ * @param {ParentNode} [root] Search root; defaults to the document.
+ * @returns {HTMLElement | null} Null when the hook is absent.
+ */
+function queryUi(name, root) {
+  return queryElement(`[data-ui="${name}"]`, root);
+}
+
+/**
  * Resolve a DOM element the app cannot run without.
  *
  * Every id here is pinned by a contract test against index.html, so a failure
@@ -309,8 +352,8 @@ const els = {
   projectScreen: document.getElementById("projectScreen"),
   modelTestScreen: document.getElementById("modelTestScreen"),
   qrScreen: document.getElementById("qrScreen"),
-  workspaceMain: queryElement(".workspace"),
-  appShell: queryElement(".app-shell"),
+  workspaceMain: queryUi("workspace"),
+  appShell: queryUi("app-shell"),
   homeScreen: document.getElementById("homeScreen"),
   themeToggle: document.getElementById("themeToggle"),
   wordQualityPills: document.getElementById("wordQualityPills"),

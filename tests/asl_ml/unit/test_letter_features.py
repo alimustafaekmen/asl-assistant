@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-
 from asl_ml.features.letter_features import extract_features
 
 

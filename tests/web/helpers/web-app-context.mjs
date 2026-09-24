@@ -36,26 +36,56 @@ export function webScriptPaths() {
 // stub class stands in for all of them: these tests never assert anything about
 // the DOM, they only need module load to get past that check.
 class StubElement {
-  constructor() {
+  constructor(listenerLog = []) {
+    this.listenerLog = listenerLog;
     this.dataset = {};
     this.hidden = false;
     this.textContent = "";
-    this.innerHTML = "";
+    // Children are tracked so a test can show that re-rendering a list
+    // replaces its rows instead of appending a second set.
+    this.children = [];
+    // A status pill ends in its label text node (#cameraStatus in the
+    // markup), and stopping the camera writes through it. Without one, any
+    // path that reaches stopCamera() throws on the stub, not in the app.
+    this.lastChild = { textContent: "" };
+    this._innerHTML = "";
     this.style = { setProperty() {} };
     this.classList = { add() {}, remove() {}, toggle() {} };
+  }
+
+  // Assigning innerHTML replaces the subtree, which is how every list renderer
+  // here clears its root before rebuilding it.
+  get innerHTML() {
+    return this._innerHTML;
+  }
+
+  set innerHTML(value) {
+    this._innerHTML = value;
+    this.children = [];
   }
 
   getContext() {
     return {};
   }
 
-  addEventListener() {}
+  addEventListener(type) {
+    this.listenerLog.push(`element:${type}`);
+  }
 
   removeEventListener() {}
 
   setAttribute() {}
 
-  appendChild() {}
+  removeAttribute() {}
+
+  appendChild(child) {
+    this.children.push(child);
+    return child;
+  }
+
+  append(...nodes) {
+    this.children.push(...nodes);
+  }
 
   querySelector() {
     return null;
@@ -77,22 +107,38 @@ const ELEMENT_CONSTRUCTORS = [
   "HTMLInputElement",
 ];
 
-function stubElement() {
-  return new StubElement();
-}
-
-function createSandbox() {
+function createSandbox(missingIds, wrongTypeIds) {
+  // Every addEventListener call in this context, so a test can show that
+  // binding twice does not leave two listeners behind.
+  const listenerLog = [];
+  // Window handlers are kept so a test can invoke one directly; the keyboard
+  // shortcuts are only reachable that way.
+  const windowHandlers = new Map();
+  const stubElement = () => new StubElement(listenerLog);
   const context = vm.createContext({
     console,
     performance: { now: () => 0 },
+    // window is globalThis here, so this is what window.addEventListener hits.
+    addEventListener: (type, handler) => {
+      listenerLog.push(`window:${type}`);
+      windowHandlers.set(type, handler);
+    },
     document: {
       body: stubElement(),
-      getElementById: () => stubElement(),
+      getElementById: (id) => {
+        if (missingIds.has(id)) return null;
+        // A plain object is not an instance of any element constructor, which
+        // is what the registry's type check is there to catch.
+        if (wrongTypeIds.has(id)) return {};
+        return stubElement();
+      },
       createElement: () => stubElement(),
       querySelector: () => stubElement(),
       querySelectorAll: () => [],
     },
   });
+  context.__listenerLog = listenerLog;
+  context.__windowHandlers = windowHandlers;
   for (const name of ELEMENT_CONSTRUCTORS) context[name] = StubElement;
   vm.runInContext("globalThis.window = globalThis;", context);
   return context;
@@ -104,9 +150,24 @@ function createSandbox() {
  * Returns a reader for the shared global scope. Function declarations and
  * const/let bindings are both reachable, mirroring how the scripts see each
  * other at runtime.
+ *
+ * `missingIds` makes document.getElementById() return null for those ids, which
+ * is what a redesign that drops an element looks like to the registry.
+ * `wrongTypeIds` returns something that is not an element, which is what
+ * retagging one looks like. They are the only way to reach the registry's two
+ * failure paths from here, since one stub class satisfies every constructor.
+ *
+ * `globals` hands real host APIs to the scripts, for a test that needs one the
+ * sandbox leaves out, such as the streams used to decompress a download.
+ *
+ * @param {{missingIds?: string[], wrongTypeIds?: string[], globals?: Record<string, unknown>}} [options]
  */
-export function loadWebApp() {
-  const context = createSandbox();
+export function loadWebApp(options = {}) {
+  const context = createSandbox(
+    new Set(options.missingIds ?? []),
+    new Set(options.wrongTypeIds ?? []),
+  );
+  Object.assign(context, options.globals ?? {});
   const scripts = webScriptPaths();
   const bootstrapScripts = [];
 
@@ -132,6 +193,23 @@ export function loadWebApp() {
     /** Evaluate an expression against the shared scope. */
     evaluate(expression) {
       return vm.runInContext(expression, context);
+    },
+    /** How many listeners the scripts have registered in this context so far. */
+    listenerCount() {
+      return vm.runInContext("__listenerLog.length", context);
+    },
+    /**
+     * The handler bound to `window` for an event type, or undefined.
+     *
+     * @param {string} type
+     */
+    windowHandler(type) {
+      return vm.runInContext("__windowHandlers", context).get(type);
+    },
+    /** Build a stub element standing in for an event target. */
+    makeTarget(properties) {
+      const element = vm.runInContext("new HTMLElement()", context);
+      return Object.assign(element, properties);
     },
   };
 }

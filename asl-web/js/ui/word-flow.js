@@ -38,6 +38,11 @@ async function startWordRecording() {
     return;
   }
   if (!canCaptureWordInCurrentMode()) setMode("word");
+  // A recording is useless without the word model, so it loads before the
+  // countdown. Everything below reads state after this wait, so a camera
+  // stopped or a second click made meanwhile is still seen.
+  if (!(await loadModelsWithStatus({ word: true }))) return;
+  if (!state.cameraOn || !canCaptureWordInCurrentMode()) return;
   if (typeof mpRunning !== "undefined" && !mpRunning) {
     setMessage("Kelime kaydı için MediaPipe'in hazır olmasını bekleyin.", "maybe");
     return;
@@ -63,6 +68,7 @@ async function startWordRecording() {
   state.wordFrames = 0;
   state.wordQualityWarnings = [];
   state.wordResultAssessment = null;
+  wordResultAccepted = false;
   updateWordState();
   clearFeedback();
 
@@ -159,7 +165,7 @@ function updateWordState() {
  * @returns {void}
  */
 function updateWordFlowSteps() {
-  const steps = queryElements(".word-flow-steps span");
+  const steps = queryAllUi("word-step");
   const activeIndex =
     state.wordState === "RESULT" || state.wordState === "PROCESSING"
       ? 2
@@ -185,6 +191,7 @@ function updateWordFlowSteps() {
 function updateWordRecordingHud(handVisible, poseVisible, faceVisible) {
   if (!els || !els.wordStateHint) return;
   if (state.wordState !== "RECORDING") return;
+  /** @param {boolean} b @returns {string} */
   const tick = (b) => (b ? "✓" : "✗");
   els.wordStateHint.textContent =
     `Kayıt: ${state.wordFrames}/${CONFIG.WORD_FRAME_COUNT} — ` +
@@ -192,6 +199,12 @@ function updateWordRecordingHud(handVisible, poseVisible, faceVisible) {
     "Hareketi bitir; sistem otomatik işleyecek.";
   updateWordQualityPills(handVisible, poseVisible, faceVisible);
 }
+
+/**
+ * Which landmark group one quality pill reports, as its data-quality value.
+ *
+ * @typedef {"hand" | "face" | "pose"} WordQualityPill
+ */
 
 /**
  * Update the three landmark quality pills.
@@ -209,17 +222,24 @@ function updateWordQualityPills(handVisible, poseVisible, faceVisible) {
   // Use a neutral state before the camera starts; showing three failures on
   // initial load would incorrectly suggest a capture problem.
   const pending = state.wordState === "IDLE" && !state.cameraOn;
-  const values = { hand: handVisible, face: faceVisible, pose: poseVisible };
+  // One entry per WordQualityPill. A pill whose data-quality is not one of
+  // these is left untouched rather than labelled as a shoulder, which is what
+  // the previous chained fallback did for any unrecognised key.
+  /** @type {Record<string, {label: string, ok: boolean}>} */
+  const pills = {
+    hand: { label: "El", ok: handVisible },
+    face: { label: "Yüz", ok: faceVisible },
+    pose: { label: "Omuz", ok: poseVisible },
+  };
   queryElements("[data-quality]", els.wordQualityPills).forEach((pill) => {
-    const key = pill.dataset.quality;
-    const label = key === "hand" ? "El" : key === "face" ? "Yüz" : "Omuz";
+    const entry = pills[pill.dataset.quality ?? ""];
+    if (!entry) return;
     if (pending) {
-      pill.textContent = `${label} ·`;
+      pill.textContent = `${entry.label} ·`;
       delete pill.dataset.ok; // Disable the CSS true/false state selectors.
     } else {
-      const ok = Boolean(values[key]);
-      pill.textContent = `${label} ${ok ? "✓" : "✗"}`;
-      pill.dataset.ok = ok ? "true" : "false";
+      pill.textContent = `${entry.label} ${entry.ok ? "✓" : "✗"}`;
+      pill.dataset.ok = entry.ok ? "true" : "false";
     }
   });
 }
@@ -252,9 +272,16 @@ function syncRecordButton() {
 
   els.recordWord.hidden = state.mode === "letter";
   els.recordWord.disabled =
-    coachLetterTarget || wordFlowBusy || (wordCapableMode && !wordPipelineReady);
+    coachLetterTarget ||
+    wordFlowBusy ||
+    (wordCapableMode && (!state.cameraOn || !wordPipelineReady));
 
-  if (wordCapableMode && !wordPipelineReady) {
+  // The pose and face tasks start with the camera, so before it nothing is
+  // loading: ask for the camera instead of claiming progress.
+  if (wordCapableMode && !state.cameraOn) {
+    els.recordWord.title = "Kelime kaydı için önce kamerayı başlatın.";
+    els.recordWord.textContent = "Önce Kamerayı Başlat";
+  } else if (wordCapableMode && !wordPipelineReady) {
     els.recordWord.title = "Pose+Face modeli yükleniyor...";
     els.recordWord.textContent =
       state.mode === "coach" ? "Kelime Pratiği Yükleniyor" : "Kelime Kaydı Yükleniyor";
@@ -302,10 +329,13 @@ function syncActionBar() {
       state.mode !== "word" ||
       state.wordState !== "RESULT" ||
       !assessment ||
-      !assessment.canAppend;
-    els.appendWordResult.title = els.appendWordResult.disabled
-      ? "Kelime sonucu yeterince güvenli olduğunda metne eklenebilir."
-      : "Gördüğün sonuç doğruysa metne ekle.";
+      !assessment.canAppend ||
+      wordResultAccepted;
+    els.appendWordResult.title = wordResultAccepted
+      ? "Bu sonuç metne eklendi."
+      : els.appendWordResult.disabled
+        ? "Kelime sonucu yeterince güvenli olduğunda metne eklenebilir."
+        : "Gördüğün sonuç doğruysa metne ekle.";
   }
   if (els.retryWord) {
     els.retryWord.disabled =

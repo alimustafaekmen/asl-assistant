@@ -474,6 +474,14 @@ Validation compares these pairs with SHA-256 and checks ONNX I/O. Exact hashes
 are not copied into documentation because the mapping, not a stale hash string,
 is the durable contract.
 
+The letter model is also deployed gzip-compressed, as
+`asl-web/models/letter_model.onnx.gz`, because the host serves `.onnx` files
+uncompressed. The browser downloads that copy and keeps the raw file as its
+fallback. The copy has no source of its own: validation fails unless it
+decompresses to exactly the bytes of `asl-web/models/letter_model.onnx`, and the
+[validation notes](../scripts/validation/README.md) give the command that
+regenerates it.
+
 ## Data publication boundary
 
 Raw images, videos, parquet files, generated CSVs, downloaded Kaggle subsets,

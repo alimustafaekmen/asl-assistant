@@ -4,6 +4,7 @@ The important regression is tested at the orchestration boundary: forwarded
 face/body landmarks must not reach ``SequenceClassifier.add_frame`` when no
 hand was detected.
 """
+
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -13,9 +14,9 @@ import pytest
 pytest.importorskip("torch")
 pytest.importorskip("customtkinter")
 
+from asl_desktop.config import WORD_IDLE_RESET_FRAMES
 from asl_desktop.models.sequence_classifier import SequenceClassifier
 from asl_desktop.ui.translation_view import TranslationView
-from asl_desktop.config import SEQUENCE_LENGTH, WORD_IDLE_RESET_FRAMES
 
 WORD_FEATURE_DIM = 321  # Holistic: 107 landmark × 3
 

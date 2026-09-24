@@ -176,17 +176,45 @@ serve it over HTTPS for camera access. This repository intentionally does not
 add a CI/CD workflow or Docker setup at this stage; either can be introduced
 later when it solves a concrete deployment need.
 
-Before deployment, run `make health`, then manually verify model readiness, the
-offline fixture, camera start/stop, letter acceptance, word recording, and the
-`#letter`, `#word`, and `#test` deep links.
+The site is deployed by hand, by dragging a folder into its Netlify deploy page:
+
+1. Run `make health`, then manually verify model readiness, the offline
+   fixture, camera start/stop, letter acceptance, word recording, and the
+   `#letter`, `#word`, and `#test` deep links.
+2. Drag this repository's own `asl-web/` folder into the deploy page, not a
+   copy of it; a copy can be out of date.
+3. Check that the live site serves these exact files. Comparing `<script>`
+   tags is not enough: the `?v=` suffixes rarely change, so a stale deploy can
+   list the same tags. Compare content instead:
+
+   ```bash
+   for f in index.html js/core/app.js css/style.css; do
+     curl -s "https://asl-assistant.netlify.app/$f" | shasum -a 256
+     shasum -a 256 "asl-web/$f"
+   done
+   ```
+
+   Each pair of hashes must match.
+
+Response headers come from `asl-web/_headers`, which Netlify reads from the
+uploaded folder. The root `netlify.toml` is not part of that upload; it only
+selects the publish directory for Git-linked or CLI deploys.
 
 ## Troubleshooting
 
 ### Models do not load
 
-Run `make validate`, then inspect the browser Network and Console panels. Both
-files under `asl-web/models/` must return HTTP 200, and the CDN assets must be
-reachable.
+No model is requested when the page opens, so the Network panel shows none
+until something needs one: starting the camera, a word recording, **Offline
+test**, or a Model Test run. Letter mode loads the letter model, word mode the
+word model, and the Learning Coach both.
+
+Run `make validate`, trigger one of those, then inspect the browser Network and
+Console panels. The letter model arrives as `models/letter_model.onnx.gz` and
+the word model as `models/word_model.onnx`; each must return HTTP 200, and the
+CDN assets must be reachable. A request for `models/letter_model.onnx` means the
+compressed copy could not be used: the Console says why, and the app loads that
+uncompressed file instead, so it must return 200 as well.
 
 ### Camera permission is denied
 

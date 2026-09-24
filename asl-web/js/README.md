@@ -87,6 +87,15 @@ camera (getUserMedia)      core/app.js    toggleCamera / stopCamera
 `core/app.js` drives the render loop, which calls `realInference()`;
 `media/camera.js` drives the detection loop, which calls `drawOverlay()`.
 
+Models load on first use, not at startup. `ensureLetterModel()` in
+`ml/letter-model.js` and `ensureWordModel()` in `ml/word-model.js` download and
+warm a model once and hand every caller the same promise; a failed load is
+forgotten, so the next need retries. The callers are those first needs: the
+camera starting or the mode changing while it is on (through
+`loadModelsWithStatus()` in `core/app.js`, which reports progress), a word
+recording, the offline check, and a Model Test run. A live frame never starts a
+load; frames are dropped until the model is ready.
+
 ## Where new code goes
 
 - A new user-facing screen or flow: a new file under `ui/`.
@@ -98,6 +107,54 @@ camera (getUserMedia)      core/app.js    toggleCamera / stopCamera
 
 Add the file to `index.html` in the position its dependencies require, and
 update the expected order in `tests/project/test_web_ui_contracts.py`.
+
+## DOM contracts
+
+The markup and the CSS are expected to change. These rules keep behaviour
+attached to the page while that happens.
+
+**Each mechanism has one job.**
+
+| Mechanism | Job |
+|---|---|
+| `class` | Appearance and layout only |
+| `data-ui` | A stable element lookup for the scripts |
+| `data-mode`, `data-qr-target`, `data-coach-flow`, `data-model-test-task`, `data-quality`, `data-step` | A value from a named union |
+| `data-state` | A finite visual or process state |
+| `id` | Labels, ARIA, deep links, and the element registry |
+| `hidden`, `disabled`, `aria-*` | Visibility, availability, and accessible state |
+
+No script finds an element by a presentation class. Lookups go through
+`queryUi()` and `queryAllUi()`, which resolve a `data-ui` hook, or through the
+registry by id. That is what lets a class be renamed without touching
+JavaScript, and it is enforced by an allow-list that is now empty.
+
+**The registry has two halves.**
+
+`requireElement(id, Type?)` proves an element is present while the scripts load
+and throws naming the id if it is not, so a dropped element is a startup error
+rather than a null dereference once its screen opens. `optionalElement()` and a
+plain `getElementById()` are progressive enhancement: they resolve to null and
+every reader guards them. No nullable field is dereferenced unguarded.
+
+Adding an element to the registry means deciding which half it belongs in. If
+the app cannot work without it, it is required.
+
+**Events bind once; renders only render.**
+
+`bindEvents()` runs once and guards against a second call, because every
+binding there adds a listener rather than replacing one. A render function
+rebuilds its root from state: it clears before it builds, so calling it twice
+changes nothing, and it starts no listener, timer, fetch or model session.
+Those belong in the command and lifecycle functions.
+
+Global keyboard shortcuts are ignored while focus is in a form control, so
+type-ahead in a `<select>` and Space on a button belong to the control rather
+than the page.
+
+**Dynamic content.** Plain text goes through `textContent`. `innerHTML` is only
+used for a fully escaped or fully literal template; a model label, a dataset
+value or fetched JSON is never interpolated into HTML unescaped.
 
 ## Type contracts
 

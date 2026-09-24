@@ -5,10 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#f4f1ea" />
     <title>ASL Assistant — ASL Harf Çeviri · Parmak Alfabesi</title>
+    <meta name="description" content="ASL Assistant, ASL harflerini ve kelimelerini tarayıcıda tanır; kamera görüntüsü cihazından hiç çıkmaz." />
+    <link rel="icon" href="favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+    <!-- Link preview. Most preview crawlers do not resolve relative URLs, so og:url and og:image name the live host. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://asl-assistant.netlify.app/" />
+    <meta property="og:title" content="ASL Assistant — ASL Harf Çeviri · Parmak Alfabesi" />
+    <meta property="og:description" content="ASL Assistant, ASL harflerini ve kelimelerini tarayıcıda tanır; kamera görüntüsü cihazından hiç çıkmaz." />
+    <meta property="og:image" content="https://asl-assistant.netlify.app/assets/social-preview.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="ASL Assistant Proje ekranı: 24 statik harf ve 50 kelime sınıfı, kelime modelinin test skoru." />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
-    <div class="app-shell" data-view="home" data-mode="letter" data-theme="light">
+    <div class="app-shell" data-ui="app-shell" data-view="home" data-mode="letter" data-theme="light">
       <header class="topbar">
         <a class="brand" href="#home" aria-label="ASL Assistant giriş ekranı" data-home-link>
           <span class="brand-mark" aria-hidden="true">ASL</span>
@@ -19,14 +32,14 @@
         </a>
 
         <nav class="mode-tabs" aria-label="Uygulama modu">
-          <button class="mode-tab mode-tab--primary is-active" type="button" data-mode="letter">Harf Çeviri</button>
-          <button class="mode-tab mode-tab--primary" type="button" data-mode="coach">Öğrenme Koçu</button>
+          <button class="mode-tab mode-tab--primary is-active" data-ui="mode-tab" type="button" data-mode="letter">Harf Çeviri</button>
+          <button class="mode-tab mode-tab--primary" data-ui="mode-tab" type="button" data-mode="coach">Öğrenme Koçu</button>
           <span class="mode-tabs__divider" aria-hidden="true"></span>
           <span class="mode-tabs__group-label" aria-hidden="true">ekstra</span>
-          <button class="mode-tab mode-tab--extra" type="button" data-mode="word">Kelime</button>
-          <button class="mode-tab mode-tab--extra" type="button" data-mode="test">Model Test</button>
-          <button class="mode-tab mode-tab--extra" type="button" data-mode="qr">QR</button>
-          <button class="mode-tab mode-tab--extra" type="button" data-mode="project">Proje</button>
+          <button class="mode-tab mode-tab--extra" data-ui="mode-tab" type="button" data-mode="word">Kelime</button>
+          <button class="mode-tab mode-tab--extra" data-ui="mode-tab" type="button" data-mode="test">Model Test</button>
+          <button class="mode-tab mode-tab--extra" data-ui="mode-tab" type="button" data-mode="qr">QR</button>
+          <button class="mode-tab mode-tab--extra" data-ui="mode-tab" type="button" data-mode="project">Proje</button>
         </nav>
 
         <div class="status-strip" aria-label="Sistem durumu">
@@ -104,8 +117,8 @@
           </section>
         </section>
 
-        <section class="workspace" id="appWorkspace" aria-label="ASL Assistant çalışma alanı">
-          <section class="camera-column" aria-label="Kamera çalışma alanı">
+        <section class="workspace" data-ui="workspace" id="appWorkspace" aria-label="ASL Assistant çalışma alanı">
+          <section class="camera-column" data-ui="workspace-pane" aria-label="Kamera çalışma alanı">
             <section class="mode-intro mode-intro--letter mode-only letter-only" aria-label="Harf Çeviri açıklaması">
               <div>
                 <span class="eyebrow">Ana modül</span>
@@ -136,6 +149,7 @@
                 <div class="camera-empty-icon" aria-hidden="true">◇</div>
                 <strong>Kamera bekleniyor</strong>
                 <span>Başlat'a basınca WebRTC ile canlı görüntü açılır.</span>
+                <span>Görüntü cihazından çıkmaz; tanıma tamamen tarayıcıda yapılır.</span>
               </div>
               <canvas id="overlayCanvas" class="overlay-canvas" width="1280" height="720"></canvas>
 
@@ -190,7 +204,7 @@
 
           </section>
 
-          <aside class="side-panel" aria-label="Mod paneli">
+          <aside class="side-panel" data-ui="workspace-pane" aria-label="Mod paneli">
             <section class="card prediction-card mode-card shared-card assistant-card">
               <div class="card-heading">
                 <span>Canlı sonuç</span>
@@ -215,7 +229,7 @@
                 </div>
               </div>
               <div class="reference-body compact" id="referenceBody" hidden>
-                <img id="referenceImage" src="./assets/signs/letters.png" alt="ASL harf referans görseli" />
+                <img id="referenceImage" src="./assets/signs/letters.png" alt="ASL harf referans görseli" loading="lazy" decoding="async" />
                 <div class="reference-thumbs" id="referenceThumbs" hidden aria-label="Kelime referans sayfaları"></div>
               </div>
             </section>
@@ -238,9 +252,9 @@
                 <strong id="coachScore">%0</strong>
               </div>
               <div class="coach-path">
-                <span>1. Hedef</span>
-                <span>2. Kamera</span>
-                <span>3. Kontrol</span>
+                <span data-ui="coach-step">1. Hedef</span>
+                <span data-ui="coach-step">2. Kamera</span>
+                <span data-ui="coach-step">3. Kontrol</span>
               </div>
               <div class="coach-next-action" id="coachNextAction">
                 <span>Sıradaki adım</span>
@@ -288,9 +302,9 @@
                 <strong id="wordStateLabel">IDLE</strong>
               </div>
               <div class="word-flow-steps" aria-label="Kelime kayıt akışı">
-                <span>1. Başlat</span>
-                <span>2. İşareti yap</span>
-                <span>3. Sonucu incele</span>
+                <span data-ui="word-step">1. Başlat</span>
+                <span data-ui="word-step">2. İşareti yap</span>
+                <span data-ui="word-step">3. Sonucu incele</span>
               </div>
               <div class="meter"><span id="frameProgress" style="width: 0%"></span></div>
               <p id="wordStateHint">45 frame kaydedilir, sonra top-3 sonuç gösterilir.</p>
@@ -632,11 +646,11 @@
               </div>
               <ol class="qr-steps">
                 <li>Telefon kamerasıyla QR kodu okut.</li>
-                <li>Sayfa açılınca modellerin hazır olmasını bekle.</li>
-                <li>Canlı deneme için <strong>Kamerayı Başlat</strong> butonuna bas.</li>
+                <li>Modeller sayfa açılınca değil, kamera ya da test ilk başlatılınca yüklenir.</li>
+                <li>Canlı deneme için <strong>Başlat</strong> butonuna bas.</li>
               </ol>
               <div class="qr-actions">
-                <a class="button primary" id="qrOpenDemo" href="https://asl-demo.netlify.app/#letter" target="_blank" rel="noreferrer">Linki Aç</a>
+                <a class="button primary" id="qrOpenDemo" href="https://asl-assistant.netlify.app/#letter" target="_blank" rel="noreferrer">Linki Aç</a>
                 <button class="button" type="button" id="qrCopyDemo">Linki Kopyala</button>
               </div>
               <p class="card-note" id="qrStatus">QR hazırlanıyor...</p>
@@ -646,7 +660,7 @@
                 <div id="qrCanvas" class="qr-canvas" role="img" aria-label="ASL Assistant canlı demo QR kodu"></div>
                 <div class="qr-scanline" aria-hidden="true"></div>
               </div>
-              <div class="qr-url" id="qrDemoUrl">https://asl-demo.netlify.app/#letter</div>
+              <div class="qr-url" id="qrDemoUrl">https://asl-assistant.netlify.app/#letter</div>
             </div>
           </section>
         </section>
@@ -672,8 +686,8 @@
     </div>
 
     <!-- ONNX Runtime Web -->
-    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/kjua@0.9.0/dist/kjua.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js" integrity="sha384-viYmIzsXdPb1ErOTdWrs+j0B4FjltSSGeHvt08cedBpoO5xvp3qMRSo05NZTuuzh" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/kjua@0.9.0/dist/kjua.min.js" integrity="sha384-ayVM0To8wzK2eG/sCNqF3XW4aHfJBsYEneUeObYWVZCnBZbscaz45eTQaxEowih9" crossorigin="anonymous"></script>
 
     <!-- MediaPipe Tasks Vision ESM loader is lazily imported in media/camera.js -->
 

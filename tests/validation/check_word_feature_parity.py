@@ -35,7 +35,6 @@ Requires `node` on PATH (the web runtime is JS).
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 import tempfile
@@ -56,15 +55,75 @@ import numpy as np
 # ----------------------------------------------------------------------------
 
 FACE_INDICES = [
-    61, 146, 91, 181, 84, 17, 314, 405, 321, 375,
-    78, 191, 80, 13, 312, 308,
-    33, 133, 159, 145, 263, 362, 386, 374,
-    70, 63, 105, 66, 300, 293, 334, 296,
-    1, 2, 98, 327, 168, 197, 195, 5,
+    61,
+    146,
+    91,
+    181,
+    84,
+    17,
+    314,
+    405,
+    321,
+    375,
+    78,
+    191,
+    80,
+    13,
+    312,
+    308,
+    33,
+    133,
+    159,
+    145,
+    263,
+    362,
+    386,
+    374,
+    70,
+    63,
+    105,
+    66,
+    300,
+    293,
+    334,
+    296,
+    1,
+    2,
+    98,
+    327,
+    168,
+    197,
+    195,
+    5,
 ]
 NUM_FACE = 40
-POSE_INDICES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-                23, 24, 25, 26, 27, 28, 29, 30]
+POSE_INDICES = [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+]
 NUM_POSE = 25
 NUM_RIGHT = 21
 NUM_LEFT = 21
@@ -98,10 +157,16 @@ def normalize_shoulders(frame_data: np.ndarray) -> np.ndarray:
     if 11 in POSE_INDICES and 12 in POSE_INDICES:
         left_shoulder_position = POSE_INDICES.index(11)
         right_shoulder_position = POSE_INDICES.index(12)
-        ls = normalized_frame[pose_start_index + left_shoulder_position * 3:
-                              pose_start_index + left_shoulder_position * 3 + 3]
-        rs = normalized_frame[pose_start_index + right_shoulder_position * 3:
-                              pose_start_index + right_shoulder_position * 3 + 3]
+        ls = normalized_frame[
+            pose_start_index + left_shoulder_position * 3 : pose_start_index
+            + left_shoulder_position * 3
+            + 3
+        ]
+        rs = normalized_frame[
+            pose_start_index + right_shoulder_position * 3 : pose_start_index
+            + right_shoulder_position * 3
+            + 3
+        ]
         if np.any(ls != 0) and np.any(rs != 0):
             shoulder_center = (ls + rs) / 2.0
             shoulder_width = np.linalg.norm(ls - rs)
@@ -116,9 +181,7 @@ def normalize_shoulders(frame_data: np.ndarray) -> np.ndarray:
         mn, mx = nonzero_values.min(), nonzero_values.max()
         rng = mx - mn
         if rng > 1e-6:
-            normalized_frame = np.where(
-                normalized_frame == 0, 0.0, (normalized_frame - mn) / rng
-            )
+            normalized_frame = np.where(normalized_frame == 0, 0.0, (normalized_frame - mn) / rng)
     return normalized_frame.astype(np.float32)
 
 
@@ -194,11 +257,13 @@ def compute_hand_body_relations(seq_321d: np.ndarray) -> np.ndarray:
     for t in range(T):
         for h in range(2):
             hs = h * 63
-            wrist = seq_321d[t, hs:hs + 3]
-            tip = seq_321d[t, hs + 8 * 3: hs + 8 * 3 + 3]
-            nose = seq_321d[t, face_start + nose_idx * 3: face_start + nose_idx * 3 + 3]
-            mouth = seq_321d[t, face_start + mouth_idx * 3: face_start + mouth_idx * 3 + 3]
-            forehead = seq_321d[t, face_start + forehead_idx * 3: face_start + forehead_idx * 3 + 3]
+            wrist = seq_321d[t, hs : hs + 3]
+            tip = seq_321d[t, hs + 8 * 3 : hs + 8 * 3 + 3]
+            nose = seq_321d[t, face_start + nose_idx * 3 : face_start + nose_idx * 3 + 3]
+            mouth = seq_321d[t, face_start + mouth_idx * 3 : face_start + mouth_idx * 3 + 3]
+            forehead = seq_321d[
+                t, face_start + forehead_idx * 3 : face_start + forehead_idx * 3 + 3
+            ]
             fs = h * 6
             out[t, fs + 0] = safe_norm(tip - nose)
             out[t, fs + 1] = safe_norm(tip - mouth)
@@ -242,8 +307,7 @@ WEB_FEATURES = PROJECT_ROOT / "asl-web" / "js" / "ml" / "features.js"
 
 def _check_node_available() -> bool:
     try:
-        r = subprocess.run(["node", "--version"], capture_output=True,
-                           text=True, timeout=5)
+        r = subprocess.run(["node", "--version"], capture_output=True, text=True, timeout=5)
         return r.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
@@ -260,9 +324,7 @@ def run_js_compact(seq_321d: np.ndarray) -> np.ndarray:
     does (and that path is not exercised here).
     """
     if not WEB_LANDMARKS.exists() or not WEB_FEATURES.exists():
-        raise FileNotFoundError(
-            f"Web JS missing: {WEB_LANDMARKS}, {WEB_FEATURES}"
-        )
+        raise FileNotFoundError(f"Web JS missing: {WEB_LANDMARKS}, {WEB_FEATURES}")
 
     landmarks_src = WEB_LANDMARKS.read_text(encoding="utf-8")
     features_src = WEB_FEATURES.read_text(encoding="utf-8")
@@ -301,8 +363,7 @@ def run_js_compact(seq_321d: np.ndarray) -> np.ndarray:
             "process.stdout.write(JSON.stringify(out));\n"
         )
         driver_js = (
-            template
-            .replace("__PAYLOAD_PATH__", json.dumps(str(payload_path)))
+            template.replace("__PAYLOAD_PATH__", json.dumps(str(payload_path)))
             .replace("__LANDMARKS_JS__", landmarks_src)
             .replace("__FEATURES_JS__", features_src)
         )
@@ -312,7 +373,9 @@ def run_js_compact(seq_321d: np.ndarray) -> np.ndarray:
 
         result = subprocess.run(
             ["node", str(driver_path)],
-            capture_output=True, text=True, timeout=60,
+            capture_output=True,
+            text=True,
+            timeout=60,
         )
         if result.returncode != 0:
             raise RuntimeError(
@@ -325,6 +388,7 @@ def run_js_compact(seq_321d: np.ndarray) -> np.ndarray:
 # ----------------------------------------------------------------------------
 # 3. Fixtures
 # ----------------------------------------------------------------------------
+
 
 def _make_hand(rng, T, dominant=True, dropouts=()):
     """Generate (T, 63) hand landmarks. If dominant=False, returns zeros."""
@@ -347,13 +411,13 @@ def _make_hand(rng, T, dominant=True, dropouts=()):
 def _make_face(rng, T):
     """Generate (T, NUM_FACE*3) with stable nose/mouth/forehead anchors."""
     face = np.zeros((T, NUM_FACE * 3), dtype=np.float32)
-    face[:, 32 * 3:32 * 3 + 3] = [0.5, 0.30, 0.0]  # nose (FACE 1)
-    face[:, 13 * 3:13 * 3 + 3] = [0.5, 0.35, 0.0]  # mouth (FACE 13)
-    face[:, 36 * 3:36 * 3 + 3] = [0.5, 0.25, 0.0]  # forehead (FACE 168)
+    face[:, 32 * 3 : 32 * 3 + 3] = [0.5, 0.30, 0.0]  # nose (FACE 1)
+    face[:, 13 * 3 : 13 * 3 + 3] = [0.5, 0.35, 0.0]  # mouth (FACE 13)
+    face[:, 36 * 3 : 36 * 3 + 3] = [0.5, 0.25, 0.0]  # forehead (FACE 168)
     for j in range(NUM_FACE):
         if j in (32, 13, 36):
             continue
-        face[:, j * 3:j * 3 + 3] = rng.uniform(0.3, 0.7, size=(T, 3))
+        face[:, j * 3 : j * 3 + 3] = rng.uniform(0.3, 0.7, size=(T, 3))
     return face
 
 
@@ -362,10 +426,10 @@ def _make_pose(rng, T, has_shoulders=True):
     pose = np.zeros((T, NUM_POSE * 3), dtype=np.float32)
     if has_shoulders:
         for t in range(T):
-            pose[t, 11 * 3:11 * 3 + 3] = [0.3 + 0.001 * t, 0.40, 0.0]
-            pose[t, 12 * 3:12 * 3 + 3] = [0.7 - 0.001 * t, 0.40, 0.0]
+            pose[t, 11 * 3 : 11 * 3 + 3] = [0.3 + 0.001 * t, 0.40, 0.0]
+            pose[t, 12 * 3 : 12 * 3 + 3] = [0.7 - 0.001 * t, 0.40, 0.0]
         for idx in [0, 13, 14, 15, 16]:
-            pose[:, idx * 3:idx * 3 + 3] = rng.uniform(0.2, 0.8, size=(T, 3))
+            pose[:, idx * 3 : idx * 3 + 3] = rng.uniform(0.2, 0.8, size=(T, 3))
     return pose
 
 
@@ -442,13 +506,17 @@ FIXTURES = [
 # 4. Driver / reporting
 # ----------------------------------------------------------------------------
 
+
 def _segment_breakdown(py_compact: np.ndarray, js_compact: np.ndarray):
     """Return per-segment max_abs_diff to localize where parity diverges."""
-    segs = [("dominant[0..62]", 0, 63), ("shape[63..92]", 63, 93),
-            ("relations[93..104]", 93, 105), ("motion[105..167]", 105, 168)]
+    segs = [
+        ("dominant[0..62]", 0, 63),
+        ("shape[63..92]", 63, 93),
+        ("relations[93..104]", 93, 105),
+        ("motion[105..167]", 105, 168),
+    ]
     return {
-        name: float(np.abs(py_compact[:, a:b] - js_compact[:, a:b]).max())
-        for name, a, b in segs
+        name: float(np.abs(py_compact[:, a:b] - js_compact[:, a:b]).max()) for name, a, b in segs
     }
 
 
@@ -462,9 +530,9 @@ def main() -> int:
     print("WORD 168D FEATURE PARITY — diagnostic (PASS / KNOWN_GAP / FAIL)")
     print("=" * 78)
     print(f"Project root:    {PROJECT_ROOT}")
-    print(f"Python contract: notebooks/word_50_training.ipynb cells 1, 6, 10")
-    print(f"JS runtime:      asl-web/js/ml/landmarks.js, asl-web/js/ml/features.js")
-    print(f"PASS tolerance:  max_abs_diff < 1e-4")
+    print("Python contract: notebooks/word_50_training.ipynb cells 1, 6, 10")
+    print("JS runtime:      asl-web/js/ml/landmarks.js, asl-web/js/ml/features.js")
+    print("PASS tolerance:  max_abs_diff < 1e-4")
     print("KNOWN_GAP rules: documented divergences in docs/models-and-data.md")
     print()
     print("fixture,python_shape,js_shape,max_abs_diff,status,note")
@@ -474,8 +542,7 @@ def main() -> int:
 
     for name, builder, expected, note in FIXTURES:
         raw_seq = builder()
-        py_norm = np.stack([normalize_shoulders(raw_seq[t])
-                            for t in range(raw_seq.shape[0])])
+        py_norm = np.stack([normalize_shoulders(raw_seq[t]) for t in range(raw_seq.shape[0])])
         py_compact = build_compact_features(py_norm)
         try:
             js_compact = run_js_compact(raw_seq)
@@ -511,13 +578,15 @@ def main() -> int:
         print("Per-segment breakdown (helps localize divergence):")
         print("fixture,dominant[0..62],shape[63..92],relations[93..104],motion[105..167]")
         for name, segs in breakdown_rows:
-            print("{},{:.2e},{:.2e},{:.2e},{:.2e}".format(
-                name,
-                segs["dominant[0..62]"],
-                segs["shape[63..92]"],
-                segs["relations[93..104]"],
-                segs["motion[105..167]"],
-            ))
+            print(
+                "{},{:.2e},{:.2e},{:.2e},{:.2e}".format(
+                    name,
+                    segs["dominant[0..62]"],
+                    segs["shape[63..92]"],
+                    segs["relations[93..104]"],
+                    segs["motion[105..167]"],
+                )
+            )
 
     return 1 if fail_n > 0 else 0
 

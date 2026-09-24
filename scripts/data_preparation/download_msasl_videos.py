@@ -204,6 +204,35 @@ def check_ytdlp() -> bool:
     return shutil.which("yt-dlp") is not None
 
 
+def build_download_command(entry: dict, output_path: Path) -> list[str]:
+    """Build the ``yt-dlp`` argv for one annotated clip.
+
+    Keeping argv construction free of filesystem and process side effects makes
+    the public CLI contract cheap to test without downloading a video.
+    """
+    return [
+        "yt-dlp",
+        "-f",
+        "bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo[height<=360]+bestaudio/best[height<=360]/best",
+        "--download-sections",
+        f"*{entry['start_time']}-{entry['end_time']}",
+        "--force-keyframes-at-cuts",
+        "--merge-output-format",
+        "mp4",
+        "-o",
+        str(output_path),
+        "--no-playlist",
+        "--no-warnings",
+        "--quiet",
+        "--socket-timeout",
+        "30",
+        "--retries",
+        "2",
+        "--no-check-certificates",
+        entry["url"],
+    ]
+
+
 def download_clip(
     entry: dict,
     output_dir: Path,
@@ -230,32 +259,8 @@ def download_clip(
     if output_path.exists() and output_path.stat().st_size > 1000:
         return {"status": "success", "path": str(output_path), "reason": "already_exists"}
 
-    url = entry["url"]
-    start = entry["start_time"]
-    end = entry["end_time"]
-
     # Ask yt-dlp to fetch only the annotated sign interval.
-    cmd = [
-        "yt-dlp",
-        "-f",
-        "bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo[height<=360]+bestaudio/best[height<=360]/best",
-        "--download-sections",
-        f"*{start}-{end}",
-        "--force-keyframes-at-cuts",
-        "--merge-output-format",
-        "mp4",
-        "-o",
-        str(output_path),
-        "--no-playlist",
-        "--no-warnings",
-        "--quiet",
-        "--socket-timeout",
-        "30",
-        "--retries",
-        "2",
-        "--no-check-certificates",
-        url,
-    ]
+    cmd = build_download_command(entry, output_path)
 
     for attempt in range(max_retries + 1):
         try:

@@ -17,66 +17,22 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 ASL_ML_SRC = os.path.join(PROJECT_ROOT, "asl-ml", "src")
 if ASL_ML_SRC not in sys.path:
     sys.path.insert(0, ASL_ML_SRC)
+if PROJECT_ROOT not in sys.path:  # Allow running this file directly.
+    sys.path.insert(0, PROJECT_ROOT)
 
-from asl_ml.config import DYNAMIC_LETTERS, STATIC_LETTERS
+from asl_ml.config import DYNAMIC_LETTERS, STATIC_LETTERS  # noqa: E402
 
-RAW_DIR = os.path.join(PROJECT_ROOT, "data", "raw")
-WEB_DIR = os.path.join(PROJECT_ROOT, "asl-web")
-WEB_DATA_DIR = os.path.join(WEB_DIR, "data")
-WEB_MODELS_DIR = os.path.join(WEB_DIR, "models")
-NOTEBOOKS_RESULTS = os.path.join(PROJECT_ROOT, "notebooks", "word_50_results")
-LETTER_MODEL_DIR = os.path.join(PROJECT_ROOT, "models", "letter")
-WORD_MODEL_DIR = os.path.join(PROJECT_ROOT, "models", "word", "web-50")
+from scripts.validation.contracts import (  # noqa: E402
+    RAW_DIR,
+    WEB_DATA_DIR,
+    WEB_DIR,
+    WEB_JS_DIR,
+    WEB_MODELS_DIR,
+    provenance_pairs,
+)
 
 # Source-to-deploy pairs documented in ``docs/models-and-data.md``.
-PROVENANCE_PAIRS = [
-    # (label, deploy path, source path)
-    (
-        "word_model.onnx",
-        os.path.join(WEB_MODELS_DIR, "word_model.onnx"),
-        os.path.join(WORD_MODEL_DIR, "word_model.onnx"),
-    ),
-    (
-        "letter_model.onnx",
-        os.path.join(WEB_MODELS_DIR, "letter_model.onnx"),
-        os.path.join(LETTER_MODEL_DIR, "onnx_exports", "letter_model_static_24_web_no_zipmap.onnx"),
-    ),
-    (
-        "word_labels.json",
-        os.path.join(WEB_DATA_DIR, "word_labels.json"),
-        os.path.join(WORD_MODEL_DIR, "word_labels.json"),
-    ),
-    (
-        "letter_labels.json",
-        os.path.join(WEB_DATA_DIR, "letter_labels.json"),
-        os.path.join(LETTER_MODEL_DIR, "letter_label_map.json"),
-    ),
-    (
-        "temperature.json",
-        os.path.join(WEB_DATA_DIR, "temperature.json"),
-        os.path.join(WORD_MODEL_DIR, "temperature.json"),
-    ),
-    (
-        "per_word_stats.json",
-        os.path.join(WEB_DATA_DIR, "per_word_stats.json"),
-        os.path.join(NOTEBOOKS_RESULTS, "per_word_stats.json"),
-    ),
-    (
-        "confusion_pairs.json",
-        os.path.join(WEB_DATA_DIR, "confusion_pairs.json"),
-        os.path.join(NOTEBOOKS_RESULTS, "confusion_pairs.json"),
-    ),
-    (
-        "curriculum.json",
-        os.path.join(WEB_DATA_DIR, "curriculum.json"),
-        os.path.join(NOTEBOOKS_RESULTS, "curriculum.json"),
-    ),
-    (
-        "test_sample.json",
-        os.path.join(WEB_DATA_DIR, "test_sample.json"),
-        os.path.join(NOTEBOOKS_RESULTS, "test_sample.json"),
-    ),
-]
+PROVENANCE_PAIRS = provenance_pairs()
 
 
 def _sha256(path: str) -> str | None:
@@ -163,7 +119,7 @@ def _check_dense_label_map(label: str, path: str, expected_count: int) -> bool:
 def check_web_runtime() -> bool:
     """Validate files required by the statically hosted web application."""
     print(f"\n{'─' * 60}")
-    print("  AKTİF WEB RUNTIME (GitHub Pages deploy)")
+    print("  AKTİF WEB RUNTIME (Netlify deploy)")
     print(f"{'─' * 60}")
 
     required_files = [
@@ -172,25 +128,27 @@ def check_web_runtime() -> bool:
         ("letter_model.onnx", os.path.join(WEB_MODELS_DIR, "letter_model.onnx")),
         ("word_model.onnx", os.path.join(WEB_MODELS_DIR, "word_model.onnx")),
         ("letters.png", os.path.join(WEB_DIR, "assets", "signs", "letters.png")),
-        ("kelime.png", os.path.join(WEB_DIR, "assets", "signs", "kelime.png")),
-        ("word-1.png", os.path.join(WEB_DIR, "assets", "signs", "word-1.png")),
-        ("word-2.png", os.path.join(WEB_DIR, "assets", "signs", "word-2.png")),
-        ("word-3.png", os.path.join(WEB_DIR, "assets", "signs", "word-3.png")),
-        ("word-4.png", os.path.join(WEB_DIR, "assets", "signs", "word-4.png")),
-        ("word-5.png", os.path.join(WEB_DIR, "assets", "signs", "word-5.png")),
-        ("app.js", os.path.join(WEB_DIR, "js", "core", "app.js")),
-        ("camera.js", os.path.join(WEB_DIR, "js", "media", "camera.js")),
-        ("landmarks.js", os.path.join(WEB_DIR, "js", "ml", "landmarks.js")),
-        ("features.js", os.path.join(WEB_DIR, "js", "ml", "features.js")),
-        ("letter-model.js", os.path.join(WEB_DIR, "js", "ml", "letter-model.js")),
-        ("word-model.js", os.path.join(WEB_DIR, "js", "ml", "word-model.js")),
-        ("gating.js", os.path.join(WEB_DIR, "js", "ml", "gating.js")),
-        ("benchmark.js", os.path.join(WEB_DIR, "js", "services", "benchmark.js")),
+        ("word-25.png", os.path.join(WEB_DIR, "assets", "signs", "word-25.png")),
+        ("word-50-1.png", os.path.join(WEB_DIR, "assets", "signs", "word-50-1.png")),
+        ("word-50-2.png", os.path.join(WEB_DIR, "assets", "signs", "word-50-2.png")),
+        ("word-50-3.png", os.path.join(WEB_DIR, "assets", "signs", "word-50-3.png")),
+        ("word-50-4.png", os.path.join(WEB_DIR, "assets", "signs", "word-50-4.png")),
+        ("word-50-5.png", os.path.join(WEB_DIR, "assets", "signs", "word-50-5.png")),
     ]
 
     ok = True
     for label, path in required_files:
         ok = _check_file(label, path) and ok
+
+    # Listing eight of the browser modules by hand meant the list went stale
+    # every time the layout changed, and said nothing about the rest. Check
+    # what the directory holds instead.
+    modules = sorted(WEB_JS_DIR.rglob("*.js"))
+    if not modules:
+        print("  ✗ asl-web/js: JavaScript modulu bulunamadi")
+        ok = False
+    for module in modules:
+        ok = _check_file(str(module.relative_to(WEB_DIR)), str(module)) and ok
 
     data_files = [
         ("temperature.json", "temperature.json"),
@@ -367,7 +325,7 @@ def check_models():
             print(f"     ○ {name:20} — aktif web runtime için zorunlu değil")
 
 
-def main():
+def main() -> int:
     print("=" * 60)
     print("  📊 ASL Assistant — Dataset Kontrol Raporu")
     print("=" * 60)
@@ -457,7 +415,8 @@ def main():
         print("     python3 asl-desktop/main.py")
 
     print()
+    return 0 if web_ok else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

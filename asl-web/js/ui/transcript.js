@@ -33,17 +33,28 @@ function appendCurrentLetter() {
 }
 
 /**
+ * Whether the word result on screen has already been accepted. Starting a new
+ * recording clears it, so each result is appended at most once: the debounce
+ * alone let a second press a moment later append the same word again.
+ */
+let wordResultAccepted = false;
+
+/**
  * Append the current word result after the user accepted it.
  *
  * This is the only path from a word prediction to the transcript; nothing
- * appends a word on its own.
+ * appends a word on its own. One accept appends once; the accept action stays
+ * disabled until a new recording produces a new result.
  *
  * @returns {void}
  */
 function appendWordResultToTranscript() {
+  if (wordResultAccepted) return;
   if (!state.prediction || state.prediction === "?" || state.prediction.length <= 1) return;
   if (state.confidence < CONFIG.WORD_ACCEPT_THRESHOLD) return;
   appendTranscriptToken(`${state.prediction} `, { debounceKey: `word:${state.prediction}` });
+  wordResultAccepted = true;
+  syncActionBar();
   showFeedback(`"${state.prediction}" metne eklendi. Yeni deneme için Yeni Kelime Kaydı ya da Tekrar Dene kullan.`, "good");
 }
 

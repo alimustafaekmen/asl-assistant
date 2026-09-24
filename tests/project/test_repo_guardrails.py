@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import ast
 import re
+import shutil
 import subprocess
 from pathlib import Path
 from urllib.parse import unquote
 
 import pytest
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -113,6 +113,42 @@ def _make_target_recipe(text: str, target: str) -> str:
     return match.group("body")
 
 
+def _netlify_headers(text: str) -> dict[str, dict[str, str]]:
+    """Parse a Netlify ``_headers`` file into path -> {lower-case name: value}.
+
+    Mirrors the published format: an unindented path line, then indented
+    ``Name: value`` lines. A header line that lost its indentation reads as a
+    path here too, so it cannot pass as a header for ``/*``.
+    """
+    rules: dict[str, dict[str, str]] = {}
+    current: dict[str, str] | None = None
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if not line[0].isspace():
+            current = rules.setdefault(stripped, {})
+            continue
+        assert current is not None, f"Header before any path: {line!r}"
+        name, separator, value = stripped.partition(":")
+        assert separator, f"Header line without a colon: {line!r}"
+        current[name.strip().lower()] = value.strip()
+    return rules
+
+
+def test_deployed_folder_carries_the_security_headers() -> None:
+    """Drag-and-drop deploys upload asl-web/ only, so headers must live there."""
+    headers_path = PROJECT_ROOT / "asl-web" / "_headers"
+    assert headers_path.is_file(), "asl-web/_headers is missing; the site would ship without it"
+
+    site = _netlify_headers(headers_path.read_text(encoding="utf-8")).get("/*", {})
+    permissions = [item.strip() for item in site.get("permissions-policy", "").split(",")]
+
+    assert site.get("x-content-type-options") == "nosniff"
+    assert "camera=(self)" in permissions
+    assert site.get("x-frame-options") == "DENY"
+
+
 def test_makefile_exposes_core_workflow_targets() -> None:
     text = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
     targets = set(re.findall(r"^([A-Za-z0-9_.-]+):(?:\s|$)", text, flags=re.MULTILINE))
@@ -152,15 +188,57 @@ def test_make_validate_requires_js_and_runtime_asset_checks() -> None:
     assert "$(CHECK_RUNTIME)" in recipe
 
 
-def test_make_setup_always_blocks_conda_base() -> None:
+def test_make_setup_installs_only_this_project() -> None:
+    """Setup installs the two local packages and upgrades nothing else.
+
+    Whether setup refuses to run in the wrong environment is behaviour, and is
+    covered by the guard's own tests in tests/scripts/. What belongs here is
+    the install policy, which lives in the recipe.
+    """
     text = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
     recipe = _make_target_recipe(text, "setup")
 
+    # No environment variable may turn the base-environment refusal off.
     assert "ALLOW_BASE" + "_SETUP" not in text
-    assert "elif is_base:" in text
     assert "install --upgrade" not in recipe
     assert "install --no-deps -e $(ASL_ML_DIR)" in recipe
     assert "install --no-deps -e $(ASL_DESKTOP_DIR)" in recipe
+
+
+def _resolved_recipe(target: str) -> str:
+    """What `make <target>` would actually run, with variables expanded.
+
+    Asking make rather than reading the Makefile keeps these checks on the
+    command's effect, so renaming a variable or reordering the file does not
+    break them.
+    """
+    result = subprocess.run(
+        ["make", "--dry-run", target],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    return result.stdout
+
+
+@pytest.mark.parametrize("target", ["lint", "format-check"])
+def test_quality_gate_covers_test_sources(target: str) -> None:
+    """Test code is read and maintained like product code, so it is linted too.
+
+    The gate covered only the three product trees for a long time, which let
+    unsorted imports, unused imports and an ambiguous variable name accumulate
+    in tests/ without anything reporting them.
+    """
+    if shutil.which("make") is None:
+        pytest.skip("make is not on PATH")
+
+    recipe = _resolved_recipe(target)
+
+    assert "tests" in recipe.split(), f"{target} does not cover tests/: {recipe.strip()}"
+    for tree in ("asl-desktop", "asl-ml", "scripts"):
+        assert tree in recipe.split(), f"{target} stopped covering {tree}"
 
 
 def test_public_environment_matches_dependency_contract() -> None:

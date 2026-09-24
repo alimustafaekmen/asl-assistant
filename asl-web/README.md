@@ -14,12 +14,10 @@ python3 -m http.server 8080
 Open <http://localhost:8080>. Do not use `file://`, because models and JSON are
 loaded with `fetch`. Camera access requires `localhost` or HTTPS.
 
-Expected startup state:
-
-```text
-Letter model: ready
-Word model: ready
-```
+No model downloads when the page opens. Each one loads the first time it is
+needed: starting the camera loads the models the current mode runs, and
+**Offline test** loads the word model. The status line reports the download and
+then which models are ready.
 
 Use **Offline test** before camera testing. The bundled fixture should predict
 `give` at approximately `0.0760` confidence. It proves that the word ONNX,
@@ -150,14 +148,21 @@ an input.
 
 ## Deployment
 
-Deploy `asl-web/` as the publish directory. No build command is required.
-`netlify.toml` already selects this directory. GitHub Pages may publish it via
-an Actions artifact or expose it under the repository's `/asl-web/` path.
+The live site is deployed by dragging this repository's `asl-web/` folder into
+the Netlify deploy page; there is no build command. The checks to run before
+and after the upload are in
+[Getting started](../docs/getting-started.md#static-deployment).
+
+Response headers come from `_headers` in this folder, which Netlify applies on
+every deploy method. The root `netlify.toml` is not part of a drag-and-drop
+upload; it only selects this folder for a Git-linked or CLI deploy. Another
+static host can serve the folder unchanged, but only a host that reads
+`_headers` will send those headers.
 
 The configured public demo is:
 
 ```text
-https://asl-demo.netlify.app/
+https://asl-assistant.netlify.app/
 ```
 
 Useful deep links are `#letter`, `#word`, and `#test`.
@@ -193,11 +198,19 @@ deep links.
 ```text
 asl-web/
 ├── index.html
+├── _headers               response headers for the Netlify deploy
 ├── css/style.css
-├── js/{core,media,ml,services}/
-├── models/{letter_model.onnx,word_model.onnx}
+├── js/{core,media,ml,services,ui}/
+├── models/
+│   ├── letter_model.onnx.gz   what the browser downloads
+│   ├── letter_model.onnx      same model uncompressed: fallback and validation
+│   └── word_model.onnx
 ├── data/                  labels, calibration, teaching data, fixtures
-└── assets/signs/          letter and word reference images
+├── favicon.ico
+└── assets/
+    ├── icons/             apple-touch-icon.png
+    ├── social-preview.png link preview image (og:image)
+    └── signs/             letter and word reference images
 ```
 
 The QR view is generated at runtime from `CONFIG.DEMO_PUBLIC_URL`; it does not

@@ -108,13 +108,16 @@ function renderReferenceThumbnails(isWordRef) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "reference-thumb";
+    // The thumbs are built here, so they carry their own lookup hook rather
+    // than being found again by the class that styles them.
+    button.dataset.ui = "reference-thumb";
     button.textContent = `${index + 1}`;
     button.title = `Kelime referans sayfası ${index + 1}`;
     button.dataset.active = index === 0 ? "true" : "false";
     button.addEventListener("click", () => {
       els.referenceImage.src = src;
       els.referenceImage.alt = `ASL kelime referans sayfası ${index + 1}`;
-      queryElements(".reference-thumb", els.referenceThumbs)
+      queryAllUi("reference-thumb", els.referenceThumbs)
         .forEach((thumb) => { thumb.dataset.active = "false"; });
       button.dataset.active = "true";
     });

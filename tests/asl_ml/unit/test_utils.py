@@ -2,8 +2,13 @@
 
 import numpy as np
 import pytest
-
-from asl_ml.utils import normalize_landmarks, load_label_map, save_label_map, invert_label_map, ensure_dir
+from asl_ml.utils import (
+    ensure_dir,
+    invert_label_map,
+    load_label_map,
+    normalize_landmarks,
+    save_label_map,
+)
 
 
 class TestNormalizeLandmarks:

@@ -136,17 +136,46 @@ Deploy klasörü `asl-web/` dizinidir ve build komutu yoktur. Public hosting,
 kamera erişimi için HTTPS sunmalıdır. Bu aşamada CI/CD workflow veya Docker
 kurulumu eklenmemiştir; somut bir ihtiyaç oluştuğunda ayrıca eklenebilir.
 
-Yayınlamadan önce `make health` çalıştırın; model hazırlığını, offline
-fixture'ı, kamera başlatma/durdurmayı, harf kabulünü, kelime kaydını ve
-`#letter`, `#word`, `#test` linklerini elle kontrol edin.
+Site elle yayınlanır; bir klasör sitenin Netlify deploy sayfasına sürüklenir:
+
+1. `make health` çalıştırın; ardından model hazırlığını, offline fixture'ı,
+   kamera başlatma/durdurmayı, harf kabulünü, kelime kaydını ve `#letter`,
+   `#word`, `#test` linklerini elle kontrol edin.
+2. Deploy sayfasına bu deponun kendi `asl-web/` klasörünü sürükleyin, bir
+   kopyasını değil; kopya eski kalmış olabilir.
+3. Canlı sitenin tam olarak bu dosyaları sunduğunu kontrol edin. `<script>`
+   etiketlerini karşılaştırmak yetmez: `?v=` ekleri nadiren değişir, bu yüzden
+   eski bir deploy aynı etiketleri listeleyebilir. İçeriği karşılaştırın:
+
+   ```bash
+   for f in index.html js/core/app.js css/style.css; do
+     curl -s "https://asl-assistant.netlify.app/$f" | shasum -a 256
+     shasum -a 256 "asl-web/$f"
+   done
+   ```
+
+   Her hash çifti aynı olmalıdır.
+
+HTTP yanıt başlıkları `asl-web/_headers` dosyasından gelir; Netlify bu dosyayı
+yüklenen klasörden okur. Kökteki `netlify.toml` bu yüklemeye dahil değildir;
+yalnızca Git bağlantılı veya CLI ile yapılan yayınlarda publish klasörünü seçer.
 
 ## Sorun giderme
 
 ### Modeller yüklenmiyor
 
-`make validate` çalıştırın ve tarayıcının Network/Console panellerini
-inceleyin. `asl-web/models/` altındaki iki dosya HTTP 200 dönmeli ve CDN
-kaynakları erişilebilir olmalıdır.
+Sayfa açıldığında hiçbir model istenmez; Network panelinde model isteği ancak
+bir modele ihtiyaç duyulduğunda görünür: kamera başlatıldığında, kelime
+kaydında, **Offline test** ile veya bir Model Test çalıştırmasında. Harf modu
+harf modelini, kelime modu kelime modelini, Öğrenme Koçu ikisini de yükler.
+
+`make validate` çalıştırın, bunlardan birini tetikleyin ve tarayıcının
+Network/Console panellerini inceleyin. Harf modeli `models/letter_model.onnx.gz`,
+kelime modeli `models/word_model.onnx` olarak gelir; ikisi de HTTP 200 dönmeli
+ve CDN kaynakları erişilebilir olmalıdır. `models/letter_model.onnx` isteği
+görünüyorsa sıkıştırılmış kopya kullanılamamıştır: nedeni Console'dadır ve
+uygulama bunun yerine sıkıştırılmamış dosyayı yükler; o dosya da 200
+dönmelidir.
 
 ### Kamera izni reddediliyor
 

@@ -5,7 +5,7 @@ Language fingerspelling and selected isolated signs. The application performs la
 extraction and ONNX inference in the browser; it has no application backend and
 does not upload camera frames.
 
-[Live demo](https://asl-demo.netlify.app/#letter) · [Getting started](docs/getting-started.md) · [Türkçe](README.tr.md) · [Documentation](docs/README.md)
+[Live demo](https://asl-assistant.netlify.app/#letter) · [Getting started](docs/getting-started.md) · [Türkçe](README.tr.md) · [Documentation](docs/README.md)
 
 ## What it includes
 
@@ -206,11 +206,11 @@ links are documented in [Models and data](docs/models-and-data.md#training-data-
 
 ## Licensing
 
-No open-source license has been selected for this repository. Making the source
-public does not by itself grant permission to copy, modify, or redistribute it.
-The previously added MIT file was removed because it was not an explicit
-licensing decision. The displayed reference artwork was created for this
-project rather than sourced from a third-party stock library. Before accepting
-external reuse or contributions, choose a license deliberately and confirm
-that the model artifacts and training datasets can be distributed under
-compatible terms.
+The source is available under the
+[PolyForm Noncommercial License 1.0.0](LICENSE). Personal, educational, and
+research use are allowed; commercial use requires the copyright holder's
+permission. The training datasets keep their own terms, recorded in
+[Models and data](docs/models-and-data.md).
+
+The displayed reference artwork was created for this project rather than
+sourced from a third-party stock library.

@@ -8,14 +8,17 @@
     "classic script sharing one global scope, which is how index.html loads them",
     "and how the JSDoc typedefs resolve across files.",
     "",
-    "Strict mode is deliberately off for now. Enabling it is a separate, staged",
-    "decision; turning it on here without resolving its diagnostics would make",
-    "this gate meaningless."
+    "Strictness is raised one flag at a time, and only once its diagnostics are",
+    "already at zero; turning a flag on over open diagnostics would make this",
+    "gate meaningless. noImplicitAny is on. strictNullChecks is not: most of its",
+    "diagnostics are optional DOM elements, where the answer is a decision about",
+    "which elements are genuinely required, not an annotation."
   ],
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,
     "noEmit": true,
+    "noImplicitAny": true,
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",

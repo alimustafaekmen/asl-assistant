@@ -225,12 +225,14 @@ async function startMediaPipe(videoEl) {
   );
   console.log("[MP] resolver OK ✓");
 
+  // Pinned like the bundle: a /latest/ model could change under it unseen.
+  // When pinned, /1/ and /latest/ served identical bytes (same md5).
   const HAND_MODEL =
-    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task";
+    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
   const POSE_MODEL =
-    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task";
+    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
   const FACE_MODEL =
-    "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task";
+    "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
   // Hands are required by every inference mode. Pose and face are required only
   // for words, so letter mode can remain available if either optional task fails.
@@ -249,6 +251,7 @@ async function startMediaPipe(videoEl) {
   console.log(
     `[MP] Hand thresholds: detection=${handDetConf}, presence=${handPresConf}, tracking=${handTrackConf}, numHands=2`,
   );
+  /** @type {LandmarkerFactory<HandLandmarkerResult>} */
   const handFactory = (delegate) =>
     HandLandmarker.createFromOptions(resolver, {
       baseOptions: { modelAssetPath: HAND_MODEL, delegate },
@@ -258,6 +261,7 @@ async function startMediaPipe(videoEl) {
       minHandPresenceConfidence: handPresConf,
       minTrackingConfidence: handTrackConf,
     });
+  /** @type {LandmarkerFactory<PoseLandmarkerResult>} */
   const poseFactory = (delegate) =>
     PoseLandmarker.createFromOptions(resolver, {
       baseOptions: { modelAssetPath: POSE_MODEL, delegate },
@@ -267,6 +271,7 @@ async function startMediaPipe(videoEl) {
       minPosePresenceConfidence: 0.3,
       minTrackingConfidence: 0.3,
     });
+  /** @type {LandmarkerFactory<FaceLandmarkerResult>} */
   const faceFactory = (delegate) =>
     FaceLandmarker.createFromOptions(resolver, {
       baseOptions: { modelAssetPath: FACE_MODEL, delegate },

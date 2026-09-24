@@ -7,8 +7,9 @@ import pytest
 
 pytest.importorskip("joblib")
 
-from asl_desktop.config import LETTER_MODEL_PATH, LETTER_LABEL_MAP_PATH
+from asl_desktop.config import LETTER_LABEL_MAP_PATH, LETTER_MODEL_PATH
 from asl_desktop.models.letter_classifier import LetterClassifier
+
 
 @pytest.fixture(scope="module")
 def loaded_classifier() -> LetterClassifier:
@@ -36,4 +37,4 @@ def test_real_model_prediction_contract(loaded_classifier):
     assert isinstance(label, str)
     assert 0.0 <= conf <= 1.0
     assert len(top3) == 3
-    assert all(isinstance(l, str) and isinstance(s, float) for l, s in top3)
+    assert all(isinstance(label, str) and isinstance(score, float) for label, score in top3)

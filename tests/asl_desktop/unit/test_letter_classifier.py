@@ -9,10 +9,9 @@ from __future__ import annotations
 
 import json
 
+import asl_desktop.models.letter_classifier as classifier_module
 import numpy as np
 import pytest
-
-import asl_desktop.models.letter_classifier as classifier_module
 from asl_desktop.models.letter_classifier import LetterClassifier
 
 

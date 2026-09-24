@@ -1,9 +1,8 @@
 """Behavior tests for prediction voting and confidence handling."""
 
 import pytest
-
-from asl_desktop.utils.smoother import PredictionSmoother
 from asl_desktop.config import NEUTRAL_THRESHOLD
+from asl_desktop.utils.smoother import PredictionSmoother
 
 
 def test_consistent_predictions_are_stable():
