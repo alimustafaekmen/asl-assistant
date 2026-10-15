@@ -327,7 +327,9 @@ def test_python_configuration_follows_package_ownership() -> None:
 
     stale_imports: list[str] = []
     for path in PROJECT_ROOT.rglob("*.py"):
-        if ".git" in path.parts or "legacy" in path.parts:
+        # The setup docs create .venv inside the checkout; its third-party
+        # sources are not project code and need not be UTF-8.
+        if {".git", "legacy", "site-packages"} & set(path.parts):
             continue
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))

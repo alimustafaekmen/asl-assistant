@@ -101,6 +101,7 @@ async function loadModelTestManifest() {
     const res = await fetch("./data/model-test-samples/manifest.json", { cache: "no-store" });
     if (!res.ok) throw new Error(`manifest HTTP ${res.status}`);
     state.modelTestManifest = await res.json();
+    await appendLocalWordFixtures(state.modelTestManifest);
   } catch (err) {
     console.warn("Model Test fixture manifest okunamadı:", err?.message || err);
     state.modelTestManifest = {
@@ -125,6 +126,33 @@ async function loadModelTestManifest() {
     };
   }
   renderModelTestSampleOptions();
+}
+
+/**
+ * Add the word fixtures of the local manifest, when there is one.
+ *
+ * Fixtures exported from the Google competition data may not be redistributed
+ * under its rules, so they stay in an ignored folder with their own manifest.
+ * A clone has no such folder, and its absence is not an error.
+ *
+ * @param {ModelTestManifest} manifest Published manifest, extended in place.
+ * @returns {Promise<void>}
+ */
+async function appendLocalWordFixtures(manifest) {
+  /** @type {ModelTestManifest | undefined} */
+  let local;
+  try {
+    const res = await fetch("./data/model-test-samples/local/manifest.json", { cache: "no-store" });
+    if (!res.ok) return;
+    local = await res.json();
+  } catch {
+    return;
+  }
+  const localWords = local?.words;
+  if (!Array.isArray(localWords)) return;
+  const words = Array.isArray(manifest.words) ? manifest.words : [];
+  const known = new Set(words.map((item) => item.id));
+  manifest.words = words.concat(localWords.filter((item) => !known.has(item.id)));
 }
 
 /**

@@ -52,7 +52,9 @@ landmark data. The 50-class run selected a subset of signs and used a
 signer-independent train/validation/test split in Kaggle.
 
 Raw competition parquet files are not needed by either deployed application.
-They are needed only to rerun training or export new Model Test fixtures.
+They are needed only to rerun training or export new Model Test fixtures. The
+competition rules forbid redistributing the data, so exported fixtures are
+written to the ignored `asl-web/data/model-test-samples/local/` folder.
 
 ## Explored but not used for the active models
 

@@ -124,6 +124,11 @@ blob-report/
 /data/processed/
 /data/reference/
 
+# Model Test word fixtures exported from the Google competition data. Its rules
+# forbid redistributing the data, so they stay local; regenerate them with
+# scripts/evaluation/export_model_test_word_samples.py from your own download.
+/asl-web/data/model-test-samples/local/
+
 # Root /models contains curated training/provenance artifacts. Generated model
 # files remain ignored by default; only the explicitly listed, documented
 # letter and word artifacts are published.

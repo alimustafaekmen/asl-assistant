@@ -142,7 +142,10 @@ Site elle yayınlanır; bir klasör sitenin Netlify deploy sayfasına sürüklen
    kamera başlatma/durdurmayı, harf kabulünü, kelime kaydını ve `#letter`,
    `#word`, `#test` linklerini elle kontrol edin.
 2. Deploy sayfasına bu deponun kendi `asl-web/` klasörünü sürükleyin, bir
-   kopyasını değil; kopya eski kalmış olabilir.
+   kopyasını değil; kopya eski kalmış olabilir. Yarışma verisinden kelime
+   örnekleri ürettiyseniz önce `asl-web/data/model-test-samples/local/`
+   klasörünü dışarı taşıyın: yarışma kuralları bunların yayımlanmasını
+   yasaklar ve klasör durdukça runtime asset kontrolü uyarı verir.
 3. Canlı sitenin tam olarak bu dosyaları sunduğunu kontrol edin. `<script>`
    etiketlerini karşılaştırmak yetmez: `?v=` ekleri nadiren değişir, bu yüzden
    eski bir deploy aynı etiketleri listeleyebilir. İçeriği karşılaştırın:

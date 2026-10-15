@@ -18,8 +18,8 @@ kept separately so readers can rerun the code without carrying large outputs or
 inspect the recorded run without retraining. Exported model artifacts are
 organized under `models/word/web-50/`.
 
-The desktop notebook was selected from `legacy/` because it produced the model
-still consumed by `asl-desktop`. Earlier 15-word and 25-word iterations, the
+The desktop notebook was kept from the earlier experiments because it produced
+the model still consumed by `asl-desktop`. Earlier 15-word and 25-word iterations, the
 standalone ablation notebook, the superseded GRU/Transformer comparison, and an
 unrelated video-classification experiment remain excluded: their useful
 findings are already represented by the final workflow or project history.

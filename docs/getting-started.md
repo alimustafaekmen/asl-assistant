@@ -182,7 +182,10 @@ The site is deployed by hand, by dragging a folder into its Netlify deploy page:
    fixture, camera start/stop, letter acceptance, word recording, and the
    `#letter`, `#word`, and `#test` deep links.
 2. Drag this repository's own `asl-web/` folder into the deploy page, not a
-   copy of it; a copy can be out of date.
+   copy of it; a copy can be out of date. If you exported word fixtures from
+   the competition data, move `asl-web/data/model-test-samples/local/` out
+   first: the competition rules forbid publishing them, and the runtime asset
+   check warns while the folder is there.
 3. Check that the live site serves these exact files. Comparing `<script>`
    tags is not enough: the `?v=` suffixes rarely change, so a stale deploy can
    list the same tags. Compare content instead:

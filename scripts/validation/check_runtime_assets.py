@@ -303,6 +303,26 @@ def check_model_test_fixtures() -> bool:
         _fail("Model Test manifest schema_version gecersiz")
         ok = False
 
+    # Word fixtures exported from the Google competition data stay in the
+    # ignored local/ folder with their own manifest, because the competition
+    # rules forbid redistributing the data. They are checked when present.
+    local_path = os.path.join(WEB_DATA_DIR, "model-test-samples", "local", "manifest.json")
+    if os.path.exists(local_path):
+        try:
+            with open(local_path, encoding="utf-8") as handle:
+                local_words = json.load(handle).get("words")
+        except (OSError, json.JSONDecodeError, AttributeError) as exc:
+            _fail(f"Model Test local manifest okunamadi: {exc}")
+            return False
+        if not isinstance(local_words, list) or not isinstance(manifest.get("words"), list):
+            _fail("Model Test local manifest 'words' listesi eksik")
+            return False
+        manifest = {**manifest, "words": manifest["words"] + local_words}
+        _warn(
+            "model-test-samples/local/ mevcut: asl-web/ oldugu gibi yuklenirse yarisma "
+            "verisinden turetilmis fixture'lar yayinlanir; deploy oncesi bu klasoru cikarin"
+        )
+
     registered: set[str] = set()
     registered_ids: set[str] = set()
     expected_tasks = {"letters": "letter", "words": "word"}

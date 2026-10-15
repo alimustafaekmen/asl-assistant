@@ -42,6 +42,16 @@ were reduced to 63 normalized hand coordinates; training then produced the 93D
 feature vector described below. J and Z were excluded throughout, so neither
 the data split nor the trained model contains them.
 
+The held-out split is stratified by label and drawn at random over landmark
+rows (`split_train_test` in `merge_static_letter_datasets.py`). It is not
+grouped by signer or by source image sequence, and duplicate removal drops only
+exact duplicates. The main source photographs each letter as long runs of
+near-identical frames, so close neighbours of a held-out row can be in the
+training set. The 99.35% figure therefore measures recognition of
+already-seen hands and capture conditions, and likely overstates accuracy for
+a signer the model has never seen. Unlike the word model below, this split is
+not signer-independent.
+
 The [MediaPipe Processed ASL dataset](https://www.kaggle.com/datasets/vignonantoine/mediapipe-processed-asl-dataset)
 was downloaded and evaluated, but it was not part of the final merged training
 table. The preserved extraction runner records that the image-to-landmark path
@@ -52,10 +62,13 @@ The row counts describe successfully extracted landmarks, not the original
 number of images published by each provider. Raw images and generated CSV files
 are local-only and are not distributed in this repository.
 
-At the time of review, the provider pages label ASL Alphabet as GPL-2.0 and the
-American Sign Language Dataset as CC0. The `ASL_SemCom` source terms are not
-recorded precisely enough in this repository to authorize redistribution, so
-its raw images must remain local unless the upstream terms are verified.
+Kaggle's dataset metadata, checked on 2026-10-15, labels ASL Alphabet as GPL 2
+and asks that it be cited as *ASL Alphabet*, Akash Nagaraj, 2018,
+doi:10.34740/KAGGLE/DSV/29550; it labels the American Sign Language Dataset by
+Ayush Thakur as CC0. The ASL-Fingerspelling repository licenses its code under
+MPL-2.0 and states no terms for its images. The `ASL_SemCom` source terms are
+therefore not recorded precisely enough to authorize redistribution, so its raw
+images remain local.
 
 ### Isolated-word model
 
@@ -80,10 +93,15 @@ active device; the workflow used one GPU rather than distributed training. The
 notebook, result JSON, PyTorch checkpoint, and ONNX export remain the evidence
 for the recorded experiment.
 
-The competition rules identify the data as CC BY 4.0 and also impose the
-competition-specific access and use terms. Those terms do not automatically
-license this repository's source code or every derived artifact; each
-publication decision must be evaluated separately.
+The competition's acknowledgements state that the dataset, provided by the
+Deaf Professional Arts Network and the Georgia Institute of Technology, is
+licensed under CC BY 4.0. Its rules, checked on 2026-10-15, add two terms that
+prevail where they conflict with that licence. Section 7.A allows use of the
+data for any purpose, commercial or non-commercial, which covers training and
+publishing these models. Section 7.B forbids publishing or redistributing the
+data to anyone not participating in the competition. This repository therefore
+publishes the trained models and aggregate results, but no landmark data and
+no fixture exported from it.
 
 ### Explored data that is not a final-model source
 
@@ -436,6 +454,14 @@ One fixture contains one task:
 A real letter array has 93 finite numbers. A word fixture uses the same schema
 with task `word`, 7560 finite feature values (`45 × 168`), and 45 boolean mask
 values. The manifest must reference every bundled fixture exactly once.
+
+The published manifest lists the 24 letter fixtures and one synthetic word
+fixture. Word fixtures exported from the competition recordings fall under
+section 7.B of its rules, so
+`scripts/evaluation/export_model_test_word_samples.py` writes them to the
+ignored `asl-web/data/model-test-samples/local/` folder with a manifest of its
+own. The panel lists them when that folder exists, and the runtime asset check
+validates them there; in a clone the folder is absent.
 
 The dedicated `test_sample.json` smoke file predates the published schema and
 contains 30 real frames followed by 15 padded frames. Its expected result is

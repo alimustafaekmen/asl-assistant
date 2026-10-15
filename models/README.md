@@ -31,5 +31,15 @@ exceptions for the documented artifacts needed to run the desktop prototype,
 deploy the browser copies, or validate Python/ONNX parity. An unlisted model
 file is not automatically a publishable source artifact.
 
+## Licence
+
+These model files are released under the repository's
+[PolyForm Noncommercial License 1.0.0](../LICENSE) and are treated as part of
+the software. The terms of their training data also apply; the sources and
+their licences are listed in the README's
+[data and attribution](../README.md#data-and-attribution) section. The `.pkl`
+and `.pt` files are Python pickles, which can run code when loaded: load them
+only from a copy you trust.
+
 See [Word models](word/README.md) and
 [Models and data](../docs/models-and-data.md).

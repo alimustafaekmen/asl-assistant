@@ -51,7 +51,10 @@ runtime regression fixture, not an accuracy benchmark.
 The two results are not directly comparable: they use different tasks,
 datasets, split strategies, and feature pipelines. The letter score describes
 held-out landmark data and should not be interpreted as guaranteed live-camera
-accuracy.
+accuracy. Its held-out rows were drawn at random from the merged images, not
+from separate signers, so near-identical frames of the same person can sit on
+both sides of the split; the figure likely overstates accuracy for a new
+signer. The word split is signer-independent.
 
 ## Development overview
 
@@ -191,6 +194,11 @@ it, and `make health` all work without one, and the deployed sources stay the
   a practical rejection mechanism.
 - The word model supports isolated signs, not continuous ASL translation.
 - Live word confidence is often much lower than offline test performance.
+- A word recording has no time limit or cancel button. It counts only frames
+  in which the hand, face, and shoulders are all visible, so if one of them
+  stays out of view it waits until the camera is stopped or the mode changes.
+- Automated browser checks run in headless desktop Chrome with a simulated
+  camera. The app has not yet been tested on iOS Safari or Android Chrome.
 - MediaPipe and ONNX browser dependencies are currently CDN-hosted.
 - The bundled Model Test fixtures demonstrate deterministic inference; they are
   not the official complete held-out evaluation set.
@@ -204,6 +212,32 @@ from three ASL alphabet image sources. Raw datasets are intentionally not
 committed. Dataset roles, split sizes, environments, exclusions, and source
 links are documented in [Models and data](docs/models-and-data.md#training-data-and-environments).
 
+| Model | Source | Terms |
+|---|---|---|
+| Letters | [ASL Alphabet](https://www.kaggle.com/datasets/grassknoted/asl-alphabet), Akash Nagaraj, 2018, [doi:10.34740/KAGGLE/DSV/29550](https://doi.org/10.34740/KAGGLE/DSV/29550) | GPL-2.0, as labelled by the provider |
+| Letters | [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset), Ayush Thakur | CC0 1.0 |
+| Letters | A local `ASL_SemCom` image subset associated with [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) (1,580 of 54,961 landmark rows) | Not recorded; the images are not redistributed |
+| Words | [Google - Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs) competition data (Kaggle, 2023), provided by the Deaf Professional Arts Network and the Georgia Institute of Technology | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), subject to the competition rules |
+
+Changes made to the data: letter images were reduced to MediaPipe hand
+landmarks and then to 93 engineered features; for words, 50 of the 250 signs
+were selected and each landmark sequence was resampled to 45 frames of 168
+features. The published models contain the learned parameters only, not the
+images, recordings, or landmark tables.
+
+The competition rules forbid redistributing its data, so the Model Test word
+fixtures exported from it stay local
+([details](docs/models-and-data.md#model-test-fixture-contract)); the published
+word fixture is synthetic.
+
+The browser loads these runtimes from public CDNs; they are not redistributed
+here: [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) 1.22.0 (MIT),
+[MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe) 0.10.18
+(Apache-2.0) with Google's hand, pose, and face landmarker models, and
+[kjua](https://github.com/lrsjng/kjua) 0.9.0 (MIT) for the QR view. The sign
+video links in `asl-web/data/asl_video_links.json` point to third-party YouTube
+videos, which belong to their creators.
+
 ## Licensing
 
 The source is available under the
@@ -211,6 +245,14 @@ The source is available under the
 research use are allowed; commercial use requires the copyright holder's
 permission. The training datasets keep their own terms, recorded in
 [Models and data](docs/models-and-data.md).
+
+The trained model files in `asl-web/models/` and `models/` are released under
+the same licence and are treated as part of the software; the terms of their
+training data, listed above, also apply. This project makes no claim either way
+about whether a dataset's licence, such as the GPL-2.0 label on the main letter
+source, carries over to weights trained on it. If your use needs certainty,
+check the source terms or train your own model with the scripts here. The
+`.pkl` and `.pt` files are Python pickles: load them only from a copy you trust.
 
 The displayed reference artwork was created for this project rather than
 sourced from a third-party stock library.

@@ -18,6 +18,8 @@ import re
 from html.parser import HTMLParser
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 WEB_DIR = PROJECT_ROOT / "asl-web"
 INDEX_HTML = WEB_DIR / "index.html"
@@ -26,6 +28,7 @@ FEATURES_JS = WEB_JS_DIR / "ml" / "features.js"
 LANDMARKS_JS = WEB_JS_DIR / "ml" / "landmarks.js"
 GATING_JS = WEB_JS_DIR / "ml" / "gating.js"
 MODEL_TEST_MANIFEST = WEB_DIR / "data" / "model-test-samples" / "manifest.json"
+LOCAL_MODEL_TEST_MANIFEST = WEB_DIR / "data" / "model-test-samples" / "local" / "manifest.json"
 WEB_JS_README = WEB_JS_DIR / "README.md"
 WEB_README = WEB_DIR / "README.md"
 
@@ -854,6 +857,11 @@ def test_model_test_word_default_has_a_stable_high_confidence_fixture() -> None:
     assert 'loadAndRunPreferredModelTestSample("letter")' in corpus
     assert 'loadAndRunPreferredModelTestSample("word")' in corpus
     preferred_ids = _js_string_array(corpus, "PREFERRED_MODEL_TEST_WORD_IDS")
+    # The preferred samples are competition-derived and stay local by its rules,
+    # so a clone falls back to the published smoke fixture instead.
+    if not LOCAL_MODEL_TEST_MANIFEST.exists():
+        pytest.skip("local competition-derived word fixtures are not present")
+    words.update({item["id"]: item for item in _load_json(LOCAL_MODEL_TEST_MANIFEST)["words"]})
     default_id = next((sample_id for sample_id in preferred_ids if sample_id in words), None)
     assert default_id is not None
     default = words[default_id]

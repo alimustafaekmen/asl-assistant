@@ -46,7 +46,11 @@ test** kullanılabilir.
 
 Bu iki sonuç doğrudan karşılaştırılamaz; görevleri, veri setleri,
 ayırma stratejileri ve özellik pipeline'ları farklıdır. Harf skoru canlı
-kamera başarısı garantisi değildir.
+kamera başarısı garantisi değildir. Harf modelinin held-out satırları ayrı
+kişilerden değil, birleştirilmiş görüntülerden rastgele seçilmiştir; aynı
+kişinin neredeyse aynı kareleri ayrımın iki tarafında da bulunabilir. Bu
+yüzden skor, yeni bir kişi için başarıyı büyük olasılıkla olduğundan yüksek
+gösterir. Kelime modelinin ayrımı ise kişiden bağımsızdır.
 
 ## Kurulum seçenekleri
 
@@ -108,14 +112,45 @@ docs/          Güncel kullanım ve teknik belgeler
 - Açık bir no-sign/unknown eğitim sınıfı yoktur.
 - Kelime modeli sürekli ASL çevirisi değil, izole işaretler içindir.
 - Canlı kelime güveni offline test başarısından daha düşük olabilir.
+- Kelime kaydının süre sınırı ve iptal düğmesi yoktur. Yalnızca el, yüz ve
+  omuzların birlikte göründüğü kareler sayılır; biri kadraj dışında kalırsa
+  kayıt, kamera durdurulana veya mod değiştirilene kadar bekler.
+- Otomatik tarayıcı kontrolleri, sanal kamerayla headless masaüstü Chrome'da
+  çalışır. Uygulama iOS Safari ve Android Chrome'da henüz test edilmemiştir.
 - MediaPipe ve ONNX tarayıcı bağımlılıkları CDN'den yüklenir.
 - Model Test fixture'ları tam held-out değerlendirme seti değildir.
 
 ## Veri, görseller ve lisans
 
 Ham veri setleri depoya eklenmez. Veri kaynakları ve kullanım sınırları
-[Models and data](docs/models-and-data.md) belgesinde açıklanır. Arayüzdeki
-referans görseller bu proje için hazırlanmıştır; üçüncü taraf
+[Models and data](docs/models-and-data.md) belgesinde açıklanır.
+
+| Model | Kaynak | Koşullar |
+|---|---|---|
+| Harf | [ASL Alphabet](https://www.kaggle.com/datasets/grassknoted/asl-alphabet), Akash Nagaraj, 2018, [doi:10.34740/KAGGLE/DSV/29550](https://doi.org/10.34740/KAGGLE/DSV/29550) | GPL-2.0 (sağlayıcının etiketi) |
+| Harf | [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset), Ayush Thakur | CC0 1.0 |
+| Harf | [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) ile ilişkili yerel `ASL_SemCom` alt kümesi (54.961 landmark satırının 1.580'i) | Kaydedilmemiş; görseller dağıtılmaz |
+| Kelime | [Google - Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs) yarışma verisi (Kaggle, 2023); sağlayıcılar Deaf Professional Arts Network ve Georgia Institute of Technology | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), yarışma kurallarına tabi |
+
+Veride yapılan değişiklikler: harf görselleri MediaPipe el landmark'larına,
+ardından 93 özelliğe indirgendi; kelimelerde 250 işaretten 50'si seçildi ve her
+landmark dizisi 168 özellikli 45 kareye yeniden örneklendi. Yayımlanan modeller
+yalnızca öğrenilmiş parametreleri içerir; görselleri, kayıtları veya landmark
+tablolarını içermez.
+
+Yarışma kuralları verinin yeniden dağıtılmasını yasakladığı için ondan
+üretilen Model Test kelime örnekleri yerelde kalır; yayımlanan kelime örneği
+sentetiktir.
+
+Tarayıcı şu kütüphaneleri public CDN'lerden yükler; depoda dağıtılmazlar:
+[ONNX Runtime Web](https://github.com/microsoft/onnxruntime) 1.22.0 (MIT),
+[MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe) 0.10.18
+(Apache-2.0) ve Google'ın el, poz ve yüz landmark modelleri, QR ekranı için
+[kjua](https://github.com/lrsjng/kjua) 0.9.0 (MIT).
+`asl-web/data/asl_video_links.json` içindeki işaret videosu bağlantıları
+üçüncü taraf YouTube videolarına gider; videolar sahiplerine aittir.
+
+Arayüzdeki referans görseller bu proje için hazırlanmıştır; üçüncü taraf
 stok görsel lisansına dayanmaz.
 
 Kaynak kod [PolyForm Noncommercial License 1.0.0](LICENSE) kapsamında sunulur.
@@ -123,3 +158,11 @@ Kişisel, eğitim ve araştırma amaçlı kullanım serbesttir; ticari kullanım
 telif hakkı sahibinin izni gerekir. Eğitim veri setleri kendi koşullarına
 tabidir; bu koşullar [Models and data](docs/models-and-data.md) belgesinde
 kayıtlıdır.
+
+`asl-web/models/` ve `models/` altındaki eğitilmiş model dosyaları aynı lisansla
+yayımlanır ve yazılımın parçası sayılır; yukarıdaki eğitim verisi koşulları da
+geçerlidir. Bu proje, bir veri seti lisansının (örneğin ana harf kaynağındaki
+GPL-2.0 etiketinin) eğitilmiş ağırlıklara geçip geçmediği konusunda bir iddiada
+bulunmaz. Kullanımınız için kesinlik gerekiyorsa kaynak koşullarını kontrol edin
+veya buradaki betiklerle kendi modelinizi eğitin. `.pkl` ve `.pt` dosyaları
+Python pickle biçimindedir; yalnızca güvendiğiniz bir kopyadan yükleyin.

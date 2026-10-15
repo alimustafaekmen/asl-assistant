@@ -15,6 +15,11 @@ Example:
 
 The Kaggle directory must contain `train.csv` and the relative parquet paths
 listed in its `path` column, usually under `train_landmark_files/`.
+
+The fixtures are derived from the competition data, whose rules forbid
+redistributing it, so they are written to the ignored
+`asl-web/data/model-test-samples/local/` folder with a manifest of their own.
+The Model Test panel lists them when that folder exists.
 """
 
 from __future__ import annotations
@@ -32,8 +37,8 @@ WEB_MODEL_PATH = PROJECT_ROOT / "asl-web" / "models" / "word_model.onnx"
 WORD_LABELS_PATH = WEB_DATA_DIR / "word_labels.json"
 TEMP_PATH = WEB_DATA_DIR / "temperature.json"
 MODEL_TEST_DIR = WEB_DATA_DIR / "model-test-samples"
-WORD_OUT_DIR = MODEL_TEST_DIR / "words"
-MANIFEST_PATH = MODEL_TEST_DIR / "manifest.json"
+WORD_OUT_DIR = MODEL_TEST_DIR / "local"
+MANIFEST_PATH = WORD_OUT_DIR / "manifest.json"
 
 SEED = 42
 TARGET_LEN = 45
@@ -411,7 +416,6 @@ def _update_manifest(new_word_items: list[dict]) -> None:
         if MANIFEST_PATH.exists()
         else {
             "schema_version": "asl-model-test-manifest-v1",
-            "letters": [],
             "words": [],
         }
     )
@@ -479,7 +483,7 @@ def export_samples(
                     "id": sample_id,
                     "label": word,
                     "title": f"Kelime {word} #{sample_no}",
-                    "path": f"./data/model-test-samples/words/{out_path.name}",
+                    "path": f"./data/model-test-samples/local/{out_path.name}",
                     "expected_label": word,
                 }
             )
@@ -522,7 +526,7 @@ def export_samples(
                 "id": sample_id,
                 "label": word,
                 "title": f"Kelime {word} #{sample_no}",
-                "path": f"./data/model-test-samples/words/{out_path.name}",
+                "path": f"./data/model-test-samples/local/{out_path.name}",
                 "expected_label": word,
                 "source": "Kaggle ASL Signs test split",
                 "confidence": expected_top3[0]["confidence"],

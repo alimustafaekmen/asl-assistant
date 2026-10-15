@@ -878,4 +878,3 @@ window.aslDebug = {
     console.log("latestResult:", this.latestResult);
   },
 };
-console.log("[ASL] Debug API: window.aslDebug.dump()");

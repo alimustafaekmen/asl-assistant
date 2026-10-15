@@ -6,6 +6,8 @@ import json
 import math
 from pathlib import Path, PurePosixPath
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -98,7 +100,26 @@ def test_model_test_sample_manifest_covers_letter_domain_and_word_contract() -> 
     assert manifest.get("letter_count") == len(letters)
     assert manifest.get("word_count") == len(words)
     assert {item["label"] for item in letters} == set("ABCDEFGHIKLMNOPQRSTUVWXY")
-    assert {item["label"] for item in words} == set(_load_json("asl-web/data/word_labels.json"))
+    assert {item["label"] for item in words} <= set(_load_json("asl-web/data/word_labels.json"))
+
+
+def test_local_word_fixtures_cover_the_word_vocabulary() -> None:
+    """The fixtures exported from the competition data stay local, by its rules.
+
+    A clone has none; where they exist, they and the published word fixtures
+    together must cover all 50 words.
+    """
+    local_path = PROJECT_ROOT / "asl-web/data/model-test-samples/local/manifest.json"
+    if not local_path.exists():
+        pytest.skip("local competition-derived word fixtures are not present")
+    published = _load_json("asl-web/data/model-test-samples/manifest.json")
+    local = _load_json("asl-web/data/model-test-samples/local/manifest.json")
+    local_words = _assert_manifest_entries(local.get("words"), task="word")
+
+    assert local.get("word_count") == len(local_words)
+    assert all(item["path"].startswith("./data/model-test-samples/local/") for item in local_words)
+    labels = {item["label"] for item in published["words"] + local_words}
+    assert labels == set(_load_json("asl-web/data/word_labels.json"))
 
 
 def test_desktop_word_metadata_describes_the_25_class_contract() -> None:
