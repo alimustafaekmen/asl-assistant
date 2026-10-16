@@ -643,7 +643,7 @@ def extract_all(
         try:
             df, meta = process_video(video_path, box, use_crop=use_crop, logger=logger)
         except Exception as e:
-            logger.error(f"  ❌ {entry_id}: Exception — {e}")
+            logger.error(f"  ❌ {entry_id}: exception: {e}")
             state["failed"][entry_id] = {"reason": str(e)[:200]}
             stats["rejected"] += 1
             reject_reasons["exception"] = reject_reasons.get("exception", 0) + 1
@@ -686,7 +686,7 @@ def extract_all(
             save_state(state, state_file)
             pct = (i + 1) / total * 100 if total > 0 else 0
             logger.info(
-                f"[{i + 1}/{total}] {pct:.0f}% — "
+                f"[{i + 1}/{total}] {pct:.0f}%: "
                 f"✅{stats['success']} ✗{stats['rejected']} "
                 f"⏩{stats['skipped']}"
             )

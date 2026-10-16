@@ -4,8 +4,8 @@
 // MediaPipe coordinates must be mapped through the cropped rectangle rather
 // than the raw canvas box. Getting this wrong misplaces every landmark.
 
-const test = require("node:test");
-const assert = require("node:assert/strict");
+import test from "node:test";
+import assert from "node:assert/strict";
 
 let getVideoCoverRect;
 test.before(async () => {

@@ -85,7 +85,7 @@ def test_prolonged_hand_absence_resets_stale_word_buffer():
 def test_buffer_fills_only_when_add_frame_called():
     """add_frame() çağrıldığında (hands_detected=True simüle) buffer dolmalı."""
     clf = SequenceClassifier(model_type="word")
-    # add_frame(), _loaded=False iken erken çıkıyor — buffer davranışını test etmek
+    # add_frame(), _loaded=False iken erken çıkıyor; buffer davranışını test etmek
     # için _loaded=True set ediyoruz (birim testi: sadece buffer mantığını izole et)
     clf._loaded = True
 

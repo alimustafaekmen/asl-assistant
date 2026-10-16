@@ -203,6 +203,29 @@ const HARD_WORDS = new Set([
   "fireman",
 ]);
 
+// The groups the word screen lists the 50 words under, in the order shown.
+// Each label of WORDS belongs to exactly one group.
+/** @type {{title: string, words: string[]}[]} */
+const WORD_CATEGORIES = [
+  {
+    title: "Günlük",
+    words: [
+      "water", "home", "food", "drink", "book", "finish", "wait", "open",
+      "go", "look", "listen", "hear", "talk", "thankyou", "please",
+    ],
+  },
+  { title: "Duygu / durum", words: ["sad", "happy", "sleep", "sleepy", "sick", "hungry", "hot"] },
+  { title: "Hayvan", words: ["bird", "cow", "dog", "donkey", "duck", "mouse"] },
+  { title: "Aile / insan", words: ["dad", "mom", "uncle", "brother", "child", "fireman", "who"] },
+  {
+    title: "Diğer",
+    words: [
+      "all", "before", "brown", "bye", "can", "give", "have", "hello",
+      "like", "lips", "no", "pretend", "shhh", "toothbrush", "yes",
+    ],
+  },
+];
+
 /** @type {ReferenceAssets} */
 const REFERENCE_ASSETS = {
   letter: {
@@ -210,11 +233,11 @@ const REFERENCE_ASSETS = {
     alt: "ASL harf referans görseli",
   },
   wordPages: [
-    "./assets/signs/word-50-1.png",
-    "./assets/signs/word-50-2.png",
-    "./assets/signs/word-50-3.png",
-    "./assets/signs/word-50-4.png",
-    "./assets/signs/word-50-5.png",
+    "./assets/signs/word-50-1.webp",
+    "./assets/signs/word-50-2.webp",
+    "./assets/signs/word-50-3.webp",
+    "./assets/signs/word-50-4.webp",
+    "./assets/signs/word-50-5.webp",
   ],
 };
 

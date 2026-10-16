@@ -6,8 +6,8 @@
 // published manifest alone when it is not, which is the case in every clone.
 // fetch is the boundary faked here.
 
-const test = require("node:test");
-const assert = require("node:assert/strict");
+import test from "node:test";
+import assert from "node:assert/strict";
 
 const PUBLISHED = "./data/model-test-samples/manifest.json";
 const LOCAL = "./data/model-test-samples/local/manifest.json";

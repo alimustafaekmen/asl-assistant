@@ -70,7 +70,7 @@ def warmup_camera():
             logger.info("Kamera erisilebilir ✓")
             return True
         else:
-            logger.warning("Kamera acildi ama frame alinamadi — izin var, sonra duzelebilir.")
+            logger.warning("Kamera acildi ama frame alinamadi; izin var, birazdan duzelebilir.")
             return True  # The device opened; a missing first frame may be transient.
     else:
         logger.error(

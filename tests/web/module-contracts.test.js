@@ -4,10 +4,10 @@
 // conventions. These tests fail fast when a module split leaves a declaration
 // behind, reorders the scripts, or introduces a second bootstrap entry point.
 
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const { readFileSync, readdirSync, statSync } = require("node:fs");
-const { join } = require("node:path");
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 
 let helper;
 test.before(async () => {

@@ -2,7 +2,7 @@
 // and never the pipeline's own vocabulary.
 //
 // A recording that saw the shoulders in too few frames used to put
-// "pose visibility < 0.5 — yüz/omuzlar net görünmüyor" in the feedback bar,
+// "pose visibility < 0.5: yüz/omuzlar net görünmüyor" in the feedback bar,
 // and a finished result read "Kelime kaydı sonucu. Modelin gördükleri: …
 // Top-1/Top-2 farkı: %…". Recording quality is now a list of codes in state
 // (state.wordQualityWarnings), each with one sentence of copy; the technical

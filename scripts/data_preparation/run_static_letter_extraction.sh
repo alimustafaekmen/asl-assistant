@@ -40,7 +40,7 @@ else
     echo "⚠ ASL Alphabet bulunamadı: $ASL_DIR"
 fi
 
-# 2. Birleştirme (MediaPipe_Processed_Asl atlandı — 0% landmark algılama)
+# 2. Birleştirme (MediaPipe_Processed_Asl atlandı: %0 landmark algılama)
 echo "── Birleştirme + Dengeleme ──"
 $PYTHON scripts/data_preparation/merge_static_letter_datasets.py
 

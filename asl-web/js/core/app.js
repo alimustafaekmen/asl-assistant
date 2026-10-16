@@ -34,8 +34,7 @@
  *
  * No model loads here. A bare URL opens letter mode, but most visitors never
  * start the camera, so the models wait for their first real need: the camera
- * starting in a mode that runs one, a word recording, the offline check, or a
- * Model Test run. The fixture manifest and the word guidance data are a few
+ * starting in a mode that runs one, a word recording, or a Model Test run. The fixture manifest and the word guidance data are a few
  * kilobytes and load last; the guidance panel renders once its fetch has
  * settled.
  *
@@ -50,13 +49,15 @@ async function init() {
   bindEvents();
   restoreTranscript();
   loadReferenceVideoLinks();
-  loadWordReference();
+  const wordReferenceLoad = loadWordReference();
   setMode(modeFromHash(window.location.hash), { syncHash: false });
   updatePrediction({ label: "?", confidence: 0, alternatives: [] });
 
   requestAnimationFrame(renderLoop);
 
-  await Promise.all([loadPublishedModelTestManifest(), loadGatingData()]);
+  // The word lists wait for the card data too, so a word's gloss, once shown,
+  // is there when they are built.
+  await Promise.all([loadPublishedModelTestManifest(), loadGatingData(), wordReferenceLoad]);
   renderWordGuidancePanel();
 }
 
@@ -290,7 +291,7 @@ function bindEvents() {
   els.clearText?.addEventListener("click", clearTranscript);
   els.copyText.addEventListener("click", copyTranscript);
   els.toggleReference.addEventListener("click", toggleReference);
-  els.offlineTest.addEventListener("click", runOfflineCheck);
+  els.wordLibrarySearch?.addEventListener("input", filterWordLibrary);
   bindReferenceLightbox();
 
   els.manualAddLetter?.addEventListener("click", appendCurrentLetter);
@@ -1252,7 +1253,7 @@ function updateDebug() {
     const bm = getBenchmarkSummary();
     els.debugLatency.textContent = `mp:${bm.mediapipe} fe:${bm.feature} onnx:${bm.onnx} total:${bm.total}`;
   } else {
-    els.debugLatency.textContent = `latency: ${state.cameraOn ? "—" : "--"}`;
+    els.debugLatency.textContent = "latency: --";
   }
 }
 

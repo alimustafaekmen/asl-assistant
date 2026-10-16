@@ -450,7 +450,7 @@ def download_all(
                 save_state(state, state_file)
                 pct = completed_count / total_count * 100
                 logger.info(
-                    f"[{completed_count}/{total_count}] {pct:.0f}% — "
+                    f"[{completed_count}/{total_count}] {pct:.0f}%: "
                     f"✅{stats['success']} ❌{stats['unavailable']} "
                     f"🔞{stats['age_restricted']} ⚠️{stats['error']}"
                 )

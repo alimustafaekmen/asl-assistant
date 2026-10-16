@@ -6,8 +6,8 @@
 // Values read out of the scripts live in the vm realm, so arrays and objects
 // are copied into plain local values before being compared.
 
-const test = require("node:test");
-const assert = require("node:assert/strict");
+import test from "node:test";
+import assert from "node:assert/strict";
 
 let app;
 test.before(async () => {
@@ -113,7 +113,7 @@ test("the reference gallery keeps the five split word pages", () => {
 
   assert.deepEqual(
     [...assets.wordPages],
-    [1, 2, 3, 4, 5].map((page) => `./assets/signs/word-50-${page}.png`),
+    [1, 2, 3, 4, 5].map((page) => `./assets/signs/word-50-${page}.webp`),
   );
   assert.equal(assets.letter.src, "./assets/signs/letters.png");
 });

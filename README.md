@@ -175,7 +175,10 @@ question, from the browser architecture to the project's history.
 - The word model is experimental. It recognises isolated signs, not continuous
   signing, and a result below a confidence threshold cannot be accepted.
 - The letter model has 24 static letters, no J or Z, and no "no sign" class.
-- The sign reference pictures in the app are being redrawn; until then, check a
+  Its 99.35% comes from a split that shares signers with training; on hands it
+  has never seen it measured 69%, weakest on the fist letters (M, N, T, S, E,
+  A). See [Models and data](docs/models-and-data.md).
+- The word reference pictures in the app are being redrawn; until then, check a
   handshape against a standard ASL dictionary.
 - The Content Security Policy is report-only. It will be enforced once it has
   been read on the deployed site in a real browser.
@@ -247,7 +250,8 @@ Third-party software:
 | [MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe), with Google's hand, pose and face landmarker models | 0.10.18 | Apache-2.0 | Code from jsDelivr, models from Google Cloud Storage; not redistributed |
 | [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) | 1.22.0 | MIT | Loaded from jsDelivr, not redistributed |
 | [kjua](https://github.com/lrsjng/kjua) | 0.9.0 | MIT | Loaded from jsDelivr for the QR screen, not redistributed |
-| [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next) and [Atkinson Hyperlegible Mono](https://github.com/googlefonts/atkinson-hyperlegible-next-mono) | — | SIL Open Font License 1.1 | Redistributed, subset to Latin and Turkish, in `asl-web/assets/fonts/` with the licence |
+| [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next) and [Atkinson Hyperlegible Mono](https://github.com/googlefonts/atkinson-hyperlegible-next-mono) | Not pinned | SIL Open Font License 1.1 | Redistributed, subset to Latin and Turkish, in `asl-web/assets/fonts/` with the licence |
+| [ASL alphabet chart](https://commons.wikimedia.org/wiki/File:Asl_alphabet_gallaudet.svg) by Ds13, from the Gallaudet font, vectorised by Marnanel | 2004 SVG, revised on Commons | Public domain, released by the author (the font itself is © 1991 David Rakowski) | Rendered and cropped to the 26 letters as `asl-web/assets/signs/letters.png`; the letter screen's reference |
 
 The sign video links in `asl-web/data/asl_video_links.json` point to
 third-party YouTube videos, which belong to their creators.

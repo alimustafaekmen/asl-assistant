@@ -685,7 +685,7 @@ def _save_confusion_matrix(y_test, y_pred, target_names, accuracy):
     )
     ax.set_xlabel("Tahmin", fontsize=12)
     ax.set_ylabel("Gerçek", fontsize=12)
-    ax.set_title(f"Confusion Matrix — Doğruluk: {accuracy:.1%}", fontsize=14)
+    ax.set_title(f"Confusion matrix (doğruluk {accuracy:.1%})", fontsize=14)
     plt.tight_layout()
     cm_path = os.path.join(LETTER_MODELS_DIR, "static_letter_confusion_matrix.png")
     fig.savefig(cm_path, dpi=150)
@@ -730,7 +730,7 @@ def _save_model_comparison_chart(results: dict):
     ax1.set_xlabel("Model", fontsize=12)
     ax1.set_xticks(x)
     ax1.set_xticklabels(names, fontsize=11)
-    ax1.set_title("Model Karşılaştırması — Doğruluk vs Inference Süresi", fontsize=14)
+    ax1.set_title("Model karşılaştırması: doğruluk ve inference süresi", fontsize=14)
 
     # Merge legends from both axes.
     lines1, labels1 = ax1.get_legend_handles_labels()
@@ -753,7 +753,7 @@ def _save_class_f1_chart(f1_scores: list, target_names: list, model_name: str):
 
     ax.set_xlabel("Harf", fontsize=12)
     ax.set_ylabel("F1-Score", fontsize=12)
-    ax.set_title(f"Sınıf Bazlı F1-Score — {model_name}", fontsize=14)
+    ax.set_title(f"Sınıf bazlı F1-score ({model_name})", fontsize=14)
     ax.set_ylim(min(f1_scores) - 0.05, 1.02)
     ax.axhline(y=0.95, color="gray", linestyle="--", alpha=0.5, label="%95 eşiği")
     ax.legend()
@@ -919,7 +919,7 @@ def _save_comparison_csv(results: dict):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="ASL Harf Modeli — Tek Komutlu Eğitim",
+        description="ASL harf modeli: tek komutla eğitim",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Örnekler:

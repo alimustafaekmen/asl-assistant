@@ -210,7 +210,7 @@ class LearningCoachView(ctk.CTkFrame):
         right.rowconfigure(1, weight=0)  # feedback label
         right.rowconfigure(2, weight=0)  # hint label
         right.rowconfigure(3, weight=0)  # liste (tek satır, horizontal scroll)
-        right.rowconfigure(4, weight=1)  # referans görseli (BÜYÜK — tüm boşluğu alır)
+        right.rowconfigure(4, weight=1)  # referans görseli: büyük, tüm boşluğu alır
         right.rowconfigure(5, weight=0)  # sonraki butonu
 
         # Row 0: selected target and its short hint.
@@ -289,7 +289,7 @@ class LearningCoachView(ctk.CTkFrame):
         # Word mode exposes an explicit start button when idle.
         self._hazirim_btn = ctk.CTkButton(
             right,
-            text="▶  Hazırım — Kayda Başla",
+            text="▶  Hazırım, kayda başla",
             height=38,
             corner_radius=10,
             font=F(family=FONT_FAMILY, size=15, weight="bold"),
@@ -500,7 +500,7 @@ class LearningCoachView(ctk.CTkFrame):
             self._word_state = "idle"
             self._word_record_buffer.clear()
             self._word_classifier.reset_buffer()
-            self._hazirim_btn.configure(text="▶  Hazırım — Kayda Başla")
+            self._hazirim_btn.configure(text="▶  Hazırım, kayda başla")
             self._hazirim_btn.grid(row=2, column=0, sticky="ew", pady=(2, 4))
             self._feedback_label.configure(
                 text="Hazır olduğunuzda butona basın", text_color=ACCENT_PRIMARY
@@ -544,7 +544,7 @@ class LearningCoachView(ctk.CTkFrame):
                     self._word_record_buffer.clear()
                     self._confidence_progress.set(0)
                     self._feedback_label.configure(
-                        text="KAYIT BAŞLADI — Şimdi işareti yapın!", text_color=ACCENT_SUCCESS
+                        text="Kayıt başladı. Şimdi işareti yapın.", text_color=ACCENT_SUCCESS
                     )
                     self._hint_label.configure(text="")
                 else:
@@ -561,7 +561,7 @@ class LearningCoachView(ctk.CTkFrame):
             elif self._word_state == "recording":
                 if not hands_detected:
                     self._feedback_label.configure(
-                        text="Elinizi gösterin — kayıt devam ediyor", text_color=ACCENT_ERROR
+                        text="Elinizi gösterin, kayıt sürüyor", text_color=ACCENT_ERROR
                     )
                 elif keypoints is not None:
                     self._word_record_buffer.append(keypoints.copy())
@@ -686,7 +686,7 @@ class LearningCoachView(ctk.CTkFrame):
                 remaining = self._needed_success_frames - self._success_frames
                 self._confidence_progress.configure(progress_color=COLOR_SUCCESS)
                 self._feedback_label.configure(
-                    text=f"Harika! %{int(target_prob * 100)} — {remaining} kez daha yapın"
+                    text=f"Harika, %{int(target_prob * 100)}. {remaining} kez daha yapın."
                     if remaining > 0
                     else f"Harika! %{int(target_prob * 100)}",
                     text_color=ACCENT_SUCCESS,
@@ -711,7 +711,7 @@ class LearningCoachView(ctk.CTkFrame):
                     top3_text = " | ".join([f"{lbl} %{int(c * 100)}" for lbl, c in top3[:3]])
                 target_pct = int(target_prob * 100)
                 self._feedback_label.configure(
-                    text=f"'{predicted}' algılandı (%{int(conf * 100)}) — hedef '{self._selected_word.upper()}' %{target_pct}",
+                    text=f"'{predicted}' algılandı (%{int(conf * 100)}), hedef '{self._selected_word.upper()}' %{target_pct}",
                     text_color=ACCENT_ERROR,
                 )
                 display_hint = (
@@ -734,7 +734,7 @@ class LearningCoachView(ctk.CTkFrame):
                     )
                     hint = f"Model gördükleri: {top3_text}\n" if top3_text else ""
                     self._hint_label.configure(
-                        text=f"{hint}Hedef: '{self._selected_word.capitalize()}' — Referansa bakarak tekrarlayın."
+                        text=f"{hint}Hedef: '{self._selected_word.capitalize()}'. Referansa bakarak tekrarlayın."
                     )
                 else:
                     conf_pct = int(conf * 100)
@@ -742,7 +742,7 @@ class LearningCoachView(ctk.CTkFrame):
                     self._confidence_progress.set(min(conf, 1.0))
                     self._confidence_progress.configure(progress_color=COLOR_WARNING)
                     self._feedback_label.configure(
-                        text=f"✓ Doğru kelime! Güven %{conf_pct} — hedefe yaklaşıyorsunuz (%{needed_pct} gerekli)",
+                        text=f"✓ Doğru kelime! Güven %{conf_pct}; hedefe yaklaşıyorsunuz (%{needed_pct} gerekli)",
                         text_color=ACCENT_WARNING,
                     )
                     self._hint_label.configure(
@@ -754,12 +754,12 @@ class LearningCoachView(ctk.CTkFrame):
                     self._confidence_progress.set(0)
                     self._confidence_progress.configure(progress_color=COLOR_WARNING)
                     self._feedback_label.configure(
-                        text="Hareket algılanamadı — daha belirgin işaret yapın",
+                        text="Hareket algılanamadı. İşareti daha belirgin yapın.",
                         text_color=ACCENT_WARNING,
                     )
                     self._hint_label.configure(
                         text="Ellerinizi daha geniş ve yavaş hareket ettirin.\n"
-                        "Sabit durmayın — kelime işaretleri hareket gerektirir."
+                        "Sabit durmayın; kelime işaretleri hareket ister."
                     )
                 else:
                     self._feedback_label.configure(
@@ -780,7 +780,7 @@ class LearningCoachView(ctk.CTkFrame):
         self._confidence_progress.configure(progress_color=COLOR_PRIMARY)
         self._feedback_label.configure(text="Hazırlanın...  3", text_color=ACCENT_PRIMARY)
         self._hint_label.configure(
-            text=f"'{self._selected_word.capitalize()}' için hazırlanın — 3 saniye"
+            text=f"'{self._selected_word.capitalize()}' için hazırlanın: 3 saniye"
         )
 
     def _open_video_link(self) -> None:

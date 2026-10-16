@@ -161,7 +161,7 @@ class ASLApp(ctk.CTk):
 
         ctk.CTkLabel(
             bottom_bar,
-            text="ASL Assistant — Desktop Prototype",
+            text="ASL Assistant · Desktop Prototype",
             font=F(family=FONT_FAMILY, size=13),
             text_color=TEXT_MUTED,
         ).pack(side="left")

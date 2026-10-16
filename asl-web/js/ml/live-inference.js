@@ -4,10 +4,10 @@
 // file consumes it and drives the two model paths, which are deliberately
 // different:
 //
-//   Letter — one frame, 93 features, throttled by the render loop, smoothed
+//   Letter: one frame, 93 features, throttled by the render loop, smoothed
 //   across frames, and optionally skipped when the motion gate is enabled.
 //
-//   Word — 45 accepted frames collected into a buffer. A frame is accepted only
+//   Word: 45 accepted frames collected into a buffer. A frame is accepted only
 //   when hand, pose, and face landmarks are all present, because the feature
 //   layout has a fixed slot for each. When the buffer is full, features are
 //   rebuilt at sequence level so dominant-hand selection is made across the
@@ -263,7 +263,7 @@ async function realInference(now) {
 
   if (!_firstInferenceLogged) {
     _firstInferenceLogged = true;
-    console.log(`[INF] ilk realInference fired — mode=${state.mode}`);
+    console.log(`[INF] ilk realInference fired: mode=${state.mode}`);
   }
 
   _inferenceInFlight = true;
@@ -283,7 +283,7 @@ async function realInference(now) {
     // A coach target letter takes the same path as letter mode: the same
     // features, motion gate, smoothing and diagnostics.
     if (letterContext) {
-      const f93 = computeLetterFeatures(raw);
+      const f93 = computeLetterFeatures(raw, _videoAspect());
 
       // Publish a read-only letter snapshot for window.aslDebug.
       let motionGated = false;
@@ -379,7 +379,7 @@ async function realInference(now) {
         if (!_firstPredictionLogged) {
           _firstPredictionLogged = true;
           console.log(
-            `[INF] ilk harf tahmini — ${result.label} (%${(result.confidence * 100).toFixed(1)})`,
+            `[INF] ilk harf tahmini: ${result.label} (%${(result.confidence * 100).toFixed(1)})`,
           );
         }
         // Distinguish probability-tensor output from the label-only fallback in
@@ -408,7 +408,7 @@ async function realInference(now) {
         if (state.mode === "coach") noteCoachLetter(smoothed, now);
         updatePrediction(smoothed);
       } else {
-        console.warn("[INF] predictLetter null döndü — model yüklü mü?");
+        console.warn("[INF] predictLetter null döndü; model yüklü mü?");
       }
     } else if (state.mode === "word" || _isCoachWordTarget()) {
       if (state.wordState === "RECORDING") {
@@ -508,6 +508,18 @@ async function realInference(now) {
   } finally {
     _inferenceInFlight = false;
   }
+}
+
+/**
+ * The camera frame's width over its height, which the letter features need to
+ * see the hand undistorted; 1 until the video reports its size.
+ *
+ * @returns {number}
+ */
+function _videoAspect() {
+  const width = els.video?.videoWidth || 0;
+  const height = els.video?.videoHeight || 0;
+  return width > 0 && height > 0 ? width / height : 1;
 }
 
 /**
@@ -723,31 +735,31 @@ async function _finishWordRecordingReal() {
     const warnings = [];
     if (visibility.poseVisibleRatio < 0.5) {
       codes.push("pose");
-      warnings.push("pose visibility < 0.5 — yüz/omuzlar net görünmüyor");
+      warnings.push("pose visibility < 0.5: yüz/omuzlar net görünmüyor");
     }
     if (visibility.faceVisibleRatio < 0.5) {
       codes.push("face");
-      warnings.push("face visibility < 0.5 — yüz net görünmüyor");
+      warnings.push("face visibility < 0.5: yüz net görünmüyor");
     }
     if (visibility.handVisibleRatio < 0.7) {
       codes.push("hand");
-      warnings.push("hand visibility < 0.7 — el aralıklarla kaybolmuş");
+      warnings.push("hand visibility < 0.7: el aralıklarla kaybolmuş");
     }
     if (visibility.acceptedFrames < 30) {
       codes.push("few-frames");
       warnings.push(
-        `kabul edilen frame az (${visibility.acceptedFrames} < 30) — kayıt kalitesi düşük`,
+        `kabul edilen frame az (${visibility.acceptedFrames} < 30): kayıt kalitesi düşük`,
       );
     }
     if (recordingDurationMs > 6000) {
       codes.push("slow");
       warnings.push(
-        `kayıt süresi uzun (${(recordingDurationMs / 1000).toFixed(1)} sn) — yavaş frame doluşu`,
+        `kayıt süresi uzun (${(recordingDurationMs / 1000).toFixed(1)} sn): yavaş frame doluşu`,
       );
     }
     if (motionStats.mean < 0.001) {
       codes.push("still");
-      warnings.push("motion ortalaması çok düşük — gesture yapılmamış olabilir");
+      warnings.push("motion ortalaması çok düşük: gesture yapılmamış olabilir");
     }
 
     state.wordQualityWarnings = codes;
@@ -814,7 +826,7 @@ async function _finishWordRecordingReal() {
       ts: performance.now(),
     };
     console.log(
-      `[WORD] kayıt bitti — frame=${frameBuffer.length}/${CONFIG.WORD_FRAME_COUNT}, ` +
+      `[WORD] kayıt bitti: frame=${frameBuffer.length}/${CONFIG.WORD_FRAME_COUNT}, ` +
         `vis hand=${(visibility.handVisibleRatio * 100).toFixed(0)}% pose=${(visibility.poseVisibleRatio * 100).toFixed(0)}% face=${(visibility.faceVisibleRatio * 100).toFixed(0)}%, ` +
         `süre=${(recordingDurationMs / 1000).toFixed(1)}sn` +
         (warnings.length ? ` ⚠ ${warnings.length} uyarı` : ""),

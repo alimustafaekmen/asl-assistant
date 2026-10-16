@@ -121,7 +121,7 @@ Other screens
 - Removed unused browser state, compatibility branches and a runtime request
   for curriculum data; the Kjua QR path stays.
 
-## 0.1.0 — 2026
+## 0.1.0 (2026)
 
 ### Web application
 

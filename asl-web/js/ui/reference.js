@@ -103,7 +103,7 @@ function wordGloss(card) {
  */
 function wordCardTitle(card) {
   const gloss = wordGloss(card);
-  return gloss ? `${card.title} — ${gloss}` : card.title;
+  return gloss ? `${card.title} (${gloss})` : card.title;
 }
 
 /**

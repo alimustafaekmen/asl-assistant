@@ -106,7 +106,7 @@ warm a model once and hand every caller the same promise; a failed load is
 forgotten, so the next need retries. The callers are those first needs: the
 camera starting or the mode changing while it is on (through
 `loadModelsWithStatus()` in `core/app.js`, which reports progress), a word
-recording, the offline check, and a Model Test run. A live frame never starts a
+recording, and a Model Test run. A live frame never starts a
 load; frames are dropped until the model is ready.
 
 ## Where new code goes

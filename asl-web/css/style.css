@@ -1,5 +1,5 @@
 /* ============================================================
-   ASL Assistant — Product UI
+   ASL Assistant product UI
    Odak: Harf Çeviri + Öğrenme Koçu. Kelime Pratik destekleyici.
    Tema: Soft light + soft dark. Saf beyaz/siyah ve AI mor/neon yok.
    ============================================================ */
@@ -202,7 +202,7 @@ a { color: var(--primary); text-decoration: none; }
 .word-group.risky { border-left:4px solid var(--warning); }
 
 /* ──────────────────────────────────────────────────────────
-   Word chips — live-use guidance card
+   Word chips: the live-use guidance card
    wordDemoList / wordRiskList / wordConfusionList içindeki
    `<p>` elemanı artık chip'leri tutan flex container'a dönüşür.
    ────────────────────────────────────────────────────────── */
@@ -240,11 +240,6 @@ a { color: var(--primary); text-decoration: none; }
 .reference-thumb[data-active="true"] { background:var(--accent); border-color:var(--accent); color:var(--surface-raised); }
 .reference-thumb:hover { border-color:var(--accent); color:var(--accent); }
 .reference-thumb[data-active="true"]:hover { color:var(--surface-raised); }
-.model-card { border-left:4px solid var(--border-strong); }
-.model-facts { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px; margin:0 0 14px; }
-.model-facts div { padding:10px; border-radius:var(--radius); background:var(--surface-muted); }
-.model-facts dt { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em; font-weight:850; }
-.model-facts dd { margin:4px 0 0; color:var(--text); font-weight:700; font-size:14px; }
 
 .project-screen { background:var(--surface-raised); border:1px solid var(--border); border-radius:var(--radius-xl); padding: clamp(20px, 4vw, 44px); box-shadow:var(--shadow); }
 .project-content { max-width: 1120px; margin:0 auto; }
@@ -814,7 +809,7 @@ a { color: var(--primary); text-decoration: none; }
 
   .workspace { padding:10px; gap:14px; }
 
-  .model-facts, .metric-row { grid-template-columns:1fr; }
+  .metric-row { grid-template-columns:1fr; }
   .model-test-card .model-test-task-switch { grid-template-columns:1fr; }
   .model-test-result-main { grid-template-columns:1fr; }
   .model-test-process { grid-template-columns:1fr 1fr; }
@@ -1089,10 +1084,6 @@ details.card {
   margin-top: 12px;
 }
 
-.model-card .model-facts {
-  margin-top: 12px;
-}
-
 .project-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1290,8 +1281,7 @@ details.card {
   margin-bottom:8px;
 }
 
-.word-library-card,
-.model-card {
+.word-library-card {
   opacity:.96;
 }
 
@@ -1423,7 +1413,7 @@ details.card {
 }
 
 /* ──────────────────────────────────────────────────────────
-   Lightbox — tam ekran referans görseli
+   Lightbox: tam ekran referans görseli
    (referans kartı tıklanınca açılır)
    ────────────────────────────────────────────────────────── */
 .lightbox {

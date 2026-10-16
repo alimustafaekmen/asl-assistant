@@ -174,7 +174,7 @@ def main():
         "expected_top3": [
             {"label": idx_to_word[idx], "confidence": float(probs[idx])} for idx in top3_idx
         ],
-        "expected_logits": logits.tolist(),  # 50 eleman — numerik doğrulama için
+        "expected_logits": logits.tolist(),  # 50 eleman, numerik doğrulama için
         "temperature": T,
         "actual_frames": actual_frames,
         "seed": 42,
@@ -194,7 +194,7 @@ def main():
         print(f"Kaydedildi: {web_path}")
         print(f"  Boyut: {os.path.getsize(web_path) / 1024:.1f} KB")
     else:
-        print(f"  ⚠ {web_data_dir} bulunamadı — kaydedilemedi")
+        print(f"  ⚠ {web_data_dir} bulunamadı, kaydedilemedi")
 
     if args.write_notebooks:
         results_dir = os.path.join(PROJECT_ROOT, "notebooks", "word_50_results")
@@ -237,7 +237,7 @@ def main():
     print("─" * 60)
     print("Web tarafında doğrulama:")
     print("  1. localhost:8080 aç")
-    print("  2. 'Offline test' butonuna tıkla")
+    print("  2. Kamerasız dene ekranında Kelime modeli > Tümünü çalıştır")
     print("  3. Beklenen kelime ile ONNX sonucunu karşılaştır")
     print(f"  4. Beklenen: {expected_word} ({probs[top3_idx[0]] * 100:.1f}%)")
     print("─" * 60)

@@ -157,7 +157,7 @@ def collect_dynamic_data(
     signs = signs or ["J", "Z"]
 
     print("\n" + "=" * 60)
-    print("  📹 J/Z Veri Toplama — Rehberli Surum")
+    print("  📹 J/Z veri toplama: rehberli surum")
     print("=" * 60)
     print(f"\n  Harfler:       {signs}")
     print(f"  Kayit/harf:    {sequences_per_sign}")
@@ -261,7 +261,7 @@ def collect_dynamic_data(
             else:
                 cv2.putText(
                     frame,
-                    "El: BULUNAMADI — Elinizi gosterin!",
+                    "El bulunamadi. Elinizi gosterin.",
                     (15, 60),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.6,
@@ -423,7 +423,7 @@ def collect_dynamic_data(
                 else:
                     # Reject low-visibility recordings without incrementing count.
                     total_rejected += 1
-                    last_quality_msg = f"REDDEDILDI — el {detection_ratio:.0%} algilandi (min {MIN_HAND_DETECTION_RATIO:.0%}). Tekrar deneyin!"
+                    last_quality_msg = f"Reddedildi: el {detection_ratio:.0%} algilandi (min {MIN_HAND_DETECTION_RATIO:.0%}). Tekrar deneyin!"
                     print(
                         f"    ✗ Reddedildi (el algilama: {detection_ratio:.0%} < {MIN_HAND_DETECTION_RATIO:.0%})"
                     )
@@ -724,7 +724,7 @@ def train_jz_model(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="J/Z Dinamik Harf — Veri Toplama + LSTM Eğitimi",
+        description="J/Z dinamik harf: veri toplama ve LSTM eğitimi",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(

@@ -236,7 +236,7 @@ def build_report(
     lines.append("Temel paketler (validation/test icin gerekli):")
     lines.extend(_package_line(check) for check in basic)
     lines.append("")
-    lines.append("Proje paketleri (editable install — make setup ile gelir):")
+    lines.append("Proje paketleri (editable install; make setup kurar):")
     for check in project:
         line = _package_line(check)
         lines.append(f"{line} -> make setup gerekli" if check.status == "missing" else line)

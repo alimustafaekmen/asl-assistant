@@ -717,7 +717,7 @@ def check_word_smoke_inference(session, in_names, out_names, web_data_dir: Path)
 
     if predicted == expected and conf_diff < 1e-3:
         _ok(
-            f"offline test: {predicted} @ {probs[top1]:.4f} (Δconf={conf_diff:.2e}) — ground truth {expected}"
+            f"offline test: {predicted} @ {probs[top1]:.4f} (Δconf={conf_diff:.2e}), ground truth {expected}"
         )
         return True
     _fail(

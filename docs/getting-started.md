@@ -34,12 +34,12 @@ Three things to know:
   MediaPipe (code and landmark models) come from public CDNs. The models in
   `asl-web/models/` are fetched only when something needs them.
 
-To check the runtime without a camera, open the **Model kartı** panel on the
-word or coach screen and press **Offline test**. The bundled word fixture
-should come out as `give` with a confidence of about `0.0760`. That confirms
-that the word model, labels, temperature, mask and browser inference path
-agree. It is a regression check, not an accuracy measurement. The **Kamerasız
-dene** screen (`#test`) runs larger fixture sets the same way.
+To check the runtime without a camera, open **Kamerasız dene** (`#test`),
+choose **Kelime modeli** and press **Tümünü çalıştır**. The bundled word
+fixture should come out as `give` with a confidence of about `0.0760`. That
+confirms that the word model, labels, temperature, mask and browser inference
+path agree. It is a regression check, not an accuracy measurement, and the
+screen marks it so. The letter model runs its 24 fixtures the same way.
 
 ## Set up Python and Node
 
@@ -257,8 +257,8 @@ it only selects the publish directory for Git-linked or CLI deploys.
 ### Models do not load
 
 No model is requested when the page opens, so the Network panel shows none
-until something needs one: starting the camera, a word recording, **Offline
-test**, or a Model Test run. Letter mode loads the letter model, word mode the
+until something needs one: starting the camera, a word recording, or a Model
+Test run. Letter mode loads the letter model, word mode the
 word model, and the Learning Coach the letter model, adding the word model
 only when it is switched to words.
 

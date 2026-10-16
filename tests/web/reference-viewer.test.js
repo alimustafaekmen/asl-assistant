@@ -45,7 +45,7 @@ test("opening the viewer asks for a modal dialog and focuses Kapat", async () =>
 
   assert.deepEqual(calls(app), ["showModal", "focus:lightboxClose"]);
   assert.equal(title(app), "water");
-  assert.equal(app.evaluate('document.getElementById("lightboxCardImage").src'), "./assets/signs/word-50-5.png");
+  assert.equal(app.evaluate('document.getElementById("lightboxCardImage").src'), "./assets/signs/word-50-5.webp");
 });
 
 test("closing returns focus to the button that opened the viewer, not to the image", async () => {
@@ -89,7 +89,7 @@ test("the whole page of a card shows the page that holds it, and the card comes 
   app.get("openReferenceViewer")({ kind: "card", label: "water", opener: null });
 
   click(app, "lightboxMode");
-  assert.equal(app.evaluate('document.getElementById("lightboxImage").src'), "./assets/signs/word-50-5.png");
+  assert.equal(app.evaluate('document.getElementById("lightboxImage").src'), "./assets/signs/word-50-5.webp");
   assert.equal(app.evaluate('document.getElementById("lightboxCard").hidden'), true);
   assert.equal(title(app), "Kelime sayfası 5 / 5");
   assert.equal(app.evaluate('document.getElementById("lightboxMode").textContent'), "Yalnızca kart");
@@ -107,7 +107,7 @@ test("page view steps through the five pages and wraps", async () => {
 
   click(app, "lightboxNext");
   assert.equal(title(app), "Kelime sayfası 1 / 5");
-  assert.equal(app.evaluate('document.getElementById("lightboxImage").src'), "./assets/signs/word-50-1.png");
+  assert.equal(app.evaluate('document.getElementById("lightboxImage").src'), "./assets/signs/word-50-1.webp");
 });
 
 test("zoom moves in steps from fit to 200 % and stops at both ends", async () => {

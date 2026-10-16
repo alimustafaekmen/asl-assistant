@@ -3,8 +3,8 @@
 // QR deep links and the browser back button both go through modeFromHash, so
 // unknown input must resolve to the letter workspace instead of a blank screen.
 
-const test = require("node:test");
-const assert = require("node:assert/strict");
+import test from "node:test";
+import assert from "node:assert/strict";
 
 let modeFromHash;
 test.before(async () => {

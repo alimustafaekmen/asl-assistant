@@ -25,7 +25,6 @@ const readJson = (path) => JSON.parse(readFileSync(join(WEB_DIR, path), "utf8"))
 const LETTER_LABELS = Object.entries(readJson("data/letter_labels.json"))
   .sort(([, a], [, b]) => a - b)
   .map(([letter]) => letter);
-const WORD_INDEX = readJson("data/word_labels.json");
 
 /**
  * The ORT sessions as the browser build would hand them out. They are
@@ -206,51 +205,4 @@ test("a model that cannot load is reported as an error, never as a match", async
   assert.equal(text(app, "modelTestMatchBadge"), "Hata");
   assert.equal(match(app), "no");
   assert.equal(text(app, "modelTestResultNote"), "Harf modeli yüklenemedi");
-});
-
-// ---------------------------------------------------------------------------
-// The offline check: the word model against the fixed smoke fixture.
-// ---------------------------------------------------------------------------
-
-const SMOKE = readJson("data/test_sample.json");
-const message = (app) => app.evaluate("els.confidenceMessage.textContent");
-const level = (app) => app.evaluate("els.confidenceMessage.dataset.level");
-
-async function runOfflineCheck(app) {
-  app.evaluate('document.getElementById("offlineTest")').dispatchEvent({ type: "click" });
-  await flush(30);
-}
-
-test("the offline check reports a match when the model gives the expected word", async () => {
-  const app = await bootedApp();
-  modelAnswers(app, WORD_INDEX[SMOKE.expected_word]);
-
-  await runOfflineCheck(app);
-
-  assert.equal(text(app, "offlineTest"), "✓ Eşleşiyor");
-  assert.equal(level(app), "good");
-  assert.match(message(app), new RegExp(`^Beklenen: ${SMOKE.expected_word} · ONNX: ${SMOKE.expected_word} `));
-});
-
-test("the offline check reports a mismatch when the model gives another word", async () => {
-  const app = await bootedApp();
-  const other = Object.keys(WORD_INDEX).find((word) => word !== SMOKE.expected_word);
-  modelAnswers(app, WORD_INDEX[other]);
-
-  await runOfflineCheck(app);
-
-  assert.equal(text(app, "offlineTest"), "✗ Eşleşmiyor");
-  assert.equal(level(app), "low");
-  assert.match(message(app), new RegExp(`^Beklenen: ${SMOKE.expected_word} · ONNX: ${other} `));
-});
-
-test("the offline check says so when the model cannot load", async () => {
-  const app = await bootedApp();
-  app.evaluate("__ort.fail = true");
-
-  await runOfflineCheck(app);
-
-  assert.equal(text(app, "offlineTest"), "Offline test");
-  assert.equal(level(app), "low");
-  assert.match(message(app), /^Test hatası: /);
 });

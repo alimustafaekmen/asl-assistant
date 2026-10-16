@@ -3,8 +3,8 @@
 // The registry is resolved once, at load, and the rest of the app dereferences
 // it freely. These tests cover what that guarantee rests on.
 
-const test = require("node:test");
-const assert = require("node:assert/strict");
+import test from "node:test";
+import assert from "node:assert/strict";
 
 let app;
 test.beforeEach(async () => {

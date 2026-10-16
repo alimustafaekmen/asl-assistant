@@ -198,7 +198,7 @@ class TranslationView(ctk.CTkFrame):
         right.grid(row=0, column=1, sticky="nsew")
         right.columnconfigure(0, weight=1)
         right.rowconfigure(0, weight=0)  # tahmin (kompakt)
-        right.rowconfigure(1, weight=1)  # rehber gorseli (BUYUK — tum alan)
+        right.rowconfigure(1, weight=1)  # rehber gorseli: buyuk, tum alan
         right.rowconfigure(2, weight=0)  # feedback
         right.rowconfigure(3, weight=0)  # metin + butonlar
         right.rowconfigure(4, weight=0)  # status
@@ -226,7 +226,7 @@ class TranslationView(ctk.CTkFrame):
 
         self._confidence_label = ctk.CTkLabel(
             info_frame,
-            text="Güven: —",
+            text="Güven: --",
             font=F(family=FONT_FAMILY, size=15, weight="bold"),
             text_color=TEXT_TERTIARY,
             anchor="w",
@@ -298,7 +298,7 @@ class TranslationView(ctk.CTkFrame):
         )
         ctk.CTkLabel(
             self._word_ref_frame,
-            text="25 ASL kelimesi — işaret yapın, model tanısın",
+            text="25 ASL kelimesi: işareti yapın, model tanısın",
             font=F(family=FONT_FAMILY, size=11),
             text_color=TEXT_TERTIARY,
             wraplength=460,
@@ -504,7 +504,7 @@ class TranslationView(ctk.CTkFrame):
             text_color=COLOR_TEXT_PRIMARY,
             font=ctk.CTkFont(family=FONT_FAMILY, size=pred_size, weight="bold"),
         )
-        self._confidence_label.configure(text="Güven: —")
+        self._confidence_label.configure(text="Güven: --")
         self._top3_label.configure(text="")
         self._buffer_progress_label.configure(text="")
 
@@ -542,8 +542,8 @@ class TranslationView(ctk.CTkFrame):
             # Clear temporal state as soon as the hand leaves the frame.
             self._dwell_counter = 0
             self._dwell_progress.set(0)
-            self._prediction_label.configure(text="—", text_color=COLOR_PRIMARY)
-            self._confidence_label.configure(text="Güven: —")
+            self._prediction_label.configure(text="--", text_color=COLOR_PRIMARY)
+            self._confidence_label.configure(text="Güven: --")
             self._top3_label.configure(text="")
             self._current_prediction = ""
             self._current_confidence = 0.0

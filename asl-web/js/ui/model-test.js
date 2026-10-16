@@ -9,9 +9,6 @@
 // so the shapes it enforces are the published model contract: 93 features for a
 // letter, 45 x 168 features plus a 45-entry mask for a word, where a true mask
 // entry marks a real frame and false marks padding.
-//
-// runOfflineCheck() is the narrower sibling: a fixed smoke fixture used to
-// compare browser output against the Python pipeline.
 
 /**
  * One entry of the bundled fixture manifest. These fields come straight from
@@ -1368,77 +1365,4 @@ function loadProjectModelCard() {
     });
   _modelCardLoad = load;
   return load;
-}
-
-/**
- * Run the fixed smoke fixture and report browser output against the expected
- * values.
- *
- * This is the narrow sibling of the fixture panel: one deterministic sample
- * used to compare the browser against the Python pipeline. Detailed values go
- * to the console for that comparison.
- *
- * @returns {Promise<void>} Resolves after reporting a failure to the user.
- */
-async function runOfflineCheck() {
-  els.offlineTest.textContent = "Test ediliyor...";
-  try {
-    if (typeof loadWordModel !== "function" || typeof predictWord !== "function") {
-      throw new Error("word-model.js yüklenmemiş");
-    }
-
-    // The check is a first need for the word model.
-    if (!(await loadModelsWithStatus({ word: true }))) throw new Error("Model yüklenemedi");
-
-    // Load the deterministic runtime smoke fixture.
-    const sampleRes = await fetch("./data/test_sample.json", { cache: "no-store" });
-    if (!sampleRes.ok) throw new Error(`test_sample.json alınamadı (HTTP ${sampleRes.status})`);
-    const sample = await sampleRes.json();
-
-    if (!Array.isArray(sample.features) || sample.features.length !== 45 * 168) {
-      throw new Error(`features uzunluğu 7560 olmalı, ${sample.features?.length} alındı`);
-    }
-    if (!Array.isArray(sample.mask) || sample.mask.length !== 45) {
-      throw new Error(`mask uzunluğu 45 olmalı, ${sample.mask?.length} alındı`);
-    }
-
-    const features = Float32Array.from(sample.features);
-    const mask = sample.mask;
-
-    const t0 = performance.now();
-    const result = await predictWord(features, mask);
-    const elapsed = performance.now() - t0;
-    if (!result) throw new Error("Inference döndürmedi");
-
-    const expected = sample.expected_word;
-    const match = result.label === expected;
-    const confDelta = Math.abs(result.confidence - (sample.expected_confidence ?? 0));
-
-    // Format the top-three predictions for the status message.
-    const top3Str = result.alternatives
-      .map((a, i) => `${i + 1}. ${a.label} %${(a.confidence * 100).toFixed(1)}`)
-      .join(" · ");
-
-    const sign = match ? "✓" : "✗";
-    els.offlineTest.textContent = `${sign} ${match ? "Eşleşiyor" : "Eşleşmiyor"}`;
-    setMessage(
-      `Beklenen: ${expected} · ONNX: ${result.label} (%${(result.confidence * 100).toFixed(1)}) ` +
-        `· Δconf=${confDelta.toExponential(2)} · ${elapsed.toFixed(0)}ms · ${top3Str}`,
-      match ? "good" : "low",
-    );
-
-    // Keep detailed values in the console for Python/browser parity checks.
-    console.log("=== Offline test ===");
-    console.log(`expected_word: ${expected} (conf ${sample.expected_confidence?.toFixed(4)})`);
-    console.log(`web onnx     : ${result.label} (conf ${result.confidence.toFixed(4)})`);
-    console.log("expected top-3:", sample.expected_top3);
-    console.log("web top-3:", result.alternatives);
-    if (sample.expected_logits && Array.isArray(sample.expected_logits)) {
-      console.log(`temperature kullanılan: ${typeof temperature !== "undefined" ? temperature : "?"}`);
-    }
-  } catch (err) {
-    els.offlineTest.textContent = "Offline test";
-    setMessage("Test hatası: " + err.message, "low");
-    console.error(err);
-  }
 }

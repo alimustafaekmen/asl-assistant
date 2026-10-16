@@ -10,13 +10,13 @@ executed under Node).
 
 Output: CSV-like rows with one of three statuses:
 
-    PASS       max_abs_diff < 1e-4 — Python and JS produce equivalent
+    PASS       max_abs_diff < 1e-4: Python and JS produce equivalent
                168D features for this fixture. Used as the parity bar.
     KNOWN_GAP  fixture is expected to expose a documented divergence
                (see `docs/models-and-data.md`). Reported so we can quantify the
                gap; not a CI failure.
     FAIL       fixture was expected to PASS but did not. Returns
-               exit code 1 — investigate before any runtime change.
+               exit code 1; investigate before any runtime change.
 
 This script intentionally:
   - does NOT touch `notebooks/word_50_training.ipynb`
@@ -44,12 +44,12 @@ from pathlib import Path
 import numpy as np
 
 # ----------------------------------------------------------------------------
-# 1. Notebook contract port — pure Python, copied from
+# 1. Notebook contract port: pure Python, copied from
 #    notebooks/word_50_training.ipynb cells 1 (constants), 6
 #    (normalize_shoulders), and 10 (per-frame shape, dominant hand,
 #    hand-body, build_compact_features).
 #
-#    DO NOT edit these to chase a parity diff — they are the trained
+#    DO NOT edit these to chase a parity diff; they are the trained
 #    contract. If the notebook contract truly changes, the artifact
 #    chain in models/word/web-50/ must change first and these constants
 #    must be re-synced.
@@ -152,7 +152,7 @@ def angle_between_vectors(a, b):
 
 
 def normalize_shoulders(frame_data: np.ndarray) -> np.ndarray:
-    """Notebook cell 6 `normalize_shoulders` — verbatim semantics."""
+    """Notebook cell 6 `normalize_shoulders`, verbatim semantics."""
     normalized_frame = frame_data.copy()
     pose_start_index = (NUM_RIGHT + NUM_LEFT + NUM_FACE) * 3
     if 11 in POSE_INDICES and 12 in POSE_INDICES:
@@ -187,7 +187,7 @@ def normalize_shoulders(frame_data: np.ndarray) -> np.ndarray:
 
 
 def compute_per_frame_shape_features(hand_21x3: np.ndarray) -> np.ndarray:
-    """Notebook cell 10 `compute_per_frame_shape_features` — verbatim."""
+    """Notebook cell 10 `compute_per_frame_shape_features`, verbatim."""
     feats = []
     wrist = hand_21x3[WRIST]
     palm_size = safe_norm(hand_21x3[9] - wrist)
@@ -225,11 +225,11 @@ def compute_per_frame_shape_features(hand_21x3: np.ndarray) -> np.ndarray:
 
 
 def compute_dominant_hand_features(seq_321d: np.ndarray) -> np.ndarray:
-    """Notebook cell 10 `compute_dominant_hand_features` — SEQUENCE-LEVEL.
+    """Notebook cell 10 `compute_dominant_hand_features`, sequence level.
 
     The notebook decides which hand is dominant over the entire sequence
     by averaging zero-fraction across all T frames. The web runtime makes
-    this decision per frame — that asymmetry is the focus of fixture
+    this decision per frame. That asymmetry is the focus of fixture
     `dominant_switch_sequence` below.
     """
     right_hand = seq_321d[:, :63]
@@ -244,7 +244,7 @@ def compute_dominant_hand_features(seq_321d: np.ndarray) -> np.ndarray:
 
 
 def compute_hand_body_relations(seq_321d: np.ndarray) -> np.ndarray:
-    """Notebook cell 10 `compute_hand_body_relations` — verbatim.
+    """Notebook cell 10 `compute_hand_body_relations`, verbatim.
 
     Per frame: for each hand (right, left) compute 6 distances/relations
     to face anchors (nose=FACE 1, mouth=FACE 13, forehead=FACE 168).
@@ -276,7 +276,7 @@ def compute_hand_body_relations(seq_321d: np.ndarray) -> np.ndarray:
 
 
 def build_compact_features(seq_321d: np.ndarray) -> np.ndarray:
-    """Notebook cell 10 `build_compact_features` — verbatim.
+    """Notebook cell 10 `build_compact_features`, verbatim.
 
     Output (T, 168):
       [0..62]    dominant hand 63D (sequence-level mirror if needed)
@@ -297,7 +297,7 @@ def build_compact_features(seq_321d: np.ndarray) -> np.ndarray:
 
 
 # ----------------------------------------------------------------------------
-# 2. JS runner — concatenates the web JS files plus a small driver into a
+# 2. JS runner: concatenates the web JS files plus a small driver into a
 #    temp .js, runs it with `node`, captures (T, 168) result via stdout.
 # ----------------------------------------------------------------------------
 
@@ -321,7 +321,7 @@ def run_js_compact(seq_321d: np.ndarray, features_js: Path = WEB_FEATURES) -> np
     The JS files declare classic global functions so we concatenate them
     into one temp script and let Node load them as top-level declarations.
     `CONFIG` and `recordBenchmark` are stubbed because the word feature
-    path doesn't actually depend on them — only the letter feature path
+    path doesn't actually depend on them; only the letter feature path
     does (and that path is not exercised here).
     """
     if not WEB_LANDMARKS.exists() or not features_js.exists():
@@ -339,7 +339,7 @@ def run_js_compact(seq_321d: np.ndarray, features_js: Path = WEB_FEATURES) -> np
         # Use placeholder substitution (not f-string) because the JS source
         # contains backticks and `${...}` template literals.
         template = (
-            "// Auto-generated harness — DO NOT EDIT.\n"
+            "// Auto-generated harness. DO NOT EDIT.\n"
             "global.CONFIG = global.CONFIG || {};\n"
             "global.recordBenchmark = function () {};\n"
             "const fs = require('fs');\n"
@@ -540,7 +540,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     print("=" * 78)
-    print("WORD 168D FEATURE PARITY — diagnostic (PASS / KNOWN_GAP / FAIL)")
+    print("WORD 168D FEATURE PARITY: diagnostic (PASS / KNOWN_GAP / FAIL)")
     print("=" * 78)
     print(f"Project root:    {PROJECT_ROOT}")
     print("Python contract: notebooks/word_50_training.ipynb cells 1, 6, 10")

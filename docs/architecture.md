@@ -191,8 +191,7 @@ the coach options, binds events, applies the URL hash, starts the render loop,
 and then fetches a few small JSON files (reference video links, the Model Test
 manifest, word guidance data). It loads no model. Each ONNX session and its
 labels load the first time something needs them: the camera starting in a mode
-that runs the model, a word recording, the **Offline test** button, or a Model
-Test run. A model that fails to load is forgotten, so the next need retries.
+that runs the model, a word recording, or a Model Test run. A model that fails to load is forgotten, so the next need retries.
 
 Starting the camera:
 

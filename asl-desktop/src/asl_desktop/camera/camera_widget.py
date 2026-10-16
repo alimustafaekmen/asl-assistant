@@ -72,7 +72,7 @@ class CameraWidget(ctk.CTkFrame):
                 self._cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_ANY)
 
         if not self._cap.isOpened():
-            _logger.error("Kamera acilamadi — izin kontrol edilmeli")
+            _logger.error("Kamera acilamadi; izni kontrol edin")
             self.image_label.configure(
                 text="❌ Kamera açılamadı!\n\nmacOS Sistem Ayarları → Gizlilik ve Güvenlik → Kamera\nTerminal / IDE izni verin."
             )

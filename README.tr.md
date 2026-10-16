@@ -179,7 +179,10 @@ geçmişine kadar hangi sorunun hangi belgede yanıtlandığını gösterir.
 - Kelime modeli deneyseldir. İzole işaretleri tanır, sürekli işaretleşmeyi
   değil; güven eşiğinin altındaki bir sonuç onaylanamaz.
 - Harf modelinde 24 statik harf vardır; J, Z ve "işaret yok" sınıfı yoktur.
-- Uygulamadaki işaret referans görselleri yeniden çiziliyor; o zamana kadar
+  %99,35'lik sonuç, eğitimle aynı kişileri paylaşan bir ayırmadan gelir;
+  modelin hiç görmediği ellerde %69 ölçüldü, en zayıfı yumruk harfleri (M, N,
+  T, S, E, A). Ayrıntı: [Modeller ve veri](docs/models-and-data.md).
+- Uygulamadaki kelime referans görselleri yeniden çiziliyor; o zamana kadar
   bir el şeklini standart bir ASL sözlüğüyle karşılaştırın.
 - İçerik Güvenliği Politikası (CSP) yalnızca raporlama modunda. Yayındaki
   sitede gerçek bir tarayıcıda okunduktan sonra zorunlu hâle getirilecek.
@@ -254,7 +257,8 @@ sentetiktir.
 | [MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe) ve Google'ın el, gövde ve yüz landmark modelleri | 0.10.18 | Apache-2.0 | Kod jsDelivr'dan, modeller Google Cloud Storage'dan yüklenir; depoda dağıtılmaz |
 | [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) | 1.22.0 | MIT | jsDelivr'dan yüklenir; depoda dağıtılmaz |
 | [kjua](https://github.com/lrsjng/kjua) | 0.9.0 | MIT | QR ekranı için jsDelivr'dan yüklenir; depoda dağıtılmaz |
-| [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next) ve [Atkinson Hyperlegible Mono](https://github.com/googlefonts/atkinson-hyperlegible-next-mono) | — | SIL Open Font License 1.1 | Latin ve Türkçe karakterlere indirgenmiş hâlleri lisanslarıyla birlikte `asl-web/assets/fonts/` içinde dağıtılır |
+| [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next) ve [Atkinson Hyperlegible Mono](https://github.com/googlefonts/atkinson-hyperlegible-next-mono) | Sabitlenmedi | SIL Open Font License 1.1 | Latin ve Türkçe karakterlere indirgenmiş hâlleri lisanslarıyla birlikte `asl-web/assets/fonts/` içinde dağıtılır |
+| [ASL harf kartı](https://commons.wikimedia.org/wiki/File:Asl_alphabet_gallaudet.svg); Ds13, Gallaudet yazı tipinden; Marnanel vektörleştirdi | 2004 SVG, Commons'ta güncellendi | Yazarı tarafından kamu malına bırakıldı (yazı tipinin kendisi © 1991 David Rakowski) | 26 harfe kırpılarak `asl-web/assets/signs/letters.png` olarak çizildi; harf ekranının referansı |
 
 `asl-web/data/asl_video_links.json` içindeki işaret videosu bağlantıları
 üçüncü taraf YouTube videolarına gider; videolar sahiplerine aittir.

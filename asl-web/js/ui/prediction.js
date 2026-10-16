@@ -295,7 +295,7 @@ function renderPlateNear() {
   const others = state.top3.slice(1, 3).map((item) => {
     const card = wordCard(item.label);
     const gloss = card ? wordGloss(card) : "";
-    return `${item.label}${gloss ? ` — ${gloss}` : ""} %${Math.round((item.confidence || 0) * 100)}`;
+    return `${item.label}${gloss ? ` (${gloss})` : ""} %${Math.round((item.confidence || 0) * 100)}`;
   });
   near.textContent = `Yakın: ${others.join(" · ")}`;
 }

@@ -63,12 +63,12 @@ def check_provenance_hash_chain(root: Path) -> bool:
             print(f"     ✓ {label:24} {check.deploy_hash[:12]}... (web == kaynak)")
             continue
         else:
-            print(f"     ✗ {label:24} DRIFT — yeniden export gerekiyor!")
+            print(f"     ✗ {label:24} DRIFT: yeniden export gerekiyor")
             print(f"         web:    {check.deploy_hash}")
             print(f"         kaynak: {check.source_hash}")
         ok = False
 
-    print(f"\n  Hash chain durumu: {'TUM ESLESIYOR' if ok else 'DRIFT — duzeltme gerekli'}")
+    print(f"\n  Hash chain durumu: {'TUM ESLESIYOR' if ok else 'DRIFT: duzeltme gerekli'}")
     return ok
 
 
@@ -128,11 +128,11 @@ def check_web_runtime(root: Path) -> bool:
         ("word_model.onnx", os.path.join(web_models_dir, "word_model.onnx")),
         ("letters.png", os.path.join(web_dir, "assets", "signs", "letters.png")),
         ("word-25.png", os.path.join(web_dir, "assets", "signs", "word-25.png")),
-        ("word-50-1.png", os.path.join(web_dir, "assets", "signs", "word-50-1.png")),
-        ("word-50-2.png", os.path.join(web_dir, "assets", "signs", "word-50-2.png")),
-        ("word-50-3.png", os.path.join(web_dir, "assets", "signs", "word-50-3.png")),
-        ("word-50-4.png", os.path.join(web_dir, "assets", "signs", "word-50-4.png")),
-        ("word-50-5.png", os.path.join(web_dir, "assets", "signs", "word-50-5.png")),
+        ("word-50-1.webp", os.path.join(web_dir, "assets", "signs", "word-50-1.webp")),
+        ("word-50-2.webp", os.path.join(web_dir, "assets", "signs", "word-50-2.webp")),
+        ("word-50-3.webp", os.path.join(web_dir, "assets", "signs", "word-50-3.webp")),
+        ("word-50-4.webp", os.path.join(web_dir, "assets", "signs", "word-50-4.webp")),
+        ("word-50-5.webp", os.path.join(web_dir, "assets", "signs", "word-50-5.webp")),
     ]
 
     ok = True
@@ -284,7 +284,7 @@ def check_dynamic_data(raw_dir: str):
     print("\n  📂 Dinamik Veriler (J/Z, opsiyonel legacy)")
 
     if not os.path.isdir(dynamic_dir):
-        print("     ○ Henüz veri toplanmadı — aktif web runtime için zorunlu değil")
+        print("     ○ Henüz veri toplanmadı; aktif web runtime için zorunlu değil")
         print("     → python scripts/model_training/train_dynamic_jz_model.py collect")
         return False
 
@@ -321,7 +321,7 @@ def check_models(root: str):
             size_kb = os.path.getsize(path) / 1024
             print(f"     ✓ {name:20} ({size_kb:.0f} KB)")
         else:
-            print(f"     ○ {name:20} — aktif web runtime için zorunlu değil")
+            print(f"     ○ {name:20} aktif web runtime için zorunlu değil")
 
 
 def report_local_data(raw_dir: str) -> None:
@@ -399,7 +399,7 @@ def main(argv: list[str] | None = None) -> int:
     raw_dir = str(rebased(RAW_DIR, root_path))
 
     print("=" * 60)
-    print("  📊 ASL Assistant — Dataset Kontrol Raporu")
+    print("  📊 ASL Assistant dataset kontrol raporu")
     print("=" * 60)
 
     web_ok = check_web_runtime(root_path)

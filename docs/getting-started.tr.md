@@ -35,13 +35,13 @@ Bilmeniz gereken üç şey:
   (kod ve el/poz/yüz modelleri) herkese açık CDN'lerden gelir.
   `asl-web/models/` içindeki modeller yalnızca bir şeye gerektiğinde indirilir.
 
-Çalışma ortamını kamerasız denetlemek için kelime veya koç ekranındaki **Model
-kartı** panelini açıp **Offline test** düğmesine basın. Hazır kelime örneği
-yaklaşık `0.0760` güvenle `give` sonucunu vermelidir. Bu, kelime modelinin,
-etiketlerin, sıcaklık değerinin, maskenin ve tarayıcıdaki çıkarım yolunun
-birbiriyle uyumlu olduğunu gösterir. Bir regresyon kontrolüdür; doğruluk
-ölçümü değildir. **Kamerasız dene** ekranı (`#test`) daha büyük örnek
-kümelerini aynı şekilde çalıştırır.
+Çalışma ortamını kamerasız denetlemek için **Kamerasız dene** ekranını
+(`#test`) açın, **Kelime modeli**ni seçip **Tümünü çalıştır** düğmesine basın.
+Hazır kelime örneği yaklaşık `0.0760` güvenle `give` sonucunu vermelidir. Bu,
+kelime modelinin, etiketlerin, sıcaklık değerinin, maskenin ve tarayıcıdaki
+çıkarım yolunun birbiriyle uyumlu olduğunu gösterir. Bir regresyon
+kontrolüdür, doğruluk ölçümü değildir; ekran da bunu belirtir. Harf modeli 24
+örneğini aynı şekilde çalıştırır.
 
 ## Python ve Node kurulumu
 
@@ -265,7 +265,7 @@ klasörünü seçer.
 
 Sayfa açıldığında hiçbir model istenmez; Network panelinde model isteği ancak
 bir modele ihtiyaç duyulduğunda görünür: kamera başlatıldığında, kelime
-kaydında, **Offline test** ile veya bir Model Test çalıştırmasında. Harf modu
+kaydında veya bir Model Test çalıştırmasında. Harf modu
 harf modelini, kelime modu kelime modelini, Öğrenme Koçu harf modelini yükler;
 kelime modelini yalnızca kelimelere geçildiğinde ekler.
 

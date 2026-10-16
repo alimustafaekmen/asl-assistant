@@ -1218,64 +1218,146 @@ function updateCoachFromPrediction() {
   updateCoachPanel();
 }
 
+// ── The word screen's side cards ─────────────────────────────────────────
+// "Önce bunları deneyin" lists the words the published evaluation found
+// easiest and the pairs it confused most; "50 kelime" lists every word by
+// group with how well it was recognised. Both are built from
+// per_word_stats.json and confusion_pairs.json, never typed into the markup,
+// so they cannot disagree with the report. Every word is a button that opens
+// its card in the reference viewer.
+
+/** How many easy words the first card offers, and how many confused pairs. */
+const WORD_GUIDE_EASY_COUNT = 10;
+const WORD_GUIDE_PAIR_COUNT = 5;
+
+/** The words a difficulty is shown with. @type {Record<string, string>} */
+const WORD_DIFFICULTY_LABELS = { easy: "kolay", medium: "orta", hard: "zor" };
+
 /**
- * Render one evaluated word as a performance chip.
+ * @param {unknown} value
+ * @returns {number} The value when it is a finite number, otherwise NaN.
+ */
+function _statNumber(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : NaN;
+}
+
+/**
+ * The easiest words by the published evaluation: those it marked easy, best
+ * recognised first. Without difficulty labels every word is a candidate.
  *
- * The text is sanitized even though the values currently come from bundled
- * evaluation data, because this output goes to innerHTML.
+ * @param {Record<string, PerWordStat>} stats
+ * @param {number} limit
+ * @returns {string[]}
+ */
+function easiestWords(stats, limit) {
+  const entries = Object.entries(stats).filter(([word, stat]) => word && stat && typeof stat === "object");
+  const easy = entries.filter(([, stat]) => stat.difficulty === "easy");
+  const pool = easy.length ? easy : entries;
+  /** @param {PerWordStat} stat */
+  const score = (stat) => {
+    const accuracy = _statNumber(stat.accuracy);
+    return Number.isNaN(accuracy) ? _statNumber(stat.f1) : accuracy;
+  };
+  return pool
+    .map(([word, stat]) => ({ word, score: score(stat) }))
+    .filter((item) => !Number.isNaN(item.score))
+    .sort((a, b) => b.score - a.score || a.word.localeCompare(b.word))
+    .slice(0, limit)
+    .map((item) => item.word);
+}
+
+/**
+ * The most confused pairs, each named once whichever way it was confused:
+ * "can" read as "yes" and "yes" read as "can" are one pair, and their counts
+ * add up.
+ *
+ * @param {ConfusionPairRaw[]} pairs
+ * @param {number} limit
+ * @returns {ConfusionPair[]}
+ */
+function confusedPairsOnce(pairs, limit) {
+  /** @type {Map<string, ConfusionPair>} */
+  const merged = new Map();
+  pairs.forEach((raw) => {
+    const { a, b, count } = readConfusionPair(raw);
+    if (!a || !b || a === b) return;
+    const key = [a, b].sort().join("\u0000");
+    const known = merged.get(key);
+    if (known) known.count += count;
+    else merged.set(key, { a, b, count });
+  });
+  return [...merged.values()].sort((x, y) => y.count - x.count).slice(0, limit);
+}
+
+/**
+ * A button that opens one word's card in the viewer; focus comes back to it
+ * when the viewer closes.
  *
  * @param {string} word
- * @param {number} f1 Published F1 in [0, 1].
- * @param {"good" | "risky"} severity Chip style.
- * @returns {string} HTML fragment.
+ * @param {string} className
+ * @returns {HTMLButtonElement}
  */
-function _wordChipHtml(word, f1, severity) {
-  const safeWord = String(word).replace(/[<>&]/g, "");
-  const f1Pct = Math.round(Math.max(0, Math.min(1, f1)) * 100);
-  return (
-    `<span class="word-chip word-chip--${severity}">` +
-      `<span class="word-chip__name">${safeWord}</span>` +
-      `<span class="word-chip__f1">F1 ${f1Pct}</span>` +
-    `</span>`
-  );
+function wordCardButton(word, className) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = className;
+  button.dataset.word = word;
+  button.setAttribute("aria-haspopup", "dialog");
+  button.addEventListener("click", () => {
+    openReferenceViewer({ kind: "card", label: word, opener: button });
+  });
+  return button;
 }
 
 /**
- * Render a known confusion pair, with its occurrence count when published.
+ * What a word is called on screen: its card's title ("thank you"), or the
+ * model's label when the cards have not loaded.
  *
- * @param {string} a
- * @param {string} b
- * @param {number} count Omitted from the chip when not a positive number.
- * @returns {string} HTML fragment.
+ * @param {string} word The model's label.
+ * @returns {string}
  */
-function _confusionChipHtml(a, b, count) {
-  const safeA = String(a).replace(/[<>&]/g, "");
-  const safeB = String(b).replace(/[<>&]/g, "");
-  const countBadge = Number.isFinite(count) && count > 0
-    ? `<span class="word-chip__count">${count}×</span>`
-    : "";
-  return (
-    `<span class="word-chip word-chip--confusion">` +
-      `<span class="word-chip__name">${safeA}</span>` +
-      `<span class="word-chip__sep" aria-hidden="true">↔</span>` +
-      `<span class="word-chip__name">${safeB}</span>` +
-      countBadge +
-    `</span>`
-  );
+function wordDisplayName(word) {
+  return (typeof wordCard === "function" && wordCard(word)?.title) || word;
 }
 
 /**
- * Fill the word guidance panel from the published evaluation data.
+ * @param {string} text
+ * @param {string} [className]
+ * @param {string} [lang]
+ * @returns {HTMLSpanElement}
+ */
+function _span(text, className = "", lang = "") {
+  const span = document.createElement("span");
+  if (className) span.className = className;
+  if (lang) span.lang = lang;
+  span.textContent = text;
+  return span;
+}
+
+/**
+ * @param {string} word
+ * @returns {HTMLLIElement} A list item holding the word's chip.
+ */
+function _wordChipItem(word) {
+  const item = document.createElement("li");
+  const button = wordCardButton(word, "word-chip");
+  button.append(_span(wordDisplayName(word), "", "en"));
+  item.append(button);
+  return item;
+}
+
+/**
+ * Fill the word screen's two side cards from the published evaluation data.
  *
- * The lists are read from that data, never recomputed, so the demo and the
- * report cannot disagree. A list with no entries is left as authored rather
- * than emptied.
+ * A list the data cannot fill is left as it is, so a failed fetch never
+ * blanks it; the first card stays hidden until it has words to offer. This
+ * runs once, after the data has settled.
  *
  * @returns {void}
  */
 function renderWordGuidancePanel() {
   const stats =
-    typeof perWordStats !== "undefined" && perWordStats
+    typeof perWordStats !== "undefined" && perWordStats && typeof perWordStats === "object"
       ? perWordStats
       : {};
   const pairs =
@@ -1283,50 +1365,121 @@ function renderWordGuidancePanel() {
       ? confusionPairs
       : [];
 
-  const ranked = Object.entries(stats)
-    .map(([word, value]) => ({
-      word,
-      f1: Number(value?.f1 || value?.f1_score || value?.test_f1 || 0),
-      difficulty: value?.difficulty || "",
-    }))
-    .filter((item) => item.word);
-
-  const easyItems = ranked
-    .filter((item) => item.difficulty === "easy" || item.f1 >= 0.78)
-    .sort((a, b) => b.f1 - a.f1)
-    .slice(0, 10);
-
-  const riskyItems = ranked
-    .filter((item) => item.difficulty === "hard" || item.f1 < 0.62)
-    .sort((a, b) => a.f1 - b.f1)
-    .slice(0, 8);
-
-  // Unpacking through readConfusionPair() keeps this panel reading the same
-  // spellings the live confusion warning accepts; it used to handle only the
-  // two object forms and drop array-form pairs without a trace.
-  const confusionItems = pairs
-    .slice(0, 6)
-    .map(readConfusionPair)
-    .filter((p) => p.a && p.b);
-
-  // Each list is written only when it has something to say. The markup carries
-  // a hand-written fallback for all three, so leaving a list alone keeps that
-  // fallback visible when the published evaluation data did not load. This runs
-  // once, after the gating fetch has settled, so it cannot leave stale results
-  // from an earlier render.
-  if (els.wordDemoList && easyItems.length) {
-    els.wordDemoList.innerHTML = easyItems
-      .map((item) => _wordChipHtml(item.word, item.f1, "good"))
-      .join("");
+  const easy = easiestWords(stats, WORD_GUIDE_EASY_COUNT);
+  if (els.wordDemoList && easy.length) {
+    els.wordDemoList.replaceChildren(...easy.map(_wordChipItem));
+    if (els.wordDemoCount) els.wordDemoCount.textContent = `${easy.length} kolay kelime`;
+    if (els.wordDemoCard) els.wordDemoCard.hidden = false;
   }
-  if (els.wordRiskList && riskyItems.length) {
-    els.wordRiskList.innerHTML = riskyItems
-      .map((item) => _wordChipHtml(item.word, item.f1, "risky"))
-      .join("");
+
+  const confused = confusedPairsOnce(pairs, WORD_GUIDE_PAIR_COUNT);
+  if (els.wordConfusionList && confused.length) {
+    els.wordConfusionList.replaceChildren(
+      ...confused.map(({ a, b }) => {
+        const item = document.createElement("li");
+        const first = wordCardButton(a, "word-chip");
+        first.append(_span(wordDisplayName(a), "", "en"));
+        const second = wordCardButton(b, "word-chip");
+        second.append(_span(wordDisplayName(b), "", "en"));
+        const sep = _span("↔", "word-pair__sep");
+        sep.setAttribute("aria-hidden", "true");
+        item.append(first, sep, _span(" ile ", "visually-hidden"), second);
+        return item;
+      }),
+    );
   }
-  if (els.wordConfusionList && confusionItems.length) {
-    els.wordConfusionList.innerHTML = confusionItems
-      .map((p) => _confusionChipHtml(p.a, p.b, p.count))
-      .join("");
+  renderWordLibrary(stats);
+}
+
+/**
+ * Build the "50 kelime" list: one group per category, one button per word
+ * with how the published evaluation found it, in words and as a percentage.
+ *
+ * @param {Record<string, PerWordStat>} stats
+ * @returns {void}
+ */
+function renderWordLibrary(stats) {
+  const groups = els.wordLibraryGroups;
+  if (!groups) return;
+  groups.replaceChildren(
+    ...WORD_CATEGORIES.map((category, index) => {
+      const section = document.createElement("section");
+      section.className = "word-library__group";
+      const heading = document.createElement("h3");
+      heading.className = "word-library__title";
+      heading.id = `wordLibraryGroup${index + 1}`;
+      heading.textContent = category.title;
+      const list = document.createElement("ul");
+      list.className = "word-library__list";
+      list.setAttribute("aria-labelledby", heading.id);
+      list.append(...category.words.map((word) => _wordLibraryItem(word, stats[word] || {})));
+      section.append(heading, list);
+      return section;
+    }),
+  );
+  filterWordLibrary();
+}
+
+/**
+ * @param {string} word
+ * @param {PerWordStat} stat
+ * @returns {HTMLLIElement} The word's entry: its name, its gloss once
+ *   reviewed, and how well it was recognised.
+ */
+function _wordLibraryItem(word, stat) {
+  const card = wordCard(word);
+  const gloss = card ? wordGloss(card) : "";
+  const item = document.createElement("li");
+  const button = wordCardButton(word, "word-entry");
+  button.dataset.gloss = gloss;
+  button.dataset.difficulty = stat.difficulty || "unknown";
+  button.append(_span(wordDisplayName(word), "word-entry__name", "en"));
+  if (gloss) button.append(_span(` (${gloss})`, "word-entry__gloss"));
+  const parts = [WORD_DIFFICULTY_LABELS[stat.difficulty || ""] || ""];
+  const accuracy = _statNumber(stat.accuracy);
+  if (!Number.isNaN(accuracy)) parts.push(formatPercent(accuracy));
+  const hint = parts.filter(Boolean).join(" · ");
+  if (hint) {
+    // The comma keeps the name and the hint apart when read aloud.
+    button.append(_span(", ", "visually-hidden"), _span(hint, "word-entry__hint"));
   }
+  item.append(button);
+  return item;
+}
+
+/**
+ * Show only the words that match the search field, and say so when none do.
+ *
+ * The labels are English and are matched as English. A Turkish gloss, shown
+ * only once a signer has reviewed them, is matched with Turkish case rules,
+ * so "İ" finds "i" and "I" finds "ı".
+ *
+ * @returns {void}
+ */
+function filterWordLibrary() {
+  const groups = els.wordLibraryGroups;
+  if (!groups) return;
+  const raw = (els.wordLibrarySearch?.value ?? "").trim();
+  const query = raw.toLowerCase();
+  const queryTr = raw.toLocaleLowerCase("tr");
+  let shown = 0;
+  for (const section of Array.from(groups.children)) {
+    if (!(section instanceof HTMLElement)) continue;
+    let inGroup = 0;
+    for (const button of Array.from(section.querySelectorAll("[data-word]"))) {
+      if (!(button instanceof HTMLElement)) continue;
+      const word = button.dataset.word ?? "";
+      const gloss = button.dataset.gloss ?? "";
+      const match =
+        !raw ||
+        word.toLowerCase().includes(query) ||
+        wordDisplayName(word).toLowerCase().includes(query) ||
+        (gloss !== "" && gloss.toLocaleLowerCase("tr").includes(queryTr));
+      if (button.parentElement) button.parentElement.hidden = !match;
+      if (match) inGroup += 1;
+    }
+    section.hidden = inGroup === 0;
+    shown += inGroup;
+  }
+  if (els.wordLibraryEmpty) els.wordLibraryEmpty.hidden = shown > 0;
 }

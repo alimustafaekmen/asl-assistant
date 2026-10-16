@@ -98,7 +98,6 @@ REQUIRED_WEB_FUNCTIONS = (
     "flattenNumericArray",
     "normalizeMask",
     "runModelTestSample",
-    "runOfflineCheck",
     # Camera, overlay, and live inference
     "startMediaPipe",
     "stopMediaPipe",
@@ -764,7 +763,7 @@ def test_reference_gallery_uses_split_word_assets() -> None:
     assert _definition_sites("REFERENCE_ASSETS")
 
     for index in range(1, 6):
-        assert f"./assets/signs/word-50-{index}.png" in corpus
+        assert f"./assets/signs/word-50-{index}.webp" in corpus
 
     assert "./assets/signs/letters.png" in corpus
 

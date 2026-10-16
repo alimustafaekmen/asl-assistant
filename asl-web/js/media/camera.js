@@ -221,7 +221,7 @@ async function startMediaPipe(videoEl) {
       vision = await _importTasksVision();
       console.log("[MP] import OK ✓");
     } catch (err) {
-      console.error("[MP] import HATASI — CDN erişimi yok mu?", err);
+      console.error("[MP] import hatası: CDN erişimi yok mu?", err);
       throw err;
     }
     if (cancelled()) return;
@@ -475,7 +475,7 @@ function _processFrame() {
     _firstFrameLogged = true;
     _handStartTs = performance.now();
     console.log(
-      `[MP] ilk frame işleniyor — video ${mpVideoEl.videoWidth}x${mpVideoEl.videoHeight}, readyState=${mpVideoEl.readyState}`,
+      `[MP] ilk frame işleniyor: video ${mpVideoEl.videoWidth}x${mpVideoEl.videoHeight}, readyState=${mpVideoEl.readyState}`,
     );
   }
   _frameStats.processed++;
@@ -555,7 +555,7 @@ function _processFrame() {
           .map((h) => h?.[0]?.categoryName || "?")
           .join(", ");
         console.log(
-          `[MP] ✓ ilk el algılandı — handedness=[${handsList}], ` +
+          `[MP] ✓ ilk el algılandı: handedness=[${handsList}], ` +
             `mapped=[${handednessDebug.map((h) => h.mapped).join(", ")}], ` +
             `lm sayısı=${handRes.landmarks[0]?.length}, ` +
             `ilk el için ${(performance.now() - _handStartTs).toFixed(0)}ms geçti`,
@@ -583,7 +583,7 @@ function _processFrame() {
     _frameStats.lastSummary = performance.now();
     const rate = ((_frameStats.handsDetected / _frameStats.processed) * 100).toFixed(0);
     console.log(
-      `[MP] stat — ${_frameStats.processed} frame, ${_frameStats.handsDetected} hand (%${rate} hit)`,
+      `[MP] stat: ${_frameStats.processed} frame, ${_frameStats.handsDetected} hand (%${rate} hit)`,
     );
     _frameStats.processed = 0;
     _frameStats.handsDetected = 0;

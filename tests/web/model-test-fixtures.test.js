@@ -5,8 +5,8 @@
 // an ONNX session. The shapes asserted here (93 letter features, 45 x 168 word
 // features, 45 mask entries) are the published model contract.
 
-const test = require("node:test");
-const assert = require("node:assert/strict");
+import test from "node:test";
+import assert from "node:assert/strict";
 
 let flattenNumericArray;
 let isRecord;

@@ -5,8 +5,8 @@
 // present, so the first test here pins that invariant before anything relies
 // on it.
 
-const test = require("node:test");
-const assert = require("node:assert/strict");
+import test from "node:test";
+import assert from "node:assert/strict";
 
 let app;
 test.beforeEach(async () => {

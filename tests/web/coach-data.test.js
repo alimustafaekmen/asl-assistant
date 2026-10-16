@@ -6,12 +6,12 @@
 // coach never teaches; a typo in a group is a cue shown for a letter that does
 // not exist. The domain is the app's own LETTERS, evaluated from the scripts.
 
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { join } = require("node:path");
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
-const DATA = join(__dirname, "..", "..", "asl-web", "data");
+const DATA = join(import.meta.dirname, "..", "..", "asl-web", "data");
 const readJson = (name) => JSON.parse(readFileSync(join(DATA, name), "utf8"));
 
 let letters;

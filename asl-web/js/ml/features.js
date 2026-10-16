@@ -474,19 +474,47 @@ function resetLetterLandmarkSmoother() {
 }
 
 /**
+ * The frame with both hands' x and z multiplied by `aspect`, so one unit means
+ * the same length along every axis, as in the square training photographs.
+ *
+ * @param {Frame321D} frame321d
+ * @param {number} aspect Frame width divided by height.
+ * @returns {Frame321D} The same frame when `aspect` is 1 or unusable, else a copy.
+ */
+function _isotropicHands(frame321d, aspect) {
+  if (!(aspect > 0) || aspect === 1 || !Number.isFinite(aspect)) return frame321d;
+  const frame = Float32Array.from(frame321d);
+  // Right hand 0..62, left hand 63..125: x, y, z per landmark.
+  for (let i = 0; i < 126; i += 3) {
+    frame[i] *= aspect;
+    frame[i + 2] *= aspect;
+  }
+  return frame;
+}
+
+/**
  * Build the letter model input from one frame.
  *
  * This is stateful: it updates the motion measurement and the EMA before
  * normalizing. Call resetLetterLandmarkSmoother() when the temporal history
  * should not carry over.
  *
+ * The letter model was trained on landmarks from square photographs, where x
+ * and y are fractions of the same length. MediaPipe gives x as a fraction of
+ * the frame's width and y of its height, so a 16:9 camera squeezes the hand
+ * sideways and a portrait one stretches it. `aspect` (frame width over
+ * height) undoes that on the hand slots before anything else; z is on the
+ * scale of x, so it is scaled with it. Missing landmarks stay at zero.
+ *
  * @param {Frame321D} frame321d
+ * @param {number} [aspect] Frame width divided by height; 1 for a square frame.
  * @returns {LetterFeatures93} Letter feature vector; length is 93.
  */
-function computeLetterFeatures(frame321d) {
+function computeLetterFeatures(frame321d, aspect = 1) {
   const t0 = performance.now();
+  const frame = _isotropicHands(frame321d, aspect);
   // 1. Select and standardize the primary hand.
-  const handPrimary = selectPrimaryHandForLetter(frame321d);
+  const handPrimary = selectPrimaryHandForLetter(frame);
   // 2. Measure raw motion before smoothing.
   _letterLastMotion = _computeLetterMotion63(handPrimary);
   // 3. Reduce frame-to-frame jitter with EMA.

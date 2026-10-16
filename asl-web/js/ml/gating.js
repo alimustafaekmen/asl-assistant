@@ -34,11 +34,13 @@
  */
 
 /**
- * The evaluation fields this module reads for one word. Other fields may be
+ * The evaluation fields the app reads for one word: this module the
+ * difficulty, the word screen's lists the accuracy too. Other fields may be
  * present in the published JSON and are ignored.
  *
  * @typedef {Object} PerWordStat
  * @property {string} [difficulty] Published label; preferred over the F1 fallback.
+ * @property {number} [accuracy] Share of the word's test recordings recognised.
  * @property {number} [f1]
  * @property {number} [f1_score]
  * @property {number} [test_f1]

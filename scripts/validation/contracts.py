@@ -154,11 +154,13 @@ IMAGE_ARTIFACTS: tuple[ArtifactContract, ...] = (
     ),
     *(
         ArtifactContract(
-            f"word-50-{page}.png",
-            WEB_DIR / "assets" / "signs" / f"word-50-{page}.png",
+            f"word-50-{page}.webp",
+            WEB_DIR / "assets" / "signs" / f"word-50-{page}.webp",
             None,
             "image",
-            100,
+            # WebP pages are about 110 KB; a truncated copy or an LFS pointer is
+            # far below this.
+            50,
         )
         for page in range(1, 6)
     ),

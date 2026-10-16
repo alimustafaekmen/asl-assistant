@@ -71,13 +71,13 @@ def test_a_deleted_provenance_source_fails_the_audit(checkout) -> None:
 
 
 def test_a_missing_reference_image_fails_the_audit(checkout) -> None:
-    checkout.remove("asl-web/assets/signs/word-50-3.png")
+    checkout.remove("asl-web/assets/signs/word-50-3.webp")
 
     result = checkout.audit("--no-datasets")
 
     assert result.returncode == 1, result.stdout + result.stderr
     failed = checkout.failures(result)
-    assert len(failed) == 1 and "word-50-3.png" in failed[0], failed
+    assert len(failed) == 1 and "word-50-3.webp" in failed[0], failed
 
 
 def test_a_label_map_with_a_gap_fails_the_audit(checkout) -> None:

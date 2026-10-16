@@ -2,8 +2,8 @@
 // offline Model Test panel. They are the only place model confidences are
 // turned into user-facing text, so rounding and fallbacks are locked here.
 
-const test = require("node:test");
-const assert = require("node:assert/strict");
+import test from "node:test";
+import assert from "node:assert/strict";
 
 let clampPercent;
 let formatPercent;

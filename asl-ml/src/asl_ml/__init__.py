@@ -1,11 +1,11 @@
-"""asl-ml — Shared Python ML/data utilities for ASL Assistant.
+"""asl-ml: shared Python ML and data utilities for ASL Assistant.
 
 This package contains language-agnostic ML/data helper code shared between
 the legacy desktop prototype (`asl-desktop/`), data-preparation scripts
 (`scripts/data_preparation/`), model-training scripts
 (`scripts/model_training/`), and Python tests (`tests/`).
 
-The browser runtime (`asl-web/`) does NOT depend on this package — it ships
+The browser runtime (`asl-web/`) does NOT depend on this package; it ships
 its own JavaScript implementation. See `docs/models-and-data.md`
 for the contract that both implementations follow.
 

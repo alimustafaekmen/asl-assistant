@@ -138,13 +138,12 @@ test("a live frame waits for the letter model and never downloads it", async () 
   assert.equal(app.evaluate("__predicted"), 1);
 });
 
-test("a Model Test run, a word recording, and the offline check load their model first", async () => {
+test("a Model Test run and a word recording load their model first", async () => {
   const app = appWithCountedLoaders();
   // Each stand-in records whether its session existed when it was called.
   app.evaluate(`
     globalThis.__calls = [];
     predictLetter = async () => { __calls.push(["letter", !!letterSession]); return { label: "A", confidence: 1, alternatives: [] }; };
-    predictWord = async () => { __calls.push(["word", !!wordSession]); return { label: "give", confidence: 1, alternatives: [] }; };
     renderModelTestResult = () => {};
     wait = async () => {};
   `);
@@ -165,22 +164,7 @@ test("a Model Test run, a word recording, and the offline check load their model
   assert.deepEqual(loads(app), { letter: 1, word: 1 });
   assert.equal(app.evaluate("state.wordState"), "RECORDING");
 
-  // The offline check reaches the model through the same shared load.
-  app.evaluate(`
-    _wordModelLoad = null;
-    wordSession = null;
-    fetch = async () => ({
-      ok: true,
-      json: async () => ({ features: new Array(45 * 168).fill(0), mask: new Array(45).fill(true), expected_word: "give" }),
-    });
-  `);
-  await app.get("runOfflineCheck")();
-  assert.deepEqual(loads(app), { letter: 1, word: 2 });
-
-  assert.deepEqual(Array.from(app.evaluate("__calls"), (call) => [...call]), [
-    ["letter", true],
-    ["word", true],
-  ]);
+  assert.deepEqual(Array.from(app.evaluate("__calls"), (call) => [...call]), [["letter", true]]);
 });
 
 test("a granted camera loads the models its mode runs; a refused one loads none", async () => {

@@ -58,6 +58,16 @@ already-seen hands and capture conditions, and probably overstates accuracy for
 a signer the model has never seen. Unlike the word model below, this split is
 not signer-independent.
 
+A check on 2026-10-17 measured how large that gap is. The published ONNX
+model scores 68.9% on the 122 rows of `semcom_test`, which neither split
+contains. Retraining with the same settings while holding out one whole
+source gives 79.6% (American SL held out), 39.9% (SemCom) and 64.8% (ASL
+Alphabet). The weakest letters for unseen hands are the closed fists that
+differ only by the thumb (M, N, T, S, E, A) and the near pairs R/U/V/H, G/K,
+X/D and O/C. Wrong answers are usually confident, so the 0.6 display threshold
+does not filter them. More signers in the training data, grouped by signer in
+the split, is the fix; the threshold is not.
+
 The [MediaPipe Processed ASL dataset](https://www.kaggle.com/datasets/vignonantoine/mediapipe-processed-asl-dataset)
 was downloaded and evaluated, but it was not part of the final merged training
 table. The preserved extraction runner records that the image-to-landmark path
@@ -205,6 +215,15 @@ rerunning augmentation is not byte-for-byte deterministic.
 
 Feature engineering combines the normalized coordinates with explicit hand
 geometry. The order is a frozen model contract:
+
+The training landmarks come from square photographs, so one unit of x is as
+long as one unit of y. A camera frame is rarely square, and MediaPipe divides
+x by the frame's width and y by its height. The browser therefore multiplies
+x and z by the frame's width over its height before the features
+(`computeLetterFeatures(frame, aspect)` in `asl-web/js/ml/features.js`).
+Without that step a 1280 by 720 camera took held-out accuracy from 98.4% to
+88.6% on real MediaPipe output. The desktop app does not apply it yet; its
+640 by 480 frame costs much less (4:3 measured 98.1% against 99.3% square).
 
 ```text
 [0..62]   63  normalized 21 hand landmarks

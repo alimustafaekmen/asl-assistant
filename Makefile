@@ -1,4 +1,4 @@
-# ASL Assistant — developer shortcuts.
+# ASL Assistant developer shortcuts.
 #
 # Each target runs the command you would otherwise type by hand and changes no
 # runtime behaviour. `make help` lists them; docs/getting-started.md explains
@@ -90,7 +90,7 @@ NOTEBOOK_ARTIFACTS ?= \
 
 help:
 	@echo ""
-	@echo "ASL Assistant — make hedefleri"
+	@echo "ASL Assistant: make hedefleri"
 	@echo "=============================="
 	@echo ""
 	@echo "Start here"

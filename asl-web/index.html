@@ -8,14 +8,14 @@
          chosen one when the visitor has picked a theme. -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f3ef" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131416" />
-    <title>ASL Assistant — ASL Harf Çeviri · Parmak Alfabesi</title>
+    <title>Harf tanıma · ASL Assistant</title>
     <meta name="description" content="ASL Assistant, ASL harflerini ve kelimelerini tarayıcıda tanır; kamera görüntüsü cihazından hiç çıkmaz." />
     <link rel="icon" href="favicon.ico" sizes="32x32" />
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
     <!-- Link preview. Most preview crawlers do not resolve relative URLs, so og:url and og:image name the live host. -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://asl-assistant.netlify.app/" />
-    <meta property="og:title" content="ASL Assistant — ASL Harf Çeviri · Parmak Alfabesi" />
+    <meta property="og:title" content="ASL Assistant · ASL harf tanıma" />
     <meta property="og:description" content="ASL Assistant, ASL harflerini ve kelimelerini tarayıcıda tanır; kamera görüntüsü cihazından hiç çıkmaz." />
     <meta property="og:image" content="https://asl-assistant.netlify.app/assets/social-preview.png" />
     <meta property="og:image:width" content="1200" />
@@ -25,17 +25,17 @@
     <link rel="preload" href="assets/fonts/atkinson-hyperlegible-next.woff2" as="font" type="font/woff2" crossorigin />
     <!-- Before the stylesheets, so the first frame is already in the visitor's
          theme; a blocking script after them would wait for them. -->
-    <script src="js/core/theme-boot.js?v=11"></script>
+    <script src="js/core/theme-boot.js?v=12"></script>
     <!-- style.css first: it declares the cascade layer order, and the first
          declaration wins. The files after it add layers above the legacy one. -->
-    <link rel="stylesheet" href="css/style.css?v=11" />
-    <link rel="stylesheet" href="css/tokens.css?v=11" />
-    <link rel="stylesheet" href="css/base.css?v=11" />
-    <link rel="stylesheet" href="css/layout.css?v=11" />
-    <link rel="stylesheet" href="css/components.css?v=11" />
-    <link rel="stylesheet" href="css/screens-coach.css?v=11" />
-    <link rel="stylesheet" href="css/screens-info.css?v=11" />
-    <link rel="stylesheet" href="css/screens-word.css?v=11" />
+    <link rel="stylesheet" href="css/style.css?v=12" />
+    <link rel="stylesheet" href="css/tokens.css?v=12" />
+    <link rel="stylesheet" href="css/base.css?v=12" />
+    <link rel="stylesheet" href="css/layout.css?v=12" />
+    <link rel="stylesheet" href="css/components.css?v=12" />
+    <link rel="stylesheet" href="css/screens-coach.css?v=12" />
+    <link rel="stylesheet" href="css/screens-info.css?v=12" />
+    <link rel="stylesheet" href="css/screens-word.css?v=12" />
   </head>
   <body>
     <div class="app-shell" data-ui="app-shell" data-view="app" data-mode="letter">
@@ -101,7 +101,7 @@
                   <ul class="stage__facts">
                     <li class="mode-only letter-only coach-only" data-icon="info">24 ASL harfi · J ve Z hareketli olduğu için yok</li>
                     <li class="mode-only word-only" data-icon="info">50 kelime · deneysel; el, yüz ve omuzlar görünmeli</li>
-                    <li data-icon="info">ASL (Amerikan İşaret Dili) — TİD değil</li>
+                    <li data-icon="info">ASL (Amerikan İşaret Dili), TİD değil</li>
                     <li class="mode-only letter-only coach-only" data-icon="info">İlk açılışta yaklaşık 17 MB indirilir</li>
                     <li class="mode-only word-only" data-icon="info">İlk açılışta daha fazla veri iner; Wi-Fi önerilir</li>
                   </ul>
@@ -336,52 +336,32 @@
               </div>
             </section>
 
-            <details class="card word-demo-card mode-only word-only">
-              <summary class="card-summary">
-                <span>Canlı kullanım notları</span>
-                <strong>Örnek kelimeler</strong>
+            <!-- Both cards are filled from per_word_stats.json and confusion_pairs.json. -->
+            <details class="panel word-guide word-demo-card mode-only word-only" id="wordDemoCard" hidden>
+              <summary class="word-guide__summary">
+                <h2 class="panel__title">Önce bunları deneyin</h2>
+                <span class="panel__kicker" id="wordDemoCount"></span>
               </summary>
-              <div class="word-group good">
-                <h3>Modelin rahat algıladığı kelimeler</h3>
-                <p id="wordDemoList">water · sad · uncle · cow · brown · donkey · lips · shhh · duck · dad</p>
-              </div>
-              <details class="word-group risky">
-                <summary>Dikkatli gösterilecek kelimeler</summary>
-                <p id="wordRiskList">open · give · all · sleepy · book · go · child · can</p>
-              </details>
-              <details class="word-group confusion">
-                <summary>Sık karışan çiftler</summary>
-                <p id="wordConfusionList">listen / hear · can / yes · open / book · sleep / sleepy · who / bird · fireman / hello</p>
-              </details>
-              <p class="card-note">Önce daha kararlı kelimeleri deneyin; karışan çiftleri canlı kelime modelinin bilinen sınırlılıkları olarak değerlendirin.</p>
-            </details>
-
-            <details class="card word-library-card mode-only word-only">
-              <summary class="card-summary">
-                <span>50 kelime kütüphanesi</span>
-                <strong>Pratik</strong>
-              </summary>
-              <div class="word-categories">
-                <div><strong>Günlük</strong><span>water, home, food, drink, book, finish, wait, open, go, look, listen, hear, talk, thankyou, please</span></div>
-                <div><strong>Duygu / durum</strong><span>sad, happy, sleep, sleepy, sick, hungry, hot</span></div>
-                <div><strong>Hayvan</strong><span>bird, cow, dog, donkey, duck, mouse</span></div>
-                <div><strong>Aile / insan</strong><span>dad, mom, uncle, brother, child, fireman, who</span></div>
-                <div><strong>Diğer</strong><span>all, before, brown, bye, can, give, have, hello, like, lips, no, pretend, shhh, toothbrush, yes</span></div>
+              <div class="word-guide__body">
+                <p class="panel__note">Bir kelimeye dokunun, nasıl yapıldığını görün; sonra kaydedin.</p>
+                <ul class="word-chips" id="wordDemoList" aria-label="Kolay tanınan kelimeler"></ul>
+                <h3 class="word-guide__subhead" id="wordConfusionTitle">Sık karışan çiftler</h3>
+                <ul class="word-pairs" id="wordConfusionList" aria-labelledby="wordConfusionTitle"></ul>
               </div>
             </details>
 
-            <details class="card model-card mode-card mode-only word-only coach-only">
-              <summary class="card-summary">
-                <span>Model kartı</span>
-                <strong>Web hazır</strong>
+            <details class="panel word-guide word-library-card mode-only word-only">
+              <summary class="word-guide__summary">
+                <h2 class="panel__title">50 kelime</h2>
+                <span class="panel__kicker">5 grup</span>
               </summary>
-              <dl class="model-facts">
-                <div><dt>Harf</dt><dd>24 sınıf · ONNX</dd></div>
-                <div><dt>Kelime</dt><dd>50 sınıf · SignTransformer</dd></div>
-                <div><dt>Sekans</dt><dd>45 frame + bool mask</dd></div>
-                <div><dt>Çıktı</dt><dd>Top-3 + eşik</dd></div>
-              </dl>
-              <button class="button full" type="button" id="offlineTest">Offline test</button>
+              <div class="word-guide__body">
+                <label class="word-search__label" for="wordLibrarySearch">Kelime ara</label>
+                <input class="word-search" type="search" id="wordLibrarySearch" autocomplete="off" autocapitalize="none" spellcheck="false" lang="en" />
+                <p class="panel__note">Her kelimenin yanında modelin onu test kayıtlarında ne kadar tanıdığı yazar: kolay, orta ya da zor ve doğru tanıma oranı.</p>
+                <div class="word-library" id="wordLibraryGroups"></div>
+                <p class="panel__note" id="wordLibraryEmpty" role="status" hidden>Bu adla bir kelime yok.</p>
+              </div>
             </details>
           </aside>
 
@@ -395,7 +375,7 @@
               <ul class="facts">
                 <li data-icon="info">24 ASL harfi · J ve Z hareketli olduğu için yok</li>
                 <li data-icon="info">50 kelime · deneysel</li>
-                <li data-icon="info">ASL (Amerikan İşaret Dili) — TİD değil</li>
+                <li data-icon="info">ASL (Amerikan İşaret Dili), TİD değil</li>
               </ul>
               <div class="pj__cta">
                 <button class="btn btn--primary" type="button" data-go-mode="letter" data-icon="camera">Kamerayı açıp deneyin</button>
@@ -511,6 +491,10 @@
                         <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0<span class="visually-hidden"> (yeni sekmede açılır)</span></a>,
                         yarışma kurallarına bağlı
                       </dd>
+                    </div>
+                    <div>
+                      <dt><a href="https://commons.wikimedia.org/wiki/File:Asl_alphabet_gallaudet.svg" target="_blank" rel="noreferrer">ASL harf kartı<span class="visually-hidden"> (yeni sekmede açılır)</span></a></dt>
+                      <dd>Ds13, Gallaudet yazı tipinden; Marnanel vektörleştirdi · Wikimedia Commons, kamu malı</dd>
                     </div>
                   </dl>
                 </section>
@@ -766,28 +750,28 @@
     <!-- MediaPipe Tasks Vision ESM loader is lazily imported in media/camera.js -->
 
     <!-- Uygulama modülleri (sırayla, bağımlılık sırası) -->
-    <script src="js/core/config.js?v=11"></script>
-    <script src="js/core/runtime.js?v=11"></script>
-    <script src="js/ml/landmarks.js?v=11"></script>
-    <script src="js/ml/features.js?v=11"></script>
-    <script src="js/services/benchmark.js?v=11"></script>
-    <script src="js/ml/gating.js?v=11"></script>
-    <script src="js/ml/hold.js?v=11"></script>
-    <script src="js/ml/letter-model.js?v=11"></script>
-    <script src="js/ml/word-model.js?v=11"></script>
-    <script src="js/media/overlay.js?v=11"></script>
-    <script src="js/media/camera.js?v=11"></script>
-    <script src="js/ml/live-inference.js?v=11"></script>
-    <script src="js/ui/prediction.js?v=11"></script>
-    <script src="js/ui/plate-side.js?v=11"></script>
-    <script src="js/ui/toast.js?v=11"></script>
-    <script src="js/ui/transcript.js?v=11"></script>
-    <script src="js/ui/word-flow.js?v=11"></script>
-    <script src="js/ui/coach.js?v=11"></script>
-    <script src="js/ui/reference.js?v=11"></script>
-    <script src="js/ui/qr.js?v=11"></script>
-    <script src="js/ui/model-test.js?v=11"></script>
-    <script src="js/core/app.js?v=11"></script>
+    <script src="js/core/config.js?v=12"></script>
+    <script src="js/core/runtime.js?v=12"></script>
+    <script src="js/ml/landmarks.js?v=12"></script>
+    <script src="js/ml/features.js?v=12"></script>
+    <script src="js/services/benchmark.js?v=12"></script>
+    <script src="js/ml/gating.js?v=12"></script>
+    <script src="js/ml/hold.js?v=12"></script>
+    <script src="js/ml/letter-model.js?v=12"></script>
+    <script src="js/ml/word-model.js?v=12"></script>
+    <script src="js/media/overlay.js?v=12"></script>
+    <script src="js/media/camera.js?v=12"></script>
+    <script src="js/ml/live-inference.js?v=12"></script>
+    <script src="js/ui/prediction.js?v=12"></script>
+    <script src="js/ui/plate-side.js?v=12"></script>
+    <script src="js/ui/toast.js?v=12"></script>
+    <script src="js/ui/transcript.js?v=12"></script>
+    <script src="js/ui/word-flow.js?v=12"></script>
+    <script src="js/ui/coach.js?v=12"></script>
+    <script src="js/ui/reference.js?v=12"></script>
+    <script src="js/ui/qr.js?v=12"></script>
+    <script src="js/ui/model-test.js?v=12"></script>
+    <script src="js/core/app.js?v=12"></script>
 
   </body>
 </html>

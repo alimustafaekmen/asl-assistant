@@ -4,7 +4,7 @@
   "note_tr": "gloss_tr alanları bir işaret dili konuşuru tarafından gözden geçirilene kadar arayüzde gösterilmez (gloss_reviewed).",
   "gloss_reviewed": false,
   "page_size": [1024, 1536],
-  "pages": ["./assets/signs/word-50-1.png", "./assets/signs/word-50-2.png", "./assets/signs/word-50-3.png", "./assets/signs/word-50-4.png", "./assets/signs/word-50-5.png"],
+  "pages": ["./assets/signs/word-50-1.webp", "./assets/signs/word-50-2.webp", "./assets/signs/word-50-3.webp", "./assets/signs/word-50-4.webp", "./assets/signs/word-50-5.webp"],
   "words": {
     "all": { "card": 1, "page": 1, "rect": [0.0156, 0.0052, 0.4785, 0.1842], "title": "all", "gloss_tr": "hepsi" },
     "before": { "card": 2, "page": 1, "rect": [0.5059, 0.0052, 0.4805, 0.1849], "title": "before", "gloss_tr": "önce" },

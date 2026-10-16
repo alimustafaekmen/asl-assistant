@@ -32,7 +32,7 @@ test("a recognised word shows its card: the right page, cropped to its rectangle
   await recordWord(app);
   assert.equal(read(app, "state.prediction"), "water");
 
-  assert.equal(read(app, 'document.getElementById("referenceCardImage").src'), "./assets/signs/word-50-5.png");
+  assert.equal(read(app, 'document.getElementById("referenceCardImage").src'), "./assets/signs/word-50-5.webp");
   assert.equal(read(app, 'document.getElementById("referenceCard").hidden'), false);
   assert.equal(read(app, "els.referenceImage.hidden"), true, "the whole page gives way to the card");
 

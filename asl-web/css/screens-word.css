@@ -82,8 +82,19 @@
     font-size: var(--fs-lg);
     font-weight: var(--fw-bold);
     line-height: var(--lh-snug);
+    /* A long word or page name must not run under the tools. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .viewer__tools { display: flex; align-items: center; gap: var(--sp-1); }
+  /* On a phone the six tools take nearly the whole bar, so the title gets
+     its own line above them. */
+  @media (max-width: 30rem) {
+    .viewer__bar { flex-wrap: wrap; row-gap: 0; padding-block: var(--sp-2); }
+    .viewer__title { flex-basis: 100%; }
+    .viewer__tools { margin-inline-start: auto; }
+  }
   .viewer__zoom {
     min-width: 4.25rem;
     min-height: var(--size-target);
@@ -334,4 +345,148 @@
     .app-shell[data-mode="word"] #controlBar[data-word-step="processing"] #recordWord,
     .app-shell[data-mode="word"] #cancelWord { flex: 1 1 100%; grid-column: 1 / -1; }
   }
+
+  /* ── Side cards: words to try first, and the 50 words ─────────────────
+     Both are collapsible panels. The legacy layer still gives these classes
+     an accent edge and a fade, so the panel look is restored here. */
+  .word-guide {
+    display: block;
+    /* The laptop side panel is a scrolling column: an open card keeps its
+       height instead of shrinking under the legacy overflow clip. */
+    flex: none;
+    overflow: visible;
+    padding: 0;
+    border-left: 1px solid var(--color-line);
+    opacity: 1;
+  }
+  .word-guide__summary {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    min-height: var(--size-target);
+    padding: var(--sp-3) var(--sp-5);
+    list-style: none;
+    cursor: pointer;
+    border-radius: var(--r-l);
+  }
+  .word-guide__summary::-webkit-details-marker { display: none; }
+  .word-guide__summary .panel__title { flex: 1; min-width: 0; }
+  /* A chevron that turns when the card opens. */
+  .word-guide__summary::after {
+    content: "";
+    flex: none;
+    width: 8px;
+    height: 8px;
+    margin: 0 var(--sp-1) 3px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform var(--dur-1) var(--ease-out);
+  }
+  .word-guide[open] > .word-guide__summary::after { transform: rotate(-135deg); margin-bottom: -3px; }
+  .word-guide__body {
+    display: grid;
+    gap: var(--sp-3);
+    padding: 0 var(--sp-5) var(--sp-5);
+  }
+  .word-guide__subhead {
+    margin: var(--sp-2) 0 0;
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    color: var(--color-text-2);
+  }
+
+  /* Word chips, alone or in a confused pair. */
+  .word-guide :is(#wordDemoList, #wordConfusionList) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .word-pairs > li { display: flex; align-items: center; gap: var(--sp-2); }
+  .word-pair__sep { color: var(--color-text-3); }
+  .word-chip {
+    min-height: var(--size-target);
+    padding: 0 var(--sp-4);
+    border: 1.5px solid var(--color-control);
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    font-weight: var(--fw-semibold);
+    cursor: pointer;
+  }
+  .word-chip:hover,
+  .word-entry:hover { background: var(--color-sunken); }
+
+  /* The 50-word list. */
+  .word-search__label { font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+  .word-search {
+    width: 100%;
+    min-height: var(--size-target);
+    margin-top: calc(-1 * var(--sp-2));
+    padding: 0 var(--sp-3);
+    border: 1.5px solid var(--color-control);
+    border-radius: var(--r-m);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+  }
+  /* No scroll box of its own: the side panel scrolls on a laptop and the
+     page on a phone, and a second scroll inside either is hard to leave. */
+  .word-library { display: grid; gap: var(--sp-4); }
+  .word-library__group { display: grid; gap: var(--sp-2); }
+  .word-library__title {
+    margin: 0;
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    color: var(--color-text-2);
+  }
+  .word-library__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    gap: var(--sp-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .word-entry {
+    display: grid;
+    width: 100%;
+    min-height: var(--size-target);
+    gap: 2px;
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--color-line);
+    border-radius: var(--r-m);
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  .word-entry__name { font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
+  .word-entry__gloss { color: var(--color-text-2); }
+  .word-entry__hint {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    font-size: var(--fs-xs);
+    color: var(--color-text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  /* The difficulty is in the words; the mark repeats it by shape, never by
+     colour alone: full for easy, half for medium, an empty ring for hard. */
+  .word-entry__hint::before {
+    content: "";
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border: 1.5px solid currentColor;
+    border-radius: 50%;
+  }
+  .word-entry[data-difficulty="easy"] .word-entry__hint::before { background: currentColor; }
+  .word-entry[data-difficulty="medium"] .word-entry__hint::before { background: linear-gradient(90deg, currentColor 50%, transparent 50%); }
+  .word-entry[data-difficulty="unknown"] .word-entry__hint::before { display: none; }
 }

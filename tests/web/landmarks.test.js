@@ -5,8 +5,8 @@
 // wrong order still runs and still produces nonsense, so these tests pin the
 // slots and the zero-fill behaviour rather than any numeric output.
 
-const test = require("node:test");
-const assert = require("node:assert/strict");
+import test from "node:test";
+import assert from "node:assert/strict";
 
 let app;
 test.before(async () => {

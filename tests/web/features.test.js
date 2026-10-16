@@ -6,8 +6,8 @@
 // chosen, when motion is zero, and what temporal reset clears. They do not
 // re-derive the feature maths, which is covered by the Python parity checks.
 
-const test = require("node:test");
-const assert = require("node:assert/strict");
+import test from "node:test";
+import assert from "node:assert/strict";
 
 let app;
 test.before(async () => {

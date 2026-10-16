@@ -5,8 +5,8 @@
 // around them: which frames may be recorded, when the optional tasks are
 // needed, how handedness is mapped, and what stopping releases.
 
-const test = require("node:test");
-const assert = require("node:assert/strict");
+import test from "node:test";
+import assert from "node:assert/strict";
 
 let app;
 test.beforeEach(async () => {
