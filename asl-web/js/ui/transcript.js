@@ -29,7 +29,9 @@ function appendCurrentLetter() {
   if (state.mode !== "letter") return;
   if (!state.prediction || state.prediction === "?" || state.prediction.length !== 1) return;
   if (state.confidence < CONFIG.LETTER_THRESHOLD) return;
-  appendTranscriptToken(state.prediction, { debounceKey: `letter:${state.prediction}` });
+  if (appendTranscriptToken(state.prediction, { debounceKey: `letter:${state.prediction}` })) {
+    announce(`${state.prediction} eklendi`);
+  }
 }
 
 /**
@@ -63,22 +65,24 @@ function appendWordResultToTranscript() {
  *
  * @param {string} token Letter, or a word with its trailing space.
  * @param {TranscriptAppendOptions} [options]
- * @returns {void}
+ * @returns {boolean} Whether the token was appended; the debounce and the
+ *   duplicate check can each skip it, and a confirmation must not claim it.
  */
 function appendTranscriptToken(token, options = {}) {
-  if (!token) return;
+  if (!token) return false;
   if (options.debounceKey) {
     const now = performance.now();
     if (state.lastTranscriptAppendKey === options.debounceKey && now - state.lastTranscriptAppendTs < 250) {
-      return;
+      return false;
     }
     state.lastTranscriptAppendKey = options.debounceKey;
     state.lastTranscriptAppendTs = now;
   }
-  if (options.skipIfDuplicate && state.transcript.endsWith(token)) return;
+  if (options.skipIfDuplicate && state.transcript.endsWith(token)) return false;
   state.transcript += token;
   saveTranscript();
   renderTranscript();
+  return true;
 }
 
 /**
@@ -110,19 +114,39 @@ function removeLastTranscriptChar() {
  * @returns {void}
  */
 function renderTranscript() {
-  const text = state.transcript.trim() || "Henüz metin yok";
-  els.transcriptText.innerHTML = `${escapeHtml(text)}<span class="cursor">|</span>`;
+  const text = state.transcript.trim();
+  // The placeholder is styled apart from real text, so the strip says which it is.
+  els.transcriptText.dataset.empty = text ? "false" : "true";
+  // Fingerspelled text is English letters; the placeholder is Turkish. The
+  // caret is decoration, not a character to read out.
+  els.transcriptText.lang = text ? "en" : "tr";
+  els.transcriptText.innerHTML = `${escapeHtml(text || "Metin burada görünür")}<span class="cursor" aria-hidden="true">|</span>`;
 }
 
 /**
- * Clear the transcript and its stored copy.
+ * Clear the transcript and its stored copy, and offer to undo it.
  *
  * @returns {void}
  */
 function clearTranscript() {
+  const cleared = state.transcript;
   state.transcript = "";
   saveTranscript();
   renderTranscript();
+  if (!cleared.trim()) return;
+  showToast("Metin temizlendi", {
+    returnFocus: els.clearText,
+    action: {
+      label: "Geri al",
+      // Anything typed since the clear stays, after the restored text.
+      run: () => {
+        state.transcript = cleared + state.transcript;
+        saveTranscript();
+        renderTranscript();
+        announce("Metin geri alındı");
+      },
+    },
+  });
 }
 
 /**
@@ -157,17 +181,24 @@ function restoreTranscript() {
 }
 
 /**
- * Copy the transcript to the clipboard and report the outcome in the status
- * badge.
+ * Copy the transcript to the clipboard and confirm it in a toast.
+ *
+ * The camera status chip is no place for this: the status loop rewrites it
+ * every second while the camera runs.
  *
  * @returns {Promise<void>} Resolves whether or not the copy succeeded.
  */
 async function copyTranscript() {
+  const text = state.transcript.trim();
+  if (!text) {
+    showToast("Kopyalanacak metin yok");
+    return;
+  }
   try {
-    await navigator.clipboard.writeText(state.transcript.trim());
-    els.latencyBadge.textContent = "Kopyalandı";
+    await navigator.clipboard.writeText(text);
+    showToast("Metin kopyalandı");
   } catch {
-    els.latencyBadge.textContent = "Kopyalanamadı";
+    showToast("Kopyalanamadı. Metni seçip elle kopyalayabilirsiniz.");
   }
 }
 

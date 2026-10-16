@@ -307,7 +307,7 @@ async function startMediaPipe(videoEl) {
   _frameStats = { processed: 0, handsDetected: 0, lastSummary: 0 };
   console.log("[MP] başlatıldı: Hand hazır (1/3)");
   if (typeof state !== "undefined" && typeof els !== "undefined" && els.latencyBadge) {
-    els.latencyBadge.textContent = "MP: Hand hazır";
+    els.latencyBadge.textContent = "El izleme hazır";
   }
   _rafId = requestAnimationFrame(_processFrame);
 
@@ -411,7 +411,7 @@ async function _loadOptionalHolisticLandmarkers() {
   ].filter(Boolean);
   console.log(`[MP] opsiyonel modeller hazır: ${ready.join("+")} (${ready.length}/3)`);
   if (typeof state !== "undefined" && typeof els !== "undefined" && els.latencyBadge) {
-    els.latencyBadge.textContent = `MP: ${ready.length}/3 hazır`;
+    els.latencyBadge.textContent = `Hazırlanıyor (${ready.length}/3)`;
   }
 }
 

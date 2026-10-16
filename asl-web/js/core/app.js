@@ -99,8 +99,8 @@ async function loadModelsWithStatus(needs) {
   }
   const downloading = models.some((model) => !model.loaded);
   if (downloading) {
-    setMessage("Modeller yükleniyor...", "maybe");
-    setBadge("Modeller yükleniyor");
+    setMessage("Modeller indiriliyor…", "maybe");
+    setBadge("Hazırlanıyor");
   }
 
   try {
@@ -108,27 +108,23 @@ async function loadModelsWithStatus(needs) {
     const allReady = results.every(Boolean);
     if (!downloading) return allReady;
 
-    const status = models.filter((_, i) => results[i]).map((model) => `${model.label} ✓`);
+    const status = models.filter((_, i) => results[i]).map((model) => model.label.toLocaleLowerCase("tr"));
     if (allReady) {
-      setMessage(`Modeller hazır: ${status.join(", ")}.`, "good");
+      setMessage("Hazır. Elinizi kameraya gösterin.", "good");
       setBadge("Hazır");
     } else if (status.length) {
-      setMessage(
-        `Yalnızca ${status.join(", ")} yüklendi. Network sekmesinde 404 var mı kontrol edin.`,
-        "low",
+      reportProblem(
+        `Yalnızca ${status.join(" ve ")} modeli indirilebildi. Bağlantınızı kontrol edip sayfayı yenileyin.`,
       );
-      setBadge("Yarım yükleme");
+      setBadge("Eksik yükleme");
     } else {
-      setMessage(
-        "Model yüklenemedi. ./models/ altında ONNX dosyaları var mı? Network sekmesini kontrol edin.",
-        "low",
-      );
-      setBadge("Model yok");
+      reportProblem("Model indirilemedi. Bağlantınızı kontrol edip sayfayı yenileyin.");
+      setBadge("Model indirilemedi");
     }
     return allReady;
   } catch (err) {
     console.error("Model yükleme hatası:", err);
-    setMessage("Model yüklenemedi: " + err.message, "low");
+    reportProblem("Model indirilemedi. Bağlantınızı kontrol edip sayfayı yenileyin.");
     setBadge("Hata");
     return false;
   }
@@ -156,16 +152,32 @@ function bindEvents() {
   _eventsBound = true;
 
   queryAllUi("mode-tab").forEach((tab) => {
-    tab.addEventListener("click", () => setMode(tab.dataset.mode));
+    tab.addEventListener("click", () => {
+      setMode(tab.dataset.mode);
+      // On a phone the secondary screens sit in a popover menu, which would
+      // otherwise stay open over the screen it just opened.
+      const menu = tab.closest("[popover]");
+      if (menu instanceof HTMLElement && menu.matches(":popover-open")) {
+        menu.hidePopover();
+      }
+    });
   });
 
   queryElements("[data-go-mode]").forEach((button) => {
     button.addEventListener("click", () => setMode(button.dataset.goMode));
   });
 
-  document.querySelector("[data-home-link]")?.addEventListener("click", (event) => {
-    event.preventDefault();
-    showHome();
+  // No preventDefault: the link's href moves the address to #letter.
+  document.querySelector("[data-home-link]")?.addEventListener("click", showHome);
+
+  // A button clicked with a pointer keeps focus, so the next Space would press
+  // it again (another space after Boşluk) instead of adding the current
+  // letter. A click from the keyboard has detail 0 and keeps its focus, as a
+  // keyboard user expects.
+  window.addEventListener("click", (event) => {
+    if (event.detail === 0 || !(event.target instanceof HTMLElement)) return;
+    const button = event.target.closest("button");
+    if (button instanceof HTMLElement) button.blur();
   });
 
   window.addEventListener("hashchange", () => {
@@ -179,7 +191,26 @@ function bindEvents() {
 
   els.themeToggle?.addEventListener("click", toggleTheme);
 
-  els.cameraToggle?.addEventListener("click", toggleCamera);
+  // The start buttons sit in the empty camera stage, which hides once the
+  // camera is on, and the stop button hides once it is off. After a keyboard
+  // press (detail 0) focus moves to the control that is now visible, instead
+  // of falling to the page; a pointer leaves focus alone.
+  const cameraStarts = queryElements('[data-trigger="camera"]');
+  els.cameraToggle?.addEventListener("click", async (event) => {
+    await toggleCamera();
+    if (event?.detail === 0 && !state.cameraOn) cameraStarts[0]?.focus();
+  });
+  // The empty camera stage offers its own start buttons, so the first action
+  // sits where the eye already is rather than in the action bar.
+  cameraStarts.forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      await toggleCamera();
+      if (event?.detail === 0 && state.cameraOn) els.cameraToggle?.focus();
+    });
+  });
+  queryElements('[data-trigger="coach-start"]').forEach((button) => {
+    button.addEventListener("click", startCoachStudy);
+  });
   els.recordWord?.addEventListener("click", startWordRecording);
   els.retryWord?.addEventListener("click", retryWordRecording);
   els.appendWordResult?.addEventListener("click", appendWordResultToTranscript);
@@ -246,30 +277,39 @@ function bindEvents() {
       els.debugPanel.hidden = !state.debug;
       return;
     }
-    // Any other modified key belongs to the browser: Cmd+C and Ctrl+C are
-    // copy, not "clear the transcript".
+    // Any other modified key belongs to the browser: Cmd+Backspace and
+    // Alt+Enter are editing and system keys, not transcript commands.
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     // Everything below is an unmodified key, which belongs to the focused
     // control whenever there is one that consumes typing.
     if (isEditableTarget(event.target)) return;
-    // Space appends the current prediction only in letter mode. The on-screen
-    // control calls the same transcript function instead of simulating a key event.
-    if (event.code === "Space" && state.mode === "letter") {
+    // The transcript keys act in letter mode only, where the transcript is
+    // what the user is building. The on-screen buttons call the same
+    // functions instead of simulating a key event. There are deliberately no
+    // single-letter keys: one that clears the text or leaves the screen, with
+    // no way to turn it off, fails WCAG 2.1.4.
+    if (state.mode !== "letter") return;
+    if (event.code === "Space") {
       event.preventDefault();
       appendCurrentLetter();
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      insertSpaceInTranscript();
+    } else if (event.key === "Backspace") {
+      event.preventDefault();
+      removeLastTranscriptChar();
     }
-    if (event.key.toLowerCase() === "s") speakTranscript();
-    if (event.key.toLowerCase() === "c") clearTranscript();
-    if (event.key.toLowerCase() === "m") cycleMode();
   });
 }
 
 /**
- * Return to the home screen and release the camera.
+ * Go "home": the letter screen with the camera released.
  *
- * Stopping the camera is the point: hiding the workspace alone would leave the
- * stream and the inference loop running, which is wrong for both privacy and
- * battery.
+ * There is no separate home view. The letter screen's empty camera stage is
+ * where the app explains itself, so the brand link opens that screen.
+ * Stopping the camera is the point: hiding the workspace alone would leave
+ * the stream and the inference loop running, which is wrong for both privacy
+ * and battery.
  *
  * @returns {void}
  */
@@ -277,30 +317,35 @@ function showHome() {
   if ((state.cameraOn || _cameraStartAttempt) && typeof stopCamera === "function") {
     stopCamera();
   }
-  if (els.appShell) {
-    els.appShell.dataset.view = "home";
-  }
-  queryAllUi("mode-tab").forEach((tab) => tab.classList.remove("is-active"));
+  // The brand link's own href (#letter) updates the address, so the switch
+  // here leaves the history alone.
+  setMode("letter", { syncHash: false });
 }
 
 /**
- * Apply the stored theme, keeping the authored default when storage is
- * unavailable.
+ * Apply the theme: the one the user chose, else the system's preference, else
+ * the authored default.
  *
  * @returns {void}
  */
 function restoreTheme() {
+  if (!els.appShell) return;
+  /** @type {string | null} */
+  let savedTheme = null;
   try {
-    const savedTheme = localStorage.getItem("asl-theme");
-    if (els.appShell && (savedTheme === "dark" || savedTheme === "light")) {
-      els.appShell.dataset.theme = savedTheme;
-      document.body.dataset.theme = savedTheme;
-    } else if (els.appShell?.dataset.theme) {
-      document.body.dataset.theme = els.appShell.dataset.theme;
-    }
+    savedTheme = localStorage.getItem("asl-theme");
   } catch (err) {
-    // Keep the default theme when storage is unavailable or blocked.
+    // Storage can be unavailable or blocked; the preference still applies.
   }
+  const theme =
+    savedTheme === "dark" || savedTheme === "light"
+      ? savedTheme
+      : matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : els.appShell.dataset.theme || "light";
+  els.appShell.dataset.theme = theme;
+  document.body.dataset.theme = theme;
+  els.themeToggle?.setAttribute("aria-pressed", String(theme === "dark"));
 }
 
 /**
@@ -313,6 +358,7 @@ function toggleTheme() {
   const next = els.appShell.dataset.theme === "dark" ? "light" : "dark";
   els.appShell.dataset.theme = next;
   document.body.dataset.theme = next;
+  els.themeToggle?.setAttribute("aria-pressed", String(next === "dark"));
   try { localStorage.setItem("asl-theme", next); } catch (err) { /* noop */ }
 }
 
@@ -367,7 +413,11 @@ function setMode(mode, options = {}) {
   state.wordResultAssessment = null;
 
   queryAllUi("mode-tab").forEach((tab) => {
-    tab.classList.toggle("is-active", tab.dataset.mode === mode);
+    const isCurrent = tab.dataset.mode === mode;
+    tab.classList.toggle("is-active", isCurrent);
+    // The class only paints the tab; a screen reader needs the attribute.
+    if (isCurrent) tab.setAttribute("aria-current", "page");
+    else tab.removeAttribute("aria-current");
   });
 
   // Informational screens replace the camera workspace with their own section.
@@ -461,10 +511,7 @@ async function toggleCamera() {
   // Camera APIs require HTTPS, except on localhost.
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     els.latencyBadge.textContent = "HTTPS gerekli";
-    setMessage(
-      "Kamera için HTTPS veya localhost gerekiyor. Sayfa http:// üzerinden açılmış olabilir.",
-      "low",
-    );
+    reportProblem("Bu tarayıcı kameraya erişemiyor. Siteyi https adresinden ya da güncel bir tarayıcıda açın.");
     return;
   }
 
@@ -488,7 +535,7 @@ async function toggleCamera() {
     els.cameraEmpty.hidden = true;
     syncActionBar();
     els.cameraStatus.classList.add("is-live");
-    els.cameraStatus.lastChild.textContent = "Kamera";
+    els.cameraStatus.lastChild.textContent = "Kamera açık";
     els.latencyBadge.textContent = "Kamera açık";
 
     // Starting the camera is the first need for the live models. They download
@@ -497,19 +544,16 @@ async function toggleCamera() {
 
     if (typeof startMediaPipe === "function") {
       try {
-        els.latencyBadge.textContent = "MediaPipe yükleniyor...";
+        els.latencyBadge.textContent = "El izleme hazırlanıyor";
         await startMediaPipe(els.video);
-        els.latencyBadge.textContent = "MediaPipe Hand hazır";
+        els.latencyBadge.textContent = "El izleme hazır";
       } catch (err) {
         console.warn("MediaPipe başlatılamadı:", err);
-        els.latencyBadge.textContent = "MediaPipe yok";
+        els.latencyBadge.textContent = "El izleme yok";
         // Without MediaPipe no model can run, so this must be the message left
         // standing, not a later "models ready".
         await liveModelsLoad;
-        setMessage(
-          "MediaPipe modeli yüklenemedi. İnternet bağlantısını kontrol edin (CDN'den indiriliyor).",
-          "low",
-        );
+        reportProblem("El izleme bileşeni indirilemedi. İnternet bağlantınızı kontrol edip yeniden deneyin.");
       }
     }
   } catch (error) {
@@ -519,28 +563,29 @@ async function toggleCamera() {
     switch (error?.name) {
       case "NotAllowedError":
       case "PermissionDeniedError":
-        msg = "Kamera izni reddedildi. Tarayıcı adres çubuğundan izin verin.";
+        msg = "Kamera izni verilmedi. Tarayıcının site ayarlarından kameraya izin verip yeniden deneyin.";
         break;
       case "NotFoundError":
       case "DevicesNotFoundError":
-        msg = "Kamera bulunamadı. Cihazda webcam takılı mı?";
+        msg = "Kamera bulunamadı. Bu cihazda kullanılabilir bir kamera yok; Kamerasız dene ile devam edebilirsiniz.";
         break;
       case "NotReadableError":
       case "TrackStartError":
-        msg = "Kamera başka bir uygulama tarafından kullanılıyor. Diğer uygulamayı kapatın.";
+        msg = "Kamera başka bir uygulamada açık. O uygulamayı kapatıp yeniden deneyin.";
         break;
       case "OverconstrainedError":
       case "ConstraintNotSatisfiedError":
-        msg = "Kamera bu çözünürlüğü desteklemiyor.";
+        msg = "Kamera bu ayarlarla açılamadı. Sayfayı yenileyip yeniden deneyin.";
         break;
       case "SecurityError":
-        msg = "Tarayıcı güvenlik nedeniyle kamerayı engelliyor (HTTPS veya localhost gerekli).";
+        msg = "Tarayıcı kamerayı engelliyor. Siteyi https adresinden açın.";
         break;
       default:
-        msg = `Kamera açılamadı: ${error?.message || error?.name || "bilinmeyen hata"}`;
+        // The browser's own text is for the console; it is English and technical.
+        msg = "Kamera açılamadı. Sayfayı yenileyip yeniden deneyin.";
     }
     els.latencyBadge.textContent = "Kamera açılamadı";
-    setMessage(msg, "low");
+    reportProblem(msg);
     console.error("getUserMedia error:", error);
   }
 }
@@ -644,18 +689,18 @@ function updateMediaPipeStatus(now) {
   _lastStatusTick = now;
 
   if (typeof latestMediaPipeResult === "undefined" || !latestMediaPipeResult) {
-    els.latencyBadge.textContent = "MP: bekleniyor...";
+    els.latencyBadge.textContent = "Hazırlanıyor";
     return;
   }
   const r = latestMediaPipeResult;
   const hasHand = !!(r.rightHandLandmarks || r.leftHandLandmarks);
   if (!hasHand) {
     _noHandSeconds++;
-    els.latencyBadge.textContent = "✋ El bekleniyor";
+    els.latencyBadge.textContent = "El aranıyor";
     // Show a clear hint after five seconds without a detected hand.
     if (_noHandSeconds === 5) {
       setMessage(
-        "Elinizi kameraya gösterin (50-80 cm uzaklık, iyi ışık, parmaklar açık).",
+        "El görünmüyor. Kol boyu uzaklıkta, iyi ışıkta, eliniz kadrajın ortasında olsun.",
         "maybe",
       );
     }
@@ -663,12 +708,11 @@ function updateMediaPipeStatus(now) {
     if (_noHandSeconds > 0) {
       _noHandSeconds = 0;
       // Clear the waiting state when a hand returns.
-      setMessage("El algılandı, tahminler başlıyor.", "good");
+      setMessage("El algılandı.", "good");
     }
-    const which = [];
-    if (r.rightHandLandmarks) which.push("R");
-    if (r.leftHandLandmarks) which.push("L");
-    els.latencyBadge.textContent = `✓ El: ${which.join("+")} · ${state.fps || "--"} fps`;
+    // Which hand and the frame rate are developer readouts; the debug panel
+    // has the frame rate.
+    els.latencyBadge.textContent = "El algılandı";
   }
 
   // Pose and face models load in the background; refresh readiness periodically.
@@ -739,17 +783,6 @@ function drawOverlay() {
   }
 }
 
-
-/**
- * Step through the main modes, for the keyboard shortcut.
- *
- * @returns {void}
- */
-function cycleMode() {
-  const order = ["letter", "word", "coach", "project"];
-  const next = order[(order.indexOf(state.mode) + 1) % order.length];
-  setMode(next);
-}
 
 /**
  * Refresh the debug panel while it is open.

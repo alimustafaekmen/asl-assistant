@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f4f1ea" />
+    <meta name="theme-color" content="#f4f3ef" />
     <title>ASL Assistant — ASL Harf Çeviri · Parmak Alfabesi</title>
     <meta name="description" content="ASL Assistant, ASL harflerini ve kelimelerini tarayıcıda tanır; kamera görüntüsü cihazından hiç çıkmaz." />
     <link rel="icon" href="favicon.ico" sizes="32x32" />
@@ -18,232 +18,169 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="ASL Assistant Proje ekranı: 24 statik harf ve 50 kelime sınıfı, kelime modelinin test skoru." />
     <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preload" href="assets/fonts/atkinson-hyperlegible-next.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- style.css first: it declares the cascade layer order, and the first
+         declaration wins. The files after it add layers above the legacy one. -->
     <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/tokens.css" />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/layout.css" />
+    <link rel="stylesheet" href="css/components.css" />
   </head>
   <body>
-    <div class="app-shell" data-ui="app-shell" data-view="home" data-mode="letter" data-theme="light">
+    <div class="app-shell" data-ui="app-shell" data-view="app" data-mode="letter" data-theme="light">
+      <div class="visually-hidden" id="announcer" role="status" aria-live="polite"></div>
+
       <header class="topbar">
-        <a class="brand" href="#home" aria-label="ASL Assistant giriş ekranı" data-home-link>
-          <span class="brand-mark" aria-hidden="true">ASL</span>
-          <span>
-            <strong>ASL Assistant</strong>
-            <small>Harf çeviri · Öğrenme koçu</small>
-          </span>
+        <a class="brand" href="#letter" aria-label="ASL Assistant" data-home-link>
+          <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="0.5" y="0.5" width="31" height="31" rx="8"></rect><polyline points="9,23 16,9 23,23" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></polyline><circle cx="9" cy="23" r="2.2"></circle><circle cx="16" cy="9" r="2.2"></circle><circle cx="23" cy="23" r="2.2"></circle></svg>
+          <span class="brand__name">ASL Assistant</span>
         </a>
 
-        <nav class="mode-tabs" aria-label="Uygulama modu">
-          <button class="mode-tab mode-tab--primary is-active" data-ui="mode-tab" type="button" data-mode="letter">Harf Çeviri</button>
-          <button class="mode-tab mode-tab--primary" data-ui="mode-tab" type="button" data-mode="coach">Öğrenme Koçu</button>
-          <span class="mode-tabs__divider" aria-hidden="true"></span>
-          <span class="mode-tabs__group-label" aria-hidden="true">ekstra</span>
-          <button class="mode-tab mode-tab--extra" data-ui="mode-tab" type="button" data-mode="word">Kelime</button>
-          <button class="mode-tab mode-tab--extra" data-ui="mode-tab" type="button" data-mode="test">Model Test</button>
-          <button class="mode-tab mode-tab--extra" data-ui="mode-tab" type="button" data-mode="qr">QR</button>
-          <button class="mode-tab mode-tab--extra" data-ui="mode-tab" type="button" data-mode="project">Proje</button>
+        <nav class="modes topbar__modes" aria-label="Mod">
+          <button class="modes__item is-active" data-ui="mode-tab" type="button" data-mode="letter" aria-current="page">Harf</button>
+          <button class="modes__item" data-ui="mode-tab" type="button" data-mode="coach">Koç</button>
+          <button class="modes__item" data-ui="mode-tab" type="button" data-mode="word">Kelime <span class="modes__tag">deneysel</span></button>
         </nav>
 
-        <div class="status-strip" aria-label="Sistem durumu">
-          <button class="status-pill theme-toggle" type="button" id="themeToggle" aria-label="Tema değiştir">Tema</button>
-          <span class="status-pill" id="cameraStatus"><span></span>Hazır</span>
-          <span class="status-pill" id="fpsLabel">-- fps</span>
+        <div class="topbar__end">
+          <span class="live-indicator" id="cameraStatus"><span aria-hidden="true"></span>Hazır</span>
+          <button class="btn btn--quiet btn--icon topbar__more" type="button" popovertarget="moreMenu" data-icon="more" aria-label="Diğer"></button>
+          <div class="topbar__links menu" id="moreMenu" popover>
+            <button class="navlink" data-ui="mode-tab" type="button" data-mode="test">Kamerasız dene</button>
+            <button class="navlink" data-ui="mode-tab" type="button" data-mode="project">Nasıl çalışır</button>
+            <button class="navlink navlink--icon" data-ui="mode-tab" type="button" data-mode="qr" data-icon="qr" title="Telefonda aç"><span class="navlink__label">Telefonda aç</span></button>
+            <button class="navlink navlink--icon" type="button" id="themeToggle" data-icon="theme" title="Koyu tema" aria-pressed="false"><span class="navlink__label">Koyu tema</span></button>
+          </div>
         </div>
       </header>
 
       <main>
-        <section class="home-screen" id="homeScreen" aria-labelledby="homeTitle">
-          <div class="home-hero">
-            <div class="home-copy">
-              <span class="eyebrow">Tarayıcıda çalışan ASL parmak alfabesi asistanı</span>
-              <h1 id="homeTitle">Kameranla ASL harflerini tanı, parmak alfabesini yaz.</h1>
-              <p>
-                ASL Assistant'ın çekirdek özelliği canlı harf tanımadır: MediaPipe
-                landmarkları ve ONNX modeliyle 24 statik ASL harfini tanır, metne
-                yazar ve sesli okur. Öğrenme koçu, kelime pratiği ve model testi ise
-                bu çekirdeği tamamlayan ekstra alanlardır.
-              </p>
-              <div class="home-actions">
-                <button class="button primary" type="button" data-go-mode="letter">Harf Çeviriyi Aç</button>
-                <button class="button" type="button" data-go-mode="coach">Öğrenme Koçu (harf)</button>
-                <span class="home-actions__extra">
-                  <span class="home-actions__extra-label">Ekstra:</span>
-                  <button class="button quiet" type="button" data-go-mode="word">Kelime</button>
-                  <button class="button quiet" type="button" data-go-mode="test">Model Testi</button>
-                  <button class="button quiet" type="button" data-go-mode="qr">QR</button>
-                </span>
-              </div>
-            </div>
-            <div class="home-preview" aria-label="Uygulama önizlemesi">
-              <div class="preview-camera">
-                <span class="preview-hand" aria-hidden="true">A</span>
-                <div class="preview-dots" aria-hidden="true">
-                  <i></i><i></i><i></i><i></i><i></i>
-                </div>
-              </div>
-              <div class="preview-card">
-                <span>Anlık sonuç</span>
-                <strong>Harf: A</strong>
-                <small>Stabil · Öğrenme koçu hazır</small>
-              </div>
-            </div>
-          </div>
-
-          <div class="home-grid" aria-label="Ana modüller">
-            <article class="home-card primary-card">
-              <span class="card-kicker">Ana ürün</span>
-              <h2>Harf Çeviri</h2>
-              <p>Canlı kameradan ASL harflerini tanır, metne ekler ve sesli okuma akışına bağlar.</p>
-              <button class="text-button" type="button" data-go-mode="letter">Başla →</button>
-            </article>
-            <article class="home-card support-card">
-              <span class="card-kicker">Ekstra · harf pratiği</span>
-              <h2>Öğrenme Koçu</h2>
-              <p>Hedef harf, tekrar, quiz ve anlık geri bildirimle harf öğrenmeyi yönlendirir.</p>
-              <button class="text-button" type="button" data-go-mode="coach">Pratik yap →</button>
-            </article>
-            <article class="home-card support-card">
-              <span class="card-kicker">Ekstra · araştırma / lab</span>
-              <h2>Kelime Pratik</h2>
-              <p>50 kelimelik modelle top-3 tahmin, demo kelime listesi ve sınırlılık notları sunar.</p>
-              <button class="text-button" type="button" data-go-mode="word">İncele →</button>
-            </article>
-          </div>
-
-          <section class="demo-strip" aria-label="Önerilen kullanım akışı">
-            <div>
-              <strong>Önerilen kullanım akışı</strong>
-              <span>1) Harf Çeviri → 2) Öğrenme Koçu Quiz → 3) Kelime Pratik ve araştırma bulguları</span>
-            </div>
-            <button class="button" type="button" data-go-mode="project">Proje özetini aç</button>
-          </section>
-        </section>
-
         <section class="workspace" data-ui="workspace" id="appWorkspace" aria-label="ASL Assistant çalışma alanı">
-          <section class="camera-column" data-ui="workspace-pane" aria-label="Kamera çalışma alanı">
-            <section class="mode-intro mode-intro--letter mode-only letter-only" aria-label="Harf Çeviri açıklaması">
-              <div>
-                <span class="eyebrow">Ana modül</span>
-                <h1>Harf Çeviri</h1>
-                <p>Canlı tahmini metne ekle, boşluk bırak, sil veya sesli oku. Kamera alanı bu modda ana odaktır.</p>
-              </div>
-            </section>
+          <section class="camera-column" data-ui="workspace-pane" aria-label="Kamera">
+            <h1 class="visually-hidden mode-only letter-only">Harf</h1>
+            <h1 class="visually-hidden mode-only coach-only">Koç</h1>
+            <h1 class="visually-hidden mode-only word-only">Kelime</h1>
 
-            <section class="mode-intro mode-intro--coach mode-only coach-only" aria-label="Öğrenme Koçu açıklaması">
-              <div>
-                <span class="eyebrow">Ekstra · pratik ve quiz</span>
-                <h1>Öğrenme Koçu</h1>
-                <p>Hedef seç, kamerayı başlat, sonucu kontrol et. Harfte sabit el pozu, kelimede kısa hareket kaydı kullanılır.</p>
-              </div>
-            </section>
+            <div class="stage" id="cameraStage" data-state="idle" data-kind="letter">
+              <video id="cameraVideo" class="stage__video" autoplay playsinline muted aria-hidden="true"></video>
+              <canvas id="overlayCanvas" class="stage__overlay" width="1280" height="720" aria-hidden="true"></canvas>
 
-            <section class="mode-intro mode-intro--word mode-only word-only" aria-label="Kelime Pratik açıklaması">
-              <div>
-                <span class="eyebrow">Ekstra · 50 kelime pratik</span>
-                <h1>Kelime Pratik</h1>
-                <p>Kelimeler 45 frame boyunca kaydedilir. Top-3 sonuç, kayıt kalitesi ve demo önerileri birlikte değerlendirilir.</p>
-              </div>
-            </section>
-
-            <div class="camera-stage" id="cameraStage" data-state="idle">
-              <video id="cameraVideo" class="camera-video" autoplay playsinline muted></video>
-              <div class="camera-empty" id="cameraEmpty">
-                <div class="camera-empty-icon" aria-hidden="true">◇</div>
-                <strong>Kamera bekleniyor</strong>
-                <span>Başlat'a basınca WebRTC ile canlı görüntü açılır.</span>
-                <span>Görüntü cihazından çıkmaz; tanıma tamamen tarayıcıda yapılır.</span>
-              </div>
-              <canvas id="overlayCanvas" class="overlay-canvas" width="1280" height="720"></canvas>
-
-              <div class="stage-top">
-                <span class="camera-badge" id="modeBadge">Harf Modu</span>
-                <span class="camera-badge muted" id="latencyBadge">Hazır</span>
-              </div>
-
-              <div class="stage-result">
-                <div>
-                  <span id="resultKind">Harf</span>
-                  <strong id="primaryPrediction">?</strong>
+              <div class="stage__empty" id="cameraEmpty">
+                <svg class="stage__illustration" viewBox="6 46 152 182" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"><polyline class="bone" points="100,220 78,200 58,182 40,170 22,160"></polyline><polyline class="bone" points="100,220 88,150 86,110 85,84 84,60"></polyline><polyline class="bone" points="88,150 106,150 112,126 100,134 96,148"></polyline><polyline class="bone" points="106,150 122,154 128,134 116,140 112,152"></polyline><polyline class="bone" points="122,154 136,162 142,146 132,150 128,160"></polyline><polyline class="bone" points="100,220 136,162"></polyline></g><g><circle class="joint" cx="100" cy="220" r="4"></circle><circle class="joint" cx="22" cy="160" r="4"></circle><circle class="joint" cx="84" cy="60" r="4"></circle><circle class="joint" cx="88" cy="150" r="4"></circle><circle class="joint" cx="86" cy="110" r="4"></circle><circle class="joint" cx="58" cy="182" r="4"></circle><circle class="joint" cx="96" cy="148" r="4"></circle><circle class="joint" cx="112" cy="152" r="4"></circle><circle class="joint" cx="128" cy="160" r="4"></circle><circle class="joint" cx="136" cy="162" r="4"></circle></g></svg>
+                <h2 class="stage__headline">
+                  <span class="mode-only letter-only">Kameraya bir ASL harfi gösterin; tanınan harf metne yazılır.</span>
+                  <span class="mode-only coach-only">Hedef harfi gösterin; koç doğru olup olmadığını söyler.</span>
+                  <span class="mode-only word-only">Bir ASL kelimesi kaydedin; onaylarsanız metne eklenir.</span>
+                </h2>
+                <p class="stage__lead">Kamerayı açınca tarayıcı izin ister. Görüntü cihazınızdan çıkmaz, kaydedilmez.</p>
+                <div class="stage__cta">
+                  <button class="btn btn--stage-primary mode-only letter-only word-only" type="button" data-trigger="camera" data-icon="camera">Kamerayı aç</button>
+                  <button class="btn btn--stage-primary mode-only coach-only" type="button" data-trigger="coach-start" data-icon="camera">Çalışmayı başlat</button>
+                  <button class="btn btn--stage" type="button" data-go-mode="test">Kamerasız dene</button>
                 </div>
-                <div class="confidence-ring" id="confidenceRing" style="--score: 0">
-                  <span id="confidenceText">--</span>
-                </div>
+                <ul class="stage__facts">
+                  <li class="mode-only letter-only coach-only" data-icon="info">24 ASL harfi · J ve Z hareketli olduğu için yok</li>
+                  <li class="mode-only word-only" data-icon="info">50 kelime · deneysel; el, yüz ve omuzlar görünmeli</li>
+                  <li data-icon="info">ASL (Amerikan İşaret Dili) — TİD değil</li>
+                  <li class="mode-only letter-only coach-only" data-icon="info">İlk açılışta yaklaşık 17 MB indirilir</li>
+                  <li class="mode-only word-only" data-icon="info">İlk açılışta daha fazla veri iner; Wi-Fi önerilir</li>
+                </ul>
               </div>
 
-              <div class="countdown" id="countdown" hidden>3</div>
-            </div>
-
-            <div class="control-bar" id="controlBar" aria-label="Mod kontrolleri">
-              <button class="button primary mode-only letter-only word-only" type="button" id="cameraToggle">Başlat</button>
-              <button class="button mode-only letter-only" type="button" id="manualAddLetter" title="Kısayol: Space">Harf Ekle</button>
-              <button class="button mode-only letter-only" type="button" id="insertSpace">Boşluk</button>
-              <button class="button mode-only letter-only" type="button" id="removeLastChar">Sil</button>
-              <button class="button mode-only letter-only" type="button" id="speakText">Sesli Oku</button>
-              <button class="button quiet mode-only letter-only" type="button" id="clearText">Temizle</button>
-
-              <button class="button mode-only word-only" type="button" id="recordWord">Kelime Kaydı Başlat</button>
-              <button class="button mode-only word-only" type="button" id="retryWord">Tekrar Dene</button>
-              <button class="button mode-only word-only" type="button" id="appendWordResult">Sonucu Metne Ekle</button>
-              <a class="button mode-only word-only" id="actionVideoLink" href="https://www.youtube.com/results?search_query=ASL+basic+words+tutorial" target="_blank" rel="noreferrer">Video Rehber</a>
-
-              <button class="button primary mode-only coach-only" type="button" id="coachStart">Çalışmayı Başlat</button>
-              <button class="button mode-only coach-only" type="button" id="coachCheck">Hedefi Kontrol Et</button>
-              <button class="button mode-only coach-only" type="button" id="coachNextTarget">Sonraki Hedef</button>
-              <a class="button mode-only coach-only" id="coachVideoLink" href="https://www.youtube.com/results?search_query=ASL+alphabet+tutorial" target="_blank" rel="noreferrer">Video Rehber</a>
-            </div>
-
-            <section class="transcript-panel" aria-label="Canlı çeviri çıktısı">
-              <div class="panel-heading">
-                <div>
-                  <span>Canlı çıktı</span>
-                  <h1 id="transcriptText">Henüz metin yok<span class="cursor">|</span></h1>
-                </div>
-                <button class="icon-button" type="button" id="copyText" title="Metni kopyala" aria-label="Metni kopyala">⧉</button>
+              <div class="stage__top">
+                <span class="stage-chip" id="latencyBadge">Hazır</span>
+                <span class="visually-hidden" id="modeBadge">Harf Modu</span>
+                <button class="btn btn--stage stage__close mode-only letter-only word-only" type="button" id="cameraToggle" data-icon="camera-off">Kamerayı kapat</button>
               </div>
-              <p id="confidenceMessage">Model sonucu burada güven seviyesine göre açıklanır.</p>
+
               <div class="feedback-bar" id="feedbackBar" hidden></div>
-            </section>
 
+              <div class="plate">
+                <div class="plate__visual">
+                  <div class="confidence-ring" id="confidenceRing" style="--score: 0" aria-hidden="true"></div>
+                  <strong class="plate__glyph" id="primaryPrediction">?</strong>
+                </div>
+                <div class="plate__body">
+                  <p class="plate__level">
+                    <span class="visually-hidden" id="resultKind">Harf</span>
+                    <strong class="plate__decision" id="decisionLabel">Bekleniyor</strong>
+                    <span class="signal" aria-hidden="true"><i></i><i></i><i></i></span>
+                    <span class="plate__pct num" id="confidenceText">--</span>
+                  </p>
+                  <p class="plate__message" id="confidenceMessage">Kamerayı açtığınızda sonuç burada görünür.</p>
+                </div>
+              </div>
+
+              <div class="stage__countdown" id="countdown" hidden>3</div>
+
+              <div class="toast" id="toast" hidden>
+                <span id="toastText"></span>
+                <button class="btn btn--quiet toast__action" type="button" id="toastAction" data-icon="undo" hidden>Geri al</button>
+              </div>
+            </div>
+
+            <div class="compose">
+              <section class="strip mode-only letter-only word-only" aria-labelledby="transcriptHeading">
+                <h2 class="visually-hidden" id="transcriptHeading">Yazılan metin</h2>
+                <p class="strip__text" id="transcriptText" data-empty="true" lang="tr">Metin burada görünür<span class="cursor" aria-hidden="true">|</span></p>
+                <button class="btn btn--quiet btn--icon" type="button" id="copyText" data-icon="copy" title="Metni kopyala" aria-label="Metni kopyala"></button>
+                <button class="btn btn--quiet btn--icon" type="button" id="speakText" data-icon="volume" title="Sesli oku" aria-label="Sesli oku"></button>
+                <button class="btn btn--quiet btn--icon" type="button" id="clearText" data-icon="x" title="Metni temizle" aria-label="Metni temizle"></button>
+              </section>
+
+              <div class="dock" id="controlBar" role="group" aria-label="İşlemler">
+                <button class="btn mode-only letter-only" type="button" id="removeLastChar" data-icon="delete" aria-keyshortcuts="Backspace"><span class="btn__label--phone-hidden">Sil</span></button>
+                <button class="btn mode-only letter-only" type="button" id="insertSpace" data-icon="space" aria-keyshortcuts="Enter">Boşluk <span class="kbd" aria-hidden="true">Enter</span></button>
+                <button class="btn btn--primary btn--grow mode-only letter-only" type="button" id="manualAddLetter" data-icon="plus" aria-keyshortcuts="Space">Ekle <span class="kbd" aria-hidden="true">Space</span></button>
+
+                <button class="btn btn--primary btn--grow mode-only word-only" type="button" id="recordWord">Kelime Kaydı Başlat</button>
+                <button class="btn mode-only word-only" type="button" id="retryWord">Tekrar Dene</button>
+                <button class="btn mode-only word-only" type="button" id="appendWordResult">Sonucu Metne Ekle</button>
+                <a class="btn mode-only word-only" id="actionVideoLink" href="https://www.youtube.com/results?search_query=ASL+basic+words+tutorial" target="_blank" rel="noreferrer">Video Rehber</a>
+
+                <button class="btn btn--primary btn--grow mode-only coach-only" type="button" id="coachStart">Çalışmayı Başlat</button>
+                <button class="btn mode-only coach-only" type="button" id="coachCheck">Hedefi Kontrol Et</button>
+                <button class="btn mode-only coach-only" type="button" id="coachNextTarget">Sonraki Hedef</button>
+                <a class="btn mode-only coach-only" id="coachVideoLink" href="https://www.youtube.com/results?search_query=ASL+alphabet+tutorial" target="_blank" rel="noreferrer">Video Rehber</a>
+              </div>
+            </div>
           </section>
 
-          <aside class="side-panel" data-ui="workspace-pane" aria-label="Mod paneli">
-            <section class="card prediction-card mode-card shared-card assistant-card">
-              <div class="card-heading">
-                <span>Canlı sonuç</span>
-                <strong id="decisionLabel">Beklemede</strong>
-              </div>
+          <aside class="side-panel" data-ui="workspace-pane" aria-label="Ayrıntılar">
+            <section class="panel ranked" aria-labelledby="rankedTitle">
+              <h2 class="panel__title" id="rankedTitle">En olası sonuçlar</h2>
               <div class="top3-list" id="top3List"></div>
-              <p class="card-note mode-only letter-only">Elini kadrajda tut; stabil harfi metne eklemek için ana butonları kullan.</p>
-              <p class="card-note mode-only word-only">Kayıt bittikten sonra önce top-3 sonucuna bak; emin değilsen tekrar dene.</p>
-              <p class="card-note mode-only coach-only">Önce hedefi seç, kamerayı başlat, sonra sonucu hedefle karşılaştır.</p>
+              <p class="panel__note mode-only word-only">Kayıt bittikten sonra önce sonuçlara bakın; emin değilseniz yeniden kaydedin.</p>
+              <p class="panel__note mode-only coach-only">Önce hedefi seçin, kamerayı açın, sonra sonucu hedefle karşılaştırın.</p>
             </section>
 
-            <section class="reference-strip app-reference" aria-label="Mod referansları">
-              <div class="section-heading">
+            <section class="panel reference app-reference" aria-labelledby="referenceTitle">
+              <div class="panel__head">
                 <div>
-                  <span id="referenceKicker">Hızlı referans</span>
-                  <h2 id="referenceTitle">Harf kartları</h2>
-                  <p id="referenceNote">Referans görseli ve video rehber hedefe göre güncellenir.</p>
+                  <span class="panel__kicker" id="referenceKicker">Hızlı referans</span>
+                  <h2 class="panel__title" id="referenceTitle">Harf kartları</h2>
                 </div>
-                <div class="reference-actions">
-                  <a class="button small" id="referenceVideoLink" href="https://www.youtube.com/results?search_query=ASL+alphabet+tutorial" target="_blank" rel="noreferrer" title="Desktop uygulamasındaki asl_video_links.json varsa birebir link, yoksa YouTube araması açılır">Video rehber</a>
-                  <button class="text-button" type="button" id="toggleReference">Göster</button>
-                </div>
+                <button class="btn btn--quiet" type="button" id="toggleReference" aria-controls="referenceBody" aria-expanded="false">Göster</button>
               </div>
-              <div class="reference-body compact" id="referenceBody" hidden>
+              <p class="panel__note" id="referenceNote">Referans görseli ve video rehber hedefe göre güncellenir.</p>
+              <div class="reference__body" id="referenceBody" hidden>
                 <img id="referenceImage" src="./assets/signs/letters.png" alt="ASL harf referans görseli" loading="lazy" decoding="async" />
                 <div class="reference-thumbs" id="referenceThumbs" hidden aria-label="Kelime referans sayfaları"></div>
               </div>
+              <div class="reference__actions">
+                <a class="btn" id="referenceVideoLink" href="https://www.youtube.com/results?search_query=ASL+alphabet+tutorial" target="_blank" rel="noreferrer" data-icon="external">Video rehber</a>
+              </div>
             </section>
 
-            <section class="card letter-actions-card mode-only letter-only">
-              <div class="card-heading">
-                <span>Harf metni</span>
-                <strong>Hızlı işlem</strong>
-              </div>
-              <p class="card-note">Stabil görünen harfi metne eklemek için butonu veya Space kısayolunu kullan.</p>
-              <div class="quick-actions">
-                <button class="button full" type="button" data-trigger="add-letter">Harf ekle</button>
-                <button class="button full" type="button" data-trigger="space">Boşluk ekle</button>
-              </div>
+            <section class="panel mode-only letter-only" aria-labelledby="shortcutsTitle">
+              <h2 class="panel__title" id="shortcutsTitle">Kısayollar</h2>
+              <dl class="shortcuts">
+                <dt><span class="kbd">Space</span></dt><dd>Harfi metne ekle</dd>
+                <dt><span class="kbd">Enter</span></dt><dd>Boşluk bırak</dd>
+                <dt><span class="kbd kbd--symbol"><span aria-hidden="true">⌫</span><span class="visually-hidden">Backspace</span></span></dt><dd>Son karakteri sil</dd>
+              </dl>
+              <p class="panel__note">Bir düğme ya da form alanı seçiliyken tuşlar ona gider.</p>
             </section>
 
             <section class="card coach-card mode-only coach-only" id="coachCard">
@@ -351,7 +288,7 @@
               </div>
             </details>
 
-            <details class="card model-card mode-card">
+            <details class="card model-card mode-card mode-only word-only coach-only">
               <summary class="card-summary">
                 <span>Model kartı</span>
                 <strong>Web hazır</strong>
@@ -682,6 +619,7 @@
         <span id="debugConfidence">confidence: 0</span>
         <span id="debugFrames">frames: 0</span>
         <span id="debugLatency">latency: --</span>
+        <span id="fpsLabel">-- fps</span>
       </section>
     </div>
 
@@ -692,25 +630,26 @@
     <!-- MediaPipe Tasks Vision ESM loader is lazily imported in media/camera.js -->
 
     <!-- Uygulama modülleri (sırayla, bağımlılık sırası) -->
-    <script src="js/core/config.js?v=9"></script>
-    <script src="js/core/runtime.js?v=9"></script>
-    <script src="js/ml/landmarks.js?v=9"></script>
-    <script src="js/ml/features.js?v=9"></script>
-    <script src="js/services/benchmark.js?v=9"></script>
-    <script src="js/ml/gating.js?v=9"></script>
-    <script src="js/ml/letter-model.js?v=9"></script>
-    <script src="js/ml/word-model.js?v=9"></script>
-    <script src="js/media/overlay.js?v=9"></script>
-    <script src="js/media/camera.js?v=9"></script>
-    <script src="js/ml/live-inference.js?v=9"></script>
-    <script src="js/ui/prediction.js?v=9"></script>
-    <script src="js/ui/transcript.js?v=9"></script>
-    <script src="js/ui/word-flow.js?v=9"></script>
-    <script src="js/ui/coach.js?v=9"></script>
-    <script src="js/ui/reference.js?v=9"></script>
-    <script src="js/ui/qr.js?v=9"></script>
-    <script src="js/ui/model-test.js?v=9"></script>
-    <script src="js/core/app.js?v=9"></script>
+    <script src="js/core/config.js?v=10"></script>
+    <script src="js/core/runtime.js?v=10"></script>
+    <script src="js/ml/landmarks.js?v=10"></script>
+    <script src="js/ml/features.js?v=10"></script>
+    <script src="js/services/benchmark.js?v=10"></script>
+    <script src="js/ml/gating.js?v=10"></script>
+    <script src="js/ml/letter-model.js?v=10"></script>
+    <script src="js/ml/word-model.js?v=10"></script>
+    <script src="js/media/overlay.js?v=10"></script>
+    <script src="js/media/camera.js?v=10"></script>
+    <script src="js/ml/live-inference.js?v=10"></script>
+    <script src="js/ui/prediction.js?v=10"></script>
+    <script src="js/ui/toast.js?v=10"></script>
+    <script src="js/ui/transcript.js?v=10"></script>
+    <script src="js/ui/word-flow.js?v=10"></script>
+    <script src="js/ui/coach.js?v=10"></script>
+    <script src="js/ui/reference.js?v=10"></script>
+    <script src="js/ui/qr.js?v=10"></script>
+    <script src="js/ui/model-test.js?v=10"></script>
+    <script src="js/core/app.js?v=10"></script>
 
   </body>
 </html>

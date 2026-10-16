@@ -8,6 +8,11 @@
 //
 // Drawing is intentionally sparse: full hands, plus a small set of pose and
 // face guidance points in word contexts, where framing matters.
+//
+// Every stroke and dot is drawn twice, a dark halo under a light core, so the
+// skeleton reads on light skin, a white wall or a plant as well as on a dark
+// room; a single-colour stroke fell under 3:1 on most of those. The colours
+// are the design tokens, read once: the stage is dark in both themes.
 
 /**
  * Where the video actually sits inside its box under `object-fit: cover`.
@@ -21,6 +26,48 @@
  * @property {number} width Rendered width, which may exceed the box.
  * @property {number} height Rendered height, which may exceed the box.
  */
+
+/**
+ * @typedef {Object} OverlayPalette
+ * @property {string} core Bones and joints while the stage is not locked.
+ * @property {string} lock The core once the stage is locked on a result.
+ * @property {string} guide Pose and face guidance points.
+ * @property {string} halo The dark outline under every stroke and dot.
+ */
+
+/** @type {OverlayPalette | null} */
+let _overlayPalette = null;
+
+/**
+ * The overlay colours, from the CSS custom properties in tokens.css, so the
+ * canvas and the stylesheet cannot drift apart. The defaults apply only if a
+ * token is missing.
+ *
+ * @returns {OverlayPalette}
+ */
+function overlayPalette() {
+  if (_overlayPalette) return _overlayPalette;
+  const styles = getComputedStyle(document.documentElement);
+  /** @param {string} name @param {string} fallback */
+  const read = (name, fallback) => styles.getPropertyValue(name).trim() || fallback;
+  _overlayPalette = {
+    core: read("--stage-text", "#f5f4f0"),
+    lock: read("--stage-lock", "#f2b705"),
+    guide: read("--stage-text-2", "#b8babf"),
+    halo: read("--stage-halo", "rgba(0, 0, 0, 0.55)"),
+  };
+  return _overlayPalette;
+}
+
+/** Hand bones as landmark index pairs. */
+const HAND_CONNECTIONS = [
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  [0, 9], [9, 10], [10, 11], [11, 12],
+  [0, 13], [13, 14], [14, 15], [15, 16],
+  [0, 17], [17, 18], [18, 19], [19, 20],
+  [5, 9], [9, 13], [13, 17],
+];
 
 /**
  * Draw the latest landmarks over the camera canvas.
@@ -88,27 +135,32 @@ function drawLandmarks(ctx, result, width, height, videoEl = null) {
     ctx.stroke();
   };
 
+  const palette = overlayPalette();
+  // The frame and the skeleton lock together: the stage's state is what the
+  // prediction code wrote, so both always agree.
+  const core = els.cameraStage?.dataset.state === "good" ? palette.lock : palette.core;
+
   /**
-   * @param {LandmarkList | null | undefined} hand The 21 hand landmarks.
-   * @param {string} color
+   * Draw hands in layers: every halo first, then every core, so where two
+   * hands overlap no halo covers a core.
+   *
+   * @param {(LandmarkList | null)[]} hands The 21-point hands to draw.
    * @returns {void}
    */
-  const drawHand = (hand, color) => {
-    if (!hand || !hand.length) return;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    const connections = [
-      [0, 1], [1, 2], [2, 3], [3, 4],
-      [0, 5], [5, 6], [6, 7], [7, 8],
-      [0, 9], [9, 10], [10, 11], [11, 12],
-      [0, 13], [13, 14], [14, 15], [15, 16],
-      [0, 17], [17, 18], [18, 19], [19, 20],
-      [5, 9], [9, 13], [13, 17],
-    ];
-    for (const [a, b] of connections) {
-      if (a < hand.length && b < hand.length) drawLine(hand[a], hand[b], color, 2);
+  const drawHands = (hands) => {
+    const present = hands.filter((hand) => hand && hand.length);
+    for (const pass of [{ color: palette.halo, width: 5 }, { color: core, width: 2.25 }]) {
+      for (const hand of present) {
+        for (const [a, b] of HAND_CONNECTIONS) {
+          if (a < hand.length && b < hand.length) drawLine(hand[a], hand[b], pass.color, pass.width);
+        }
+      }
     }
-    for (const pt of hand) drawDot(pt, color, 3.8);
+    for (const pass of [{ color: palette.halo, radius: 5.5 }, { color: core, radius: 3.2 }]) {
+      for (const hand of present) {
+        for (const pt of hand) drawDot(pt, pass.color, pass.radius);
+      }
+    }
   };
 
   // Word contexts require hand, face, and pose cues. Draw only a small set of
@@ -125,11 +177,14 @@ function drawLandmarks(ctx, result, width, height, videoEl = null) {
    */
   const drawPoseKeypoints = (pose) => {
     if (!pose || !pose.length) return;
-    const color = "rgba(200, 154, 62, 0.95)";
     // MediaPipe pose indices: shoulders 11/12, elbows 13/14, wrists 15/16, nose 0.
     const pairs = [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16]];
-    for (const [a, b] of pairs) drawLine(pose[a], pose[b], color, 2.5);
-    [0, 11, 12, 13, 14, 15, 16].forEach((idx) => drawDot(pose[idx], color, idx === 0 ? 3.5 : 5));
+    for (const pass of [{ color: palette.halo, width: 5 }, { color: palette.guide, width: 2 }]) {
+      for (const [a, b] of pairs) drawLine(pose[a], pose[b], pass.color, pass.width);
+    }
+    for (const pass of [{ color: palette.halo, grow: 2 }, { color: palette.guide, grow: 0 }]) {
+      [0, 11, 12, 13, 14, 15, 16].forEach((idx) => drawDot(pose[idx], pass.color, (idx === 0 ? 3 : 4) + pass.grow));
+    }
   };
 
   /**
@@ -139,11 +194,11 @@ function drawLandmarks(ctx, result, width, height, videoEl = null) {
    */
   const drawFaceKeypoints = (face) => {
     if (!face || !face.length) return;
-    const color = "rgba(81, 127, 141, 0.9)";
     // Avoid the full 468-point mesh; these points are sufficient to communicate
     // face direction and framing.
     const idxs = [1, 10, 152, 33, 263, 13, 14, 61, 291].filter((i) => i < face.length);
-    idxs.forEach((idx) => drawDot(face[idx], color, 3));
+    idxs.forEach((idx) => drawDot(face[idx], palette.halo, 4.5));
+    idxs.forEach((idx) => drawDot(face[idx], palette.guide, 2.5));
   };
 
   if (shouldDrawHolistic) {
@@ -167,8 +222,9 @@ function drawLandmarks(ctx, result, width, height, videoEl = null) {
       : result.leftHandLandmarks
   );
 
-  drawHand(rh, "rgba(99, 179, 237, 0.92)");
-  drawHand(lh, "rgba(31, 185, 129, 0.92)");
+  // One colour for both hands: position tells them apart, and colour alone
+  // would not reach everyone.
+  drawHands([rh, lh]);
 
   ctx.restore();
 }

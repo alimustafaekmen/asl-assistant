@@ -74,7 +74,15 @@ class StubElement {
 
   removeEventListener() {}
 
+  // Every element can take focus; a test that watches it replaces this.
+  focus() {}
+
   setAttribute() {}
+
+  // Plain elements carry no role; a test that needs one passes getAttribute.
+  getAttribute() {
+    return null;
+  }
 
   removeAttribute() {}
 
@@ -118,6 +126,9 @@ function createSandbox(missingIds, wrongTypeIds) {
   const context = vm.createContext({
     console,
     performance: { now: () => 0 },
+    // Every browser has it; the theme reads the system preference through it.
+    // A test that needs a preference passes its own through `globals`.
+    matchMedia: () => ({ matches: false }),
     // window is globalThis here, so this is what window.addEventListener hits.
     addEventListener: (type, handler) => {
       listenerLog.push(`window:${type}`);

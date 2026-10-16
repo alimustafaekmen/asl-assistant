@@ -150,6 +150,11 @@ Tarayıcı şu kütüphaneleri public CDN'lerden yükler; depoda dağıtılmazla
 `asl-web/data/asl_video_links.json` içindeki işaret videosu bağlantıları
 üçüncü taraf YouTube videolarına gider; videolar sahiplerine aittir.
 
+Arayüz yazı tipleri depoda dağıtılır: [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next)
+ve [Atkinson Hyperlegible Mono](https://github.com/googlefonts/atkinson-hyperlegible-next-mono)
+(SIL Open Font License 1.1); Latin ve Türkçe karakterlere indirgenmiş hâlleri
+lisanslarıyla birlikte `asl-web/assets/fonts/` içindedir.
+
 Arayüzdeki referans görseller bu proje için hazırlanmıştır; üçüncü taraf
 stok görsel lisansına dayanmaz.
 

@@ -1,0 +1,112 @@
+// Confirmations: the toast the user sees and the line a screen reader hears.
+//
+// Copy feedback used to go to the camera status chip, which the status loop
+// rewrites every second, and clearing the transcript could not be undone.
+// The clock and the clipboard are faked; everything else is the app's own.
+
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { loadWebApp } from "./helpers/web-app-context.mjs";
+
+function loadApp(extraGlobals = {}) {
+  // A clock the test advances by hand; a cleared timer never runs.
+  const timers = new Map();
+  let nextId = 1;
+  const app = loadWebApp({
+    globals: {
+      localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+      setTimeout: (fn) => { timers.set(nextId, fn); return nextId++; },
+      clearTimeout: (id) => { timers.delete(id); },
+      ...extraGlobals,
+    },
+  });
+  const runTimers = () => {
+    const due = [...timers.values()];
+    timers.clear();
+    due.forEach((fn) => fn());
+  };
+  return { app, runTimers };
+}
+
+test("clearing the transcript offers an undo that brings the text back", () => {
+  const { app } = loadApp();
+  app.evaluate('state.transcript = "MERHABA";');
+
+  app.get("clearTranscript")();
+  assert.equal(app.evaluate("state.transcript"), "");
+  assert.equal(app.evaluate("els.toast.hidden"), false);
+  assert.equal(app.evaluate("els.toastText.textContent"), "Metin temizlendi");
+  assert.equal(app.evaluate("els.toastAction.hidden"), false);
+
+  app.evaluate("els.toastAction.onclick()");
+  assert.equal(app.evaluate("state.transcript"), "MERHABA");
+  assert.equal(app.evaluate("els.toast.hidden"), true);
+});
+
+test("clearing an empty transcript shows nothing to undo", () => {
+  const { app } = loadApp();
+  app.evaluate('state.transcript = ""; els.toast.hidden = true;');
+
+  app.get("clearTranscript")();
+  assert.equal(app.evaluate("els.toast.hidden"), true);
+});
+
+test("a copy is confirmed in the toast, not in the camera status chip", async () => {
+  const written = [];
+  const { app } = loadApp({
+    navigator: { clipboard: { writeText: async (text) => { written.push(text); } } },
+  });
+  app.evaluate('state.transcript = "HELLO "; els.latencyBadge.textContent = "El algılandı";');
+
+  await app.get("copyTranscript")();
+  assert.deepEqual(written, ["HELLO"]);
+  assert.equal(app.evaluate("els.toastText.textContent"), "Metin kopyalandı");
+  assert.equal(app.evaluate("els.latencyBadge.textContent"), "El algılandı");
+  assert.equal(app.evaluate("els.announcer.textContent"), "Metin kopyalandı");
+});
+
+test("a toast hides itself after a while", () => {
+  const { app, runTimers } = loadApp();
+  app.get("showToast")("Metin kopyalandı");
+  assert.equal(app.evaluate("els.toast.hidden"), false);
+  runTimers();
+  assert.equal(app.evaluate("els.toast.hidden"), true);
+});
+
+test("an added letter is announced to screen readers", () => {
+  const { app } = loadApp();
+  app.evaluate(`
+    state.mode = "letter"; state.transcript = "";
+    state.prediction = "L"; state.confidence = 0.95;
+  `);
+
+  app.get("appendCurrentLetter")();
+  assert.equal(app.evaluate("state.transcript"), "L");
+  assert.equal(app.evaluate("els.announcer.textContent"), "L eklendi");
+});
+
+test("an undo toast waits while it has focus or the pointer, then returns focus", () => {
+  const { app, runTimers } = loadApp();
+  app.evaluate(`
+    state.transcript = "MERHABA";
+    globalThis.__returned = 0;
+    els.clearText.focus = () => { __returned += 1; };
+  `);
+  app.get("clearTranscript")();
+
+  app.evaluate("els.toastAction.onfocus()");
+  runTimers();
+  assert.equal(app.evaluate("els.toast.hidden"), false, "a focused toast must not time out");
+  app.evaluate("els.toastAction.onblur()");
+  runTimers();
+  assert.equal(app.evaluate("els.toast.hidden"), true);
+
+  app.evaluate('state.transcript = "HELLO";');
+  app.get("clearTranscript")();
+  app.evaluate("els.toast.onmouseenter()");
+  runTimers();
+  assert.equal(app.evaluate("els.toast.hidden"), false, "a hovered toast must not time out");
+  app.evaluate("els.toastAction.onclick()");
+  assert.equal(app.evaluate("__returned"), 1, "after undo, focus goes back to the clear button");
+});

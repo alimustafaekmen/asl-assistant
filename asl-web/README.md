@@ -67,6 +67,7 @@ js/media/overlay.js
 js/media/camera.js
 js/ml/live-inference.js
 js/ui/prediction.js
+js/ui/toast.js
 js/ui/transcript.js
 js/ui/word-flow.js
 js/ui/coach.js
@@ -199,7 +200,12 @@ deep links.
 asl-web/
 ├── index.html
 ├── _headers               response headers for the Netlify deploy
-├── css/style.css
+├── css/
+│   ├── style.css          layer order, then the pre-redesign rules (legacy layer)
+│   ├── tokens.css         colours, type, space, radius, motion: the only raw values
+│   ├── base.css           fonts, document defaults, focus ring
+│   ├── components.css     buttons, mode switch, stage, caption plate, panels
+│   └── layout.css         shell and workspace for phone, landscape and laptop
 ├── js/{core,media,ml,services,ui}/
 ├── models/
 │   ├── letter_model.onnx.gz   what the browser downloads
@@ -208,6 +214,7 @@ asl-web/
 ├── data/                  labels, calibration, teaching data, fixtures
 ├── favicon.ico
 └── assets/
+    ├── fonts/             Atkinson Hyperlegible Next and Mono (OFL), subset
     ├── icons/             apple-touch-icon.png
     ├── social-preview.png link preview image (og:image)
     └── signs/             letter and word reference images

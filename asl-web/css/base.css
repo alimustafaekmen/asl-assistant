@@ -1,0 +1,69 @@
+/* Base: fonts, document defaults, focus, and the few element rules every
+ * screen shares. Nothing here names a component.
+ */
+
+/* Self-hosted: the CSP allows fonts from this origin only, and a third-party
+   font host would learn about every visit. Both files are subset to Latin
+   plus the Turkish letters (ğ ı İ ş Ş) and keep the full weight axis. */
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  src: url("../assets/fonts/atkinson-hyperlegible-next.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  src: url("../assets/fonts/atkinson-hyperlegible-mono.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-ui);
+    background: var(--color-page);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    font-family: var(--font-ui);
+    font-size: var(--fs-md);
+    line-height: var(--lh-body);
+    color: var(--color-text);
+    background: var(--color-page);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* One visible ring for every focusable thing, in both themes. Components on
+     the dark stage swap the colour, not the shape. */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* No element resets here: a later layer wins over the legacy layer whatever
+     the specificity, so a reset of p or h1 margins in this layer would undo
+     every old screen's spacing at once. Components reset their own parts. */
+
+  /* hidden must win over any component's display. Kept here, not only in the
+     legacy layer, so it survives that layer's removal. */
+  [hidden] { display: none !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Numbers that change in place must not shift the layout around them. */
+  :where(.num) {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}

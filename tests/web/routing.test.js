@@ -30,3 +30,22 @@ test("unknown or empty input falls back to letter mode", () => {
     assert.equal(modeFromHash(hash), "letter");
   }
 });
+
+test("the brand link opens the letter screen with the camera released", async () => {
+  // The redesign has no separate home view: the letter screen's empty camera
+  // stage is where the app explains itself, so "home" means that screen.
+  const { loadWebApp } = await import("./helpers/web-app-context.mjs");
+  const app = loadWebApp();
+  app.evaluate(`
+    globalThis.__stopped = 0;
+    stopCamera = () => { __stopped += 1; state.cameraOn = false; };
+    state.cameraOn = true;
+    state.mode = "word";
+  `);
+
+  app.get("showHome")();
+
+  assert.equal(app.evaluate("__stopped"), 1, "going home must release the camera");
+  assert.equal(app.evaluate("state.mode"), "letter");
+  assert.equal(app.evaluate("els.appShell.dataset.view"), "app");
+});

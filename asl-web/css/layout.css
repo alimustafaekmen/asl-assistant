@@ -1,0 +1,300 @@
+/* Layout: the shell, the top bar and the camera workspace, for phone
+ * portrait, phone landscape, tablet and laptop.
+ *
+ * The rules that matter most:
+ * - phone: stage, result and the main action fit the first screen, and the
+ *   fixed parts (top bar, transcript, action bar) take at most about 30% of it;
+ *   details live below, reached by scrolling, never between the stage and its
+ *   result;
+ * - laptop (1366x768 and up): stage, result, transcript and actions fit the
+ *   window without scrolling; the side column holds supporting cards only.
+ *
+ * The legacy layer still styles .workspace and .side-panel, so the properties
+ * it sets are reset here explicitly rather than left to chance.
+ */
+
+@layer layout {
+  .app-shell {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    /* The legacy layer paints a gradient here in the dark theme. */
+    background: var(--color-page);
+  }
+
+  /* ── Top bar ──────────────────────────────────────────────────────── */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-topbar);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--sp-2);
+    height: var(--size-topbar);
+    min-height: 0;
+    padding: 0 var(--sp-3);
+    padding-top: env(safe-area-inset-top);
+    box-sizing: content-box;
+    border-bottom: 1px solid var(--color-line);
+    background: var(--color-page);
+    backdrop-filter: none;
+    flex-wrap: nowrap;
+  }
+  .topbar .brand__name { display: none; }
+  /* The "deneysel" tag only fits beside the tabs on a laptop. */
+  .topbar .modes__tag { display: none; }
+  .topbar__end { display: flex; align-items: center; gap: var(--sp-1); }
+  .topbar__end .live-indicator { display: none; }
+
+  /* Phone: the secondary links live in the "Diğer" popover. */
+  .topbar__links.menu {
+    inset: auto var(--sp-3) auto auto;
+    top: calc(var(--size-topbar) + env(safe-area-inset-top) + var(--sp-1));
+    min-width: 14rem;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .topbar__links.menu:popover-open { display: flex; }
+  .topbar__links .navlink { justify-content: flex-start; }
+
+  /* ── Workspace ───────────────────────────────────────────────────── */
+  .app-shell[data-view="app"] .workspace {
+    display: block;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .camera-column {
+    display: flex;
+    flex-direction: column;
+    /* The top bar's 1 px bottom border is outside its content box. */
+    height: calc(100dvh - var(--size-topbar) - 1px - env(safe-area-inset-top));
+    min-height: 26rem;
+  }
+  .camera-column > .stage { flex: 1 1 auto; min-height: 0; }
+
+  .compose {
+    display: grid;
+    /* minmax(0, ...) or a long transcript widens the column past the screen. */
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-3) calc(var(--sp-3) + env(safe-area-inset-bottom));
+  }
+
+  .dock {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    position: static;
+  }
+  .dock > .btn { flex: 0 0 auto; }
+  /* 6rem keeps Sil, Boşluk and Ekle on one row down to 320 px. */
+  .dock > .btn--grow { flex: 1 1 6rem; }
+  /* The word and coach bars have four labelled actions: two per row. */
+  .app-shell:not([data-mode="letter"]) .dock > .btn {
+    flex: 1 1 calc(50% - var(--sp-1));
+    min-width: 0;
+    white-space: normal;
+    text-align: center;
+  }
+  /* Icon first on the phone: the label stays for screen readers. */
+  .dock .btn__label--phone-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .dock .kbd { display: none; }
+
+  .side-panel {
+    position: static;
+    top: auto;
+    max-height: none;
+    overflow: visible;
+    display: grid;
+    gap: var(--sp-3);
+    padding: var(--sp-3);
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  /* The word screen's empty state is longer; on a phone it drops the
+     illustration so it fits above the message line. */
+  .app-shell[data-mode="word"] .stage__illustration { display: none; }
+
+  /* Short phones: drop the illustration, then the fact list, before the
+     first screen would need a scroll. */
+  @media (max-height: 46rem) {
+    .stage__illustration { display: none; }
+  }
+  @media (max-height: 40rem) {
+    .stage__facts { display: none; }
+    .stage__empty { gap: var(--sp-4); padding-top: var(--sp-12); }
+  }
+  @media (max-height: 36rem) {
+    .stage__lead { display: none; }
+  }
+  /* The narrowest phones: tighter tabs so they stay clear of "Diğer". */
+  @media (max-width: 22.5rem) {
+    .topbar .modes__item { padding-inline: var(--sp-2); }
+  }
+
+  /* ── Phone landscape: stage left, everything else right ──────────── */
+  @media (orientation: landscape) and (max-height: 32rem) {
+    :root { --size-topbar: 48px; --size-ring: 76px; --fs-glyph: 3.25rem; }
+    .topbar { padding-inline: max(var(--sp-3), env(safe-area-inset-left)) max(var(--sp-3), env(safe-area-inset-right)); }
+    /* 40 px tabs plus the switch's padding fit the 48 px bar. */
+    .topbar .modes__item { min-height: 40px; }
+    .camera-column { flex-direction: row; min-height: 0; }
+    .compose {
+      width: 19rem;
+      flex: none;
+      align-content: end;
+      padding: var(--sp-3) max(var(--sp-3), env(safe-area-inset-right)) var(--sp-3) var(--sp-3);
+    }
+    .dock { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dock > .btn { min-width: 0; white-space: normal; text-align: center; }
+    .app-shell[data-mode="letter"] .dock > .btn--grow { grid-column: 1 / -1; }
+    .dock .btn__label--phone-hidden { position: static; width: auto; height: auto; clip-path: none; }
+    .stage__empty { padding: var(--sp-6); gap: var(--sp-3); }
+    .stage__illustration, .stage__facts, .stage__lead { display: none; }
+    .stage__cta { flex-direction: row; }
+  }
+
+  /* ── Laptop ───────────────────────────────────────────────────────── */
+  @media (min-width: 64rem) {
+    .topbar {
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      gap: var(--sp-4);
+      padding-inline: var(--sp-6);
+    }
+    .topbar .brand__name { display: inline; }
+    .topbar .modes__tag { display: inline; }
+    .app-shell[data-mode="word"] .stage__illustration { display: block; }
+    .topbar .brand__mark { width: 32px; height: 32px; }
+    .topbar__modes { justify-self: center; }
+    .topbar__modes .modes__item { flex: none; min-height: 40px; padding-inline: 22px; }
+    .topbar__end { justify-self: end; }
+    .topbar__end .live-indicator.is-live { display: inline-flex; }
+    .topbar__more { display: none; }
+
+    /* The popover becomes a plain row of links. */
+    .topbar__links.menu,
+    .topbar__links.menu:popover-open {
+      position: static;
+      inset: auto;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: var(--sp-1);
+      min-width: 0;
+      margin: 0;
+      padding: 0;
+      overflow: visible;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+    .topbar__links .navlink { min-height: 40px; }
+    .topbar__links .navlink--icon { width: 40px; padding: 0; justify-content: center; }
+    .topbar__links .navlink--icon .navlink__label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .app-shell[data-view="app"] .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) var(--size-side);
+      grid-template-rows: minmax(0, 1fr);
+      align-items: stretch;
+      gap: var(--sp-4);
+      height: calc(100dvh - var(--size-topbar) - 1px);
+      padding: var(--sp-4) var(--sp-6) var(--sp-6);
+      box-sizing: border-box;
+    }
+    .camera-column { height: auto; min-height: 0; gap: var(--sp-3); }
+    .compose {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: var(--sp-2);
+      padding: 0;
+    }
+    .compose .strip { min-height: 60px; }
+    .dock { flex-wrap: nowrap; }
+    .dock > .btn--grow { flex: none; }
+    .dock .btn__label--phone-hidden { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
+    .dock .kbd { display: inline-flex; }
+
+    .side-panel {
+      min-height: 0;
+      overflow: auto;
+      align-content: start;
+      padding: 0;
+    }
+
+    /* The plate sits bottom-left and is as wide as its content. */
+    .plate {
+      inset: auto auto var(--sp-4) var(--sp-4);
+      max-width: calc(100% - 2 * var(--sp-4));
+      padding: var(--sp-4) var(--sp-6) var(--sp-4) var(--sp-4);
+      gap: var(--sp-5);
+    }
+    .stage__top { inset: var(--sp-4) var(--sp-4) auto; }
+    /* Laptop: the toast sits just above the transcript row, opposite the plate. */
+    .toast { inset: auto var(--sp-4) var(--sp-4) auto; margin: 0; }
+    /* Camera off: the plate is only the message line, centred under the
+       empty state. */
+    .stage:has(> .stage__empty:not([hidden])) .plate { inset-inline: var(--sp-4); max-width: none; }
+
+    /* Empty state: two lines of headline, buttons side by side. */
+    .stage__headline { max-width: 26ch; }
+    .stage__cta { flex-direction: row; justify-content: center; width: auto; }
+    .stage__cta .btn { width: auto; min-width: 11rem; }
+    .stage__empty { gap: var(--sp-4); padding-top: var(--sp-12); }
+  }
+
+  @media (min-width: 90rem) {
+    :root { --size-side: 380px; }
+    .topbar { padding-inline: var(--sp-8); }
+    .app-shell[data-view="app"] .workspace { padding-inline: var(--sp-8); }
+  }
+}
+
+@layer utilities {
+  /* Mode visibility. Hide-only on purpose: the old rules revealed elements
+     with display: revert !important, which overrode every component's own
+     display (a flex card became a block). Hiding the other modes' parts
+     leaves each component's layout to the component. */
+  .app-shell[data-mode="letter"] .mode-only:not(.letter-only),
+  .app-shell[data-mode="coach"] .mode-only:not(.coach-only),
+  .app-shell[data-mode="word"] .mode-only:not(.word-only) {
+    display: none !important;
+  }
+
+  .visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+}

@@ -17,6 +17,7 @@ media/overlay.js
 media/camera.js
 ml/live-inference.js
 ui/prediction.js
+ui/toast.js
 ui/transcript.js
 ui/word-flow.js
 ui/coach.js
@@ -61,6 +62,7 @@ automatically.
 | `ml/gating.js` | Letter smoothing and difficulty/confusion feedback data |
 | `services/benchmark.js` | Bounded client-side latency measurements |
 | `ui/prediction.js` | Prediction, top-3, status message, feedback, word result guide |
+| `ui/toast.js` | Toast confirmations with one optional action, and the screen-reader live region |
 | `ui/transcript.js` | Transcript editing, persistence, clipboard, speech output |
 | `ui/word-flow.js` | Word countdown, recording progress, quality readout, action buttons |
 | `ui/coach.js` | Learning coach targets, flows, scoring, word guidance panel |

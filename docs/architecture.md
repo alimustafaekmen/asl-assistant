@@ -82,6 +82,7 @@ media/overlay.js
 media/camera.js
 ml/live-inference.js
 ui/prediction.js
+ui/toast.js
 ui/transcript.js
 ui/word-flow.js
 ui/coach.js
@@ -94,7 +95,11 @@ core/app.js
 | Component | Responsibility |
 |---|---|
 | `index.html` | Screen structure, controls, accessibility labels, script loading |
-| `css/style.css` | Layout, theme, responsive rules, state classes |
+| `css/style.css` | Declares the cascade layer order; holds the pre-redesign rules in the `legacy` layer, deleted screen by screen as each is rebuilt |
+| `css/tokens.css` | Design tokens for both themes; the only file with raw colour and size values |
+| `css/base.css` | Self-hosted fonts, document defaults, the focus ring |
+| `css/components.css` | Buttons, mode switch, camera stage, caption plate, transcript strip, panels |
+| `css/layout.css` | The shell and the camera workspace for phone, phone landscape and laptop; mode visibility |
 | `js/core/config.js` | Runtime configuration, label domains, difficulty sets, reference assets |
 | `js/core/runtime.js` | Shared application state, DOM registry, canvas context, recording buffers |
 | `js/core/app.js` | Bootstrap, event wiring, hash routing, camera start/stop, render loop, debug API |
@@ -108,6 +113,7 @@ core/app.js
 | `js/ml/gating.js` | Temporal smoothing and difficulty/confusion feedback |
 | `js/services/benchmark.js` | Browser latency measurements |
 | `js/ui/prediction.js` | Prediction, top-3, status message, feedback, word result guide |
+| `js/ui/toast.js` | Toast confirmations with one optional action, and the screen-reader live region |
 | `js/ui/transcript.js` | Transcript editing, persistence, clipboard, speech output |
 | `js/ui/word-flow.js` | Word countdown, recording progress, quality readout, action buttons |
 | `js/ui/coach.js` | Coach targets, study flows, scoring, word guidance panel |

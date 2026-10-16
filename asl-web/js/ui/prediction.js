@@ -42,24 +42,26 @@ function updatePrediction(prediction) {
 
   const pct = Math.round(state.confidence * 100);
   els.primaryPrediction.textContent = prediction.label;
-  els.confidenceText.textContent = pct ? `${pct}%` : "--";
+  els.confidenceText.textContent = pct ? `%${pct}` : "--";
   els.confidenceRing.style.setProperty("--score", String(pct));
 
   const level = getConfidenceLevel(state.confidence);
   els.confidenceRing.className = `confidence-ring ${level}`;
   els.cameraStage.dataset.state = state.wordState === "RECORDING" ? "recording" : level;
+  // A word needs a smaller face and a wider plate than a single letter.
+  els.cameraStage.dataset.kind = prediction.label.length > 1 && prediction.label !== "?" ? "word" : "letter";
 
   const th = _thresholdsForMode();
   if (prediction.label === "?") {
-    els.decisionLabel.textContent = "Beklemede";
+    els.decisionLabel.textContent = "Bekleniyor";
   } else if (isWordLikeMode() && getTopMargin() < 0.03 && state.top3.length > 1) {
-    els.decisionLabel.textContent = "Yakın sonuç";
+    els.decisionLabel.textContent = "Çok yakın";
   } else if (state.confidence < th.unknown) {
     els.decisionLabel.textContent = "Emin değil";
   } else if (state.confidence < th.confident) {
-    els.decisionLabel.textContent = "Muhtemel";
+    els.decisionLabel.textContent = "Büyük olasılıkla";
   } else {
-    els.decisionLabel.textContent = "Güvenli";
+    els.decisionLabel.textContent = "Emin";
   }
 
   renderTop3();
@@ -75,15 +77,22 @@ function updatePrediction(prediction) {
  */
 function renderTop3() {
   els.top3List.innerHTML = "";
-  const rows = state.top3.length ? state.top3 : [{ label: "-", confidence: 0 }];
-  rows.forEach((item, index) => {
+  if (!state.top3.length) {
+    // A placeholder row ("1. - %0") read as a result; a sentence does not.
+    const hint = document.createElement("p");
+    hint.className = "top3-empty";
+    hint.textContent = "Kamera açılınca en olası sonuçlar burada görünür.";
+    els.top3List.appendChild(hint);
+    return;
+  }
+  state.top3.forEach((item, index) => {
     const pct = clampPercent(item.confidence * 100);
     const row = document.createElement("div");
     row.className = "top3-row";
 
     const rank = document.createElement("span");
     rank.className = "rank";
-    rank.textContent = `#${index + 1}`;
+    rank.textContent = `${index + 1}.`;
 
     const label = document.createElement("b");
     label.title = item.label;
@@ -96,7 +105,7 @@ function renderTop3() {
     bar.appendChild(fill);
 
     const confidence = document.createElement("span");
-    confidence.textContent = `${pct}%`;
+    confidence.textContent = `%${pct}`;
 
     row.append(rank, label, bar, confidence);
     els.top3List.appendChild(row);
@@ -115,7 +124,7 @@ function renderTop3() {
  */
 function updateMessageForPrediction() {
   if (state.prediction === "?") {
-    setMessage("Kamera başlayınca tahminler burada görünür.", "low");
+    setMessage("Kamerayı açtığınızda sonuç burada görünür.", "low");
     return;
   }
 
@@ -138,16 +147,16 @@ function updateMessageForPrediction() {
 
   const th = _thresholdsForMode();
   if (state.confidence < th.unknown) {
-    setMessage("Emin değilim. Işık, kamera açısı veya el konumu iyileştirilebilir.", "low");
+    setMessage("Emin olunamadı. Işığı artırmayı ya da elinizi biraz yaklaştırmayı deneyin.", "low");
     return;
   }
 
   if (state.confidence < th.confident) {
-    setMessage(`Muhtemel sonuç: ${state.prediction}. Alternatifleri kontrol et.`, "maybe");
+    setMessage(`Büyük olasılıkla ${state.prediction}. Biraz daha sabit tutun.`, "maybe");
     return;
   }
 
-  setMessage(`${state.prediction} güvenli görünüyor.`, "good");
+  setMessage(`${state.prediction} harfi net görünüyor.`, "good");
 }
 
 /**
@@ -269,6 +278,21 @@ function renderWordResultGuide() {
 function setMessage(text, level) {
   els.confidenceMessage.textContent = text;
   els.confidenceMessage.dataset.level = level;
+}
+
+/**
+ * Show a problem the user must act on, and announce it.
+ *
+ * The message line is not a live region on purpose: it changes with every
+ * prediction. A camera or download failure is different, so it is also
+ * spoken.
+ *
+ * @param {string} text Turkish text shown to the user.
+ * @returns {void}
+ */
+function reportProblem(text) {
+  setMessage(text, "low");
+  announce(text);
 }
 
 /**

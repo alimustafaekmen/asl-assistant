@@ -151,7 +151,7 @@ Site elle yayınlanır; bir klasör sitenin Netlify deploy sayfasına sürüklen
    eski bir deploy aynı etiketleri listeleyebilir. İçeriği karşılaştırın:
 
    ```bash
-   for f in index.html js/core/app.js css/style.css; do
+   for f in index.html js/core/app.js css/style.css css/components.css; do
      curl -s "https://asl-assistant.netlify.app/$f" | shasum -a 256
      shasum -a 256 "asl-web/$f"
    done

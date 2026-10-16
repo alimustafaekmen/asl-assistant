@@ -76,12 +76,12 @@ function updateReferenceForMode() {
   if (els.referenceNote) {
     els.referenceNote.textContent =
       mode === "word"
-        ? "Kelime referansı 5 sayfaya bölünmüştür. Sayfa seçip işareti incelerken yüz, omuz ve el aynı anda kamerada kalmalı."
+        ? "Kelime kartları 5 sayfada. İşareti yaparken yüzünüz, omuzlarınız ve eliniz kadrajda olsun."
         : mode === "coach"
           ? (coachIsWord
-              ? "Kelime hedefleri için referans sayfasını aç, sonra 45 frame kayıtla sonucu kontrol et."
-              : "Hedefi yapamazsan görsel referansı aç veya video rehberden destek al.")
-          : "Harf karışırsa referans görseli açıp el şeklini karşılaştır.";
+              ? "Kelime hedeflerinde önce referans sayfasına bakın, sonra kaydı başlatın."
+              : "Hedefi yapamazsanız referans görseline ya da video rehbere bakın.")
+          : "Harf karışırsa el şeklinizi referans görseliyle karşılaştırın.";
   }
   if (els.referenceVideoLink) {
     els.referenceVideoLink.href = buildReferenceVideoUrl(
@@ -158,6 +158,7 @@ function toggleReference() {
   const isHidden = els.referenceBody.hidden;
   els.referenceBody.hidden = !isHidden;
   els.toggleReference.textContent = isHidden ? "Gizle" : "Göster";
+  els.toggleReference.setAttribute("aria-expanded", String(isHidden));
 }
 
 /**

@@ -161,20 +161,21 @@ function queryElements(selector, root) {
 }
 
 /**
- * Whether a key event belongs to a form control rather than to the page.
+ * Whether a key event belongs to the focused element rather than to the page.
  *
- * The app's single-letter shortcuts would otherwise fight the user. Typing into
- * a <select> performs type-ahead, so "c" over the coach target cleared the
- * transcript and "m" left the screen; Space over a focused button was cancelled
- * before it could activate it.
+ * The app's shortcuts would otherwise fight the user. Typing into a <select>
+ * performs type-ahead; Space over a focused button was cancelled before it
+ * could activate it; Enter must follow a focused link, open a focused
+ * <summary>, and reach an element that acts as a button (the reference image).
  *
  * @param {EventTarget | null} target The event's target.
- * @returns {boolean} True when the focused element consumes plain typing.
+ * @returns {boolean} True when the focused element handles these keys itself.
  */
 function isEditableTarget(target) {
   if (!(target instanceof HTMLElement)) return false;
   if (target.isContentEditable) return true;
-  return ["INPUT", "SELECT", "TEXTAREA", "BUTTON"].includes(target.tagName);
+  if (["INPUT", "SELECT", "TEXTAREA", "BUTTON", "A", "SUMMARY"].includes(target.tagName)) return true;
+  return target.getAttribute("role") === "button";
 }
 
 /**
@@ -354,8 +355,11 @@ const els = {
   qrScreen: document.getElementById("qrScreen"),
   workspaceMain: queryUi("workspace"),
   appShell: queryUi("app-shell"),
-  homeScreen: document.getElementById("homeScreen"),
   themeToggle: document.getElementById("themeToggle"),
+  toast: document.getElementById("toast"),
+  toastText: document.getElementById("toastText"),
+  toastAction: document.getElementById("toastAction"),
+  announcer: document.getElementById("announcer"),
   wordQualityPills: document.getElementById("wordQualityPills"),
   wordDemoList: document.getElementById("wordDemoList"),
   wordRiskList: document.getElementById("wordRiskList"),

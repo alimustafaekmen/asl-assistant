@@ -191,7 +191,7 @@ The site is deployed by hand, by dragging a folder into its Netlify deploy page:
    list the same tags. Compare content instead:
 
    ```bash
-   for f in index.html js/core/app.js css/style.css; do
+   for f in index.html js/core/app.js css/style.css css/components.css; do
      curl -s "https://asl-assistant.netlify.app/$f" | shasum -a 256
      shasum -a 256 "asl-web/$f"
    done

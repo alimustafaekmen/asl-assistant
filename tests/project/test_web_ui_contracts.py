@@ -599,6 +599,7 @@ def test_classic_script_order_protects_global_runtime_contract() -> None:
         "js/media/camera.js",
         "js/ml/live-inference.js",
         "js/ui/prediction.js",
+        "js/ui/toast.js",
         "js/ui/transcript.js",
         "js/ui/word-flow.js",
         "js/ui/coach.js",

@@ -238,6 +238,11 @@ here: [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) 1.22.0 (MIT),
 video links in `asl-web/data/asl_video_links.json` point to third-party YouTube
 videos, which belong to their creators.
 
+The interface fonts are redistributed: [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next)
+and [Atkinson Hyperlegible Mono](https://github.com/googlefonts/atkinson-hyperlegible-next-mono)
+(SIL Open Font License 1.1), subset to Latin and Turkish, in
+`asl-web/assets/fonts/` with their licence.
+
 ## Licensing
 
 The source is available under the

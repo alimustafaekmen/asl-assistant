@@ -1,9 +1,15 @@
-// Single-letter shortcuts and modifier keys.
+// Keyboard shortcuts and modifier keys.
 //
-// A key pressed with Ctrl, Meta, or Alt belongs to the browser: Cmd+C and
-// Ctrl+C are copy, not "clear the transcript". These tests drive the real
-// keydown handler and read the transcript and mode it leaves behind; only the
-// browser storage and the URL are faked.
+// The shortcut map (owner decision 2026-10-16, with the approved redesign):
+// Space adds the current letter, Enter adds a space, Backspace removes the
+// last character. The old single-letter keys S, C and M are gone: a single
+// key that clears the text or leaves the screen with no way to turn it off
+// fails WCAG 2.1.4, and C had no undo.
+//
+// A key pressed with Ctrl, Meta, or Alt belongs to the browser: Cmd+Backspace
+// and Alt+Enter are editing and system keys, not transcript commands. These
+// tests drive the real keydown handler and read the transcript and mode it
+// leaves behind; only the browser storage and the URL are faked.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -23,10 +29,11 @@ function loadWithShortcuts() {
   assert.ok(onKeyDown, "bindEvents() should bind a keydown handler");
   const page = app.makeTarget({ tagName: "DIV" });
   /** @param {string} key @param {Record<string, boolean>} [modifiers] */
+  const codes = { " ": "Space", Enter: "Enter", Backspace: "Backspace" };
   const press = (key, modifiers = {}) =>
     onKeyDown({
       key,
-      code: `Key${key.toUpperCase()}`,
+      code: codes[key] ?? `Key${key.toUpperCase()}`,
       target: page,
       ctrlKey: false,
       metaKey: false,
@@ -39,35 +46,59 @@ function loadWithShortcuts() {
 }
 
 for (const modifier of ["ctrlKey", "metaKey", "altKey"]) {
-  test(`${modifier} with c leaves the transcript alone`, () => {
+  test(`${modifier} with Backspace leaves the transcript alone`, () => {
     const { app, press } = loadWithShortcuts();
-    app.evaluate('state.transcript = "MERHABA";');
+    app.evaluate('state.transcript = "MERHABA"; state.mode = "letter";');
 
-    press("c", { [modifier]: true });
-    press("C", { [modifier]: true, shiftKey: true });
+    press("Backspace", { [modifier]: true });
 
     assert.equal(app.evaluate("state.transcript"), "MERHABA");
   });
 
-  test(`${modifier} with m leaves the mode alone`, () => {
+  test(`${modifier} with Enter leaves the transcript alone`, () => {
     const { app, press } = loadWithShortcuts();
-    app.evaluate('state.mode = "letter";');
+    app.evaluate('state.transcript = "MERHABA"; state.mode = "letter";');
 
-    press("m", { [modifier]: true });
+    press("Enter", { [modifier]: true });
 
-    assert.equal(app.evaluate("state.mode"), "letter");
+    assert.equal(app.evaluate("state.transcript"), "MERHABA");
   });
 }
 
-test("the unmodified shortcuts still act", () => {
+test("Backspace removes the last character and Enter adds a space", () => {
   const { app, press } = loadWithShortcuts();
   app.evaluate('state.transcript = "MERHABA"; state.mode = "letter";');
 
-  press("c");
-  assert.equal(app.evaluate("state.transcript"), "");
+  press("Backspace");
+  assert.equal(app.evaluate("state.transcript"), "MERHAB");
 
-  press("m");
-  assert.equal(app.evaluate("state.mode"), "word");
+  press("Enter");
+  assert.equal(app.evaluate("state.transcript"), "MERHAB ");
+});
+
+test("Space adds the current letter in letter mode", () => {
+  const { app, press } = loadWithShortcuts();
+  app.evaluate(`
+    state.transcript = "MERHAB"; state.mode = "letter";
+    state.prediction = "A"; state.confidence = 0.95;
+  `);
+
+  press(" ");
+  assert.equal(app.evaluate("state.transcript"), "MERHABA");
+});
+
+test("the old single-letter keys no longer act", () => {
+  const { app, press } = loadWithShortcuts();
+  app.evaluate(`
+    state.transcript = "MERHABA"; state.mode = "letter";
+    globalThis.__spoken = 0; speakTranscript = () => { __spoken += 1; };
+  `);
+
+  for (const key of ["s", "c", "m", "S", "C", "M"]) press(key);
+
+  assert.equal(app.evaluate("state.transcript"), "MERHABA");
+  assert.equal(app.evaluate("state.mode"), "letter");
+  assert.equal(app.evaluate("__spoken"), 0);
 });
 
 test("ctrl with d still toggles the debug panel", () => {

@@ -311,7 +311,7 @@ function syncRecordButton() {
  */
 function syncActionBar() {
   if (els.cameraToggle) {
-    els.cameraToggle.textContent = state.cameraOn ? "Durdur" : "Başlat";
+    els.cameraToggle.textContent = state.cameraOn ? "Kamerayı kapat" : "Kamerayı aç";
   }
   if (els.coachStart) {
     els.coachStart.textContent = state.cameraOn ? "Çalışmayı Durdur" : "Çalışmayı Başlat";
