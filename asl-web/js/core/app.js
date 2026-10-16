@@ -17,6 +17,10 @@
  * @typedef {Object} SetModeOptions
  * @property {boolean} [syncHash] When false, the URL hash is left alone. Used
  *   when the change came from the hash itself.
+ * @property {boolean} [focus] When true, focus moves to the new screen's h1.
+ *   Set for a change the visitor made, never for the first load: the control
+ *   they pressed may now be hidden, and a screen reader starts the new
+ *   screen at its heading.
  */
 
 /**
@@ -39,6 +43,7 @@
  */
 async function init() {
   restoreTheme();
+  watchSystemTheme();
   buildCoachOptions();
   buildCoachProgress();
   bindEvents();
@@ -162,35 +167,57 @@ function bindEvents() {
 
   queryAllUi("mode-tab").forEach((tab) => {
     tab.addEventListener("click", () => {
-      setMode(tab.dataset.mode);
       // On a phone the secondary screens sit in a popover menu, which would
-      // otherwise stay open over the screen it just opened.
+      // otherwise stay open over the screen it just opened. It closes first:
+      // a popover that closes with focus inside gives focus back to its
+      // button, which would undo the move to the new screen's heading.
       const menu = tab.closest("[popover]");
-      if (menu instanceof HTMLElement && menu.matches(":popover-open")) {
-        menu.hidePopover();
-      }
+      if (menu instanceof HTMLElement) closeMenu(menu);
+      setMode(tab.dataset.mode, { focus: true });
     });
   });
+  bindMenuFallback();
 
   queryElements("[data-go-mode]").forEach((button) => {
-    button.addEventListener("click", () => setMode(button.dataset.goMode));
+    button.addEventListener("click", () => setMode(button.dataset.goMode, { focus: true }));
   });
 
   // No preventDefault: the link's href moves the address to #letter.
   document.querySelector("[data-home-link]")?.addEventListener("click", showHome);
 
-  // A button clicked with a pointer keeps focus, so the next Space would press
-  // it again (another space after Boşluk) instead of adding the current
-  // letter. A click from the keyboard has detail 0 and keeps its focus, as a
-  // keyboard user expects.
-  window.addEventListener("click", (event) => {
-    if (event.detail === 0 || !(event.target instanceof HTMLElement)) return;
-    const button = event.target.closest("button");
-    if (button instanceof HTMLElement) button.blur();
+  // The skip link is handled here, not followed: #main is not a route, so
+  // the hash change would fall back to letter mode and leave coach or word.
+  document.getElementById("skipLink")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    document.getElementById("main")?.focus({ preventScroll: true });
   });
 
+  // A button clicked with a mouse keeps focus, so the next Space would press
+  // it again (another space after Boşluk) instead of adding the current
+  // letter. A click from the keyboard has detail 0 and keeps its focus, as a
+  // keyboard user expects. So does a touch: iOS VoiceOver's double tap is
+  // one, and a blur there sends VoiceOver back to the top of the page. The
+  // press is told by the pointerType of the pointerdown on the same button;
+  // a click with no such press keeps the old rule.
+  /** @type {{button: HTMLElement, pointerType: string} | null} */
+  let lastPress = null;
+  window.addEventListener("pointerdown", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("button") : null;
+    lastPress = button instanceof HTMLElement ? { button, pointerType: event.pointerType } : null;
+  });
+  window.addEventListener("click", (event) => {
+    const press = lastPress;
+    lastPress = null;
+    if (event.detail === 0 || !(event.target instanceof HTMLElement)) return;
+    const button = event.target.closest("button");
+    if (!(button instanceof HTMLElement)) return;
+    if (press && press.button === button && press.pointerType !== "mouse" && press.pointerType !== "pen") return;
+    button.blur();
+  });
+
+  // A hash change is the visitor's: a link, the address bar, the history.
   window.addEventListener("hashchange", () => {
-    setMode(modeFromHash(window.location.hash), { syncHash: false });
+    setMode(modeFromHash(window.location.hash), { syncHash: false, focus: true });
   });
 
   queryElements("[data-qr-target]").forEach((button) => {
@@ -210,15 +237,36 @@ function bindEvents() {
     if (event?.detail === 0 && !state.cameraOn) cameraStarts[0]?.focus();
   });
   // The empty camera stage offers its own start buttons, so the first action
-  // sits where the eye already is rather than in the action bar.
+  // sits where the eye already is rather than in the action bar. A start
+  // that fails hides them too, behind the camera problem, so a keyboard user
+  // is taken to that problem's main action.
+  /** @param {{detail?: number} | undefined} event */
+  const afterCameraStart = (event) => {
+    if (event?.detail !== 0) return;
+    if (state.cameraOn) els.cameraToggle?.focus();
+    else focusCameraProblem();
+  };
   cameraStarts.forEach((button) => {
     button.addEventListener("click", async (event) => {
       await toggleCamera();
-      if (event?.detail === 0 && state.cameraOn) els.cameraToggle?.focus();
+      afterCameraStart(event);
     });
   });
   queryElements('[data-trigger="coach-start"]').forEach((button) => {
-    button.addEventListener("click", startCoachStudy);
+    button.addEventListener("click", async (event) => {
+      await startCoachStudy();
+      if (!state.cameraOn) afterCameraStart(event);
+    });
+  });
+  // The problem's retry starts the camera the way the mode's own start does.
+  els.cameraRetry?.addEventListener("click", async (event) => {
+    if (state.mode === "coach") {
+      await startCoachStudy();
+      if (!state.cameraOn) afterCameraStart(event);
+    } else {
+      await toggleCamera();
+      afterCameraStart(event);
+    }
   });
   els.recordWord?.addEventListener("click", startWordRecording);
   els.retryWord?.addEventListener("click", retryWordRecording);
@@ -278,6 +326,12 @@ function bindEvents() {
   });
 
   window.addEventListener("keydown", (event) => {
+    // A native popover closes on Escape by itself; the fallback menu does
+    // here, and gives focus back to its button.
+    if (event.key === "Escape" && closeFallbackMenu()) {
+      event.preventDefault();
+      return;
+    }
     // Ctrl-modified, so it cannot collide with typing and stays available
     // wherever focus is.
     if (event.ctrlKey && event.key.toLowerCase() === "d") {
@@ -312,6 +366,90 @@ function bindEvents() {
 }
 
 /**
+ * Whether the browser has the Popover API.
+ *
+ * Safari before 17 has neither the methods nor the ":popover-open"
+ * selector, and rejects that selector with an exception, so it must not be
+ * used where the methods are missing.
+ *
+ * @returns {boolean}
+ */
+function hasPopoverApi() {
+  return typeof HTMLElement.prototype.showPopover === "function";
+}
+
+/**
+ * The popover menu and its button, when the browser cannot open it.
+ *
+ * @returns {{menu: HTMLElement, button: HTMLElement} | null}
+ */
+function fallbackMenu() {
+  if (hasPopoverApi()) return null;
+  const button = queryElement("[popovertarget]");
+  const menu = button ? document.getElementById(button.getAttribute("popovertarget") || "") : null;
+  return button && menu instanceof HTMLElement ? { menu, button } : null;
+}
+
+/**
+ * Open or close the fallback menu. data-open drives its display, and the
+ * button's aria-expanded says the same to a screen reader.
+ *
+ * @param {{menu: HTMLElement, button: HTMLElement}} parts
+ * @param {boolean} open
+ * @returns {void}
+ */
+function setFallbackMenuOpen({ menu, button }, open) {
+  menu.dataset.open = String(open);
+  button.setAttribute("aria-expanded", String(open));
+}
+
+/**
+ * Let the "Diğer" button open its menu in a browser without popovers.
+ *
+ * With the Popover API the browser does all of this from popovertarget, so
+ * nothing is bound.
+ *
+ * @returns {void}
+ */
+function bindMenuFallback() {
+  const parts = fallbackMenu();
+  if (!parts) return;
+  parts.button.setAttribute("aria-controls", parts.menu.id);
+  setFallbackMenuOpen(parts, false);
+  parts.button.addEventListener("click", () => {
+    setFallbackMenuOpen(parts, parts.menu.dataset.open !== "true");
+  });
+}
+
+/**
+ * Close the fallback menu if it is open, and give focus back to its button.
+ *
+ * @returns {boolean} Whether a menu was closed.
+ */
+function closeFallbackMenu() {
+  const parts = fallbackMenu();
+  if (!parts || parts.menu.dataset.open !== "true") return false;
+  setFallbackMenuOpen(parts, false);
+  parts.button.focus();
+  return true;
+}
+
+/**
+ * Close a popover menu, natively or through the fallback.
+ *
+ * @param {HTMLElement} menu
+ * @returns {void}
+ */
+function closeMenu(menu) {
+  if (hasPopoverApi()) {
+    if (menu.matches(":popover-open")) menu.hidePopover();
+    return;
+  }
+  const parts = fallbackMenu();
+  if (parts && parts.menu === menu) setFallbackMenuOpen(parts, false);
+}
+
+/**
  * Go "home": the letter screen with the camera released.
  *
  * There is no separate home view. The letter screen's empty camera stage is
@@ -328,33 +466,58 @@ function showHome() {
   }
   // The brand link's own href (#letter) updates the address, so the switch
   // here leaves the history alone.
-  setMode("letter", { syncHash: false });
+  setMode("letter", { syncHash: false, focus: true });
 }
 
 /**
- * Apply the theme: the one the user chose, else the system's preference, else
- * the authored default.
+ * Show a theme everywhere it is read. The only writer of the theme.
+ *
+ * theme-boot.js already painted the root element before the stylesheets;
+ * this repeats that and mirrors the theme onto the body and the shell, which
+ * the legacy stylesheet still keys on, and onto the button's pressed state,
+ * which is what a screen reader announces.
+ *
+ * @param {ThemeName} theme
+ * @param {"user" | "system"} source Whether the visitor chose it.
+ * @returns {void}
+ */
+function applyTheme(theme, source) {
+  paintTheme(theme, source);
+  document.body.dataset.theme = theme;
+  if (els.appShell) els.appShell.dataset.theme = theme;
+  els.themeToggle?.setAttribute("aria-pressed", String(theme === "dark"));
+}
+
+/**
+ * Apply the theme the visitor chose, else the system's.
  *
  * @returns {void}
  */
 function restoreTheme() {
-  if (!els.appShell) return;
-  /** @type {string | null} */
-  let savedTheme = null;
-  try {
-    savedTheme = localStorage.getItem("asl-theme");
-  } catch (err) {
-    // Storage can be unavailable or blocked; the preference still applies.
-  }
-  const theme =
-    savedTheme === "dark" || savedTheme === "light"
-      ? savedTheme
-      : matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : els.appShell.dataset.theme || "light";
-  els.appShell.dataset.theme = theme;
-  document.body.dataset.theme = theme;
-  els.themeToggle?.setAttribute("aria-pressed", String(theme === "dark"));
+  const saved = savedTheme();
+  applyTheme(saved ?? systemTheme(), saved ? "user" : "system");
+}
+
+/**
+ * Follow the system switching between light and dark, until the visitor
+ * chooses a theme.
+ *
+ * The choice is read from the root element rather than from storage, so a
+ * choice made with storage blocked is kept for the rest of the visit too.
+ * Safari before 14 hands out media query lists with addListener only, so the
+ * method is looked up on the list itself.
+ *
+ * @returns {void}
+ */
+function watchSystemTheme() {
+  const query = matchMedia("(prefers-color-scheme: dark)");
+  /** @param {{matches: boolean}} event */
+  const follow = (event) => {
+    if (document.documentElement.dataset.themeSource === "user") return;
+    applyTheme(event.matches ? "dark" : "light", "system");
+  };
+  if (typeof query.addEventListener === "function") query.addEventListener("change", follow);
+  else if (typeof query.addListener === "function") query.addListener(follow);
 }
 
 /**
@@ -363,11 +526,8 @@ function restoreTheme() {
  * @returns {void}
  */
 function toggleTheme() {
-  if (!els.appShell) return;
-  const next = els.appShell.dataset.theme === "dark" ? "light" : "dark";
-  els.appShell.dataset.theme = next;
-  document.body.dataset.theme = next;
-  els.themeToggle?.setAttribute("aria-pressed", String(next === "dark"));
+  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  applyTheme(next, "user");
   try { localStorage.setItem("asl-theme", next); } catch (err) { /* noop */ }
 }
 
@@ -451,10 +611,13 @@ function setMode(mode, options = {}) {
   if (isTest) loadLocalModelTestFixtures();
   if (isProject || isTest || isQr) {
     // These screens replace the camera workspace, so they release the camera
-    // exactly as returning home does.
+    // exactly as returning home does, and a camera problem is over: the
+    // visitor has moved on, and the next camera start asks afresh.
     if (state.cameraOn || _cameraStartAttempt) stopCamera();
+    clearCameraProblem();
     clearFeedback();
     syncActionBar();
+    showScreenHeading(state.mode, options.focus === true);
     return;
   }
 
@@ -480,10 +643,28 @@ function setMode(mode, options = {}) {
   updateReferenceForMode();
   syncRecordButton();
   syncActionBar();
+  showScreenHeading(state.mode, options.focus === true);
 
   // Entering a live mode with the camera already on is a first need for the
   // models it runs; with the camera off, starting it will be.
   if (state.cameraOn) loadModelsWithStatus(liveModelNeeds(state.mode));
+}
+
+/**
+ * Name the screen in the document title, and move focus to its h1 if asked.
+ *
+ * The title is the screen's h1 and the app name, so a history entry, a tab
+ * and a screen reader all say which screen it is.
+ *
+ * @param {AppMode} mode
+ * @param {boolean} moveFocus
+ * @returns {void}
+ */
+function showScreenHeading(mode, moveFocus) {
+  const heading = document.querySelector(`[data-screen-title="${mode}"]`);
+  if (!(heading instanceof HTMLElement)) return;
+  document.title = `${heading.textContent.trim()} · ASL Assistant`;
+  if (moveFocus) heading.focus({ preventScroll: true });
 }
 
 /**
@@ -515,6 +696,182 @@ let _cameraStartAttempt = null;
 let _cameraTrackEnded = null;
 
 /**
+ * Why the camera is not open, as the stage shows it.
+ *
+ * @typedef {"denied" | "system" | "busy" | "notfound" | "insecure" | "unsupported" | "failed" | "ended"} CameraProblemKind
+ */
+
+/**
+ * Title and explanation for each camera problem, in Turkish with siz.
+ *
+ * The message line and the announcement carry "title. text". The lost
+ * camera's pair keeps the wording that line has always had.
+ *
+ * @type {Record<CameraProblemKind, {title: string, text: string}>}
+ */
+const CAMERA_PROBLEMS = {
+  denied: {
+    title: "Kamera izni verilmedi",
+    text: "Tarayıcının site ayarlarından kameraya izin verin (iPhone'da adres çubuğundaki aA, Android'de kilit simgesi), sonra yeniden deneyin.",
+  },
+  system: {
+    title: "Kamera sistem ayarlarında kapalı",
+    text: "Bilgisayarınızın gizlilik ayarları tarayıcının kamerayı kullanmasına izin vermiyor. Sistem ayarlarından izin verin, sonra yeniden deneyin.",
+  },
+  busy: {
+    title: "Kamera başka bir uygulamada açık",
+    text: "Kamerayı kullanan uygulamayı ya da sekmeyi kapatın, sonra yeniden deneyin.",
+  },
+  notfound: {
+    title: "Kamera bulunamadı",
+    text: "Bu cihazda kullanılabilir bir kamera yok. Kamerasız dene ile örnek verilerle deneyebilirsiniz.",
+  },
+  insecure: {
+    title: "Bu adreste kamera açılamıyor",
+    text: "Tarayıcılar kameraya yalnızca güvenli (https) adreslerde izin verir. Siteyi https://asl-assistant.netlify.app adresinden açın.",
+  },
+  unsupported: {
+    title: "Bu tarayıcı kameraya erişemiyor",
+    text: "Siteyi güncel bir tarayıcıda açın. Kamerasız dene ile örnek verilerle deneyebilirsiniz.",
+  },
+  failed: {
+    title: "Kamera açılamadı",
+    text: "Sayfayı yenileyip yeniden deneyin. Sorun sürerse Kamerasız dene ile devam edebilirsiniz.",
+  },
+  ended: {
+    title: "Kamera bağlantısı kesildi",
+    text: "Kamerayı yeniden açabilirsiniz.",
+  },
+};
+
+/**
+ * Map a getUserMedia rejection to the problem the stage shows.
+ *
+ * Chrome on macOS and Windows says "Permission denied by system" when the
+ * operating system, not the site setting, blocks the camera. The message is
+ * only a hint; anything else with that name is a site refusal.
+ *
+ * @param {unknown} error
+ * @returns {CameraProblemKind}
+ */
+function cameraProblemKind(error) {
+  const name = isRecord(error) ? String(error.name || "") : "";
+  const message = isRecord(error) ? String(error.message || "") : "";
+  switch (name) {
+    case "NotAllowedError":
+    case "PermissionDeniedError":
+      return /system/i.test(message) ? "system" : "denied";
+    case "NotFoundError":
+    case "DevicesNotFoundError":
+      return "notfound";
+    case "NotReadableError":
+    case "TrackStartError":
+      return "busy";
+    case "SecurityError":
+      return "insecure";
+    default:
+      // OverconstrainedError and anything unforeseen.
+      return "failed";
+  }
+}
+
+/**
+ * Which browser's steps to allow the camera fit this visitor, or null.
+ *
+ * Used only to put those steps first; every browser's stay in the list, so
+ * a wrong guess costs a scroll, not the answer. iPadOS Safari reports a Mac,
+ * so a Mac with a touch screen is taken for an iPad.
+ *
+ * @returns {string | null} A data-browser value of #cameraHelpSteps.
+ */
+function cameraHelpBrowser() {
+  const nav = /** @type {{userAgent?: string, maxTouchPoints?: number, userAgentData?: {platform?: string}}} */ (
+    /** @type {unknown} */ (navigator)
+  );
+  const ua = String(nav.userAgent || "");
+  const platform = String(nav.userAgentData?.platform || "");
+  const iPadAsMac = /Macintosh/.test(ua) && (nav.maxTouchPoints || 0) > 1;
+  if (/iPhone|iPad|iPod/.test(ua) || iPadAsMac) return /CriOS/.test(ua) ? "ios-chrome" : "ios-safari";
+  if (/Android/i.test(ua) || /Android/i.test(platform)) return "android-chrome";
+  if (/Firefox\//.test(ua)) return "firefox";
+  if (/Chrome\/|Edg\//.test(ua)) return "desktop-chrome";
+  if (/Macintosh/.test(ua) && /Safari\//.test(ua)) return "mac-safari";
+  return null;
+}
+
+/**
+ * Show why the camera is not open, in place of the first-visit stage.
+ *
+ * The stage stays at rest (no video). Where retrying cannot help (an
+ * insecure page, a browser without the API) only "Kamerasız dene" is
+ * offered; where there is no camera it comes first. The cause is announced
+ * once, through the message line's report.
+ *
+ * @param {CameraProblemKind} kind
+ * @returns {void}
+ */
+function showCameraProblem(kind) {
+  const problem = CAMERA_PROBLEMS[kind];
+  els.cameraStage.dataset.camera = kind;
+  els.cameraEmpty.hidden = false;
+  if (els.cameraIntro) els.cameraIntro.hidden = true;
+  if (els.cameraProblem) els.cameraProblem.hidden = false;
+  if (els.cameraProblemTitle) els.cameraProblemTitle.textContent = problem.title;
+  if (els.cameraProblemText) els.cameraProblemText.textContent = problem.text;
+
+  const retry = els.cameraRetry;
+  const without = els.cameraNoCamera;
+  if (retry && without) {
+    const canRetry = kind !== "insecure" && kind !== "unsupported";
+    const withoutFirst = !canRetry || kind === "notfound";
+    retry.hidden = !canRetry;
+    retry.classList.toggle("btn--stage-primary", !withoutFirst);
+    retry.classList.toggle("btn--stage", withoutFirst);
+    without.classList.toggle("btn--stage-primary", withoutFirst);
+    without.classList.toggle("btn--stage", !withoutFirst);
+    // Visual order is focus order: the main action comes first.
+    retry.parentElement?.replaceChildren(...(withoutFirst ? [without, retry] : [retry, without]));
+  }
+
+  const steps = els.cameraHelpSteps;
+  const first = cameraHelpBrowser();
+  if (steps && first) {
+    const items = Array.from(steps.children);
+    const chosen = items.find((item) => item instanceof HTMLElement && item.dataset.browser === first);
+    if (chosen) steps.replaceChildren(chosen, ...items.filter((item) => item !== chosen));
+  }
+
+  reportProblem(`${problem.title}. ${problem.text}`);
+}
+
+/**
+ * Put the first-visit stage back.
+ *
+ * @returns {void}
+ */
+function clearCameraProblem() {
+  if (els.cameraProblem) els.cameraProblem.hidden = true;
+  if (els.cameraIntro) els.cameraIntro.hidden = false;
+  els.cameraStage.dataset.camera = state.cameraOn ? "on" : "off";
+}
+
+/**
+ * Move focus to the camera problem's main action, if one is shown.
+ *
+ * Called after a keyboard press that failed to open the camera: the button
+ * pressed sits in the first-visit content, which is now hidden.
+ *
+ * @returns {void}
+ */
+function focusCameraProblem() {
+  if (!els.cameraProblem || els.cameraProblem.hidden) return;
+  const main = els.cameraRetry && !els.cameraRetry.hidden && els.cameraRetry.classList.contains("btn--stage-primary")
+    ? els.cameraRetry
+    : els.cameraNoCamera;
+  main?.focus();
+}
+
+/**
  * Start or stop the camera.
  *
  * getUserMedia needs a secure context, so an insecure page is reported before
@@ -536,10 +893,12 @@ async function toggleCamera() {
   // A start is already waiting for the permission prompt.
   if (_cameraStartAttempt) return;
 
-  // Camera APIs require HTTPS, except on localhost.
+  // Camera APIs require HTTPS, except on localhost; a browser hides them on
+  // an insecure page. A secure page without them is an old browser.
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    els.latencyBadge.textContent = "HTTPS gerekli";
-    reportProblem("Bu tarayıcı kameraya erişemiyor. Siteyi https adresinden ya da güncel bir tarayıcıda açın.");
+    const insecure = window.isSecureContext === false;
+    els.latencyBadge.textContent = insecure ? "HTTPS gerekli" : "Kamera açılamadı";
+    showCameraProblem(insecure ? "insecure" : "unsupported");
     return;
   }
 
@@ -563,14 +922,16 @@ async function toggleCamera() {
     // cancels this start.
     const onTrackEnded = () => {
       stopCamera();
-      reportProblem("Kamera bağlantısı kesildi. Kamerayı yeniden açabilirsiniz.");
+      showCameraProblem("ended");
     };
     stream.getTracks().forEach((track) => track.addEventListener("ended", onTrackEnded));
     _cameraTrackEnded = onTrackEnded;
     await waitForVideoReady(els.video);
     // The stream is now state.stream, so the stop already released it.
     if (cancelled()) return;
+    clearCameraProblem();
     els.cameraEmpty.hidden = true;
+    els.cameraStage.dataset.camera = "on";
     syncActionBar();
     els.cameraStatus.classList.add("is-live");
     els.cameraStatus.lastChild.textContent = "Kamera açık";
@@ -605,34 +966,9 @@ async function toggleCamera() {
       console.warn("Vazgeçilen kamera başlatması başarısız oldu:", error);
       return;
     }
-    // Map standard browser media errors to actionable messages.
-    let msg = "Kamera açılamadı.";
-    switch (error?.name) {
-      case "NotAllowedError":
-      case "PermissionDeniedError":
-        msg = "Kamera izni verilmedi. Tarayıcının site ayarlarından kameraya izin verip yeniden deneyin.";
-        break;
-      case "NotFoundError":
-      case "DevicesNotFoundError":
-        msg = "Kamera bulunamadı. Bu cihazda kullanılabilir bir kamera yok; Kamerasız dene ile devam edebilirsiniz.";
-        break;
-      case "NotReadableError":
-      case "TrackStartError":
-        msg = "Kamera başka bir uygulamada açık. O uygulamayı kapatıp yeniden deneyin.";
-        break;
-      case "OverconstrainedError":
-      case "ConstraintNotSatisfiedError":
-        msg = "Kamera bu ayarlarla açılamadı. Sayfayı yenileyip yeniden deneyin.";
-        break;
-      case "SecurityError":
-        msg = "Tarayıcı kamerayı engelliyor. Siteyi https adresinden açın.";
-        break;
-      default:
-        // The browser's own text is for the console; it is English and technical.
-        msg = "Kamera açılamadı. Sayfayı yenileyip yeniden deneyin.";
-    }
+    // The browser's own text is for the console; it is English and technical.
     els.latencyBadge.textContent = "Kamera açılamadı";
-    reportProblem(msg);
+    showCameraProblem(cameraProblemKind(error));
     console.error("getUserMedia error:", error);
   } finally {
     if (_cameraStartAttempt === attempt) _cameraStartAttempt = null;
@@ -660,6 +996,7 @@ function stopCamera() {
   state.cameraOn = false;
   els.video.srcObject = null;
   els.cameraEmpty.hidden = false;
+  clearCameraProblem();
   syncActionBar();
   els.cameraStatus.classList.remove("is-live");
   els.cameraStatus.lastChild.textContent = "Hazır";

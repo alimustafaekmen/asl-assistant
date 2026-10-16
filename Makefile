@@ -82,7 +82,7 @@ TSC            ?= node_modules/.bin/tsc
 # ── PHONY hedefler ──────────────────────────────────────────
 .PHONY: help doctor setup web frontend backend test test-full format format-check lint validate \
         validate-full deploy-check health check quick parity js-check js-test js-typecheck \
-        test-web watch-web test-py models notebook-check \
+        test-web watch-web test-py browser-check models notebook-check \
         scripts-check model-test-fixtures git-hygiene docker desktop clean
 
 .DEFAULT_GOAL := help
@@ -130,6 +130,7 @@ help:
 	@echo "  make deploy-check    Her yüklemeden önce: validate + asl-web/ dosya envanteri"
 	@echo "  make health          Düzenleme sonrası hızlı genel sağlık kapısı"
 	@echo "  make check           Commit öncesi: health + js-typecheck (npm ci gerektirir)"
+	@echo "  make browser-check   Gerçek Chrome ile CSS ve sayfa kontrolleri (OFFLINE=1: CDN'siz)"
 	@echo "  make parity          Python ↔ JavaScript harf ve kelime feature eşitliği (Node gerekir)"
 	@echo "  make models          Deploy model/data artifact sağlık kontrolü"
 	@echo "  make notebook-check  Kritik notebook, model ve sonuç dosyaları yerinde mi?"
@@ -233,6 +234,14 @@ watch-web:
 
 test-py:
 	PYTHONPATH="$(TEST_PYTHONPATH):$$PYTHONPATH" $(PYTEST) $(or $(FILE),$(TEST_FAST)) $(if $(K),-k "$(K)")
+
+# Real-browser checks of what the Node context cannot see: the cascade layers,
+# hidden and mode-only rules, the dark theme, horizontal overflow, the camera
+# close control. It needs Chrome, so it stays out of health; without Chrome the
+# runner exits 2 and so does this target.
+browser-check:
+	@command -v node >/dev/null 2>&1 || { echo "✗ Node.js bulunamadı; tarayıcı kontrolleri çalıştırılamaz."; exit 1; }
+	node tests/browser/run.mjs $(if $(OFFLINE),--offline)
 
 quick: lint format-check js-test
 	@echo "✓ Quick OK (lint + format-check + js-test)"

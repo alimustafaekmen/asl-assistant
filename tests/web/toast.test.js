@@ -110,3 +110,49 @@ test("an undo toast waits while it has focus or the pointer, then returns focus"
   app.evaluate("els.toastAction.onclick()");
   assert.equal(app.evaluate("__returned"), 1, "after undo, focus goes back to the clear button");
 });
+
+// A second clear while the first one's undo is still offered used to replace
+// that undo, so "Geri al" brought back only the second part and the first
+// was lost for good. While the toast is up, clears add up; "Geri al" restores
+// all of it, in order.
+
+test("a second clear keeps the first restorable", () => {
+  const { app } = loadApp();
+  app.evaluate('state.transcript = "ABC";');
+  app.get("clearTranscript")();
+  app.evaluate('state.mode = "letter"; state.prediction = "D"; state.confidence = 0.95;');
+  app.get("appendCurrentLetter")();
+  assert.equal(app.evaluate("state.transcript"), "D", "precondition: typed after the first clear");
+
+  app.get("clearTranscript")();
+  app.evaluate("els.toastAction.onclick()");
+
+  assert.equal(app.evaluate("state.transcript"), "ABCD");
+});
+
+test("once the undo toast has gone, the next clear starts its own undo", () => {
+  const { app, runTimers } = loadApp();
+  app.evaluate('state.transcript = "XY";');
+  app.get("clearTranscript")();
+  runTimers();
+  assert.equal(app.evaluate("els.toast.hidden"), true, "precondition: the first undo is no longer offered");
+
+  app.evaluate('state.transcript = "Z";');
+  app.get("clearTranscript")();
+  app.evaluate("els.toastAction.onclick()");
+
+  assert.equal(app.evaluate("state.transcript"), "Z");
+});
+
+test("a toast that replaces the undo ends it, so the next clear starts afresh", () => {
+  const { app } = loadApp();
+  app.evaluate('state.transcript = "AB";');
+  app.get("clearTranscript")();
+  app.get("showToast")("Kopyalanacak metin yok");
+
+  app.evaluate('state.transcript = "C";');
+  app.get("clearTranscript")();
+  app.evaluate("els.toastAction.onclick()");
+
+  assert.equal(app.evaluate("state.transcript"), "C");
+});

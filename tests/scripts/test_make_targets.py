@@ -104,6 +104,9 @@ SCENARIOS: dict[str, Scenario] = {
     "validate-full/project assets": Scenario("validate-full", fail="verify_project_assets.py"),
     "deploy-check": Scenario("deploy-check"),
     "deploy-check/runtime assets": Scenario("deploy-check", fail="check_runtime_assets.py"),
+    "browser-check": Scenario("browser-check"),
+    "browser-check/offline": Scenario("browser-check", make_args=("OFFLINE=1",)),
+    "browser-check/failing": Scenario("browser-check", fail="tests/browser/run.mjs"),
     "js-check/syntax error": Scenario("js-check", fail="node --check"),
     "js-check/no node": Scenario("js-check", bare_path=True),
     "js-test/no node": Scenario("js-test", bare_path=True),
@@ -311,6 +314,20 @@ def test_deploy_check_runs_the_inventory(runs: dict[str, Run]) -> None:
 
     assert run.returncode == 0, run.output
     assert any("--deploy" in _arguments(call) for call in run.ran("check_runtime_assets.py"))
+
+
+def test_browser_check_runs_the_browser_suite_and_fails_with_it(runs: dict[str, Run]) -> None:
+    (call,) = runs["browser-check"].ran("tests/browser/run.mjs")
+
+    assert runs["browser-check"].returncode == 0, runs["browser-check"].output
+    assert "--offline" not in _arguments(call)
+    (offline,) = runs["browser-check/offline"].ran("tests/browser/run.mjs")
+    assert "--offline" in _arguments(offline)
+    assert runs["browser-check/failing"].returncode != 0
+
+
+def test_health_does_not_start_a_browser(runs: dict[str, Run]) -> None:
+    assert runs["health"].ran("tests/browser/run.mjs") == []
 
 
 def test_parity_runs_both_feature_checks_and_fails_with_either(runs: dict[str, Run]) -> None:

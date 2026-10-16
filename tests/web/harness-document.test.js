@@ -169,3 +169,24 @@ test("innerHTML and textContent rebuild children as the browser does", () => {
   assert.equal(p.children.length, 0, "text is never parsed as markup");
   assert.equal(p.innerHTML, "&lt;b&gt;plain&lt;/b&gt;");
 });
+
+test("the document runs its own listeners and reports whether the page is hidden", () => {
+  const app = loadWebApp();
+  app.evaluate(`
+    globalThis.__seen = [];
+    globalThis.__listener = () => __seen.push(document.visibilityState + ":" + document.hidden);
+    document.addEventListener("visibilitychange", __listener);
+    document.addEventListener("visibilitychange", __listener);
+  `);
+  assert.equal(app.evaluate("document.visibilityState"), "visible", "a page starts visible");
+
+  app.evaluate('document.visibilityState = "hidden"; document.dispatchEvent({ type: "visibilitychange" });');
+  assert.deepEqual([...app.evaluate("__seen")], ["hidden:true"], "a listener added twice runs once");
+
+  app.evaluate(`
+    document.removeEventListener("visibilitychange", __listener);
+    document.visibilityState = "visible";
+    document.dispatchEvent({ type: "visibilitychange" });
+  `);
+  assert.deepEqual([...app.evaluate("__seen")], ["hidden:true"], "a removed listener does not run");
+});

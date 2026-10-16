@@ -44,6 +44,20 @@ function buildQrDemoUrl(target = state.qrTarget) {
 }
 
 /**
+ * Open the target of the radio the visitor chose.
+ *
+ * Bound to the radios' change event, not to a click: moving between radios
+ * with the arrow keys fires change and, on some browsers, no click.
+ *
+ * @param {{target: EventTarget | null}} event
+ * @returns {void}
+ */
+function handleQrTargetChange(event) {
+  const radio = event.target;
+  if (radio instanceof HTMLInputElement && radio.checked) setQrTarget(radio.dataset.qrTarget ?? "");
+}
+
+/**
  * Select which mode the QR code opens, and redraw it.
  *
  * @param {string} target Anything unrecognised falls back to "letter".
@@ -58,84 +72,208 @@ function setQrTarget(target) {
   renderQrDemo();
 }
 
-/**
- * Draw the QR code and show its link.
- *
- * When the QR library failed to load, the canvas shows a readable message and
- * the copyable link below it keeps the screen usable.
- *
- * @returns {void}
- */
-function renderQrDemo() {
-  const url = buildQrDemoUrl();
-  queryElements("[data-qr-target]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.qrTarget === state.qrTarget);
-  });
-  if (els.qrDemoUrl) els.qrDemoUrl.textContent = url;
-  if (els.qrOpenDemo) els.qrOpenDemo.href = url;
+// The code's ink and paper do not follow the theme: a scanner needs dark on
+// light whatever the page looks like, so the dark theme must not tint them.
+// The page may define them as custom properties; these are used where it does
+// not.
+const QR_INK_FALLBACK = "#17181b";
+const QR_PAPER_FALLBACK = "#ffffff";
 
-  if (!els.qrCanvas) return;
-  els.qrCanvas.innerHTML = "";
-  if (window.kjua && typeof window.kjua === "function") {
-    const qrNode = window.kjua({
+/**
+ * Read an unthemed colour of the QR code from the page's custom properties.
+ *
+ * @param {string} property
+ * @param {string} fallback
+ * @returns {string}
+ */
+function readQrColour(property, fallback) {
+  if (typeof getComputedStyle !== "function") return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(property).trim();
+  return value || fallback;
+}
+
+/**
+ * Draw the QR code with kjua.
+ *
+ * @param {string} url
+ * @returns {HTMLElement | null} Null when the library did not load or could
+ *   not draw this text.
+ */
+function drawQrCode(url) {
+  if (typeof window.kjua !== "function") return null;
+  try {
+    return window.kjua({
       render: "canvas",
       crisp: true,
       minVersion: 1,
       ecLevel: "H",
       size: 420,
       ratio: undefined,
-      fill: "#102033",
-      back: "#ffffff",
+      fill: readQrColour("--qr-ink", QR_INK_FALLBACK),
+      back: readQrColour("--qr-back", QR_PAPER_FALLBACK),
       text: url,
       rounded: 0,
-      quiet: 2,
+      // Scanners need four modules of empty margin (ISO/IEC 18004).
+      quiet: 4,
     });
+  } catch (err) {
+    console.warn("QR kodu çizilemedi:", err);
+    return null;
+  }
+}
+
+/**
+ * Draw the QR code and show its link.
+ *
+ * When the QR library failed to load, or could not draw, the code's place says
+ * so in text and shows the link itself, and the status line points to copying:
+ * the link below it keeps the screen usable.
+ *
+ * @returns {void}
+ */
+function renderQrDemo() {
+  const url = buildQrDemoUrl();
+  queryElements("[data-qr-target]").forEach((button) => {
+    const isTarget = button.dataset.qrTarget === state.qrTarget;
+    button.classList.toggle("is-active", isTarget);
+    // A radio shows the state it is drawn from, whatever last changed it.
+    if (button instanceof HTMLInputElement) button.checked = isTarget;
+  });
+  if (els.qrDemoUrl) els.qrDemoUrl.textContent = url;
+  if (els.qrOpenDemo) els.qrOpenDemo.href = url;
+
+  if (!els.qrCanvas) return;
+  // The code is a picture, so where it leads has to be in its label.
+  els.qrCanvas.setAttribute("aria-label", `QR kodu: ${url}`);
+  els.qrCanvas.innerHTML = "";
+  const qrNode = drawQrCode(url);
+  if (qrNode) {
     els.qrCanvas.appendChild(qrNode);
     if (els.qrStatus) els.qrStatus.textContent = `QR hazır: ${url}`;
     return;
   }
 
-  {
-    const canvas = document.createElement("canvas");
-    canvas.width = 420;
-    canvas.height = 420;
-    els.qrCanvas.appendChild(canvas);
-    const ctx2d = canvas.getContext("2d");
-    ctx2d.clearRect(0, 0, canvas.width, canvas.height);
-    ctx2d.fillStyle = "#ffffff";
-    ctx2d.fillRect(0, 0, canvas.width, canvas.height);
-    ctx2d.fillStyle = "#102033";
-    ctx2d.font = "700 22px sans-serif";
-    ctx2d.textAlign = "center";
-    ctx2d.fillText("QR yüklenemedi", canvas.width / 2, canvas.height / 2 - 12);
-    ctx2d.font = "500 15px sans-serif";
-    ctx2d.fillText("Aşağıdaki linki açın", canvas.width / 2, canvas.height / 2 + 20);
-    if (els.qrStatus) els.qrStatus.textContent = "QR kütüphanesi yüklenemedi; bağlantı metni yedek olarak kullanılabilir.";
-    return;
+  const notice = document.createElement("p");
+  notice.textContent = "QR kodu çizilemedi.";
+  const link = document.createElement("p");
+  link.textContent = url;
+  els.qrCanvas.appendChild(notice);
+  els.qrCanvas.appendChild(link);
+  if (els.qrStatus) {
+    els.qrStatus.textContent = "QR kodu çizilemedi; bağlantıyı kopyalayıp telefonunuza gönderebilirsiniz.";
   }
 }
 
 /**
- * Copy the demo link, falling back to a hidden input where the clipboard API
- * is unavailable or blocked.
+ * Say something about the link under it, and to a screen reader.
+ *
+ * @param {string} message
+ * @returns {void}
+ */
+function setQrStatus(message) {
+  if (els.qrStatus) els.qrStatus.textContent = message;
+  announce(message);
+}
+
+/**
+ * Copy the demo link, and say whether it worked.
+ *
+ * The clipboard API is tried first, then the legacy copy command. When neither
+ * copies, the link is selected so the visitor can copy it by hand.
  *
  * @returns {Promise<void>}
  */
 async function copyQrDemoUrl() {
-  const url = buildQrDemoUrl();
+  if (await copyTextToClipboard(buildQrDemoUrl())) {
+    setQrStatus("Bağlantı kopyalandı.");
+    return;
+  }
+  setQrStatus("Kopyalanamadı. Bağlantıyı seçip elle kopyalayın.");
+  selectQrDemoUrl();
+}
+
+/**
+ * @param {string} text
+ * @returns {Promise<boolean>} True only when the browser reports the copy done.
+ */
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Denied or insecure page: the legacy command below may still work.
+    }
+  }
+  return copyTextWithCommand(text);
+}
+
+/**
+ * The legacy path: select the text in a hidden input and run the copy command.
+ *
+ * @param {string} text
+ * @returns {boolean} The command's own answer; false when it throws.
+ */
+function copyTextWithCommand(text) {
+  const input = document.createElement("input");
+  input.value = text;
+  input.setAttribute("readonly", "");
+  input.style.position = "fixed";
+  input.style.opacity = "0";
+  document.body.appendChild(input);
   try {
-    await navigator.clipboard.writeText(url);
-    if (els.qrStatus) els.qrStatus.textContent = "Demo linki panoya kopyalandı.";
-  } catch (err) {
-    const input = document.createElement("input");
-    input.value = url;
-    input.setAttribute("readonly", "");
-    input.style.position = "fixed";
-    input.style.opacity = "0";
-    document.body.appendChild(input);
     input.select();
-    document.execCommand("copy");
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
     input.remove();
-    if (els.qrStatus) els.qrStatus.textContent = "Demo linki panoya kopyalandı.";
+  }
+}
+
+/**
+ * Select the link's text, so a visitor whose browser refused to copy can do it.
+ *
+ * @returns {void}
+ */
+function selectQrDemoUrl() {
+  if (!els.qrDemoUrl || typeof window.getSelection !== "function" || typeof document.createRange !== "function") return;
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  range.selectNodeContents(els.qrDemoUrl);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+/**
+ * Whether this browser can open a system share sheet. The share sheet is a
+ * browser API that not every browser has, so it is asked for rather than
+ * assumed.
+ *
+ * @returns {boolean}
+ */
+function canShareQrDemoUrl() {
+  return typeof navigator !== "undefined" && typeof navigator.share === "function";
+}
+
+/**
+ * Hand the link to the system share sheet, or copy it where there is none.
+ *
+ * Closing the sheet is the visitor's choice, not a failure, and says nothing.
+ *
+ * @returns {Promise<void>}
+ */
+async function shareQrDemoUrl() {
+  if (!canShareQrDemoUrl()) {
+    await copyQrDemoUrl();
+    return;
+  }
+  try {
+    await navigator.share({ title: "ASL Assistant", url: buildQrDemoUrl() });
+  } catch (err) {
+    // The browser reports a closed sheet as a DOMException named AbortError.
+    if (isRecord(err) && err.name === "AbortError") return;
+    setQrStatus("Paylaşılamadı. Bağlantıyı kopyalayabilirsiniz.");
   }
 }

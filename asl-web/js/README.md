@@ -5,6 +5,7 @@ not use a bundler or ES-module graph, so the order in `asl-web/index.html` is a
 runtime contract.
 
 ```text
+core/theme-boot.js
 core/config.js
 core/runtime.js
 ml/landmarks.js
@@ -29,6 +30,9 @@ core/app.js
 
 The rules behind that order:
 
+- `core/theme-boot.js` is in `<head>`, before the stylesheets, so the first
+  frame is painted in the visitor's theme. It writes only the theme onto
+  `<html>`, and reads neither `state` nor `els`, which do not exist yet.
 - `core/config.js` comes before anything that reads `CONFIG` or the label lists.
 - `core/runtime.js` creates the shared `state`, the `els` DOM registry, the
   overlay canvas context, and the word recording buffers exactly once.
@@ -37,8 +41,8 @@ The rules behind that order:
 - `core/app.js` is last and is the only script that calls `init()`.
 
 No module other than `core/app.js` does asynchronous work, binds events, or
-loads a model while it is being loaded. Startup side effects belong in the
-bootstrap flow.
+loads a model while it is being loaded; `core/theme-boot.js` only sets the
+theme. Startup side effects belong in the bootstrap flow.
 
 `tests/project/test_web_ui_contracts.py` enforces this order, and
 `tests/web/module-contracts.test.js` loads the scripts the same way the browser
@@ -49,6 +53,7 @@ automatically.
 
 | Module | Responsibility |
 |---|---|
+| `core/theme-boot.js` | Theme resolution before the first paint: saved choice, else the system scheme; the theme-color metas |
 | `core/config.js` | Runtime configuration, letter/word label lists, difficulty sets, reference assets |
 | `core/runtime.js` | Shared mutable state, DOM registry, canvas context, word recording buffers |
 | `core/app.js` | Bootstrap, event wiring, hash routing, camera start/stop, render loop, debug API |

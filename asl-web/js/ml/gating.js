@@ -133,7 +133,7 @@ function getConfusionFeedback(top1, top2) {
   });
 
   if (pair) {
-    return `⚠ ${top1.label} / ${top2.label} sık karışır. Hareketi daha belirgin yapın.`;
+    return `${top1.label} ile ${top2.label} sık karışır; işareti daha belirgin yapın.`;
   }
   return null;
 }
@@ -170,7 +170,7 @@ function getWordDifficulty(word) {
 function getDifficultyMessage(word) {
   const diff = getWordDifficulty(word);
   if (diff === "hard") {
-    return `⚠ "${word}" model için zor sınıfta. Tahmini dikkatli yorumlayın.`;
+    return `"${word}" zor tanınan kelimelerden; sonucu dikkatle kontrol edin.`;
   }
   return null;
 }

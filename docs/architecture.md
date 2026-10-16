@@ -70,6 +70,7 @@ browser from depending on Python configuration.
 The application uses classic scripts in a fixed order:
 
 ```text
+core/theme-boot.js
 core/config.js
 core/runtime.js
 ml/landmarks.js
@@ -100,6 +101,7 @@ core/app.js
 | `css/base.css` | Self-hosted fonts, document defaults, the focus ring |
 | `css/components.css` | Buttons, mode switch, camera stage, caption plate, transcript strip, panels |
 | `css/layout.css` | The shell and the camera workspace for phone, phone landscape and laptop; mode visibility |
+| `js/core/theme-boot.js` | Theme resolution in `<head>`, before the stylesheets, so the first frame is in the visitor's theme |
 | `js/core/config.js` | Runtime configuration, label domains, difficulty sets, reference assets |
 | `js/core/runtime.js` | Shared application state, DOM registry, canvas context, recording buffers |
 | `js/core/app.js` | Bootstrap, event wiring, hash routing, camera start/stop, render loop, debug API |

@@ -120,10 +120,14 @@
     --z-lightbox: 100;
   }
 
-  /* The app writes data-theme on <body> and on the shell; <html> follows the
-     body so the canvas behind an overscroll matches the page. */
-  [data-theme="dark"],
-  :root:has(> body[data-theme="dark"]) {
+  /* One dark set, on the root element. js/core/theme-boot.js writes
+     data-theme there before these stylesheets apply, so the first frame is
+     already in the visitor's theme and the canvas behind an overscroll
+     matches the page. There is deliberately no prefers-color-scheme copy of
+     this block for a page where that script did not run: it would be a second
+     set to keep in step, and the app cannot start without the script (init()
+     uses its functions and reports a start-up failure). */
+  :root[data-theme="dark"] {
     color-scheme: dark;
     --color-page: #131416;
     --color-surface: #1c1d21;

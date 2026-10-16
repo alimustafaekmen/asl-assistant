@@ -29,6 +29,42 @@
  * @typedef {"IDLE" | "COUNTDOWN" | "RECORDING" | "PROCESSING" | "RESULT"} WordState
  */
 
+/**
+ * Why the last word recording went back to IDLE before it finished. The
+ * state machine has no state for it: the recording returns to IDLE and this
+ * says why, until the next recording starts.
+ *
+ * "timeout": no usable frame arrived in time, or the recording never filled.
+ * "download-failed": the word model could not be downloaded, so the
+ * recording never started.
+ * "hidden": the page went to the background during the countdown or the
+ * recording.
+ *
+ * @typedef {"timeout" | "download-failed" | "hidden"} WordEnd
+ */
+
+/**
+ * A recording quality warning, as a code. prediction.js holds the sentence
+ * the user sees for each; the technical reason stays in the debug snapshot.
+ *
+ * "pose" and "face": shoulders or face seen in under half of the frames.
+ * "hand": a hand seen in under 70 % of them. "few-frames": under 30 frames
+ * accepted. "slow": the window took over 6 s to fill. "still": almost no
+ * movement between frames.
+ *
+ * @typedef {"pose" | "face" | "hand" | "few-frames" | "slow" | "still"} WordQualityCode
+ */
+
+/**
+ * Which landmark groups the latest MediaPipe result showed, read while a word
+ * is counted down and recorded. Read-only: it never touches the recording.
+ *
+ * @typedef {Object} WordFraming
+ * @property {boolean} hand
+ * @property {boolean} face
+ * @property {boolean} pose The shoulders.
+ */
+
 /** @typedef {"letter" | "word"} CoachTargetType */
 
 /** @typedef {"learn" | "practice" | "quiz"} CoachFlow */
@@ -93,7 +129,9 @@
  * @property {number} frameCount
  * @property {WordState} wordState
  * @property {number} wordFrames Accepted frames in the current recording.
- * @property {string[]} wordQualityWarnings
+ * @property {WordEnd | null} wordEnd Why the last recording ended early; null otherwise.
+ * @property {WordFraming | null} wordFraming What the camera showed in the latest countdown or recording frame.
+ * @property {WordQualityCode[]} wordQualityWarnings Quality warnings of the last finished recording.
  * @property {WordResultAssessment | null} wordResultAssessment
  * @property {string} coachTarget A single letter or a whole word.
  * @property {CoachTargetType} coachTargetType
@@ -110,6 +148,7 @@
  * @property {ModelTask} modelTestTask
  * @property {ModelTestSample | null} modelTestSample
  * @property {ModelTestManifest | null} modelTestManifest
+ * @property {ModelTestBatch | null} modelTestBatch The latest run over every sample, or null.
  * @property {QrTarget} qrTarget
  * @property {number} [fpsStart] Start of the current FPS measurement window.
  * @property {string} [lastTranscriptAppendKey] Debounce key of the last append.
@@ -261,6 +300,8 @@ const state = {
   frameCount: 0,
   wordState: "IDLE",
   wordFrames: 0,
+  wordEnd: null,
+  wordFraming: null,
   wordQualityWarnings: [],
   wordResultAssessment: null,
   coachTarget: "A",
@@ -278,6 +319,7 @@ const state = {
   modelTestTask: "letter",
   modelTestSample: null,
   modelTestManifest: null,
+  modelTestBatch: null,
   qrTarget: "letter",
 };
 
@@ -286,6 +328,15 @@ const els = {
   canvas: requireElement("overlayCanvas", HTMLCanvasElement),
   cameraStage: requireElement("cameraStage"),
   cameraEmpty: requireElement("cameraEmpty"),
+  // The empty stage's two faces: the first-visit content, and the problem
+  // that takes its place when the camera cannot open.
+  cameraIntro: document.getElementById("cameraIntro"),
+  cameraProblem: document.getElementById("cameraProblem"),
+  cameraProblemTitle: document.getElementById("cameraProblemTitle"),
+  cameraProblemText: document.getElementById("cameraProblemText"),
+  cameraRetry: document.getElementById("cameraRetry"),
+  cameraNoCamera: document.getElementById("cameraNoCamera"),
+  cameraHelpSteps: document.getElementById("cameraHelpSteps"),
   cameraStatus: requireElement("cameraStatus"),
   controlBar: requireElement("controlBar"),
   cameraToggle: document.getElementById("cameraToggle"),
@@ -391,6 +442,9 @@ const els = {
   modelTestSchemaLabel: document.getElementById("modelTestSchemaLabel"),
   modelTestShapeLabel: document.getElementById("modelTestShapeLabel"),
   modelTestMaskLabel: document.getElementById("modelTestMaskLabel"),
+  modelTestBatch: document.getElementById("modelTestBatch"),
+  modelTestSummary: document.getElementById("modelTestSummary"),
+  modelTestRows: document.getElementById("modelTestRows"),
   qrCanvas: document.getElementById("qrCanvas"),
   qrDemoUrl: document.getElementById("qrDemoUrl"),
   qrOpenDemo: optionalElement("qrOpenDemo", HTMLAnchorElement),

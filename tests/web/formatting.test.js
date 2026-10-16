@@ -31,12 +31,25 @@ test("clampPercent treats unusable numbers as zero", () => {
   assert.equal(clampPercent(undefined), 0);
 });
 
-test("formatPercent renders one decimal and a dash for missing values", () => {
-  assert.equal(formatPercent(0.1234), "%12.3");
-  assert.equal(formatPercent(1), "%100.0");
-  assert.equal(formatPercent(0), "%0.0");
+// Contract change, deliberately: the figures used to read "%12.3" and "%100.0".
+// The interface speaks Turkish, which writes the decimal with a comma and puts
+// no decimal on a whole-looking figure, so a reader sees "%7,6", "%12" and
+// "%100". One decimal is kept only under 10, where it still carries meaning.
+test("formatPercent writes the Turkish decimal comma and a dash for missing values", () => {
+  assert.equal(formatPercent(0.076), "%7,6");
+  assert.equal(formatPercent(0.1234), "%12");
+  assert.equal(formatPercent(1), "%100");
+  assert.equal(formatPercent(0), "%0");
   assert.equal(formatPercent(NaN), "-");
   assert.equal(formatPercent(undefined), "-");
+});
+
+test("formatPercent never shows a trailing zero decimal or a rounded-up decimal of ten", () => {
+  assert.equal(formatPercent(0.05), "%5");
+  // 9.96 % rounds to 10.0 at one decimal; it is shown as the whole figure.
+  assert.equal(formatPercent(0.0996), "%10");
+  assert.equal(formatPercent(0.0994), "%9,9");
+  assert.equal(formatPercent(0.9), "%90");
 });
 
 test("formatTopPredictions numbers the ranked labels", () => {

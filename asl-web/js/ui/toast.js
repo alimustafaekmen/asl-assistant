@@ -7,13 +7,29 @@
 
 /**
  * @typedef {{label: string, run: () => void}} ToastAction
- * @typedef {{action?: ToastAction, durationMs?: number, returnFocus?: HTMLElement | null}} ToastOptions
+ * @typedef {{action?: ToastAction, durationMs?: number, returnFocus?: HTMLElement | null, onEnd?: () => void}} ToastOptions
  *   returnFocus is where focus goes after the action: the toast disappears,
- *   so a keyboard user would otherwise be left on the page.
+ *   so a keyboard user would otherwise be left on the page. onEnd runs once
+ *   when this toast stops being shown, whether it hid or a newer one took its
+ *   place, so whatever its action offered can be let go.
  */
 
 /** Pending auto-hide, so a newer toast is not hidden by an older timer. */
 let _toastTimer = 0;
+
+/** The shown toast's onEnd, or null. @type {(() => void) | null} */
+let _toastOnEnd = null;
+
+/**
+ * Run and forget the shown toast's onEnd.
+ *
+ * @returns {void}
+ */
+function endToast() {
+  const onEnd = _toastOnEnd;
+  _toastOnEnd = null;
+  onEnd?.();
+}
 
 /**
  * Show a confirmation, and announce it.
@@ -27,6 +43,8 @@ function showToast(message, options = {}) {
   announce(message);
   if (!els.toast || !els.toastText || !els.toastAction) return;
   clearTimeout(_toastTimer);
+  endToast();
+  _toastOnEnd = options.onEnd ?? null;
   els.toastText.textContent = message;
   const { action } = options;
   els.toastAction.hidden = !action;
@@ -63,6 +81,7 @@ function showToast(message, options = {}) {
 function hideToast() {
   clearTimeout(_toastTimer);
   if (els.toast) els.toast.hidden = true;
+  endToast();
 }
 
 /**

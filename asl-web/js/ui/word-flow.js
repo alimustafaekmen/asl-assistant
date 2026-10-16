@@ -40,6 +40,141 @@ function wordResultIsCurrent() {
 }
 
 /**
+ * What the user is told when a recording ends before it finished, by reason.
+ *
+ * @type {Record<WordEnd, string>}
+ */
+const WORD_END_COPY = {
+  timeout:
+    "El, yüz ve omuzlar birlikte görünmedi; kayıt durduruldu. Kol boyu uzaklıkta, iyi ışıkta yeniden deneyin.",
+  "download-failed":
+    "Kelime tanıma için gereken dosyalar indirilemedi. Bağlantınızı kontrol edip yeniden deneyin.",
+  hidden: "Sayfa arka plana geçtiği için kayıt iptal edildi.",
+};
+
+/**
+ * True while a record press waits for the word model. A second press in that
+ * wait would only wait on the same download and report its outcome again.
+ */
+let _wordModelWait = false;
+
+/**
+ * Say why the last recording did not finish, and keep the reason in state.
+ *
+ * @param {WordEnd} reason
+ * @returns {void}
+ */
+function reportWordEnd(reason) {
+  state.wordEnd = reason;
+  reportProblem(WORD_END_COPY[reason]);
+}
+
+/**
+ * The clock of the recording in RECORDING: which recording it belongs to,
+ * the render-loop time of its first tick, and the time of its last usable
+ * frame (null until one arrives).
+ *
+ * It is keyed by the recording serial and starts on the recording's first
+ * tick, so a recording abandoned by a mode change or a stop can never lend its
+ * elapsed time to the next one. No timer is involved: the render loop calls
+ * live inference on every animation frame, whether or not MediaPipe saw
+ * anyone, so it is the recording's clock already, and it stops with the
+ * camera.
+ *
+ * @type {{recording: number, startedAt: number, lastUsableAt: number | null}}
+ */
+let wordRecordingClock = { recording: 0, startedAt: 0, lastUsableAt: null };
+
+/**
+ * End a recording that the camera is not filling.
+ *
+ * Called by live inference on every render tick while recording. The first
+ * usable frame may take WORD_FIRST_FRAME_TIMEOUT_MS, a later gap
+ * WORD_NO_HAND_TIMEOUT_MS, and the whole recording WORD_MAX_RECORDING_MS.
+ *
+ * @param {number} now Render loop timestamp in milliseconds.
+ * @returns {void}
+ */
+function checkWordRecordingClock(now) {
+  if (state.wordState !== "RECORDING") return;
+  if (wordRecordingClock.recording !== wordRecordingSerial) {
+    wordRecordingClock = { recording: wordRecordingSerial, startedAt: now, lastUsableAt: null };
+    return;
+  }
+  const { startedAt, lastUsableAt } = wordRecordingClock;
+  const starved =
+    lastUsableAt === null
+      ? now - startedAt >= CONFIG.WORD_FIRST_FRAME_TIMEOUT_MS
+      : now - lastUsableAt >= CONFIG.WORD_NO_HAND_TIMEOUT_MS;
+  if (starved || now - startedAt >= CONFIG.WORD_MAX_RECORDING_MS) endWordRecordingEarly("timeout");
+}
+
+/**
+ * Note that the recording just accepted a frame.
+ *
+ * @param {number} now Render loop timestamp in milliseconds.
+ * @returns {void}
+ */
+function noteUsableWordFrame(now) {
+  if (wordRecordingClock.recording === wordRecordingSerial) wordRecordingClock.lastUsableAt = now;
+}
+
+/** Whether the page-visibility listener has been added; it is added once. */
+let _wordPageWatched = false;
+
+/**
+ * Abandon a countdown or recording when the page goes to the background.
+ *
+ * A hidden page gets no animation frames, so the recording would freeze
+ * half-filled and resume later with a gap the model never saw. Only the
+ * recording ends; the camera is left as it is.
+ *
+ * The listener is added by the first recording, which is the first moment it
+ * has anything to do, and it ignores every state but a countdown or a
+ * recording.
+ *
+ * @returns {void}
+ */
+function watchPageVisibilityForWordRecording() {
+  if (_wordPageWatched) return;
+  _wordPageWatched = true;
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") endWordRecordingEarly("hidden");
+  });
+}
+
+/**
+ * Abandon a countdown or recording before it finished, and say why.
+ *
+ * The recording returns to IDLE, which is where every way out of a recording
+ * already leads, and its frames are discarded: a half-filled window must not
+ * reach the model or the next recording. Its countdown and its clock stand
+ * down on their own: both check the state, and both belong to this
+ * recording's serial, which the next start replaces.
+ *
+ * @param {WordEnd} reason
+ * @returns {void}
+ */
+function endWordRecordingEarly(reason) {
+  if (state.wordState !== "COUNTDOWN" && state.wordState !== "RECORDING") return;
+  frameBuffer = [];
+  normalizedFrameBuffer = [];
+  previousFrame = null;
+  if (typeof resetWordRecordingStats === "function") resetWordRecordingStats();
+
+  state.wordState = "IDLE";
+  state.wordFrames = 0;
+  state.wordFraming = null;
+  state.wordQualityWarnings = [];
+  state.wordResultAssessment = null;
+  els.countdown.hidden = true;
+  updatePrediction({ label: "?", confidence: 0, alternatives: [] });
+  updateWordState();
+  // Last, so nothing redrawn above replaces the reason on the message line.
+  reportWordEnd(reason);
+}
+
+/**
  * Start a word recording: check readiness, clear the buffers, count down, then
  * hand over to live inference.
  *
@@ -55,7 +190,7 @@ function wordResultIsCurrent() {
  */
 async function startWordRecording() {
   if (!state.cameraOn) {
-    setMessage("Önce kamerayı başlat.", "low");
+    setMessage("Önce kamerayı açın.", "low");
     return;
   }
 
@@ -66,11 +201,29 @@ async function startWordRecording() {
   if (!canCaptureWordInCurrentMode()) setMode("word");
   // A recording is useless without the word model, so it loads before the
   // countdown. Everything below reads state after this wait, so a camera
-  // stopped or a second click made meanwhile is still seen.
-  if (!(await loadModelsWithStatus({ word: true }))) return;
-  if (!state.cameraOn || !canCaptureWordInCurrentMode()) return;
+  // stopped or a second click made meanwhile is still seen. The load is
+  // shared and forgets a failure, so after a failed download the next press
+  // simply downloads again: the user is asked to try again, never to reload.
+  if (_wordModelWait) return;
+  const cameraSession = state.stream;
+  if (!wordSession) setMessage("Kelime tanıma indiriliyor…", "maybe");
+  _wordModelWait = true;
+  let modelReady = false;
+  try {
+    modelReady = await ensureWordModel();
+  } finally {
+    _wordModelWait = false;
+  }
+  // A camera stopped or restarted meanwhile has already put the screen at
+  // rest, and a user who left word mode has moved on: the outcome of this
+  // download is news for neither.
+  if (!state.cameraOn || state.stream !== cameraSession || !canCaptureWordInCurrentMode()) return;
+  if (!modelReady) {
+    reportWordEnd("download-failed");
+    return;
+  }
   if (typeof mpRunning !== "undefined" && !mpRunning) {
-    setMessage("Kelime kaydı için MediaPipe'in hazır olmasını bekleyin.", "maybe");
+    setMessage("Kelime kaydı için el izlemenin hazır olmasını bekleyin.", "maybe");
     return;
   }
   if (
@@ -78,7 +231,7 @@ async function startWordRecording() {
     typeof faceLandmarker !== "undefined" &&
     (!poseLandmarker || !faceLandmarker)
   ) {
-    setMessage("Kelime modu için MediaPipe Hand + Pose + Face birlikte hazır olmalı.", "low");
+    setMessage("Kelime kaydı için yüz ve omuz izleme gerekiyor, ama henüz hazır değil.", "low");
     return;
   }
   if (state.wordState !== "IDLE" && state.wordState !== "RESULT") return;
@@ -90,11 +243,18 @@ async function startWordRecording() {
   // Reset per-recording landmark visibility statistics.
   if (typeof resetWordRecordingStats === "function") resetWordRecordingStats();
 
+  watchPageVisibilityForWordRecording();
   wordRecordingSerial += 1;
+  // The countdown below belongs to this recording. A recording abandoned and
+  // followed by a new one within one step would otherwise find the state
+  // back in COUNTDOWN and carry on counting into the new one.
+  const recording = wordRecordingSerial;
   wordResultSerial = 0;
   wordResultAccepted = false;
   state.wordState = "COUNTDOWN";
   state.wordFrames = 0;
+  state.wordEnd = null;
+  state.wordFraming = null;
   state.wordQualityWarnings = [];
   state.wordResultAssessment = null;
   // The previous word leaves the screen with its recording.
@@ -102,23 +262,28 @@ async function startWordRecording() {
   updateWordState();
   clearFeedback();
 
+  // Whether this countdown should go on. A newer recording owns the count on
+  // screen, so a superseded countdown leaves it alone; one that was stopped,
+  // left or abandoned takes it down.
+  /** @returns {boolean} */
+  const countdownGoesOn = () => {
+    if (recording !== wordRecordingSerial) return false;
+    if (state.cameraOn && canCaptureWordInCurrentMode() && state.wordState === "COUNTDOWN") return true;
+    els.countdown.hidden = true;
+    return false;
+  };
+
   for (let i = CONFIG.COUNTDOWN_SECONDS; i > 0; i -= 1) {
     // The user may change mode or stop the camera during countdown. Abort
     // without retaining a stale recording state.
-    if (!state.cameraOn || !canCaptureWordInCurrentMode() || state.wordState !== "COUNTDOWN") {
-      els.countdown.hidden = true;
-      return;
-    }
+    if (!countdownGoesOn()) return;
     els.countdown.hidden = false;
     els.countdown.textContent = String(i);
     await wait(720);
   }
 
   // Recheck state after the asynchronous countdown completes.
-  if (!state.cameraOn || !canCaptureWordInCurrentMode() || state.wordState !== "COUNTDOWN") {
-    els.countdown.hidden = true;
-    return;
-  }
+  if (!countdownGoesOn()) return;
 
   els.countdown.hidden = true;
   state.wordState = "RECORDING";
@@ -161,7 +326,7 @@ function canCaptureWordInCurrentMode() {
 function updateWordState() {
   const labels = {
     IDLE: "Hazır",
-    COUNTDOWN: "Hazırlan",
+    COUNTDOWN: "Geri sayım",
     RECORDING: "Kayıt",
     PROCESSING: "İşleniyor",
     RESULT: "Sonuç",
@@ -170,18 +335,16 @@ function updateWordState() {
   els.frameProgress.style.width = `${Math.round(
     (state.wordFrames / CONFIG.WORD_FRAME_COUNT) * 100,
   )}%`;
-  if (state.wordState === "COUNTDOWN") els.wordStateHint.textContent = "Geri sayım bitince işarete başla. El, yüz ve omuz kadrajda kalsın.";
-  if (state.wordState === "RECORDING")
-    els.wordStateHint.textContent = `${state.wordFrames}/${CONFIG.WORD_FRAME_COUNT} frame alınıyor. Hareketi doğal hızda tamamla; sistem otomatik durur.`;
+  updateWordRecordingHud();
   if (state.wordState === "PROCESSING")
-    els.wordStateHint.textContent = "Kayıt tamamlandı. Model sonucu hesaplanıyor.";
+    els.wordStateHint.textContent = "Kayıt tamamlandı; sonuç hazırlanıyor.";
   if (state.wordState === "RESULT") {
     els.wordStateHint.textContent = state.top3.length
-      ? `Modelin gördükleri: ${formatTopPredictions(state.top3)}. Doğruysa Metne Ekle, farklıysa Tekrar Dene.`
-      : "Bu kayıttan sonuç çıkmadı. Tekrar Dene ile yeni bir kayıt alın.";
+      ? `En olası sonuçlar: ${formatTopPredictions(state.top3)}. Doğruysa metne ekleyin; değilse yeniden kaydedin.`
+      : "Bu kayıttan sonuç çıkmadı. Yeniden kaydedin.";
   }
   if (state.wordState === "IDLE") {
-    els.wordStateHint.textContent = "Başlat'a bas, geri sayımdan sonra işareti 2-4 saniye yap. 45 frame dolunca sistem otomatik sonucu gösterir.";
+    els.wordStateHint.textContent = "Kaydı başlatın. Geri sayımdan sonra işareti bir kez, doğal hızda yapın; kayıt dolunca sonuç kendiliğinden gelir.";
     updateWordQualityPills(false, false, false);
   }
   updateWordFlowSteps();
@@ -211,26 +374,66 @@ function updateWordFlowSteps() {
 }
 
 /**
- * Show capture progress with per-group visibility while recording.
+ * The hint for each landmark group the camera is missing, and for more than
+ * one at a time.
  *
- * Reads, for example, "Kayıt: 18/45 — El ✓ Yüz ✓ Omuz ✗", so a user whose
- * frames are being rejected can see which group to fix.
+ * @type {Record<WordQualityPill | "several", string>}
+ */
+const WORD_FRAMING_HINTS = {
+  hand: "Eliniz görünmüyor; kadrajın ortasına getirin.",
+  face: "Yüzünüz görünmüyor; kameraya bakın.",
+  pose: "Omuzlarınız görünmüyor; biraz geri çekilin.",
+  several: "Eliniz, yüzünüz ve omuzlarınız birlikte görünmeli; biraz geri çekilin.",
+};
+
+/** @type {WordQualityPill[]} */
+const WORD_FRAMING_GROUPS = ["hand", "face", "pose"];
+
+/**
+ * Record what the latest MediaPipe result showed, and redraw the readout.
  *
- * @param {boolean} handVisible
- * @param {boolean} poseVisible
- * @param {boolean} faceVisible
+ * Live inference calls this for every frame of a countdown or a recording,
+ * before it drops a frame for having no hand: a frame without a hand is the
+ * one whose readout matters most. It reads three booleans and never touches
+ * the recording buffers, so what reaches the model is unchanged.
+ *
+ * @param {MediaPipeFrameResult} result
  * @returns {void}
  */
-function updateWordRecordingHud(handVisible, poseVisible, faceVisible) {
-  if (!els || !els.wordStateHint) return;
-  if (state.wordState !== "RECORDING") return;
-  /** @param {boolean} b @returns {string} */
-  const tick = (b) => (b ? "✓" : "✗");
-  els.wordStateHint.textContent =
-    `Kayıt: ${state.wordFrames}/${CONFIG.WORD_FRAME_COUNT} — ` +
-    `El ${tick(handVisible)} Yüz ${tick(faceVisible)} Omuz ${tick(poseVisible)}. ` +
-    "Hareketi bitir; sistem otomatik işleyecek.";
-  updateWordQualityPills(handVisible, poseVisible, faceVisible);
+function noteWordFraming(result) {
+  if (state.wordState !== "COUNTDOWN" && state.wordState !== "RECORDING") return;
+  state.wordFraming = {
+    hand: Boolean(result.rightHandLandmarks || result.leftHandLandmarks),
+    face: Boolean(result.faceLandmarks),
+    pose: Boolean(result.poseLandmarks),
+  };
+  updateWordRecordingHud();
+}
+
+/**
+ * Show the countdown or recording hint and the three quality pills.
+ *
+ * Reads, for example, "Kayıt %40. Omuzlarınız görünmüyor; biraz geri
+ * çekilin.", so a user whose frames are being rejected can see which part to
+ * fix. Progress is a percentage of the window, not a count of frames.
+ *
+ * @returns {void}
+ */
+function updateWordRecordingHud() {
+  if (state.wordState !== "COUNTDOWN" && state.wordState !== "RECORDING") return;
+  const framing = state.wordFraming;
+  const missing = framing ? WORD_FRAMING_GROUPS.filter((group) => !framing[group]) : [];
+  const framingHint =
+    missing.length === 0 ? "" : missing.length === 1 ? WORD_FRAMING_HINTS[missing[0]] : WORD_FRAMING_HINTS.several;
+  if (state.wordState === "COUNTDOWN") {
+    els.wordStateHint.textContent =
+      framingHint || "Geri sayım bitince işareti yapın; eliniz, yüzünüz ve omuzlarınız kadrajda kalsın.";
+  } else {
+    const percent = clampPercent((state.wordFrames / CONFIG.WORD_FRAME_COUNT) * 100);
+    els.wordStateHint.textContent =
+      `Kayıt %${percent}. ` + (framingHint || "İşareti doğal hızda tamamlayın; kayıt kendiliğinden biter.");
+  }
+  if (framing) updateWordQualityPills(framing.hand, framing.pose, framing.face);
 }
 
 /**
@@ -315,7 +518,7 @@ function syncRecordButton() {
     els.recordWord.title = "Kelime kaydı için önce kamerayı başlatın.";
     els.recordWord.textContent = "Önce Kamerayı Başlat";
   } else if (wordCapableMode && !wordPipelineReady) {
-    els.recordWord.title = "Pose+Face modeli yükleniyor...";
+    els.recordWord.title = "Yüz ve omuz izleme yükleniyor…";
     els.recordWord.textContent =
       state.mode === "coach" ? "Kelime Pratiği Yükleniyor" : "Kelime Kaydı Yükleniyor";
   } else if (wordFlowBusy) {
@@ -368,8 +571,8 @@ function syncActionBar() {
     els.appendWordResult.title = wordResultAccepted
       ? "Bu sonuç metne eklendi."
       : els.appendWordResult.disabled
-        ? "Kelime sonucu yeterince güvenli olduğunda metne eklenebilir."
-        : "Gördüğün sonuç doğruysa metne ekle.";
+        ? "Sonuç yeterince net olduğunda metne eklenebilir."
+        : "Sonuç doğruysa metne ekleyin.";
   }
   if (els.retryWord) {
     els.retryWord.disabled =
@@ -379,7 +582,7 @@ function syncActionBar() {
       state.wordState === "PROCESSING";
     els.retryWord.title = els.retryWord.disabled
       ? "Kamera açıkken ve kayıt bitince tekrar denenebilir."
-      : "Sonuç farklıysa yeni kayıt al.";
+      : "Sonuç farklıysa yeniden kaydedin.";
   }
 }
 

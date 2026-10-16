@@ -154,6 +154,17 @@ behaviour attached to it is.
 Static tests catch many browser-wiring errors, but they do not
 drive a real camera or validate browser permissions. Layout, focus, canvas
 geometry and media behaviour are outside the Node context by design: it stubs
-the DOM rather than laying it out. After browser changes, run `make check`,
-serve the app, and complete the manual checklist in
+the DOM rather than laying it out.
+
+`make browser-check` covers part of that gap in headless Chrome
+([`tests/browser/`](browser/README.md)): the cascade layer order, `[hidden]`
+and the mode-only rules, the dark theme, reduced motion, horizontal overflow
+from 320 px up, and, with the fake camera, that a stop leaves no live track.
+`make browser-check OFFLINE=1` skips the one check that loads MediaPipe and
+ONNX Runtime from their CDNs. It needs Chrome, so it is not part of
+`make health`; without Chrome it exits 2.
+
+A real camera, real hands and the permission prompts of phone browsers still
+need a person: after browser changes, run `make check` and
+`make browser-check`, then complete the manual checklist in
 [Architecture](../docs/architecture.md).

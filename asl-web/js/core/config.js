@@ -26,6 +26,9 @@
  * @property {number} TOP_K Number of alternatives shown to the user.
  * @property {number} WORD_FRAME_COUNT Frames in one word recording; the model input depends on this.
  * @property {number} COUNTDOWN_SECONDS Countdown step count, not a duration.
+ * @property {number} WORD_FIRST_FRAME_TIMEOUT_MS A recording with no usable frame this long after it starts ends.
+ * @property {number} WORD_NO_HAND_TIMEOUT_MS A recording whose usable frames stop for this long ends.
+ * @property {number} WORD_MAX_RECORDING_MS A recording still not full after this long ends.
  * @property {boolean} SELFIE_HANDEDNESS_SWAP Swap left/right on devices that report the opposite convention.
  * @property {number} HAND_DETECTION_CONFIDENCE MediaPipe hand detection threshold.
  * @property {number} HAND_PRESENCE_CONFIDENCE MediaPipe hand presence threshold.
@@ -69,8 +72,10 @@ const CONFIG = {
   CONFIDENT_THRESHOLD: 0.65,
   LETTER_THRESHOLD: 0.6,
   // Word-mode thresholds are intentionally lower. The 50-class model often
-  // produces low top-1 confidence even for a correct prediction.
-  WORD_UNKNOWN_THRESHOLD: 0.10,
+  // produces low top-1 confidence even for a correct prediction. A word too
+  // weak to accept must not read as likely anywhere, so the uncertain band
+  // ends where acceptance begins: keep the first two equal.
+  WORD_UNKNOWN_THRESHOLD: 0.15,
   WORD_CONFIDENT_THRESHOLD: 0.20,
   WORD_ACCEPT_THRESHOLD: 0.15,
   // Temporal smoothing and display limits.
@@ -81,6 +86,15 @@ const CONFIG = {
   // The recording countdown shows three 720 ms steps. This value is a step
   // count retained for compatibility; it is not a duration in seconds.
   COUNTDOWN_SECONDS: 3,
+  // A word recording that the camera cannot fill ends on its own instead of
+  // waiting at 0/45. A frame is usable only with hand, face and shoulders in
+  // view. The first usable frame gets longer than a later gap, because the
+  // hands come up after the countdown. The overall limit catches frames that
+  // trickle in just often enough to beat the gap. All three are proposals to
+  // be tuned in the real-device test.
+  WORD_FIRST_FRAME_TIMEOUT_MS: 6000,
+  WORD_NO_HAND_TIMEOUT_MS: 4000,
+  WORD_MAX_RECORDING_MS: 15000,
   // MediaPipe normally reports handedness from the user's perspective. Enable
   // this only on devices where left and right labels are consistently swapped.
   SELFIE_HANDEDNESS_SWAP: false,

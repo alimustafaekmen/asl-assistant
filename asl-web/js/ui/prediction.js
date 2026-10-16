@@ -26,6 +26,22 @@
  */
 
 /**
+ * What the user is told about each recording quality warning. This is the one
+ * place the codes are worded; the technical reasons stay in the debug
+ * snapshot (window._lastWordDebug).
+ *
+ * @type {Record<WordQualityCode, string>}
+ */
+const WORD_QUALITY_COPY = {
+  pose: "Omuzlarınız az göründü.",
+  face: "Yüzünüz az göründü.",
+  hand: "Eliniz aralıklarla kayboldu.",
+  "few-frames": "Kayıt kısa kaldı.",
+  slow: "Kayıt yavaş doldu; ışığı artırın.",
+  still: "Hareket algılanmadı; işareti tam yapın.",
+};
+
+/**
  * Show one model result: primary label, confidence ring, decision, top-3,
  * message, and word result guide.
  *
@@ -52,12 +68,14 @@ function updatePrediction(prediction) {
   els.cameraStage.dataset.kind = prediction.label.length > 1 && prediction.label !== "?" ? "word" : "letter";
 
   const th = _thresholdsForMode();
+  // Uncertainty comes before a close call: a word too weak to accept is not
+  // a choice between two usable words, whatever the runner-up scored.
   if (prediction.label === "?") {
     els.decisionLabel.textContent = "Bekleniyor";
-  } else if (isWordLikeMode() && getTopMargin() < 0.03 && state.top3.length > 1) {
-    els.decisionLabel.textContent = "Çok yakın";
   } else if (state.confidence < th.unknown) {
     els.decisionLabel.textContent = "Emin değil";
+  } else if (isWordLikeMode() && getTopMargin() < 0.03 && state.top3.length > 1) {
+    els.decisionLabel.textContent = "Çok yakın";
   } else if (state.confidence < th.confident) {
     els.decisionLabel.textContent = "Büyük olasılıkla";
   } else {
@@ -116,9 +134,9 @@ function renderTop3() {
  * Write the status line for the current result.
  *
  * Word contexts get a different message from letter contexts: the 50-class
- * model produces low top-1 confidence even when correct, so the text reports
- * what the model saw and how close the top two were, rather than treating a low
- * number as failure.
+ * model produces low top-1 confidence even when correct, so the text lists the
+ * likeliest words and says when the top two are close, rather than treating a
+ * low number as failure.
  *
  * @returns {void}
  */
@@ -130,18 +148,15 @@ function updateMessageForPrediction() {
 
   if (isWordLikeMode() && state.top3.length) {
     const topText = formatTopPredictions(state.top3);
-    const margin = getTopMargin();
-    const marginText = state.top3.length > 1 ? ` Top-1/Top-2 farkı: %${Math.round(margin * 100)}.` : "";
-    const prefix = state.wordState === "RESULT" ? "Kelime kaydı sonucu." : "Kelime tahmini.";
     if (state.confidence < CONFIG.WORD_UNKNOWN_THRESHOLD) {
-      setMessage(`${prefix} Modelin gördükleri: ${topText}.${marginText} Kayıt güveni düşük; kadraj ve hareket süresini iyileştirin.`, "low");
+      setMessage(`Emin olunamadı. En yakın sonuçlar: ${topText}. Eliniz, yüzünüz ve omuzlarınız görünür olacak şekilde yeniden kaydedin.`, "low");
       return;
     }
-    if (margin < 0.03 && state.top3.length > 1) {
-      setMessage(`${prefix} Modelin gördükleri: ${topText}.${marginText} İlk iki sonuç çok yakın; sonucu dikkatli yorumlayın.`, "maybe");
+    if (getTopMargin() < 0.03 && state.top3.length > 1) {
+      setMessage(`İlk iki sonuç çok yakın: ${topText}. Doğru olanı kontrol edin.`, "maybe");
       return;
     }
-    setMessage(`${prefix} Modelin gördükleri: ${topText}.${marginText}`, getConfidenceLevel(state.confidence));
+    setMessage(`En olası sonuçlar: ${topText}.`, getConfidenceLevel(state.confidence));
     return;
   }
 
@@ -203,8 +218,8 @@ function assessWordResult() {
   if (!state.prediction || state.prediction === "?" || state.prediction.length <= 1) {
     return {
       level: "low",
-      decision: "Sonuç üretilemedi",
-      action: "Kamerayı, ışığı ve kadrajı kontrol edip Tekrar Dene ile yeni kayıt al.",
+      decision: "Sonuç çıkmadı",
+      action: "Kamerayı, ışığı ve kadrajı kontrol edip yeniden kaydedin.",
       canAppend: false,
     };
   }
@@ -212,7 +227,6 @@ function assessWordResult() {
   const margin = getTopMargin();
   const warnings = Array.isArray(state.wordQualityWarnings) ? state.wordQualityWarnings : [];
   const confidence = Number(state.confidence || 0);
-  const topText = state.top3.length ? formatTopPredictions(state.top3, 3) : state.prediction;
   const hasQualityRisk = warnings.length > 0;
   const isClose = margin < 0.08 && state.top3.length > 1;
   const belowAccept = confidence < CONFIG.WORD_ACCEPT_THRESHOLD;
@@ -220,20 +234,20 @@ function assessWordResult() {
   if (belowAccept) {
     return {
       level: "low",
-      decision: "Güven düşük",
-      action: `Model ${topText} gördü, ama sonuç metne eklemek için zayıf. Tekrar Dene ile hareketi daha net kaydet.`,
+      decision: "Emin olunamadı",
+      action: `En yakın sonuç ${state.prediction}, ama metne eklemek için yeterince net değil. Daha net bir kayıtla yeniden deneyin: eliniz, yüzünüz ve omuzlarınız görünür olsun.`,
       canAppend: false,
     };
   }
 
   if (isClose || hasQualityRisk) {
     const reason = isClose
-      ? `İlk iki sonuç yakın; fark %${Math.round(margin * 100)}.`
-      : "Kayıt kalitesi uyarı verdi.";
+      ? `İlk iki sonuç çok yakın. Doğrusu ${state.prediction} ise ekleyin; değilse yeniden kaydedin.`
+      : `${WORD_QUALITY_COPY[warnings[0]]} Sonucu kontrol ederek ekleyin.`;
     return {
       level: "maybe",
-      decision: "Kontrol ederek onayla",
-      action: `${reason} Sonuç doğruysa Metne Ekle, farklı görünüyorsa Tekrar Dene.`,
+      decision: "Kontrol ederek ekleyin",
+      action: reason,
       canAppend: true,
     };
   }
@@ -241,7 +255,7 @@ function assessWordResult() {
   return {
     level: "good",
     decision: "Sonuç kullanılabilir",
-    action: `Model ${state.prediction} sonucunu daha net gördü. Doğruysa Metne Ekle, yeni kelime için Yeni Kelime Kaydı kullan.`,
+    action: "Doğruysa metne ekleyin; değilse yeniden kaydedin.",
     canAppend: true,
   };
 }

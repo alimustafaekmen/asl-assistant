@@ -101,7 +101,7 @@ test("a letter the model gets right is scored as a match, for every bundled fixt
     assert.equal(match(app), "yes", where);
     assert.equal(text(app, "modelTestPredictedLabel"), item.expected_label, where);
     assert.equal(text(app, "modelTestExpectedLabel"), item.expected_label, where);
-    assert.equal(text(app, "modelTestConfidence"), "%90.0", where);
+    assert.equal(text(app, "modelTestConfidence"), "%90", where);
     assert.match(text(app, "modelTestResultNote"), /^Tahmin beklenen etiketle eşleşti\./, where);
   }
 });

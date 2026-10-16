@@ -62,16 +62,45 @@ function* parsedElements(nodes) {
   }
 }
 
+/** An attribute of a parsed element, or undefined. */
+function parsedAttr(element, wanted) {
+  return element.attrs.find(([name]) => name === wanted)?.[1];
+}
+
+/** The app script path a parsed element loads, or null for anything else. */
+function appScriptPath(element) {
+  if (element.name !== "script" || element.foreign) return null;
+  const src = parsedAttr(element, "src");
+  if (src === undefined) return null;
+  const path = src.split("?", 1)[0].split("#", 1)[0];
+  const relativePath = path.startsWith("./") ? path.slice(2) : path;
+  return relativePath.startsWith("js/") ? relativePath : null;
+}
+
 /** Application script paths in index.html order, without the cache-busting query. */
 export function webScriptPaths() {
   const paths = [];
   for (const element of parsedElements(parsedIndexHtml().children)) {
-    if (element.name !== "script" || element.foreign) continue;
-    const src = element.attrs.find(([name]) => name === "src")?.[1];
-    if (src === undefined) continue;
-    const path = src.split("?", 1)[0].split("#", 1)[0];
-    const relativePath = path.startsWith("./") ? path.slice(2) : path;
-    if (relativePath.startsWith("js/")) paths.push(relativePath);
+    const path = appScriptPath(element);
+    if (path !== null) paths.push(path);
+  }
+  return paths;
+}
+
+/**
+ * The app scripts index.html loads before its first stylesheet, in order.
+ *
+ * A classic script the parser meets before any stylesheet link runs before
+ * the page can be painted with that stylesheet, so these are the scripts that
+ * decide what the first frame looks like.
+ */
+export function scriptsBeforeStylesheets() {
+  const paths = [];
+  for (const element of parsedElements(parsedIndexHtml().children)) {
+    const rel = (parsedAttr(element, "rel") ?? "").toLowerCase().split(/\s+/);
+    if (element.name === "link" && rel.includes("stylesheet")) break;
+    const path = appScriptPath(element);
+    if (path !== null) paths.push(path);
   }
   return paths;
 }
@@ -271,10 +300,33 @@ function createDocument({ listenerLog, missingIds, wrongTypeIds }) {
     ...(documentElement.matches(selector) ? [documentElement] : []),
     ...documentElement.querySelectorAll(selector),
   ];
+  // Document listeners run when a test dispatches at the document, as an
+  // element's do. The page starts visible; a test that hides it sets
+  // visibilityState and dispatches "visibilitychange", as the browser does.
+  const listeners = new Map();
   return {
     documentElement,
     head,
     body,
+    visibilityState: "visible",
+    get hidden() {
+      return this.visibilityState === "hidden";
+    },
+    addEventListener: (type, listener) => {
+      listenerLog.push(`document:${type}`);
+      if (typeof listener !== "function") return;
+      if (!listeners.has(type)) listeners.set(type, []);
+      const list = listeners.get(type);
+      if (!list.includes(listener)) list.push(listener);
+    },
+    removeEventListener: (type, listener) => {
+      const list = listeners.get(type);
+      if (list?.includes(listener)) list.splice(list.indexOf(listener), 1);
+    },
+    dispatchEvent(event) {
+      for (const listener of [...(listeners.get(event.type) ?? [])]) listener.call(this, event);
+      return true;
+    },
     getElementById: (id) => {
       if (missingIds.has(id)) return null;
       // A plain object is not an instance of any element constructor, which
@@ -452,5 +504,41 @@ export function loadWebApp(options = {}) {
       const element = vm.runInContext("new HTMLElement()", context);
       return Object.assign(element, properties);
     },
+  };
+}
+
+/**
+ * Run only the scripts index.html loads before its first stylesheet.
+ *
+ * This is the page as it stands when the browser could first paint it: the
+ * document is the real markup, and no later script, init() included, has
+ * run. A test reads what those scripts left on the document, such as the
+ * theme the first frame is drawn in. The host APIs are the same default
+ * fakes as loadWebApp()'s, and `globals` replaces them. An exception a script
+ * throws propagates, as it would end that script in the browser.
+ *
+ * @param {{globals?: Record<string, unknown>}} [options]
+ */
+export function loadBeforeStylesheets(options = {}) {
+  const context = vm.createContext({
+    console,
+    matchMedia: matchMediaFake(),
+    localStorage: memoryStorage(),
+    location: new URL(DEFAULT_PAGE_URL),
+    document: createDocument({ listenerLog: [], missingIds: new Set(), wrongTypeIds: new Set() }),
+  });
+  Object.assign(context, context.document.__constructors);
+  delete context.document.__constructors;
+  vm.runInContext("globalThis.window = globalThis;", context);
+  Object.assign(context, options.globals ?? {});
+  const scripts = scriptsBeforeStylesheets();
+  for (const relPath of scripts) {
+    vm.runInContext(readFileSync(join(WEB_DIR, relPath), "utf8"), context, { filename: relPath });
+  }
+  return {
+    scripts,
+    document: context.document,
+    /** Evaluate an expression against the scripts' shared scope. */
+    evaluate: (expression) => vm.runInContext(expression, context),
   };
 }

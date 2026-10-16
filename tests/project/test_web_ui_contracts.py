@@ -587,6 +587,7 @@ def test_classic_script_order_protects_global_runtime_contract() -> None:
     normalized = [src.split("?", 1)[0].removeprefix("./") for src in html.scripts]
 
     expected_order = [
+        "js/core/theme-boot.js",
         "js/core/config.js",
         "js/core/runtime.js",
         "js/ml/landmarks.js",

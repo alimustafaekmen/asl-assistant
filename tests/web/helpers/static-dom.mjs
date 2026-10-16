@@ -852,11 +852,13 @@ export function createDomClasses({ listenerLog }) {
       return !prevented;
     }
 
-    // Focus, scrolling and popovers have no layout here; only the popover's
-    // open state is kept, because :popover-open selects on it.
+    // Focus, selection, scrolling and popovers have no layout here; only the
+    // popover's open state is kept, because :popover-open selects on it.
     focus() {}
 
     blur() {}
+
+    select() {}
 
     scrollIntoView() {}
 

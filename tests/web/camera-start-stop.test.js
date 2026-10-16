@@ -108,9 +108,9 @@ test("a stop while the models load after a hand-tracking failure reports nothing
   await starting;
   await flush();
 
-  // The failed model download is still reported, and with the camera off it
-  // may use the badge; only the hand-tracking failure belongs to the stopped
-  // camera.
+  // Both failures belong to the stopped camera, so neither may be reported:
+  // this test checks the hand-tracking one, and
+  // camera-cancelled-reports.test.js the model download.
   assert.equal(app.evaluate("state.cameraOn"), false);
   assert.equal(app.evaluate("els.cameraEmpty.hidden"), false);
   assert.equal(app.evaluate("els.cameraStatus.lastChild.textContent"), "Hazır");

@@ -230,12 +230,23 @@ function _observeShoulderFallback(raw321d) {
  */
 async function realInference(now) {
   if (typeof state === "undefined" || !state.cameraOn) return;
+  // A word recording's clock runs on every tick, before any frame is looked
+  // at: a recording nobody is in front of is the one that has to end.
+  if (state.wordState === "RECORDING" && typeof checkWordRecordingClock === "function") {
+    checkWordRecordingClock(now);
+  }
   if (!latestMediaPipeResult) return;
-  if (_inferenceInFlight) return;
 
   const isLetterContext =
     state.mode === "letter" ||
     (state.mode === "coach" && state.coachTarget?.length === 1);
+
+  // The framing readout is read before a frame is dropped for having no hand,
+  // so it can say the hand is what is missing. It only reads the result.
+  if (!isLetterContext && typeof noteWordFraming === "function") {
+    noteWordFraming(latestMediaPipeResult);
+  }
+  if (_inferenceInFlight) return;
 
   // Skip frames without hands. Letter contexts also reset temporal smoothing,
   // of the predictions and of the landmarks, so a previous sign cannot leak
@@ -439,16 +450,13 @@ async function realInference(now) {
             );
             _wordWaitMessageShown = true;
           }
-          // Identify which required landmark group is missing.
-          if (typeof updateWordRecordingHud === "function") {
-            updateWordRecordingHud(handVisibleNow, poseVisibleNow, faceVisibleNow);
-          }
           if (typeof updateWordState === "function") updateWordState();
           return;
         }
         // Re-arm the hint after all required landmark groups recover.
         _wordWaitMessageShown = false;
         _wordRecordingStats.acceptedFrames++;
+        if (typeof noteUsableWordFrame === "function") noteUsableWordFrame(now);
         if (typeof window !== "undefined") {
           window._lastWordCurrentFrame.acceptedForRecording = true;
         }
@@ -478,10 +486,6 @@ async function realInference(now) {
         previousFrame = normalized;
 
         state.wordFrames = frameBuffer.length;
-        // Update recording progress and landmark-visibility indicators.
-        if (typeof updateWordRecordingHud === "function") {
-          updateWordRecordingHud(handVisibleNow, poseVisibleNow, faceVisibleNow);
-        }
         updateWordState();
 
         if (frameBuffer.length >= CONFIG.WORD_FRAME_COUNT) {
@@ -531,7 +535,7 @@ function _isCoachWordTarget() {
  * is used and the snapshot records which path ran.
  *
  * A result that arrives after the user changed mode or stopped the camera is
- * discarded rather than displayed. Either way the motion buffers and the
+ * discarded rather than displayed, even if the user is back by then. Either way the motion buffers and the
  * per-recording counters are cleared before returning, so the next recording
  * starts clean. A result that arrives after a newer recording started touches
  * nothing, because the state and the buffers belong to that recording. A run
@@ -637,9 +641,17 @@ async function _finishWordRecordingReal() {
   // buffers are that recording's now, so this one leaves them alone.
   if (recording !== wordRecordingSerial) return;
 
-  // Ignore a late asynchronous result if the user changed mode or stopped the camera.
+  // Ignore a late asynchronous result if the user changed mode or stopped the
+  // camera. A mode change and a stop both return the recording to IDLE, so a
+  // state that is no longer PROCESSING means this recording was abandoned,
+  // also when the user has come back to a word screen with the camera on by
+  // the time the model answers.
   const coachWordTarget = _isCoachWordTarget();
-  if ((state.mode !== "word" && !coachWordTarget) || !state.cameraOn) {
+  if (
+    state.wordState !== "PROCESSING" ||
+    (state.mode !== "word" && !coachWordTarget) ||
+    !state.cameraOn
+  ) {
     state.wordState = "IDLE";
     state.wordFrames = 0;
     updateWordState();
@@ -654,7 +666,7 @@ async function _finishWordRecordingReal() {
     // A failed run ends in a RESULT with no word, never with the previous
     // word still on offer.
     updatePrediction({ label: "?", confidence: 0, alternatives: [] });
-    reportProblem("Bu kayıt değerlendirilemedi. Tekrar Dene ile yeni bir kayıt alın.");
+    reportProblem("Kayıt işlenemedi. Yeniden kaydedin.");
   } else {
     wordResultSerial = recording;
     updatePrediction(result);
@@ -702,34 +714,51 @@ async function _finishWordRecordingReal() {
   }
 
   // Publish quality warnings and the final recording snapshot for diagnostics.
+  // The state gets codes, which prediction.js words for the user; the debug
+  // snapshot keeps the technical reason with its numbers.
   if (typeof window !== "undefined") {
+    /** @type {WordQualityCode[]} */
+    const codes = [];
+    /** @type {string[]} */
     const warnings = [];
-    if (visibility.poseVisibleRatio < 0.5)
+    if (visibility.poseVisibleRatio < 0.5) {
+      codes.push("pose");
       warnings.push("pose visibility < 0.5 — yüz/omuzlar net görünmüyor");
-    if (visibility.faceVisibleRatio < 0.5)
+    }
+    if (visibility.faceVisibleRatio < 0.5) {
+      codes.push("face");
       warnings.push("face visibility < 0.5 — yüz net görünmüyor");
-    if (visibility.handVisibleRatio < 0.7)
+    }
+    if (visibility.handVisibleRatio < 0.7) {
+      codes.push("hand");
       warnings.push("hand visibility < 0.7 — el aralıklarla kaybolmuş");
-    if (visibility.acceptedFrames < 30)
+    }
+    if (visibility.acceptedFrames < 30) {
+      codes.push("few-frames");
       warnings.push(
         `kabul edilen frame az (${visibility.acceptedFrames} < 30) — kayıt kalitesi düşük`,
       );
-    if (recordingDurationMs > 6000)
+    }
+    if (recordingDurationMs > 6000) {
+      codes.push("slow");
       warnings.push(
         `kayıt süresi uzun (${(recordingDurationMs / 1000).toFixed(1)} sn) — yavaş frame doluşu`,
       );
-    if (motionStats.mean < 0.001)
+    }
+    if (motionStats.mean < 0.001) {
+      codes.push("still");
       warnings.push("motion ortalaması çok düşük — gesture yapılmamış olabilir");
+    }
 
-    state.wordQualityWarnings = warnings.slice();
+    state.wordQualityWarnings = codes;
 
     if (
       result &&
-      warnings.length > 0 &&
+      codes.length > 0 &&
       !wordFeedbackShown &&
       typeof showFeedback === "function"
     ) {
-      showFeedback(warnings[0], "low");
+      showFeedback(WORD_QUALITY_COPY[codes[0]], "low");
       wordFeedbackShown = true;
     }
 

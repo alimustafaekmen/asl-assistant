@@ -24,7 +24,22 @@
  * @property {string} [path] Fixture path relative to asl-web/.
  * @property {string} [expected_label]
  * @property {number | string} [confidence] Expected confidence, as published.
+ * @property {string} [kind] "deterministic-smoke" marks a made-up input that
+ *   proves the pipeline runs and says nothing about accuracy.
  */
+
+/** Fixtures under this path come from the competition data; they stay on the owner's computer. */
+const MODEL_TEST_LOCAL_PATH = "./data/model-test-samples/local/";
+/** The manifest kind of a sample that is made up, not recorded. */
+const MODEL_TEST_SYNTHETIC_KIND = "deterministic-smoke";
+
+/**
+ * @param {ModelTestManifestItem} item
+ * @returns {boolean} True for a sample that exists only on this computer.
+ */
+function isLocalModelTestItem(item) {
+  return typeof item.path === "string" && item.path.startsWith(MODEL_TEST_LOCAL_PATH);
+}
 
 /**
  * @typedef {Object} ModelTestManifest
@@ -67,6 +82,64 @@
  */
 
 /**
+ * What was wrong with a fixture. The validator's messages stay technical
+ * (tests and the console read them); the panel maps the code to plain Turkish.
+ *
+ * @typedef {"unreadable" | "bad-json" | "not-object" | "no-features" | "letter-length" |
+ *   "word-length" | "mask-length" | "mask-value" | "not-number" | "mask-empty"} ModelTestErrorCode
+ */
+
+/**
+ * The error a fixture that cannot be used throws.
+ *
+ * @typedef {Error & {code: ModelTestErrorCode, count?: number}} ModelTestFixtureError
+ */
+
+/**
+ * One sample's line in a batch run.
+ *
+ * @typedef {Object} ModelTestBatchRow
+ * @property {string} id The manifest id.
+ * @property {string} title
+ * @property {string} expected The reference label; "" when the sample has none.
+ * @property {string} predicted What the model answered; "" when the row failed.
+ * @property {"correct" | "wrong" | "no-reference" | "error"} verdict
+ * @property {number} confidence NaN when the row failed.
+ * @property {number} ms Inference time alone; NaN when the row failed.
+ * @property {string} error Plain Turkish, "" unless the row failed.
+ * @property {boolean} local From the competition data: it exists only on this computer.
+ * @property {boolean} synthetic Made up to prove the pipeline runs; it measures nothing.
+ */
+
+/**
+ * What a finished batch adds up to. Only samples that have a reference count
+ * towards accuracy, and a failed one counts as not correct.
+ *
+ * @typedef {Object} ModelTestBatchSummary
+ * @property {number} total Samples run, failed ones included.
+ * @property {number} counted Samples that count towards accuracy.
+ * @property {number} correct
+ * @property {number | null} accuracy correct / counted; null when nothing counted.
+ * @property {number | null} medianMs Median inference time; null when no inference ran.
+ * @property {number | null} prepMs Time to prepare the model, once; null when it was ready.
+ * @property {number} failed Samples whose row is an error.
+ * @property {boolean} synthetic Whether any sample was made up. Those run but do not count.
+ * @property {boolean} hasLocal Whether any sample is local-only.
+ */
+
+/**
+ * A batch run over every sample of one kind, as the panel shows it.
+ *
+ * @typedef {Object} ModelTestBatch
+ * @property {ModelTask} task
+ * @property {"preparing" | "running" | "done" | "error"} status
+ * @property {number} total Samples the run will go through.
+ * @property {ModelTestBatchRow[]} rows Finished rows, in manifest order.
+ * @property {ModelTestBatchSummary | null} summary Set when the run is done.
+ * @property {string} error Plain Turkish, "" unless the run could not start.
+ */
+
+/**
  * How far a fixture has got through the panel's four process steps. "error"
  * clears them all rather than marking a step.
  *
@@ -80,7 +153,10 @@
  * @returns {void}
  */
 function setModelTestTask(task) {
-  state.modelTestTask = task === "word" ? "word" : "letter";
+  const next = task === "word" ? "word" : "letter";
+  // Results belong to the samples they were run on, so another kind has none.
+  if (next !== state.modelTestTask) resetModelTestBatch();
+  state.modelTestTask = next;
   queryElements("[data-model-test-task]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.modelTestTask === state.modelTestTask);
   });
@@ -234,6 +310,7 @@ function renderModelTestSampleOptions() {
     option.textContent = `${item.title || item.label || item.id}${conf}`;
     option.dataset.sampleId = item.id || "";
     option.dataset.label = item.expected_label || item.label || "";
+    if (isLocalModelTestItem(item)) option.dataset.local = "true";
     els.modelTestSampleSelect.appendChild(option);
   });
   if (state.modelTestTask === "word") {
@@ -332,13 +409,29 @@ async function loadModelTestSampleFromUrl(url, displayName) {
   try {
     if (els.modelTestSampleStatus) els.modelTestSampleStatus.textContent = "Örnek yükleniyor";
     updateModelTestProcess("loading");
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`${displayName} alınamadı (HTTP ${res.status})`);
-    const sample = await res.json();
-    setModelTestSample(sample, displayName || url);
+    setModelTestSample(await fetchModelTestJson(url, displayName), displayName || url);
   } catch (err) {
-    showModelTestError(err.message);
+    showModelTestError(describeModelTestError(err));
     console.error(err);
+  }
+}
+
+/**
+ * Fetch a fixture's JSON, not yet validated.
+ *
+ * @param {string} url Fixture path relative to asl-web/.
+ * @param {string} [displayName] Name for the message when the fetch fails.
+ * @returns {Promise<unknown>}
+ * @throws {Error} When the request fails, or with code "bad-json" when the
+ *   body is not JSON.
+ */
+async function fetchModelTestJson(url, displayName) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${displayName || url} alınamadı (HTTP ${res.status})`);
+  try {
+    return await res.json();
+  } catch (cause) {
+    throw modelTestFixtureError("bad-json", `JSON okunamadı: ${errorMessage(cause)}`);
   }
 }
 
@@ -379,11 +472,103 @@ async function handleModelTestSampleDrop(event) {
 async function readModelTestSampleFile(file) {
   try {
     updateModelTestProcess("loading");
-    const text = await file.text();
-    const sample = JSON.parse(text);
-    setModelTestSample(sample, file.name);
+    /** @type {string} */
+    let text;
+    try {
+      text = await file.text();
+    } catch (cause) {
+      throw modelTestFixtureError("unreadable", `dosya okunamadı: ${errorMessage(cause)}`);
+    }
+    setModelTestSample(parseModelTestJson(text), file.name);
   } catch (err) {
-    showModelTestError(`JSON okunamadı: ${err.message}`);
+    showModelTestError(describeModelTestError(err));
+    console.error(err);
+  }
+}
+
+/**
+ * Parse fixture text, naming a failure as what it is.
+ *
+ * @param {string} text
+ * @returns {unknown}
+ * @throws {ModelTestFixtureError} With code "bad-json" when the text is not JSON.
+ */
+function parseModelTestJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch (cause) {
+    throw modelTestFixtureError("bad-json", `JSON okunamadı: ${errorMessage(cause)}`);
+  }
+}
+
+/**
+ * @param {unknown} err Anything a catch clause receives.
+ * @returns {string} The error's message, or its text form.
+ */
+function errorMessage(err) {
+  return err instanceof Error ? err.message : String(err);
+}
+
+/**
+ * Build the error an unusable fixture throws.
+ *
+ * @param {ModelTestErrorCode} code
+ * @param {string} message Technical text, kept for tests and the console.
+ * @param {number} [count] The size found, for the codes that report one.
+ * @returns {ModelTestFixtureError}
+ */
+function modelTestFixtureError(code, message, count) {
+  return Object.assign(new Error(message), { code, count });
+}
+
+/**
+ * @param {unknown} err
+ * @returns {err is ModelTestFixtureError}
+ */
+function isModelTestFixtureError(err) {
+  // The code is read as a string and tested against the union's members, so
+  // the predicate holds for every error modelTestFixtureError() builds.
+  return err instanceof Error && "code" in err && typeof err.code === "string" && MODEL_TEST_ERROR_CODES.has(err.code);
+}
+
+/** Every code a fixture error can carry. @type {ReadonlySet<string>} */
+const MODEL_TEST_ERROR_CODES = new Set([
+  "unreadable", "bad-json", "not-object", "no-features", "letter-length",
+  "word-length", "mask-length", "mask-value", "not-number", "mask-empty",
+]);
+
+/**
+ * Say what is wrong with a fixture in words a visitor can act on.
+ *
+ * Errors that are not fixture errors (a failed download, a model that did not
+ * load) already carry a plain Turkish sentence and pass through as they are.
+ *
+ * @param {unknown} err
+ * @returns {string}
+ */
+function describeModelTestError(err) {
+  if (!isModelTestFixtureError(err)) return errorMessage(err);
+  const found = err.count ?? 0;
+  switch (err.code) {
+    case "unreadable":
+      return "Dosya okunamadı.";
+    case "bad-json":
+      return "Dosya okunamadı: geçerli bir JSON değil.";
+    case "not-object":
+    case "no-features":
+      return "Bu dosyada örnek verisi bulunamadı.";
+    case "letter-length":
+      return `Harf örneği 93 sayı içermeli; bu dosyada ${found} sayı var.`;
+    case "word-length":
+      return `Kelime örneği 7560 sayı (45 × 168) içermeli; bu dosyada ${found} var.`;
+    case "mask-length":
+      return `Maske 45 değer içermeli; bu dosyada ${found} var.`;
+    case "mask-value":
+      return "Maske yalnızca doğru/yanlış (true/false ya da 1/0) değerleri içerebilir.";
+    case "not-number":
+      return "Dosyada sayı olmayan bir değer var.";
+    case "mask-empty":
+      return "Bu örnekte gerçek kare yok; kelime modeli çalıştırılamaz.";
   }
 }
 
@@ -399,21 +584,24 @@ async function readModelTestSampleFile(file) {
 function setModelTestSample(rawSample, sourceName) {
   const sample = normalizeModelTestSample(rawSample, sourceName);
   state.modelTestSample = sample;
+  // A run still waiting for its model belongs to the sample it started with.
+  _modelTestSampleEpoch += 1;
   setModelTestTask(sample.task);
   updateModelTestProcess("validated");
 
   if (els.modelTestSampleStatus) els.modelTestSampleStatus.textContent = "Örnek hazır";
   if (els.modelTestFileName) els.modelTestFileName.textContent = sourceName || sample.source || "Yüklenen JSON";
-  if (els.runModelTestSample) els.runModelTestSample.disabled = false;
+  if (els.runModelTestSample) {
+    els.runModelTestSample.disabled = false;
+    els.runModelTestSample.textContent = "Seçili Örneği Tekrar Çalıştır";
+  }
   if (els.modelTestTaskLabel) els.modelTestTaskLabel.textContent = sample.task === "word" ? "Kelime modeli" : "Harf modeli";
   if (els.modelTestSourceLabel) els.modelTestSourceLabel.textContent = sample.source || sourceName || "JSON fixture";
   if (els.modelTestSchemaLabel) els.modelTestSchemaLabel.textContent = sample.schemaVersion;
   if (els.modelTestShapeLabel) els.modelTestShapeLabel.textContent = sample.shapeLabel;
   if (els.modelTestMaskLabel) els.modelTestMaskLabel.textContent = sample.maskLabel;
   if (els.modelTestExpectedLabel) els.modelTestExpectedLabel.textContent = sample.expectedLabel || "Referans yok";
-  if (els.modelTestPredictedLabel) els.modelTestPredictedLabel.textContent = "-";
-  if (els.modelTestConfidence) els.modelTestConfidence.textContent = "-";
-  if (els.modelTestLatency) els.modelTestLatency.textContent = "-";
+  clearModelTestResult();
   if (els.modelTestMatchBadge) {
     els.modelTestMatchBadge.textContent = "Çalıştırılmadı";
     els.modelTestMatchBadge.dataset.match = "unknown";
@@ -424,7 +612,6 @@ function setModelTestSample(rawSample, sourceName) {
         ? "Kelime örneği 45 frame hareket bilgisinden hazırlanmıştır. Model çalıştırıldığında tahmin ve top-3 burada görünecek."
         : "Harf örneği tek el pozundan hazırlanmıştır. Model çalıştırıldığında tahmin ve top-3 burada görünecek.";
   }
-  renderModelTestTop3([]);
 }
 
 /**
@@ -443,14 +630,14 @@ function setModelTestSample(rawSample, sourceName) {
  */
 function normalizeModelTestSample(rawSample, sourceName) {
   if (!isRecord(rawSample)) {
-    throw new Error("Fixture JSON object olmalı");
+    throw modelTestFixtureError("not-object", "Fixture JSON object olmalı");
   }
 
   const inferredTask = rawSample.task || (Array.isArray(rawSample.mask) ? "word" : "letter");
   const task = inferredTask === "word" ? "word" : "letter";
   const rawFeatures = rawSample.features || rawSample.input || rawSample.feature_vector;
   if (!Array.isArray(rawFeatures)) {
-    throw new Error("features alanı array olmalı");
+    throw modelTestFixtureError("no-features", "features alanı array olmalı");
   }
   const features = flattenNumericArray(rawFeatures, "features");
 
@@ -467,12 +654,19 @@ function normalizeModelTestSample(rawSample, sourceName) {
   if (task === "word") {
     const mask = normalizeMask(rawSample.mask);
     if (features.length !== 45 * 168) {
-      throw new Error(`Kelime fixture features[7560] bekler, ${features.length} geldi`);
+      throw modelTestFixtureError(
+        "word-length", `Kelime fixture features[7560] bekler, ${features.length} geldi`, features.length,
+      );
     }
     if (mask.length !== 45) {
-      throw new Error(`Kelime fixture mask[45] bekler, ${mask.length} geldi`);
+      throw modelTestFixtureError("mask-length", `Kelime fixture mask[45] bekler, ${mask.length} geldi`, mask.length);
     }
     const realFrames = mask.filter(Boolean).length;
+    // The word model reads the mask to know which frames to look at; with none
+    // it would still answer, with a word and a confidence that mean nothing.
+    if (realFrames === 0) {
+      throw modelTestFixtureError("mask-empty", "Kelime fixture mask içinde gerçek frame yok");
+    }
     return {
       task,
       sampleId: String(rawSample.sample_id || ""),
@@ -489,7 +683,9 @@ function normalizeModelTestSample(rawSample, sourceName) {
   }
 
   if (features.length !== 93) {
-    throw new Error(`Harf fixture features[93] bekler, ${features.length} geldi`);
+    throw modelTestFixtureError(
+      "letter-length", `Harf fixture features[93] bekler, ${features.length} geldi`, features.length,
+    );
   }
   return {
     task,
@@ -528,7 +724,7 @@ function flattenNumericArray(value, fieldName) {
     }
     const num = Number(item);
     if (!Number.isFinite(num)) {
-      throw new Error(`${fieldName} içinde sayısal olmayan değer var`);
+      throw modelTestFixtureError("not-number", `${fieldName} içinde sayısal olmayan değer var`);
     }
     out.push(num);
   }
@@ -548,7 +744,9 @@ function flattenNumericArray(value, fieldName) {
  */
 function normalizeMask(value) {
   if (!Array.isArray(value)) {
-    throw new Error(`Kelime fixture mask[45] bekler, ${value == null ? 0 : "geçersiz"} geldi`);
+    throw modelTestFixtureError(
+      "mask-length", `Kelime fixture mask[45] bekler, ${value == null ? 0 : "geçersiz"} geldi`, 0,
+    );
   }
   return value.map((item) => {
     if (item === true || item === 1 || item === "1") return true;
@@ -558,9 +756,22 @@ function normalizeMask(value) {
       if (lowered === "true") return true;
       if (lowered === "false") return false;
     }
-    throw new Error("mask sadece bool, 0/1 veya true/false string değerleri içermeli");
+    throw modelTestFixtureError("mask-value", "mask sadece bool, 0/1 veya true/false string değerleri içermeli");
   });
 }
+
+/**
+ * Counts the samples loaded so far. A run remembers the count it started at,
+ * and a different count when it finishes means its sample is no longer the one
+ * on screen.
+ */
+let _modelTestSampleEpoch = 0;
+
+/**
+ * The run in flight for the sample on screen, so a second press joins it
+ * instead of running the sample again. @type {{epoch: number, done: Promise<void>} | null}
+ */
+let _modelTestRun = null;
 
 /**
  * Run the loaded fixture against its model.
@@ -569,15 +780,34 @@ function normalizeMask(value) {
  * has loaded it yet. The download is kept out of the measured time, which
  * reports inference alone.
  *
+ * Pressing Run while the sample's run is still going joins that run. A run
+ * whose sample was replaced while it waited reports nothing: its answer
+ * belongs to a sample that is no longer shown.
+ *
  * @returns {Promise<void>} Resolves after reporting a failure to the user.
  */
-async function runModelTestSample() {
+function runModelTestSample() {
+  if (_modelTestRun && _modelTestRun.epoch === _modelTestSampleEpoch) return _modelTestRun.done;
+  const epoch = _modelTestSampleEpoch;
+  const done = executeModelTestRun(epoch).finally(() => {
+    if (_modelTestRun?.done === done) _modelTestRun = null;
+  });
+  _modelTestRun = { epoch, done };
+  return done;
+}
+
+/**
+ * @param {number} epoch The sample count the run was started at.
+ * @returns {Promise<void>}
+ */
+async function executeModelTestRun(epoch) {
   const sample = state.modelTestSample;
   if (!sample) {
-    showModelTestError("Önce JSON fixture yükle veya hazır örnek seç.");
+    showModelTestError("Önce bir örnek seçin ya da JSON dosyası yükleyin.");
     return;
   }
 
+  const stale = () => epoch !== _modelTestSampleEpoch;
   const isWord = sample.task === "word";
   try {
     // The download is not inference, so it is named as what it is.
@@ -591,7 +821,9 @@ async function runModelTestSample() {
     }
     updateModelTestProcess("running");
 
-    if (!(await (isWord ? ensureWordModel() : ensureLetterModel()))) {
+    const loaded = await (isWord ? ensureWordModel() : ensureLetterModel());
+    if (stale()) return;
+    if (!loaded) {
       throw new Error(isWord ? "Kelime modeli yüklenemedi" : "Harf modeli yüklenemedi");
     }
     if (els.modelTestSampleStatus) els.modelTestSampleStatus.textContent = "Model çalışıyor";
@@ -606,14 +838,16 @@ async function runModelTestSample() {
       result = await predictLetter(sample.features);
     }
     const elapsed = performance.now() - t0;
+    if (stale()) return;
     if (!result) throw new Error("Model tahmin döndürmedi");
 
     renderModelTestResult(sample, result, elapsed);
   } catch (err) {
-    showModelTestError(err.message);
+    if (stale()) return;
+    showModelTestError(describeModelTestError(err));
     console.error(err);
   } finally {
-    if (els.runModelTestSample) {
+    if (!stale() && els.runModelTestSample) {
       els.runModelTestSample.disabled = false;
       els.runModelTestSample.textContent = "Seçili Örneği Tekrar Çalıştır";
     }
@@ -691,12 +925,26 @@ function renderModelTestTop3(items) {
 }
 
 /**
+ * Empty the answer fields, so no earlier run's prediction stays on screen
+ * beside a sample or an error it does not belong to.
+ *
+ * @returns {void}
+ */
+function clearModelTestResult() {
+  if (els.modelTestPredictedLabel) els.modelTestPredictedLabel.textContent = "-";
+  if (els.modelTestConfidence) els.modelTestConfidence.textContent = "-";
+  if (els.modelTestLatency) els.modelTestLatency.textContent = "-";
+  renderModelTestTop3([]);
+}
+
+/**
  * Report a fixture or inference failure in the result area.
  *
  * @param {string} message Turkish text shown to the user.
  * @returns {void}
  */
 function showModelTestError(message) {
+  clearModelTestResult();
   if (els.modelTestSampleStatus) els.modelTestSampleStatus.textContent = "Hata";
   updateModelTestProcess("error");
   if (els.modelTestMatchBadge) {
@@ -739,12 +987,288 @@ function updateModelTestProcess(status) {
 }
 
 /**
+ * Write a number the way Turkish writes a measurement: the comma is the decimal
+ * separator, a decimal is kept only under 10, where it still tells figures
+ * apart, and a trailing ",0" is dropped.
+ *
+ * @param {number} value
+ * @returns {string}
+ */
+function formatTurkishNumber(value) {
+  // 9.96 rounds to "10.0" at one decimal; the trailing-zero strip leaves "10".
+  const text = Math.abs(value) < 10 ? value.toFixed(1).replace(/\.0$/, "") : String(Math.round(value));
+  return text.replace(".", ",");
+}
+
+/**
+ * Write a probability the way Turkish writes a percentage: "%7,6", "%46",
+ * "%100".
+ *
  * @param {number} value Probability in [0, 1].
- * @returns {string} A percentage with one decimal, or "-" when not finite.
+ * @returns {string} The percentage, or "-" when not finite.
  */
 function formatPercent(value) {
   if (!Number.isFinite(value)) return "-";
-  return `%${(value * 100).toFixed(1)}`;
+  return `%${formatTurkishNumber(value * 100)}`;
+}
+
+/**
+ * @param {number} ms
+ * @returns {string} "0,6 ms", "12 ms"; "-" when not finite.
+ */
+function formatMilliseconds(ms) {
+  return Number.isFinite(ms) ? `${formatTurkishNumber(ms)} ms` : "-";
+}
+
+/**
+ * @param {number} ms
+ * @returns {string} The time in seconds, "1,9 sn"; "-" when not finite.
+ */
+function formatSeconds(ms) {
+  return Number.isFinite(ms) ? `${formatTurkishNumber(ms / 1000)} sn` : "-";
+}
+
+/**
+ * Counts the times the batch was reset. A run remembers the count it started
+ * at, and a different count when it wakes up means it was abandoned.
+ */
+let _modelTestBatchEpoch = 0;
+
+/** The batch in flight, so a second press joins it. @type {Promise<void> | null} */
+let _modelTestBatchRun = null;
+
+/**
+ * Drop the batch and any run still going, so numbers never stay on screen for
+ * samples they were not run on.
+ *
+ * @returns {void}
+ */
+function resetModelTestBatch() {
+  _modelTestBatchEpoch += 1;
+  _modelTestBatchRun = null;
+  state.modelTestBatch = null;
+  renderModelTestBatch();
+}
+
+/**
+ * Run every bundled sample of one kind through its model, one at a time.
+ *
+ * Each sample becomes a row as it finishes, and the run ends with a summary.
+ * The model is prepared first and that time is kept apart: a row's time is the
+ * inference alone. The camera and MediaPipe are never involved.
+ *
+ * Pressing again while a run is going joins it. Switching to the other kind
+ * abandons it: the run stops at its next step and shows nothing.
+ *
+ * @param {string} [task] Anything other than "word" runs the letters. Defaults
+ *   to the kind the panel is showing.
+ * @returns {Promise<void>} Never rejects; a failure is in the batch.
+ */
+function runModelTestBatch(task = state.modelTestTask) {
+  const kind = task === "word" ? "word" : "letter";
+  setModelTestTask(kind);
+  if (_modelTestBatchRun) return _modelTestBatchRun;
+  const done = executeModelTestBatch(kind, _modelTestBatchEpoch).finally(() => {
+    if (_modelTestBatchRun === done) _modelTestBatchRun = null;
+  });
+  _modelTestBatchRun = done;
+  return done;
+}
+
+/**
+ * @param {ModelTask} kind
+ * @param {number} epoch The reset count the run was started at.
+ * @returns {Promise<void>}
+ */
+async function executeModelTestBatch(kind, epoch) {
+  const stale = () => epoch !== _modelTestBatchEpoch;
+  // The list may still be loading, as when the screen was opened by a link.
+  await loadModelTestManifest();
+  if (stale()) return;
+
+  const items = getModelTestManifestItems(kind);
+  /** @type {ModelTestBatch} */
+  const batch = { task: kind, status: "preparing", total: items.length, rows: [], summary: null, error: "" };
+  state.modelTestBatch = batch;
+  renderModelTestBatch();
+
+  const isWord = kind === "word";
+  const wasReady = Boolean(isWord ? wordSession : letterSession);
+  const prepStart = performance.now();
+  const ready = await (isWord ? ensureWordModel() : ensureLetterModel());
+  if (stale()) return;
+  if (!ready) {
+    batch.status = "error";
+    batch.error = isWord ? "Kelime modeli yüklenemedi" : "Harf modeli yüklenemedi";
+    renderModelTestBatch();
+    return;
+  }
+  const prepMs = wasReady ? null : performance.now() - prepStart;
+
+  batch.status = "running";
+  for (const item of items) {
+    const row = await runModelTestBatchItem(item, kind);
+    if (stale()) return;
+    batch.rows.push(row);
+    renderModelTestBatch();
+  }
+  batch.summary = summarizeModelTestBatch(batch.rows, prepMs);
+  batch.status = "done";
+  renderModelTestBatch();
+  announce(describeModelTestBatch(batch));
+}
+
+/**
+ * Fetch, validate and run one manifest sample.
+ *
+ * @param {ModelTestManifestItem} item
+ * @param {ModelTask} kind The model the batch is running.
+ * @returns {Promise<ModelTestBatchRow>} Never rejects; a failure is an "error" row.
+ */
+async function runModelTestBatchItem(item, kind) {
+  const title = item.title || item.label || item.id || "Örnek";
+  /** @type {ModelTestBatchRow} */
+  const row = {
+    id: item.id || "",
+    title,
+    expected: item.expected_label || item.label || "",
+    predicted: "",
+    verdict: "error",
+    confidence: NaN,
+    ms: NaN,
+    error: "",
+    local: isLocalModelTestItem(item),
+    synthetic: item.kind === MODEL_TEST_SYNTHETIC_KIND,
+  };
+  try {
+    if (!item.path) throw new Error(`${title} için dosya yolu yok`);
+    const sample = normalizeModelTestSample(await fetchModelTestJson(item.path, title), title);
+    row.expected = sample.expectedLabel;
+    if (sample.task !== kind) throw new Error(`${title} bu modele uygun değil`);
+
+    // Only the inference is timed: fetching and validating the sample is not it.
+    const t0 = performance.now();
+    const result = sample.task === "word"
+      ? await predictWord(sample.features, sample.mask)
+      : await predictLetter(sample.features);
+    const elapsed = performance.now() - t0;
+    if (!result) throw new Error("Model tahmin döndürmedi");
+
+    row.predicted = result.label;
+    row.confidence = result.confidence;
+    row.ms = elapsed;
+    row.verdict = !row.expected ? "no-reference" : result.label === row.expected ? "correct" : "wrong";
+  } catch (err) {
+    row.error = describeModelTestError(err);
+    console.error(err);
+  }
+  return row;
+}
+
+/**
+ * Add a finished batch up.
+ *
+ * @param {ModelTestBatchRow[]} rows
+ * @param {number | null} prepMs
+ * @returns {ModelTestBatchSummary}
+ */
+function summarizeModelTestBatch(rows, prepMs) {
+  // A sample that failed still has its reference, so it is counted and is not
+  // correct: leaving it out would make the model look better than it is. A
+  // made-up sample runs, but answering it right proves nothing about accuracy.
+  const counted = rows.filter((row) => row.expected !== "" && !row.synthetic);
+  const correct = counted.filter((row) => row.verdict === "correct").length;
+  const times = rows.map((row) => row.ms).filter(Number.isFinite).sort((a, b) => a - b);
+  const middle = Math.floor(times.length / 2);
+  const medianMs = times.length === 0 ? null : times.length % 2 ? times[middle] : (times[middle - 1] + times[middle]) / 2;
+  return {
+    total: rows.length,
+    counted: counted.length,
+    correct,
+    accuracy: counted.length ? correct / counted.length : null,
+    medianMs,
+    prepMs,
+    failed: rows.filter((row) => row.verdict === "error").length,
+    synthetic: rows.some((row) => row.synthetic),
+    hasLocal: rows.some((row) => row.local),
+  };
+}
+
+/**
+ * The batch in a sentence or two of plain Turkish.
+ *
+ * @param {ModelTestBatch} batch
+ * @returns {string}
+ */
+function describeModelTestBatch(batch) {
+  if (batch.status === "error") return batch.error;
+  if (batch.status === "preparing") return "Model hazırlanıyor…";
+  if (batch.status === "running") return `Çalışıyor: ${batch.rows.length} / ${batch.total}`;
+  const summary = batch.summary;
+  if (!summary || summary.total === 0) return "Çalıştırılacak örnek bulunamadı.";
+
+  const parts = [];
+  if (summary.accuracy === null && summary.synthetic) {
+    parts.push("Model çalıştı. Örnek yapay olduğundan doğruluk hesaplanmadı; bu yalnızca modelin baştan sona çalıştığını gösterir.");
+  } else if (summary.accuracy === null) {
+    parts.push(`Model ${summary.total} örnek üzerinde çalıştı; referans etiketi olmadığı için doğruluk hesaplanmadı.`);
+  } else {
+    parts.push(
+      `${summary.counted} örnekten ${summary.correct} tanesi doğru (${formatPercent(summary.accuracy)}).`,
+    );
+  }
+  if (summary.medianMs !== null) parts.push(`Ortanca süre ${formatMilliseconds(summary.medianMs)}.`);
+  if (summary.prepMs !== null) {
+    parts.push(`Model hazırlığı ${formatSeconds(summary.prepMs)} sürdü; bu süre örneklerin süresine eklenmedi.`);
+  }
+  if (summary.failed > 0) parts.push(`${summary.failed} örnek çalışmadı.`);
+  if (summary.hasLocal) {
+    parts.push("Yerel örnekler bu bilgisayara özeldir; siteyle birlikte yayınlanmamalıdır.");
+  }
+  return parts.join(" ");
+}
+
+/** The words a row's verdict is shown with. @type {Record<ModelTestBatchRow["verdict"], string>} */
+const MODEL_TEST_VERDICT_LABELS = {
+  correct: "Doğru",
+  wrong: "Yanlış",
+  "no-reference": "Referans yok",
+  error: "Hata",
+};
+
+/**
+ * Show the batch: its summary line and one table row per finished sample.
+ *
+ * @returns {void}
+ */
+function renderModelTestBatch() {
+  const batch = state.modelTestBatch;
+  if (els.modelTestBatch) els.modelTestBatch.hidden = !batch;
+  if (els.modelTestSummary) els.modelTestSummary.textContent = batch ? describeModelTestBatch(batch) : "";
+  if (!els.modelTestRows) return;
+  els.modelTestRows.innerHTML = "";
+  for (const item of batch?.rows ?? []) {
+    const row = document.createElement("tr");
+    row.dataset.verdict = item.verdict;
+    if (item.local) row.dataset.local = "true";
+    // A made-up sample answered "correctly" is a run check, not a success.
+    const verdictLabel = item.synthetic && item.verdict !== "error" ? "Çalışma kontrolü" : MODEL_TEST_VERDICT_LABELS[item.verdict];
+    const cells = [
+      item.local ? `${item.title} · Yerel` : item.title,
+      item.expected || "-",
+      // A failed row has no answer, so its reason takes the answer's place.
+      item.predicted || item.error || "-",
+      formatPercent(item.confidence),
+      formatMilliseconds(item.ms),
+      verdictLabel,
+    ];
+    cells.forEach((text, index) => {
+      const cell = document.createElement(index === 0 ? "th" : "td");
+      cell.textContent = text;
+      row.appendChild(cell);
+    });
+    els.modelTestRows.appendChild(row);
+  }
 }
 
 /**

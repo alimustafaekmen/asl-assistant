@@ -56,6 +56,14 @@
     align-items: stretch;
   }
   .topbar__links.menu:popover-open { display: flex; }
+  /* Without the Popover API the app opens the menu through data-open, and
+     the browser neither hides nor places it, so this does both. */
+  .topbar__links.menu[data-open="false"] { display: none; }
+  .topbar__links.menu[data-open="true"] {
+    position: fixed;
+    z-index: var(--z-popover);
+    display: flex;
+  }
   .topbar__links .navlink { justify-content: flex-start; }
 
   /* ── Workspace ───────────────────────────────────────────────────── */
@@ -189,9 +197,12 @@
     .topbar__end .live-indicator.is-live { display: inline-flex; }
     .topbar__more { display: none; }
 
-    /* The popover becomes a plain row of links. */
+    /* The popover becomes a plain row of links. No :popover-open in this
+       list: a browser that does not know the pseudo-class drops the whole
+       rule, which left the laptop links unstyled there. The fallback's
+       data-open states are listed so they cannot hide or float the row. */
     .topbar__links.menu,
-    .topbar__links.menu:popover-open {
+    .topbar__links.menu[data-open] {
       position: static;
       inset: auto;
       display: flex;

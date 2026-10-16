@@ -40,14 +40,16 @@ class FakeTensor {
  * `winner` gets the only large logit, so the result is confident. A test that
  * needs a weaker result passes `winnerLogit`, a number or a function read at
  * every run, so it can depend on the calibration the app has loaded by then.
+ * `runnerUp` gives a second label a logit of its own, read the same way, for
+ * a result whose top two are close.
  * When `maskDtype` is given, the session rejects any other mask element type,
  * the way an export that wants that type does. After `hold()` a run does not
  * finish until the test calls `release()`, so the app can be stopped or moved
  * while the model is still computing.
  *
- * @param {{winner?: string, maskDtype?: string, winnerLogit?: number | (() => number)}} [options]
+ * @param {{winner?: string, maskDtype?: string, winnerLogit?: number | (() => number), runnerUp?: {label: string, logit: number | (() => number)}}} [options]
  */
-export function fakeOrt({ winner = "book", maskDtype, winnerLogit = 10 } = {}) {
+export function fakeOrt({ winner = "book", maskDtype, winnerLogit = 10, runnerUp = null } = {}) {
   const runs = [];
   /** @type {Promise<void> | null} */
   let gate = null;
@@ -63,6 +65,9 @@ export function fakeOrt({ winner = "book", maskDtype, winnerLogit = 10 } = {}) {
       if (gate) await gate;
       const logits = new Float32Array(LABEL_COUNT);
       logits[WORD_LABELS[winner]] = typeof winnerLogit === "function" ? winnerLogit() : winnerLogit;
+      if (runnerUp) {
+        logits[WORD_LABELS[runnerUp.label]] = typeof runnerUp.logit === "function" ? runnerUp.logit() : runnerUp.logit;
+      }
       return { output: { data: logits } };
     },
   };
@@ -167,7 +172,7 @@ export function fakeTimers() {
  * init() first, so its buttons are bound and `app.ready` settles when the
  * start-up reads are done; the network is then the harness's default fetch.
  *
- * @param {{winner?: string, maskDtype?: string, winnerLogit?: number | (() => number), fakeTimers?: boolean, boot?: boolean}} [options]
+ * @param {{winner?: string, maskDtype?: string, winnerLogit?: number | (() => number), runnerUp?: {label: string, logit: number | (() => number)}, fakeTimers?: boolean, boot?: boolean}} [options]
  */
 export function wordModeApp(options = {}) {
   const { ort, runs, hold, release } = fakeOrt(options);

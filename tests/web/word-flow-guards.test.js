@@ -136,8 +136,8 @@ test("the accept button is offered only for a finished recording, and only in wo
   await recordWord(app, ctx);
   assert.equal(acceptDisabled(app), false, "a finished confident word is offered");
 
-  // A new recording keeps the old word on screen (the prediction is not
-  // cleared) but the old word must not be on offer while it runs.
+  // A new recording takes the old word off the screen, and nothing may be
+  // on offer while it runs.
   assert.equal(click(app, "recordWord"), true);
   await timers.advance(0);
   assert.equal(wordState(app), "COUNTDOWN");
@@ -238,10 +238,9 @@ test("recording cannot start without hand, pose and face tracking ready", async 
 });
 
 test("the record button rule treats a running recording as busy", async () => {
-  // Nothing in the app redraws the record button when the recording state
-  // changes (it is synced at mode changes and camera changes only), so the
-  // rule is called here at each busy state. It is the rule a redraw hook will
-  // rely on.
+  // The rule itself, called here at each busy state. The app redraws the
+  // button with every recording step (updateWordState() calls this rule);
+  // record-button-redraw.test.js shows that redraw.
   const ctx = await bootedWordApp();
   const { app, timers, hold, release } = ctx;
   const sync = () => {

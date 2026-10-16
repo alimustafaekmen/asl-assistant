@@ -61,7 +61,7 @@ function appendWordResultToTranscript() {
   appendTranscriptToken(`${state.prediction} `, { debounceKey: `word:${state.prediction}` });
   wordResultAccepted = true;
   syncActionBar();
-  showFeedback(`"${state.prediction}" metne eklendi. Yeni deneme için Yeni Kelime Kaydı ya da Tekrar Dene kullan.`, "good");
+  showFeedback(`"${state.prediction}" metne eklendi. Yeni bir kelime için kaydı yeniden başlatın.`, "good");
 }
 
 /**
@@ -128,7 +128,18 @@ function renderTranscript() {
 }
 
 /**
+ * Text cleared while its undo is still offered, oldest first. A second clear
+ * in that time replaces the toast; without this, its undo would bring back
+ * only the second part and the first would be lost for good.
+ */
+let _clearedPendingUndo = "";
+
+/**
  * Clear the transcript and its stored copy, and offer to undo it.
+ *
+ * While an earlier clear's undo is still offered, the clears add up, so one
+ * "Geri al" restores everything cleared, in order. The undo ends with its
+ * toast.
  *
  * @returns {void}
  */
@@ -138,19 +149,26 @@ function clearTranscript() {
   saveTranscript();
   renderTranscript();
   if (!cleared.trim()) return;
+  const restorable = _clearedPendingUndo + cleared;
   showToast("Metin temizlendi", {
     returnFocus: els.clearText,
+    // Also runs for the toast this one replaces, which is why the pending
+    // text is set again after showToast().
+    onEnd: () => {
+      _clearedPendingUndo = "";
+    },
     action: {
       label: "Geri al",
       // Anything typed since the clear stays, after the restored text.
       run: () => {
-        state.transcript = cleared + state.transcript;
+        state.transcript = restorable + state.transcript;
         saveTranscript();
         renderTranscript();
         announce("Metin geri alındı");
       },
     },
   });
+  _clearedPendingUndo = restorable;
 }
 
 /**

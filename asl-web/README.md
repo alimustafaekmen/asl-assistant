@@ -55,6 +55,7 @@ The project currently uses classic scripts and shared browser globals. Their
 order is a runtime contract:
 
 ```text
+js/core/theme-boot.js
 js/core/config.js
 js/core/runtime.js
 js/ml/landmarks.js
@@ -90,11 +91,14 @@ Runtime settings live in `js/core/config.js` under `CONFIG`. Important defaults:
 | `UNKNOWN_THRESHOLD` | 0.45 | Below this, letter output is treated as uncertain |
 | `CONFIDENT_THRESHOLD` | 0.65 | Confident letter display |
 | `LETTER_THRESHOLD` | 0.60 | Explicit letter acceptance threshold |
-| `WORD_UNKNOWN_THRESHOLD` | 0.10 | Low-confidence word warning |
+| `WORD_UNKNOWN_THRESHOLD` | 0.15 | Low-confidence word warning; equal to the accept threshold |
 | `WORD_CONFIDENT_THRESHOLD` | 0.20 | Stronger word display |
 | `WORD_ACCEPT_THRESHOLD` | 0.15 | Manual word acceptance threshold |
 | `SMOOTHER_WINDOW` | 5 | Letter temporal label window |
 | `WORD_FRAME_COUNT` | 45 | Word recording length |
+| `WORD_FIRST_FRAME_TIMEOUT_MS` | 6000 | A recording with no usable frame this long ends |
+| `WORD_NO_HAND_TIMEOUT_MS` | 4000 | A recording whose usable frames stop this long ends |
+| `WORD_MAX_RECORDING_MS` | 15000 | A recording still not full after this long ends |
 | `TOP_K` | 3 | Number of alternatives shown |
 | `SELFIE_HANDEDNESS_SWAP` | `false` | Camera-specific handedness correction |
 
