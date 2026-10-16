@@ -1,76 +1,81 @@
 # Architecture
 
-ASL Assistant separates the deployable browser application from Python tools,
-training records, and the legacy desktop prototype. The browser is the product;
-the other layers create, validate, or explain its artifacts.
+ASL Assistant has one product, a static browser application in `asl-web/`. The
+rest of the repository produces, validates or documents what that application
+loads: Python feature code, training records, validation scripts, and an older
+desktop prototype.
 
 ## System boundary
 
 ```text
 Development and validation
-datasets -> scripts/notebooks -> source artifacts
-                  |                    |
-                  +---- parity/hash ---+
-                                       |
-                                       v
+datasets -> scripts / notebooks -> source artifacts
+                  |                      |
+                  +---- parity + hash ---+
+                                         |
+                                         v
 Browser runtime
 camera -> MediaPipe -> features -> ONNX models -> UI
 ```
 
-The web path has no Python service, account system, database, or application
-API. Camera pixels are processed in the browser and are not sent to an
-application server. External libraries and MediaPipe task files are currently
-downloaded from CDNs on first load.
+The web path has no Python service, account system, database or application
+API. Camera frames are processed in the browser and never sent to a server of
+this project. ONNX Runtime Web, MediaPipe and the QR library are downloaded
+from public CDNs when needed, so the first visit needs a network connection.
 
 ## Repository map
 
 ```text
-asl-web/       deployable browser application and runtime artifacts
-asl-ml/        shared Python ML contracts, features, and data helpers
-asl-desktop/   legacy CustomTkinter prototype and desktop configuration
-data/          local dataset workspace; only its source manifest is published
-models/        curated letter and word model artifacts
-notebooks/     word-model training records, metrics, and figures
-scripts/       data preparation, training, evaluation, and validation tools
-tests/         unit, integration, contract, guardrail, and parity checks
-docs/          maintained documentation
+asl-web/       the browser application and the artifacts it loads
+asl-ml/        shared Python feature code and label helpers
+asl-desktop/   CustomTkinter prototype (legacy)
+models/        curated letter and word model files, the source of the deployed copies
+notebooks/     word-model training notebooks and recorded results
+scripts/       data preparation, training, evaluation, validation, environment tooling
+tests/         Python tests, Node tests for the browser code, headless-Chrome checks
+data/          local dataset workspace; only its README is tracked
+docs/          this documentation
 ```
 
-Dependency direction is intentionally one-way:
+Dependencies point one way:
 
 ```text
-asl-web/                 -> browser APIs and web assets only
-asl-desktop/             -> asl-ml + models/word/desktop-25
-scripts/                 -> asl-ml; desktop J/Z tooling -> asl-desktop
-tests/                   -> public code and artifact contracts
-models/letter/           -> source of deployed letter artifacts
-models/word/web-50/      -> source of deployed word model/labels/calibration
-notebooks/word_50_results/ -> source of word evaluation and teaching data
+asl-web/                    browser APIs and its own files only
+asl-desktop/                asl-ml, models/word/desktop-25
+scripts/                    asl-ml; the J/Z training tool also uses asl-desktop
+tests/                      public code and artifact contracts
+models/letter/              source of the deployed letter model and labels
+models/word/web-50/         source of the deployed word model, labels and calibration
+notebooks/word_50_results/  source of the word evaluation and teaching data
 ```
 
-The deployed web application must not import Python packages, read root data,
-or depend on ignored historical experiments. The desktop's 25-word model is a
-separate published artifact under `models/word/desktop-25/`; it is unrelated to
-the 50-word web pipeline.
+The web application imports no Python, reads nothing from `data/`, and does
+not depend on files that Git ignores. The desktop prototype's 25-word model
+(`models/word/desktop-25/`) is a separate artifact from the web application's
+50-word model.
 
-Configuration follows ownership instead of living in a root catch-all module:
+Configuration lives with its owner:
 
-- `asl_ml.config` owns shared Python landmark, class-domain, and letter
-  augmentation contracts;
-- `asl_desktop.config` owns desktop paths, camera behavior, thresholds, UI,
-  speech, coach, and desktop sequence-model defaults; and
-- `asl-web/js/core/config.js` owns browser runtime configuration.
+- `asl_ml.config`: landmark counts, class domains and letter augmentation
+  settings shared by Python code;
+- `asl_desktop.config`: desktop paths, camera, thresholds, UI, speech and
+  sequence-model defaults;
+- `asl-web/js/core/config.js`: browser thresholds, label lists, timing and
+  reference assets.
 
-Training and data scripts derive their repository input/output paths locally.
-This keeps `asl-ml` free of UI and repository-layout policy and prevents the
-browser from depending on Python configuration.
+Training and data scripts work out their own input and output paths, so
+`asl-ml` carries no UI or repository-layout policy.
 
-## Browser modules
+## Browser application
 
-The application uses classic scripts in a fixed order:
+### Scripts and styles
+
+The page loads classic scripts, not ES modules, in the order below. The order
+is a runtime contract; `asl-web/js/README.md` explains the rules behind it and
+`tests/web/module-contracts.test.js` loads the files the way the browser does.
 
 ```text
-core/theme-boot.js
+core/theme-boot.js          (in <head>, before the stylesheets)
 core/config.js
 core/runtime.js
 ml/landmarks.js
@@ -92,106 +97,145 @@ ui/coach.js
 ui/reference.js
 ui/qr.js
 ui/model-test.js
-core/app.js
+core/app.js                 (last; the only script with startup side effects)
 ```
 
-| Component | Responsibility |
+| File | Responsibility |
 |---|---|
-| `index.html` | Screen structure, controls, accessibility labels, script loading |
-| `css/style.css` | Declares the cascade layer order; holds the pre-redesign rules in the `legacy` layer, deleted screen by screen as each is rebuilt |
+| `index.html` | Every screen, the controls, accessibility labels, script loading |
+| `css/style.css` | Declares the cascade layer order and holds the pre-redesign rules in the `legacy` layer, removed screen by screen as each one is rebuilt |
 | `css/tokens.css` | Design tokens for both themes; the only file with raw colour and size values |
 | `css/base.css` | Self-hosted fonts, document defaults, the focus ring |
+| `css/layout.css` | The shell and camera workspace for phone, phone landscape and laptop; which parts show in which mode |
 | `css/components.css` | Buttons, mode switch, camera stage, caption plate, transcript strip, panels |
-| `css/layout.css` | The shell and the camera workspace for phone, phone landscape and laptop; mode visibility |
-| `js/core/theme-boot.js` | Theme resolution in `<head>`, before the stylesheets, so the first frame is in the visitor's theme |
-| `js/core/config.js` | Runtime configuration, label domains, difficulty sets, reference assets |
-| `js/core/runtime.js` | Shared application state, DOM registry, canvas context, recording buffers |
-| `js/core/app.js` | Bootstrap, event wiring, hash routing, camera start/stop, render loop, debug API |
-| `js/media/camera.js` | MediaPipe task lifecycle and the frame detection loop |
+| `css/screens-coach.css` | The coach screen: target tile, plate extras, session row, dock, letter grid and the phone sheet |
+| `css/screens-info.css` | The Model Test, QR and project screens and their shared parts (segmented control, notices, result table), in the `screens` layer |
+| `css/screens-word.css` | The word screen (recording HUD, result plate, dock states) and the reference viewer, in the `screens` layer |
+| `js/core/theme-boot.js` | Resolves the theme before the first paint |
+| `js/core/config.js` | Runtime configuration, label lists, difficulty sets, reference assets |
+| `js/core/runtime.js` | Shared state, the DOM registry, the canvas context, word recording buffers |
+| `js/core/app.js` | Bootstrap, event wiring, hash routing, camera start and stop, render loop, `window.aslDebug` |
+| `js/media/camera.js` | MediaPipe task lifecycle (GPU with CPU fallback) and the detection loop |
 | `js/media/overlay.js` | Landmark drawing on the camera canvas |
-| `js/ml/landmarks.js` | MediaPipe output to the fixed 321D word landmark layout |
-| `js/ml/features.js` | 93D letter and 168D word feature extraction |
-| `js/ml/live-inference.js` | Live letter/word inference and word recording finalization |
-| `js/ml/letter-model.js` | Letter ONNX session and prediction parsing |
-| `js/ml/word-model.js` | Word ONNX session, mask compatibility, calibration, top-3 |
-| `js/ml/gating.js` | Temporal smoothing and difficulty/confusion feedback |
+| `js/ml/landmarks.js` | MediaPipe output to the fixed 321D frame, shoulder normalization |
+| `js/ml/features.js` | 93D letter features and 168D word features |
+| `js/ml/live-inference.js` | Live letter and word inference, finishing a word recording |
+| `js/ml/letter-model.js` | Letter ONNX session and probability parsing |
+| `js/ml/word-model.js` | Word ONNX session, mask dtype handling, temperature, top-3 |
+| `js/ml/gating.js` | Letter label smoothing; word difficulty and confusion feedback |
 | `js/ml/hold.js` | Hold detection for the coach: a target held steadily counts once |
-| `js/services/benchmark.js` | Browser latency measurements |
-| `js/ui/prediction.js` | Prediction, top-3, status message, feedback, word result guide |
+| `js/services/benchmark.js` | Latency measurements |
+| `js/ui/prediction.js` | Prediction and top-3 display, status messages, the word result decision |
 | `js/ui/plate-side.js` | Laptop result plate: moves to the other bottom corner when a hand stays under it (time-based hysteresis) |
-| `js/ui/toast.js` | Toast confirmations with one optional action, and the screen-reader live region |
+| `js/ui/toast.js` | Toasts with one optional action, and the screen-reader live region |
 | `js/ui/transcript.js` | Transcript editing, persistence, clipboard, speech output |
-| `js/ui/word-flow.js` | Word countdown, recording progress, quality readout, action buttons |
-| `js/ui/coach.js` | Coach targets, study flows, scoring, word guidance panel |
-| `js/ui/reference.js` | Reference images, video links, lightbox |
-| `js/ui/qr.js` | Demo deep-link URL and QR rendering |
-| `js/ui/model-test.js` | Offline fixture loading, validation, and model runs |
+| `js/ui/word-flow.js` | Word countdown, recording clock, framing and quality readout, action bar |
+| `js/ui/coach.js` | Learning coach targets, study flows, scoring, word guidance panel |
+| `js/ui/reference.js` | Reference images, word cards, video links, viewer dialog |
+| `js/ui/qr.js` | Deep-link URL and QR code |
+| `js/ui/model-test.js` | Fixture loading, validation and model runs for the Model Test screen |
 
-The files communicate through browser globals. `core/runtime.js` is the single
-owner of the shared mutable state every other module reads and writes, and
-`core/app.js` is the only script with startup side effects. Reordering them or
-converting them to modules is a structural runtime change and requires full
-browser tests.
+The stylesheets are linked after `theme-boot.js` in this order: `style.css`,
+`tokens.css`, `base.css`, `layout.css`, `components.css`, `screens-coach.css`,
+`screens-info.css`, `screens-word.css`. The layer order declared in `style.css`
+(`legacy, tokens, base, components, layout, screens, utilities`) decides the
+cascade, not the link order.
 
-The live path runs through two cooperating loops:
+The scripts share browser globals. `core/runtime.js` creates the shared
+mutable state once, and `core/app.js` is the only script that does asynchronous
+work or binds events while the scripts load. Reordering the files or turning
+them into modules is a structural change and needs the full set of checks
+below, including `make browser-check`.
+
+### Live path
+
+Two loops cooperate:
 
 ```text
-media/camera.js   detection loop  -> latestMediaPipeResult -> media/overlay.js
-core/app.js       render loop     -> ml/live-inference.js
-                                     -> ml/landmarks.js  321D + normalization
-                                     -> ml/features.js   93D letter / 168D word
-                                     -> ml/letter-model.js, ml/word-model.js
-                                     -> ui/prediction.js, ui/word-flow.js, ui/coach.js
+media/camera.js   detection loop -> latestMediaPipeResult -> media/overlay.js
+core/app.js       render loop    -> ml/live-inference.js
+                                    -> ml/landmarks.js        321D + normalization
+                                    -> ml/features.js         93D letter / 168D word
+                                    -> ml/letter-model.js, ml/word-model.js
+                                    -> ui/prediction.js, ui/word-flow.js, ui/coach.js
 ```
 
-`asl-web/js/README.md` documents the load-order rules, the JSDoc type
-contracts, and where new modules go.
+### Type checking
 
-The browser sources carry JSDoc types that TypeScript can verify in no-emit
-mode with `make js-typecheck`. TypeScript is a checker here, not a source
-language: there is no build step, no generated output, and the deployed files
-are the `.js` sources themselves. The only declaration file,
-`asl-web/types/browser-globals.d.ts`, describes globals the app does not own --
-the ONNX Runtime surface it uses, the QR generator, and the debug snapshots
-attached to `window`. Running or serving the app, and `make health`, need no
-package install.
+The sources carry JSDoc types that TypeScript checks without emitting anything
+(`make js-typecheck`). TypeScript is a checker here, not a source language:
+there is no build step and the deployed files are the `.js` sources.
+`asl-web/types/browser-globals.d.ts` only describes globals the app does not
+own: the part of ONNX Runtime it uses, the QR generator, and the debug
+snapshots attached to `window`. Serving the app and running `make health` need
+no npm install; the type check needs `npm ci` once.
+
+## Screens and routes
+
+| Hash | Screen (UI label) | Camera |
+|---|---|---|
+| `#letter` | Letter translation (Harf) | yes |
+| `#word` | Word practice (Kelime, marked experimental) | yes |
+| `#coach` | Learning coach (Koç) | yes |
+| `#test` | Model Test (Kamerasız dene) | no |
+| `#project` | Project summary (Nasıl çalışır) | no |
+| `#qr` | QR demo (Telefonda aç) | no |
+
+An unknown hash opens letter mode. There is no separate home screen: the brand
+link opens the letter screen, whose empty camera stage explains the app.
 
 ## Startup and camera lifecycle
 
-At startup, `core/app.js` restores local preferences, binds DOM events, loads a
-few small runtime JSON files, and applies the URL hash. It loads no model: each
-ONNX session and its labels load the first time something needs them, usually
-the camera starting in a mode that runs that model. Camera initialization is
-deferred until the user requests it.
+At startup `core/app.js` restores the theme and the saved transcript, builds
+the coach options, binds events, applies the URL hash, starts the render loop,
+and then fetches a few small JSON files (reference video links, the Model Test
+manifest, word guidance data). It loads no model. Each ONNX session and its
+labels load the first time something needs them: the camera starting in a mode
+that runs the model, a word recording, the **Offline test** button, or a Model
+Test run. A model that fails to load is forgotten, so the next need retries.
 
 Starting the camera:
 
-1. requests `getUserMedia` permission;
-2. creates the required MediaPipe tasks for the selected mode;
-3. starts a single `requestAnimationFrame` loop; and
-4. updates UI readiness and visibility feedback.
+1. asks for `getUserMedia` permission and waits for the first video frame;
+2. starts downloading the models the current mode runs, and in parallel creates
+   the MediaPipe hand, pose and face tasks;
+3. starts the detection loop, a single `requestAnimationFrame` loop; and
+4. reports progress and any problem on the status line.
 
-Stopping the camera releases media tracks, cancels the animation frame, closes
-MediaPipe tasks, and resets prediction and recording state. Returning home also
-stops the camera to protect privacy and battery life.
+Stopping the camera stops every media track, cancels the detection loop, closes
+the MediaPipe tasks, abandons a recording in progress and resets prediction and
+smoothing state. A stop that arrives while a start is still waiting (for the
+permission prompt or for MediaPipe) cancels that start. A track that the
+browser ends is handled like a stop and tells the user.
+
+The camera also stops when the visitor opens the brand link or one of the
+screens that need no camera (`#test`, `#project`, `#qr`). Switching between
+letter, word and coach keeps it running and loads whichever model the new mode
+needs. Hiding something is never treated as releasing it: a camera that is
+still running behind a hidden screen is a bug.
 
 ## Letter mode
 
 ```text
 camera frame
   -> MediaPipe Hand Landmarker
-  -> select a visible hand; standardize a selected left hand
+  -> pick a visible hand; mirror a left hand to the right-hand layout
   -> landmark EMA smoothing
   -> 93D feature vector
   -> LightGBM ONNX probability tensor
-  -> label smoothing and confidence gate
-  -> live result; explicit transcript acceptance
+  -> label smoothing and confidence thresholds
+  -> live result; the user adds it to the transcript
 ```
 
-The mode supports 24 static letter classes. J and Z are not implemented, and
-the application contains no trained or deployed model for them. If both hands
-disappear, landmark and label smoothing reset so an old prediction cannot leak
-across the gap.
+The model has 24 static letter classes. J and Z need motion and are not
+implemented; no model for them is deployed. A frame without a hand resets the
+landmark and label smoothing so an earlier sign cannot carry across the gap.
+
+The letter reaches the transcript through the user: Space adds the current
+letter if its confidence is at least `LETTER_THRESHOLD`, Enter adds a space,
+Backspace removes the last character. These keys act only in letter mode and
+never while focus is in a form control; the on-screen buttons call the same
+functions.
 
 ## Word mode
 
@@ -199,36 +243,51 @@ across the gap.
 camera frames
   -> hand + pose + selected face landmarks
   -> shoulder-normalized 321D frames
-  -> collect up to 45 valid frames
-  -> choose one dominant hand for the complete sequence
-  -> 168D compact features per frame
+  -> up to 45 frames that have hand, face and shoulders
+  -> one dominant hand chosen for the whole sequence
+  -> 168D features per frame
   -> padding mask
   -> SignTransformer ONNX logits
   -> temperature scaling, softmax, top-3
-  -> user review and explicit acceptance
+  -> the user reviews the result and accepts it
 ```
 
-Recording follows this state machine:
+Recording follows a fixed state machine:
 
 ```text
 IDLE -> COUNTDOWN -> RECORDING -> PROCESSING -> RESULT
 ```
 
-Starting, retrying, finishing, changing mode, and stopping the camera reset the
-frame buffer, normalized-frame buffer, mask, motion history, and wait-message
-state. These resets prevent one recording from contaminating the next.
+Starting, retrying, finishing, changing mode and stopping the camera reset the
+frame buffers, the mask, the motion history and the framing readout, so one
+recording cannot leak into the next. A recording that cannot fill ends by
+itself instead of waiting at 0/45: when no usable frame arrives, when usable
+frames stop arriving, or when the whole recording runs too long (the limits are
+`WORD_FIRST_FRAME_TIMEOUT_MS`, `WORD_NO_HAND_TIMEOUT_MS` and
+`WORD_MAX_RECORDING_MS`, listed in the [web README](../asl-web/README.md)). It
+is also abandoned when the page is hidden. A result is shown only if no newer
+recording has started in the meantime.
 
-The logical mask convention is `true` for a real frame and `false` for padding.
-The exported ONNX graph performs the attention-mask inversion internally.
+The mask is `true` for a real frame and `false` for padding. The exported ONNX
+graph inverts it itself, so it must not be inverted before the call.
 
-## Other product modes
+Word results are never added to the transcript on their own. After a
+recording, `assessWordResult()` in `ui/prediction.js` decides what the user is
+offered: no word if the model produced nothing; "not sure" below
+`WORD_ACCEPT_THRESHOLD`, with accept disabled; "check before adding" when the
+top two results are close or the framing was poor; otherwise "usable". Accept
+appends the word once, and only for the latest recording. The reason for this
+is practical: confidence is often low for a correct word, and similar signs can
+be separated by a small margin.
 
-| Mode | Behavior |
+## Other screens
+
+| Screen | Behaviour |
 |---|---|
-| Learning Coach | Shows a target and local progress. A target letter is scored by holding it: a steady hold for the hold time counts once, and the same pose counts again only after it is released. A button press never scores a letter. Word scoring occurs after a completed recording. |
-| Model Test | Runs versioned JSON features directly through the browser ONNX sessions without using the camera. |
-| QR Demo | Creates deep links for letter, word, and Model Test views. |
-| Project | Shows a concise technical summary inside the application. |
+| Learning coach | Shows a target and the progress kept on this device. A letter target is scored by holding it: a steady hold for the hold time counts once, and the same pose counts again only after it is released. A button press never scores a letter. A word target is scored after a completed recording. |
+| Model Test | Runs versioned JSON fixtures straight through the browser ONNX sessions, without the camera, one sample or a whole set at a time. Made-up and local samples are kept out of the accuracy summary. |
+| QR demo | Builds deep links to the letter, word and Model Test screens, draws the QR code, and offers copy and the system share sheet. A page served from `localhost` uses the published demo URL, since a phone cannot reach `localhost`. |
+| Project | A short summary of the models and their limits inside the app. |
 
 Word results are never appended automatically. This is deliberate: live
 confidence is often low and visually similar signs can have small top-1/top-2
@@ -236,51 +295,50 @@ margins.
 
 ## State and persistence
 
-Runtime state is held in JavaScript memory. Theme, transcript, and learning
-progress use browser LocalStorage. There is no server-side session. Local data
-must not be described as a cloud profile or formal learning assessment.
+State lives in JavaScript memory. Three things are stored in `localStorage`:
+the theme choice (`asl-theme`), the transcript (`asl-web-transcript`) and the
+coach progress (`asl-coach-v1`, which the coach can reset). Nothing about a
+visitor leaves the browser. Storage that is blocked or unavailable must leave
+the app working.
 
-## UI contracts
+## Markup and script contracts
 
-The browser scripts reach the page through two mechanisms and nothing else.
-`core/runtime.js` binds elements by ID into the shared registry, and the few
-lookups that collect a group of elements resolve a `data-ui` hook through
-`queryUi()` / `queryAllUi()`. No script finds an element by a presentation
-class, which is what lets the design change without touching behaviour.
+Scripts reach the page in two ways and no other. `core/runtime.js` binds
+elements by id into the shared `els` registry, and the few lookups that
+collect a group of elements resolve a `data-ui` hook with `queryUi()` and
+`queryAllUi()`. No script finds an element by a presentation class, so the
+design can change without touching behaviour.
 
-That splits renaming into two different jobs:
+Renaming therefore comes in two kinds:
 
-- **A class** (`camera-column`, `mode-tab`, `word-flow-steps`, and the mode
-  visibility classes `mode-only`, `letter-only`, `word-only`, `coach-only`,
-  which are CSS and HTML only) is a CSS and HTML change. No JavaScript is
-  involved, and the contract tests confirm it.
-- **An ID or a `data-ui` hook** is a behaviour contract. It needs the HTML, the
-  registry, and the hook catalogue in
-  `tests/project/test_web_ui_contracts.py` changed together.
+- **A class** (`camera-column`, `modes__item`, the mode visibility classes
+  `mode-only`, `letter-only`, `word-only`, `coach-only`) is a CSS and HTML
+  change only.
+- **An id or a `data-ui` hook** is a behaviour contract. It needs the HTML, the
+  registry and the hook list in `tests/project/test_web_ui_contracts.py`
+  changed together.
 
-Elements are either required or optional, and the registry says which:
-`requireElement()` throws naming the id while the scripts load, so a dropped
-element is a startup error rather than a null dereference once its screen
-opens; optional ones resolve to null and every reader guards them.
+The registry separates required from optional elements. `requireElement()`
+throws, naming the id, while the scripts load, so a dropped element is a
+startup error and not a null dereference once its screen opens. Optional
+elements resolve to `null` and every reader guards them.
 
-Event bindings run once and guard a second call, since each one adds a listener
-rather than replacing one. Render functions rebuild their root from state and
-start no listener, timer, fetch or model session.
+Event bindings run once and guard a second call, since each one adds a
+listener. Render functions rebuild their root from state and start no
+listener, timer, fetch or model session.
 
-The UI follows three priorities:
-
-1. letter mode remains the primary experience;
-2. word mode communicates uncertainty and requires review; and
-3. Model Test results remain separate from official evaluation metrics.
-
-After UI changes, test desktop and mobile widths, keyboard focus, camera
-release on home navigation, word retry/reset, fixture inference, and QR links.
+After a UI change, check desktop and phone widths, keyboard focus, that the
+camera is released when you leave a camera screen, word retry and reset,
+fixture inference and QR links.
 
 ## Artifact ownership
+
+Each deployed model and data file is a byte-for-byte copy of a tracked source:
 
 ```text
 models/letter/onnx_exports/letter_model_static_24_web_no_zipmap.onnx
   -> asl-web/models/letter_model.onnx
+  -> asl-web/models/letter_model.onnx.gz        (gzip of the file above)
 
 models/word/web-50/word_model.onnx
   -> asl-web/models/word_model.onnx
@@ -292,45 +350,61 @@ models/word/web-50/{word_labels,temperature}.json
   -> asl-web/data/{word_labels,temperature}.json
 
 notebooks/word_50_results/{per_word_stats,confusion_pairs,curriculum,test_sample}.json
-  -> matching asl-web/data/*.json
+  -> asl-web/data/ (same file names)
 ```
 
-Deployment copies must not be edited independently. Validation scripts compare
-source and deployed hashes and inspect ONNX input/output contracts.
+The other files in `asl-web/data/` and `asl-web/assets/` (video links, the
+curated letter teaching data, `word_reference.json`, `model-card.json`, the
+sign reference images) are curated in place and have no separate source.
+`scripts/validation/contracts.py` is the single list of all of them. The
+validators compare hashes, check that the gzip copy decompresses to the deployed
+model, and inspect the ONNX inputs and outputs; do not edit a deployed copy on
+its own.
 
 ## External dependencies
 
-The page currently loads ONNX Runtime Web 1.22.0, MediaPipe Tasks Vision
-0.10.18, MediaPipe task assets, and `kjua` 0.9.0 from external hosts. Browser
-WebRTC, LocalStorage, Web Speech, and WebAssembly provide the remaining runtime
-capabilities.
+The page loads ONNX Runtime Web 1.22.0 and `kjua` 0.9.0 (QR codes) from
+jsDelivr with Subresource Integrity hashes. MediaPipe Tasks Vision 0.10.18 is
+imported from jsDelivr, and its three landmark models (version `1` of each) come
+from Google Cloud Storage. Fonts are self-hosted. The browser provides WebRTC
+for the camera, `localStorage`, Web Speech for reading the transcript aloud, and
+WebAssembly.
 
-Static hosting avoids a server dependency, but CDN availability remains a
-first-load and offline risk. Vendoring those dependencies would be a deployment
-change requiring size, license, cache, and browser compatibility review.
+Static hosting needs no server, but the CDNs are a first-load and offline risk.
+Bundling these files into `asl-web/` would change the deployment and needs a
+review of size, licences, caching and browser support. `asl-web/_headers` sends
+the security headers, including a report-only Content Security Policy.
 
 ## Failure modes
 
 | Failure | Effect | Detection or mitigation |
 |---|---|---|
-| CDN or task asset unavailable | Models or MediaPipe do not initialize | Readiness message and browser network inspection |
-| Wrong artifact copy | Shapes, labels, or results drift | Hash and ONNX contract validation |
-| Feature-order drift | Plausible but meaningless predictions | Python/JavaScript parity tests |
-| Handedness mismatch | Letter behavior changes by hand or camera | Standardization plus real-camera testing |
-| Missing face or shoulders | Word capture pauses or degrades | Visibility feedback and quality diagnostics |
-| Stale recording state | Motion leaks into the next word | Reset contract at every recording boundary |
-| Non-secure phone origin | Camera API is rejected | HTTPS deployment |
+| CDN or task file unavailable | Models or MediaPipe do not start | Status message; the browser Network panel |
+| Wrong artifact copy | Shapes, labels or results drift | Hash and ONNX contract validation |
+| Feature-order drift | Plausible but meaningless predictions | Python and JavaScript parity checks |
+| Handedness mismatch | Letter behaviour changes with hand or camera | Left-hand mirroring, plus a test on a real camera |
+| Missing face or shoulders | Word frames are not accepted | Framing readout, quality diagnostics, recording timeout |
+| Stale recording state | Motion leaks into the next word | Reset at every recording boundary |
+| Non-secure phone origin | The camera API is refused | HTTPS hosting |
 
-## Validation boundary
+## What the checks cover
 
-`make health` checks repository hygiene, runtime assets, provenance, model I/O,
-word and letter feature parity, and fast Python tests; `make check` adds the
-JSDoc type check. Neither can validate lighting, camera permissions,
-handedness metadata, device performance, or live signing. Those require a real
-browser and camera.
+| Command | Covers |
+|---|---|
+| `make health` | Lint, formatting, JavaScript syntax and Node tests, Git hygiene, runtime assets and hashes, ONNX contracts, word and letter feature parity, the fast Python tests. Needs no npm install. |
+| `make check` | `make health` plus the JSDoc type check. |
+| `make browser-check` | Real-Chrome facts the Node tests cannot see: cascade layers, hidden and mode-only rules, dark theme, horizontal overflow, camera release. Needs Chrome. |
+| `make deploy-check` | `make validate` plus a list of every file in `asl-web/`; run before every upload. |
+
+None of them covers lighting, camera permission prompts, handedness metadata,
+device speed or live signing. Those need a real browser, a camera and a person
+signing; see [Getting started](getting-started.md#static-deployment) for the
+manual checklist before an upload.
 
 ## Related documents
 
 - [Getting started](getting-started.md)
 - [Models and data](models-and-data.md)
 - [Project journey](project-journey.md)
+- [Web application notes](../asl-web/README.md)
+- [Browser module notes](../asl-web/js/README.md)

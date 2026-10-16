@@ -1,34 +1,33 @@
-# Training Notebooks and Results
+# Notebooks
 
-This directory keeps the notebook records needed to understand the word-model
-evolution. It is a training and research layer; the browser does not load
-notebooks at runtime.
+The training record for the word models. The browser never loads a notebook;
+these are here so you can see how the word models were built and read the
+results without retraining. The comments, explanations and figure names inside
+the notebooks are mostly in Turkish.
 
 | Path | Purpose |
 |---|---|
-| `word_50_training.ipynb` | Clean, rerunnable source for the final 50-class workflow |
-| `word_50_training_results.ipynb` | Executed companion preserving Kaggle metrics, logs, tables, and figures |
-| `word_25_desktop_training.ipynb` | Earlier 25-class BiGRU + Attention workflow used by the desktop prototype |
-| `word_50_results/` | Final 50-class metrics, figures, reports, analysis JSON, and smoke fixture |
+| `word_50_training.ipynb` | The clean, rerunnable source of the 50-word workflow behind the web model |
+| `word_50_training_results.ipynb` | The same workflow with its Kaggle outputs kept: metrics, logs, tables and figures |
+| `word_25_desktop_training.ipynb` | The earlier 25-word BiGRU workflow behind the desktop prototype's model |
+| `word_50_results/` | Metrics, figures, reports and analysis JSON from the 50-word run ([README](word_50_results/README.md)) |
 
-The final workflow was run on Kaggle with two Tesla T4 devices visible and
-`cuda:0` used by the single-model training flow. It used the Google Isolated
-Sign Language Recognition competition dataset. The clean and executed notebooks are
-kept separately so readers can rerun the code without carrying large outputs or
-inspect the recorded run without retraining. Exported model artifacts are
-organized under `models/word/web-50/`.
+The 50-word workflow ran on Kaggle, where two Tesla T4 GPUs were visible and
+training used `cuda:0` only. It uses the
+[Google Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs)
+competition data with a signer-independent split. The clean and executed
+notebooks are separate so you can rerun the code without hauling large outputs
+along, or read the recorded run without retraining. The exported models are in
+`models/word/web-50/`.
 
-The desktop notebook was kept from the earlier experiments because it produced
-the model still consumed by `asl-desktop`. Earlier 15-word and 25-word iterations, the
-standalone ablation notebook, the superseded GRU/Transformer comparison, and an
-unrelated video-classification experiment remain excluded: their useful
-findings are already represented by the final workflow or project history.
+The desktop notebook is the one that produced the model `asl-desktop` still
+loads. The earlier 15- and 25-word iterations, a standalone ablation notebook,
+an earlier GRU and Transformer comparison and an unrelated video-classification
+experiment are not published; the final workflow carries their useful findings.
 
-`word_50_results/figures/` contains the plots from the final 50-class run. The
-remaining JSON and text files preserve experiment decisions, class-level
-evaluation, and the runtime support data deployed to `asl-web/data/`.
-
-Key mappings:
+`word_50_results/figures/` holds the plots from the final run. The JSON and text
+files there record the experiment decisions and class-level results, and some of
+them are the runtime data deployed to `asl-web/data/`:
 
 ```text
 models/word/web-50/word_model.onnx  -> asl-web/models/word_model.onnx
@@ -40,22 +39,20 @@ notebooks/word_50_results/curriculum.json      -> asl-web/data/curriculum.json
 notebooks/word_50_results/test_sample.json     -> asl-web/data/test_sample.json
 ```
 
-The notebook's flat export uses `final_model.pt` and `word_to_idx.json`.
-Within the curated registry those files are named
-`models/word/web-50/word_model.pt` and
-`models/word/web-50/word_labels.json`. `manifest.json` keeps the original export
-names and hashes; it is not a second set of missing model files.
+The notebook's flat export names the checkpoint `final_model.pt` and the label
+file `word_to_idx.json`. In the repository they are `models/word/web-50/word_model.pt`
+and `models/word/web-50/word_labels.json`. `word_50_results/manifest.json` keeps
+the original names and hashes, so it is not a list of missing files.
 
-Do not rerun a notebook merely to refresh timestamps or cell output. A new
-training/export run is a model change and must update model artifacts, deployed
-copies, metrics, fixtures, documentation, and provenance validation together.
-
-Validation:
+Do not rerun a notebook just to refresh its timestamps or outputs. A new training
+and export run changes the model: the model files, deployed copies, metrics,
+fixtures, documentation and provenance checks all have to be updated together
+(see [Models and data](../docs/models-and-data.md#safe-update-procedure)).
 
 ```bash
-make notebook-check
-make health
+make notebook-check   # the notebooks, models and result files are in place
+make health           # the full set of repository checks
 ```
 
-See [Models and data](../docs/models-and-data.md) and the
+More context: [Models and data](../docs/models-and-data.md) and the
 [project journey](../docs/project-journey.md).

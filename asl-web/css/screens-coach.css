@@ -1,0 +1,353 @@
+/* Coach screen: the target tile on the stage, the plate's coach parts, the
+ * session row, the dock and the study cards.
+ *
+ * Everything here builds on the shared stage, plate, dock, panel and toast;
+ * nothing restyles them for the other screens. Rules that name the coach start
+ * from .app-shell[data-mode="coach"] or from a coach-only part, so no other
+ * screen can pick one up. The layer comes after layout and components, so a
+ * rule here wins over theirs for the same property.
+ */
+
+@layer screens {
+  /* ── Icons the shared set does not have ───────────────────────────── */
+  [data-icon="check"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E"); }
+  [data-icon="skip"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 5l9 7-9 7z'/%3E%3Cpath d='M19 5v14'/%3E%3C/svg%3E"); }
+  [data-icon="chevron"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); }
+
+  /* ── The stage: the status chip steps aside for the target ───────────
+     The plate and the empty state carry the status in the coach. */
+  .app-shell[data-mode="coach"] .stage-chip { display: none; }
+  .app-shell[data-mode="coach"] .stage__top { justify-content: flex-end; }
+
+  /* ── Target tile ──────────────────────────────────────────────────── */
+  .target-tile {
+    position: absolute;
+    inset: var(--sp-3) auto auto var(--sp-3);
+    z-index: var(--z-stage-hud);
+    display: flex;
+    align-items: stretch;
+    gap: var(--sp-2);
+    padding: var(--sp-2);
+    border: 1px solid var(--stage-line);
+    border-radius: var(--r-l);
+    background: var(--stage-raised);
+    color: var(--stage-text);
+  }
+  .target-tile__ref {
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: var(--sp-1);
+    width: 5rem;
+    min-height: var(--size-target);
+    padding: var(--sp-2);
+    border: 1px solid var(--stage-line);
+    border-radius: var(--r-m);
+    background: var(--stage-bg);
+    color: var(--stage-text-2);
+    font: inherit;
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+    text-align: center;
+    cursor: pointer;
+  }
+  .target-tile__ref:hover { color: var(--stage-text); }
+  .target-tile__main {
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    min-width: 3rem;
+    padding-inline: var(--sp-2);
+  }
+  .target-tile__label { font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--stage-text-2); }
+  .target-tile__glyph {
+    font-size: 2.75rem;
+    font-weight: var(--fw-heavy);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  /* A word has no reference tile of its own yet, and its text can be long. */
+  .target-tile[data-kind="word"] .target-tile__glyph {
+    max-width: 7ch;
+    font-size: var(--fs-lg);
+    line-height: var(--lh-tight);
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+    text-align: center;
+  }
+
+  /* ── Plate: what the coach adds ───────────────────────────────────── */
+  .app-shell[data-mode="coach"] .plate__level .signal,
+  .app-shell[data-mode="coach"] .plate__pct { display: none; }
+  .plate__cue {
+    margin: 0;
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+    color: var(--stage-text-2);
+    text-wrap: pretty;
+  }
+  .stage:has(> .stage__empty:not([hidden])) + .plate .plate__cue { text-align: center; }
+
+  /* A counted hold: a lock-coloured check in place of the ring and the seen
+     letter. */
+  .plate__check {
+    display: none;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--stage-lock);
+    color: var(--stage-on-button);
+    --size-icon: 22px;
+  }
+  .app-shell[data-mode="coach"] .stage[data-state="good"] + .plate .plate__check { display: grid; }
+  .app-shell[data-mode="coach"] .stage[data-state="good"] + .plate .plate__visual { width: auto; height: auto; }
+  .app-shell[data-mode="coach"] .stage[data-state="good"] .confidence-ring,
+  .app-shell[data-mode="coach"] .stage[data-state="good"] + .plate .plate__glyph { display: none; }
+
+  .plate__advance {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    margin-top: var(--sp-1);
+  }
+  .plate__bar {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--stage-bar-off);
+    overflow: hidden;
+  }
+  .plate__bar > i {
+    display: block;
+    height: 100%;
+    background: var(--stage-lock);
+    transform-origin: left center;
+    animation: coach-advance var(--advance-ms, 2500ms) linear forwards;
+  }
+  @keyframes coach-advance { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  /* Reduced motion: the bar does not move. The wait itself still runs, and
+     the plate names the next letter in words. */
+  @media (prefers-reduced-motion: reduce) {
+    .plate__bar > i { animation: none; transform: none; }
+  }
+  .plate__stay { flex: none; min-height: var(--size-target); padding-inline: var(--sp-3); }
+
+  /* ── Session row ──────────────────────────────────────────────────── */
+  .session {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    min-height: 56px;
+    padding: 0 var(--sp-4);
+    border: 1px solid var(--color-line);
+    border-radius: var(--r-strip);
+    background: var(--color-surface);
+  }
+  .session__button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-height: var(--size-target);
+    margin-inline-end: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    font-weight: var(--fw-bold);
+    cursor: pointer;
+  }
+  /* The chevron follows the words, as in the prototype. */
+  .session__button[data-icon]::before { content: none; }
+  .session__button[data-icon]::after {
+    content: "";
+    flex: none;
+    width: var(--size-icon);
+    height: var(--size-icon);
+    background: currentColor;
+    -webkit-mask: var(--icon) center / contain no-repeat;
+    mask: var(--icon) center / contain no-repeat;
+  }
+  .session__button[aria-expanded="true"]::after { transform: rotate(180deg); }
+  .session__count, .session__flow { display: none; font-weight: var(--fw-bold); white-space: nowrap; }
+  .session__count .num { font-weight: var(--fw-semibold); }
+  /* Learning goes on in the order of the lessons: no count to show. */
+  .session[data-flow="learn"] .session-dots,
+  .session[data-flow="learn"] .session__count { display: none; }
+
+  .session-dots { display: inline-flex; align-items: center; gap: 6px; }
+  .session-dots > span {
+    box-sizing: border-box;
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid var(--color-control);
+    border-radius: 50%;
+  }
+  .session-dots > [data-state="hit"] { border-color: var(--color-text); background: var(--color-text); }
+  .session-dots > [data-state="active"] { border-width: 2px; border-color: var(--color-text); }
+
+  /* ── Dock ─────────────────────────────────────────────────────────── */
+  .app-shell[data-mode="coach"] .dock > .btn { flex: 0 0 auto; }
+  .app-shell[data-mode="coach"] .dock > .btn--grow { flex: 1 1 8rem; }
+  /* One control carries .btn--primary in the markup, the one that moves on;
+     the hint takes the same look while it is the step on offer. */
+  .dock .coach-hint:not(:disabled) {
+    border-color: transparent;
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+  }
+  .dock .coach-hint:not(:disabled):hover {
+    background: color-mix(in srgb, var(--color-primary) 86%, var(--color-surface));
+  }
+  .coach-next::after {
+    content: "";
+    flex: none;
+    width: var(--size-icon);
+    height: var(--size-icon);
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14'/%3E%3Cpath d='m13 6 6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14'/%3E%3Cpath d='m13 6 6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+
+  /* ── Study cards ──────────────────────────────────────────────────── */
+  .coach-study { display: grid; gap: var(--sp-3); }
+  .coach-study .modes { display: flex; }
+  .coach-study .modes__item { min-height: 40px; padding-inline: var(--sp-3); }
+  .coach-words { display: grid; gap: var(--sp-2); }
+  .coach-study__close { display: none; }
+  .coach-study__reset { justify-self: start; min-height: 40px; padding-inline: var(--sp-3); color: var(--color-text-2); }
+
+  .letter-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: var(--sp-2);
+  }
+  .letter-grid__item {
+    position: relative;
+    aspect-ratio: 1;
+    min-height: 40px;
+    padding: 0;
+    border: 1.5px solid var(--color-control);
+    border-radius: var(--r-m);
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    font-size: var(--fs-md);
+    font-weight: var(--fw-bold);
+    cursor: pointer;
+  }
+  .letter-grid__item:hover { background: var(--color-sunken); }
+  /* Done: a check as well as a fill, so colour is never the only sign. */
+  .letter-grid__item[data-state="done"] { border-color: transparent; background: var(--color-sunken); }
+  .letter-grid__item[data-state="done"]::after {
+    content: "";
+    position: absolute;
+    inset: 3px 3px auto auto;
+    width: 12px;
+    height: 12px;
+    background: var(--color-text);
+    -webkit-mask: var(--icon-check) center / contain no-repeat;
+    mask: var(--icon-check) center / contain no-repeat;
+    --icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+  }
+  .letter-grid__item[data-state="current"] {
+    border-color: transparent;
+    background: var(--color-selected-bg);
+    color: var(--color-selected-fg);
+  }
+  .letter-grid__item[aria-disabled="true"] { opacity: 0.55; cursor: default; }
+
+  /* ── Phone and tablet: the study cards are a sheet ─────────────────── */
+  @media (max-width: 63.99rem) {
+    .coach-study {
+      display: none;
+      position: fixed;
+      inset: auto 0 0;
+      z-index: var(--z-popover);
+      max-height: 85dvh;
+      overflow: auto;
+      padding: var(--sp-3) var(--sp-3) calc(var(--sp-3) + env(safe-area-inset-bottom));
+      border-radius: var(--r-l) var(--r-l) 0 0;
+      background: var(--color-page);
+      /* The spread dims the screen behind the sheet. */
+      box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.5);
+    }
+    .coach-study[data-open="true"] { display: grid; }
+    .coach-study__close { display: inline-flex; }
+    .letter-grid__item { min-height: var(--size-target); }
+    .letter-grid { gap: var(--sp-2); }
+    /* The toast sits below the target tile, not over it. */
+    .app-shell[data-mode="coach"] .toast { inset-block-start: calc(var(--sp-3) + 100px); }
+  }
+
+  /* The coach's first-visit headline is long, and the tile already takes the
+     top of the stage: the illustration makes room, and the cue waits for the
+     camera so it does not run into the facts. */
+  @media (max-width: 63.99rem) {
+    .app-shell[data-mode="coach"] .stage__illustration { display: none; }
+    .app-shell[data-mode="coach"] .stage:has(> .stage__empty:not([hidden])) + .plate .plate__cue { display: none; }
+    /* Below the tile, not under it. */
+    .app-shell[data-mode="coach"] .stage__empty { padding-top: calc(var(--sp-3) + 80px + var(--sp-4)); }
+  }
+
+  /* A short phone, portrait or landscape, cannot fit the tile above the
+     first-visit content. The target means nothing until the camera is on, so
+     the tile waits for it there and the content keeps the stage's own room. */
+  @media (max-width: 63.99rem) and (max-height: 44rem) {
+    .app-shell[data-mode="coach"] .stage:has(> .stage__empty:not([hidden])) > .target-tile { display: none; }
+    .app-shell[data-mode="coach"] .stage__empty { padding-top: revert-layer; }
+  }
+
+  /* The narrowest phones: the camera button keeps its icon and its name for a
+     screen reader, so it leaves room for the tile beside it. */
+  @media (max-width: 22.5rem) {
+    .app-shell[data-mode="coach"] .stage__close {
+      width: var(--size-target);
+      min-height: var(--size-target);
+      padding: 0;
+      gap: 0;
+      font-size: 0;
+    }
+  }
+
+  /* Short, narrow phones: the compact tile keeps its icon, not its label. */
+  @media (max-width: 22.5rem), (max-height: 36rem) {
+    .target-tile__ref { width: var(--size-target); height: var(--size-target); padding: 0; }
+    .target-tile__ref > span {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .target-tile__glyph { font-size: 2.5rem; }
+    .app-shell[data-mode="coach"] .toast { inset-block-start: calc(var(--sp-3) + 76px); }
+  }
+
+  /* Phone landscape: the target stays small, and the right column has no
+     room for the session's long label. */
+  @media (orientation: landscape) and (max-height: 32rem) {
+    .session { min-height: 44px; padding-inline: var(--sp-3); }
+    .session__button { font-size: var(--fs-sm); }
+  }
+
+  /* ── Laptop ───────────────────────────────────────────────────────── */
+  @media (min-width: 64rem) {
+    .target-tile__ref { width: 7.5rem; min-height: 7.5rem; }
+    .target-tile__glyph { font-size: 6rem; }
+    .target-tile[data-kind="word"] .target-tile__glyph { font-size: var(--fs-xl); max-width: 9ch; }
+    .target-tile__main { min-width: 5rem; }
+    .app-shell[data-mode="coach"] .plate { max-width: min(35rem, 60%); }
+    .session { min-height: 60px; }
+    .session__button { display: none; }
+    .session__flow { display: inline; margin-inline-end: auto; }
+    .session__count { display: inline; }
+    .session[data-flow="learn"] .session__flow { margin-inline-end: 0; }
+    .coach-study { gap: var(--sp-3); }
+    .letter-grid { grid-template-columns: repeat(6, 40px); justify-content: space-between; gap: var(--sp-3) var(--sp-2); }
+    .letter-grid__item { min-height: 0; }
+  }
+}

@@ -294,7 +294,7 @@ DATASET_DOMAINS = {
 # what queryAllUi() collects; their count is a design decision, so only their
 # presence is fixed here.
 UI_HOOKS_SINGLE = ("app-shell", "workspace")
-UI_HOOKS_GROUP = ("workspace-pane", "mode-tab", "coach-step", "word-step")
+UI_HOOKS_GROUP = ("workspace-pane", "mode-tab", "word-step")
 
 # Hooks the scripts put on elements they build themselves. These are absent from
 # index.html by definition, so they are checked against the assignment instead.
@@ -777,11 +777,10 @@ def test_guided_ux_keeps_primary_reference_and_test_actions_visible() -> None:
 
     side_panel_pos = html.first_with_class("side-panel")
     reference_pos = html.first_with_class("app-reference")
-    coach_pos = html.first_with_class("coach-card")
     advanced_pos = html.first_with_class("model-test-advanced")
     task_switch_pos = html.first_with_class("model-test-task-switch")
 
-    assert side_panel_pos < reference_pos < coach_pos
+    assert side_panel_pos < reference_pos
     assert advanced_pos < task_switch_pos
     assert html.has("p", class_name="model-test-simple-copy")
     assert html.has("details", class_name="word-demo-card")

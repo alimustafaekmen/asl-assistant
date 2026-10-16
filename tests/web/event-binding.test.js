@@ -113,7 +113,6 @@ test("trigger buttons elsewhere in the markup reach the same camera commands", (
   app.evaluate(`
     globalThis.__fired = [];
     toggleCamera = () => __fired.push("camera");
-    startCoachStudy = () => __fired.push("coach");
     globalThis.__clicks = new Map();
     const realQueryAll = document.querySelectorAll;
     document.querySelectorAll = (selector) => {
@@ -128,10 +127,9 @@ test("trigger buttons elsewhere in the markup reach the same camera commands", (
 
   const clicks = app.evaluate("__clicks");
   assert.ok(clicks.has("camera"), "a camera trigger should get a click handler");
-  assert.ok(clicks.has("coach-start"), "a coach start trigger should get a click handler");
+  assert.ok(!clicks.has("coach-start"), "the coach starts the camera with the shared camera trigger");
   clicks.get("camera")();
-  clicks.get("coach-start")();
-  assert.deepStrictEqual([...app.evaluate("__fired")], ["camera", "coach"]);
+  assert.deepStrictEqual([...app.evaluate("__fired")], ["camera"]);
 });
 
 test("choosing a mode from the phone menu closes the menu", () => {

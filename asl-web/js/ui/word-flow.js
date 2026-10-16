@@ -50,6 +50,7 @@ const WORD_END_COPY = {
   "download-failed":
     "Kelime tanıma için gereken dosyalar indirilemedi. Bağlantınızı kontrol edip yeniden deneyin.",
   hidden: "Sayfa arka plana geçtiği için kayıt iptal edildi.",
+  cancelled: "Kayıt iptal edildi.",
 };
 
 /**
@@ -57,6 +58,14 @@ const WORD_END_COPY = {
  * wait would only wait on the same download and report its outcome again.
  */
 let _wordModelWait = false;
+
+/**
+ * How many record presses have waited on the word model. A model status report
+ * compares it before and after its own wait, to learn whether a press took
+ * the outcome over: the press tells the user in words that fit what it was
+ * doing, and a second report would talk over it.
+ */
+let wordModelPresses = 0;
 
 /**
  * Say why the last recording did not finish, and keep the reason in state.
@@ -175,6 +184,61 @@ function endWordRecordingEarly(reason) {
 }
 
 /**
+ * Cancel a countdown or a recording at the user's request.
+ *
+ * This is the one way the user leaves a recording, from the Vazgeç button and
+ * from Escape. A recording already in PROCESSING cannot be cancelled: it is
+ * one model call, and its result is discarded by the same checks that guard
+ * a mode change.
+ *
+ * @returns {void}
+ */
+function cancelWordRecording() {
+  endWordRecordingEarly("cancelled");
+}
+
+/**
+ * Act on a key in word mode. The caller has already left modified keys alone.
+ *
+ * Enter records, or records again from a result; Space accepts the result
+ * through the same guard as the accept button; Escape cancels a countdown or
+ * a recording, from anywhere. A focused button, link or field keeps Enter and
+ * Space for itself. There are deliberately no single-letter keys.
+ *
+ * @param {{key: string, code?: string, preventDefault: () => void}} event
+ * @param {boolean} fromControl Whether focus was on a button, link or field.
+ * @returns {boolean} Whether the key was taken.
+ */
+function handleWordKey(event, fromControl) {
+  if (event.key === "Escape") {
+    if (state.wordState !== "COUNTDOWN" && state.wordState !== "RECORDING") return false;
+    event.preventDefault();
+    cancelWordRecording();
+    els.recordWord?.focus();
+    return true;
+  }
+  if (fromControl) return false;
+  // A key is taken from the browser only when it does something here, so with
+  // no result or no camera it stays the browser's.
+  if (event.code === "Space") {
+    if (state.wordState !== "RESULT") return false;
+    event.preventDefault();
+    const assessment = wordResultAccepted ? null : assessWordResult();
+    if (assessment && !assessment.canAppend) announce("Sonuç yeterince net olmadığı için eklenemez.");
+    else appendWordResultToTranscript();
+    return true;
+  }
+  if (event.key === "Enter") {
+    if (!state.cameraOn || (state.wordState !== "IDLE" && state.wordState !== "RESULT")) return false;
+    event.preventDefault();
+    if (state.wordState === "IDLE") startWordRecording();
+    else retryWordRecording();
+    return true;
+  }
+  return false;
+}
+
+/**
  * Start a word recording: check readiness, clear the buffers, count down, then
  * hand over to live inference.
  *
@@ -208,6 +272,7 @@ async function startWordRecording() {
   const cameraSession = state.stream;
   if (!wordSession) setMessage("Kelime tanıma indiriliyor…", "maybe");
   _wordModelWait = true;
+  wordModelPresses += 1;
   let modelReady = false;
   try {
     modelReady = await ensureWordModel();
@@ -332,9 +397,19 @@ function updateWordState() {
     RESULT: "Sonuç",
   };
   els.wordStateLabel.textContent = labels[state.wordState] || state.wordState;
-  els.frameProgress.style.width = `${Math.round(
-    (state.wordFrames / CONFIG.WORD_FRAME_COUNT) * 100,
-  )}%`;
+  // The stylesheet shows and hides the plate, the readout and the dock's
+  // buttons from this one attribute; it is separate from data-state, which
+  // the letter screen's confidence colours own.
+  const step = state.wordState.toLowerCase();
+  els.cameraStage.dataset.wordStep = step;
+  els.controlBar.dataset.wordStep = step;
+  const percent = clampPercent((state.wordFrames / CONFIG.WORD_FRAME_COUNT) * 100);
+  els.frameProgress.style.width = `${percent}%`;
+  if (els.wordHudPercent) els.wordHudPercent.textContent = `%${percent}`;
+  if (els.wordHudStep) els.wordHudStep.textContent = state.wordState === "COUNTDOWN" ? "Hazırlanın" : "Kayıt";
+  // Read by assistive technology without a live region: a bar that speaks
+  // with every frame would drown everything else.
+  els.wordProgress?.setAttribute("aria-valuenow", String(percent));
   updateWordRecordingHud();
   if (state.wordState === "PROCESSING")
     els.wordStateHint.textContent = "Kayıt tamamlandı; sonuç hazırlanıyor.";
@@ -515,25 +590,37 @@ function syncRecordButton() {
   // The pose and face tasks start with the camera, so before it nothing is
   // loading: ask for the camera instead of claiming progress.
   if (wordCapableMode && !state.cameraOn) {
-    els.recordWord.title = "Kelime kaydı için önce kamerayı başlatın.";
-    els.recordWord.textContent = "Önce Kamerayı Başlat";
+    els.recordWord.title = "Kelime kaydı için önce kamerayı açın.";
+    setButtonLabel(els.recordWord, "Kamera kapalı");
   } else if (wordCapableMode && !wordPipelineReady) {
     els.recordWord.title = "Yüz ve omuz izleme yükleniyor…";
-    els.recordWord.textContent =
-      state.mode === "coach" ? "Kelime Pratiği Yükleniyor" : "Kelime Kaydı Yükleniyor";
+    setButtonLabel(els.recordWord, state.mode === "coach" ? "Kelime Pratiği Yükleniyor" : "Yükleniyor…");
   } else if (wordFlowBusy) {
     els.recordWord.title = "Bu kayıt akışı tamamlanınca yeni kayıt alınabilir.";
-    els.recordWord.textContent =
-      state.wordState === "PROCESSING" ? "Sonuç Hazırlanıyor" : "Kayıt Sürüyor";
+    setButtonLabel(els.recordWord, state.wordState === "PROCESSING" ? "Sonuç hazırlanıyor…" : "Kayıt sürüyor");
   } else {
     els.recordWord.title = "";
-    els.recordWord.textContent =
-      state.mode === "coach"
-        ? "Kelime Pratiği"
-        : state.wordState === "RESULT"
-          ? "Yeni Kelime Kaydı"
-          : "Kelime Kaydı Başlat";
+    setButtonLabel(
+      els.recordWord,
+      state.mode === "coach" ? "Kelime Pratiği" : state.wordState === "RESULT" ? "Yeni kayıt" : "Kaydı başlat",
+    );
   }
+}
+
+/**
+ * Write a button's label without removing the key hint or icon beside it.
+ *
+ * A button that has a [data-label] child keeps everything else it holds; one
+ * that has none has its whole text replaced.
+ *
+ * @param {HTMLElement} button
+ * @param {string} text
+ * @returns {void}
+ */
+function setButtonLabel(button, text) {
+  const label = button.querySelector("[data-label]");
+  if (label) label.textContent = text;
+  else button.textContent = text;
 }
 
 /**
@@ -549,16 +636,12 @@ function syncActionBar() {
   if (els.cameraToggle) {
     els.cameraToggle.textContent = state.cameraOn ? "Kamerayı kapat" : "Kamerayı aç";
   }
-  if (els.coachStart) {
-    els.coachStart.textContent = state.cameraOn ? "Çalışmayı Durdur" : "Çalışmayı Başlat";
-  }
   const videoTarget =
     state.mode === "word"
       ? (state.prediction && state.prediction.length > 1 ? state.prediction : "")
       : state.coachTarget;
   const videoUrl = buildReferenceVideoUrl(state.mode, videoTarget);
   if (els.actionVideoLink) els.actionVideoLink.href = videoUrl;
-  if (els.coachVideoLink) els.coachVideoLink.href = videoUrl;
   if (els.appendWordResult) {
     const assessment = assessWordResult();
     els.appendWordResult.disabled =
@@ -573,6 +656,12 @@ function syncActionBar() {
       : els.appendWordResult.disabled
         ? "Sonuç yeterince net olduğunda metne eklenebilir."
         : "Sonuç doğruysa metne ekleyin.";
+    setButtonLabel(els.appendWordResult, wordResultAccepted ? "Eklendi" : "Metne ekle");
+  }
+  // Once the result is accepted the dock offers a new recording first.
+  els.controlBar.dataset.wordAccepted = String(wordResultAccepted && state.wordState === "RESULT");
+  if (els.cancelWord) {
+    els.cancelWord.hidden = state.wordState !== "COUNTDOWN" && state.wordState !== "RECORDING";
   }
   if (els.retryWord) {
     els.retryWord.disabled =

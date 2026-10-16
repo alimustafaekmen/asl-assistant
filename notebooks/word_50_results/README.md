@@ -1,31 +1,49 @@
-# 50-Word Experiment Results
+# 50-word experiment results
 
-This directory contains evaluation and analysis outputs from the clean training
-source `../word_50_training.ipynb`. The complete executed notebook is preserved
-separately as `../word_50_training_results.ipynb`.
+Everything the final 50-word run wrote besides the model files: metrics, reports,
+figures and the small JSON files the web app reads. The code that produced them
+is `../word_50_training.ipynb`; the same notebook with its outputs kept is
+`../word_50_training_results.ipynb`.
 
-- `all_experiment_results.json` records feature, sequence-length, architecture,
-  and final-training comparisons.
-- `classification_report.txt` contains the final per-class evaluation.
-- `per_word_stats.json`, `confusion_pairs.json`, and `curriculum.json` support
-  analysis and selected web data views.
-- `test_sample.json` is a deterministic ONNX smoke fixture, not an accuracy
-  benchmark.
-- `figures/` contains the exported plots from the final run.
-- `manifest.json` and `README_EXPORT.txt` describe the Kaggle export bundle and
-  therefore retain its flat artifact filenames. The README's notebook name was
-  normalized to the current repository filename.
+The final model scores 71.92% accuracy and 0.714 macro-F1 on 3,918 samples from 4
+test signers who appear in no other partition.
 
-The model files from that bundle are organized separately under
-`../../models/word/web-50/`. In the repository, `final_model.pt` is named
-`word_model.pt`, and `word_to_idx.json` is named `word_labels.json`.
+| File | Contents |
+|---|---|
+| `all_experiment_results.json` | The feature, sequence-length and architecture comparisons, the final run and the split metadata |
+| `classification_report.txt` | Precision, recall and F1 for each of the 50 words |
+| `per_word_stats.json`, `confusion_pairs.json`, `curriculum.json` | Accuracy, F1 and difficulty per word, the most confused word pairs, and a learning order; copies are deployed in `asl-web/data/` |
+| `test_sample.json` | A synthetic input for checking that the ONNX model runs. It is not an accuracy benchmark |
+| `figures/` | The plots from the final run (below) |
+| `manifest.json`, `README_EXPORT.txt` | Description of the Kaggle export bundle, with its original flat file names. `README_EXPORT.txt` is in Turkish |
 
-`manifest.json` reports 21 package files while its `files` array has 20
-entries. This is intentional: the count includes the manifest itself, while
-the array contains the other files and cannot safely include a hash of itself.
-The repository validation test resolves the renamed model/label files and the
-`figures/` subdirectory before checking sizes and SHA-256 values.
+## Figures
 
-Do not compare these 50-class results directly with the earlier 25-class
-desktop score: the class set, feature representation, sequence contract, and
-evaluation run are different.
+The file names are Turkish, as in the notebook.
+
+| Figure | Shows |
+|---|---|
+| `01_kelime_dagilimi.png` | How many samples each of the 50 words has |
+| `02_sekans_uzunluk.png` | The distribution of recording lengths in frames |
+| `03_feature_ablasyonu.png` | Validation and test F1 for the six feature sets |
+| `03_sekans_karsilastirma.png` | Fixed 30 frames, 45 frames with mask, and the motion variant |
+| `04_model_karsilastirma.png` | Model F1, parameter count, training curves and inference speed |
+| `05_full_training_egrileri.png` | Loss and validation metrics of the final training run |
+| `06_kelime_bazli_f1.png` | F1 per word: which words are easy or hard |
+| `07_confusion_matrix.png` | Which words are mistaken for which |
+| `08_tum_deneyler_ozet.png` | The whole chain of experiments on one chart |
+| `09_confusion_top_pairs.png` | The most confused word pairs as a list |
+
+## The export bundle and the repository names
+
+The model files from the Kaggle bundle are in `../../models/word/web-50/`. There
+`final_model.pt` is `word_model.pt` and `word_to_idx.json` is `word_labels.json`;
+`manifest.json` still lists the original names.
+
+`manifest.json` reports `num_files: 21` but its `files` array has 20 entries. That
+is intended: the count includes the manifest itself, and a file cannot contain its
+own hash. The validation step resolves the renamed files and the `figures/`
+folder before it checks sizes and SHA-256 values.
+
+Do not compare these results with the 25-word desktop model's score. The
+vocabulary, features, sequence length and evaluation split are all different.

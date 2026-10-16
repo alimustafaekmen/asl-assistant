@@ -39,8 +39,9 @@
  * recording never started.
  * "hidden": the page went to the background during the countdown or the
  * recording.
+ * "cancelled": the user cancelled the countdown or the recording.
  *
- * @typedef {"timeout" | "download-failed" | "hidden"} WordEnd
+ * @typedef {"timeout" | "download-failed" | "hidden" | "cancelled"} WordEnd
  */
 
 /**
@@ -138,6 +139,25 @@
  * @typedef {Object} ReferenceVideoLinks
  * @property {string} alphabet_video
  * @property {Record<string, string>} words
+ */
+
+/**
+ * Where one word's card sits on its reference page, from data/word_reference.json.
+ *
+ * @typedef {Object} WordCard
+ * @property {string} label The word as the model names it, e.g. "thankyou".
+ * @property {number} card 1-based position, also the number printed on the card.
+ * @property {number} page 1-based reference page.
+ * @property {[number, number, number, number]} rect x, y, width, height as fractions of the page.
+ * @property {string} title The display form, e.g. "thank you".
+ * @property {string} gloss The Turkish gloss; shown only once reviewed.
+ */
+
+/**
+ * @typedef {Object} WordReference
+ * @property {[number, number]} pageSize Page image size in pixels.
+ * @property {boolean} glossReviewed Whether a signer has reviewed the glosses.
+ * @property {WordCard[]} cards Every card, in card order.
  */
 
 /**
@@ -376,6 +396,7 @@ const els = {
   cameraToggle: document.getElementById("cameraToggle"),
   recordWord: optionalElement("recordWord", HTMLButtonElement),
   retryWord: optionalElement("retryWord", HTMLButtonElement),
+  cancelWord: optionalElement("cancelWord", HTMLButtonElement),
   appendWordResult: optionalElement("appendWordResult", HTMLButtonElement),
   actionVideoLink: optionalElement("actionVideoLink", HTMLAnchorElement),
   speakText: document.getElementById("speakText"),
@@ -396,13 +417,23 @@ const els = {
   wordStateCard: requireElement("wordStateCard"),
   wordStateLabel: requireElement("wordStateLabel"),
   frameProgress: requireElement("frameProgress"),
+  // The recording readout at the top of the stage.
+  wordProgress: document.getElementById("wordProgress"),
+  wordHudStep: document.getElementById("wordHudStep"),
+  wordHudPercent: document.getElementById("wordHudPercent"),
   wordStateHint: requireElement("wordStateHint"),
   wordResultGuide: document.getElementById("wordResultGuide"),
   wordResultDecision: document.getElementById("wordResultDecision"),
   wordResultAction: document.getElementById("wordResultAction"),
-  coachCard: requireElement("coachCard"),
+  // The coach screen. The tile, the verdict, the grid and the study cards are
+  // the screen itself, so a page without them cannot start; the dock and the
+  // plate's extras are optional, like the other action buttons.
+  coachStudy: requireElement("coachStudy"),
+  coachTargetTile: requireElement("coachTargetTile"),
+  coachTargetGlyph: requireElement("coachTargetGlyph"),
+  coachVerdict: requireElement("coachVerdict"),
+  coachGrid: requireElement("coachGrid"),
   coachTarget: requireElement("coachTarget", HTMLSelectElement),
-  coachTargetBig: requireElement("coachTargetBig"),
   coachHint: requireElement("coachHint"),
   coachScore: requireElement("coachScore"),
   coachProgress: requireElement("coachProgress"),
@@ -416,15 +447,28 @@ const els = {
   removeLastChar: document.getElementById("removeLastChar"),
   coachLettersOnly: document.getElementById("coachLettersOnly"),
   coachWordsOnly: document.getElementById("coachWordsOnly"),
-  coachStart: document.getElementById("coachStart"),
-  coachCheck: document.getElementById("coachCheck"),
+  coachFlowGroup: document.getElementById("coachFlowGroup"),
+  coachContentGroup: document.getElementById("coachContentGroup"),
+  coachLetterPicker: document.getElementById("coachLetterPicker"),
+  coachWordPicker: document.getElementById("coachWordPicker"),
+  coachDone: document.getElementById("coachDone"),
+  coachGridNote: document.getElementById("coachGridNote"),
+  coachStorageNote: document.getElementById("coachStorageNote"),
+  coachReset: document.getElementById("coachReset"),
+  coachReference: document.getElementById("coachReference"),
+  coachAdvance: document.getElementById("coachAdvance"),
+  coachAdvanceBar: document.getElementById("coachAdvanceBar"),
+  coachStay: document.getElementById("coachStay"),
+  coachSession: document.getElementById("coachSession"),
+  coachSessionButton: document.getElementById("coachSessionButton"),
+  coachSessionLabel: document.getElementById("coachSessionLabel"),
+  coachSessionFlow: document.getElementById("coachSessionFlow"),
+  coachSheetClose: document.getElementById("coachSheetClose"),
   coachNextTarget: document.getElementById("coachNextTarget"),
-  coachVideoLink: optionalElement("coachVideoLink", HTMLAnchorElement),
-  coachFlowTitle: document.getElementById("coachFlowTitle"),
-  coachFlowText: document.getElementById("coachFlowText"),
-  coachModeLabel: document.getElementById("coachModeLabel"),
-  coachNextActionTitle: document.getElementById("coachNextActionTitle"),
-  coachNextActionText: document.getElementById("coachNextActionText"),
+  coachHintButton: document.getElementById("coachHintButton"),
+  coachRepeat: document.getElementById("coachRepeat"),
+  coachNext: document.getElementById("coachNext"),
+  coachCheck: document.getElementById("coachCheck"),
   referenceKicker: document.getElementById("referenceKicker"),
   referenceTitle: document.getElementById("referenceTitle"),
   referenceNote: document.getElementById("referenceNote"),
@@ -436,6 +480,7 @@ const els = {
   debugFrames: requireElement("debugFrames"),
   debugLatency: requireElement("debugLatency"),
   projectScreen: document.getElementById("projectScreen"),
+  projectNumbers: document.getElementById("projectNumbers"),
   modelTestScreen: document.getElementById("modelTestScreen"),
   qrScreen: document.getElementById("qrScreen"),
   workspaceMain: queryUi("workspace"),
@@ -449,10 +494,6 @@ const els = {
   wordDemoList: document.getElementById("wordDemoList"),
   wordRiskList: document.getElementById("wordRiskList"),
   wordConfusionList: document.getElementById("wordConfusionList"),
-  showDemoFlow: document.getElementById("showDemoFlow"),
-  showTechSummary: document.getElementById("showTechSummary"),
-  demoFlowSection: document.getElementById("demoFlowSection"),
-  techSummarySection: document.getElementById("techSummarySection"),
   modelTestSampleStatus: document.getElementById("modelTestSampleStatus"),
   modelTestSampleFile: document.getElementById("modelTestSampleFile"),
   modelTestFileName: document.getElementById("modelTestFileName"),
@@ -477,12 +518,17 @@ const els = {
   modelTestShapeLabel: document.getElementById("modelTestShapeLabel"),
   modelTestMaskLabel: document.getElementById("modelTestMaskLabel"),
   modelTestBatch: document.getElementById("modelTestBatch"),
+  runModelTestBatch: document.getElementById("runModelTestBatch"),
+  modelTestBatchHint: document.getElementById("modelTestBatchHint"),
+  modelTestNoteLetter: document.getElementById("modelTestNoteLetter"),
+  modelTestNoteWord: document.getElementById("modelTestNoteWord"),
   modelTestSummary: document.getElementById("modelTestSummary"),
   modelTestRows: document.getElementById("modelTestRows"),
   qrCanvas: document.getElementById("qrCanvas"),
   qrDemoUrl: document.getElementById("qrDemoUrl"),
   qrOpenDemo: optionalElement("qrOpenDemo", HTMLAnchorElement),
   qrCopyDemo: document.getElementById("qrCopyDemo"),
+  qrShare: document.getElementById("qrShare"),
   qrStatus: document.getElementById("qrStatus"),
 };
 
@@ -505,3 +551,8 @@ let normalizedFrameBuffer = [];
 // If the web copy is absent, the UI falls back to a target-specific search URL.
 /** @type {ReferenceVideoLinks} */
 let referenceVideoLinks = { alphabet_video: "", words: {} };
+
+// Where each word's card sits on the reference pages; null until the optional
+// data file has loaded.
+/** @type {WordReference | null} */
+let wordReference = null;

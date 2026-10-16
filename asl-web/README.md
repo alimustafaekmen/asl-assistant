@@ -173,12 +173,25 @@ In letter mode:
 | `Enter` | Add a space | **Boşluk** |
 | `Backspace` | Delete the last character | **Sil** |
 
+In word mode:
+
+| Key | Action | Same as |
+|---|---|---|
+| `Enter` | Start a recording, or record again from a result | **Kaydı başlat**, **Yeniden kaydet** |
+| `Space` | Accept the result into the text, when it is clear enough | **Metne ekle** |
+| `Escape` | Cancel a countdown or a recording | **Vazgeç** |
+
+In the coach, `Space` takes what the coach offers next (**Sonraki** after a
+success, the hint after a miss) and `Escape` stays on the current target; on a
+phone it first closes the study sheet when that is open.
+
 `Ctrl+D` toggles the debug panel in every mode, and `Escape` closes the phone
 menu. There are deliberately no single-letter shortcuts: one that clears the
 text or leaves the screen, with no way to turn it off, fails WCAG 2.1.4. A key
-pressed while a button, a link or a form field has focus goes to that control,
-and any key with `Ctrl`, `Cmd` or `Alt` is left to the browser. Clearing the
-transcript (**Temizle**) can be undone from its toast (**Geri al**).
+pressed while a button, a link or a form field has focus goes to that control
+(in word mode, `Escape` still cancels a recording), and any key with `Ctrl`,
+`Cmd` or `Alt` is left to the browser. Clearing the transcript (**Metni
+temizle**) can be undone from its toast (**Geri al**).
 
 ## Deployment
 
@@ -248,7 +261,10 @@ asl-web/
 │   ├── tokens.css         colours, type, space, radius, motion: the only raw values
 │   ├── base.css           fonts, document defaults, focus ring
 │   ├── components.css     buttons, mode switch, stage, caption plate, panels
-│   └── layout.css         shell and workspace for phone, landscape and laptop
+│   ├── layout.css         shell and workspace for phone, landscape and laptop
+│   ├── screens-coach.css  the coach screen: target tile, session row, study cards
+│   ├── screens-info.css   the Model Test, QR and project screens
+│   └── screens-word.css   the word screen and the reference viewer
 ├── js/
 │   ├── core/              theme-boot.js (theme before first paint), config.js,
 │   │                      runtime.js (state, element registry), app.js (start-up, routes, camera)

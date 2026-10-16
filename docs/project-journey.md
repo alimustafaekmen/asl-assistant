@@ -1,14 +1,15 @@
 # Project Journey and Research Notes
 
-ASL Assistant began as a desktop course project and evolved into a browser
-application with reproducible model contracts. This document records what was
-tried, what changed, what failed, and what can be useful to others building
-small-vocabulary sign-recognition systems.
+ASL Assistant began as a Python desktop prototype and became a browser
+application with checked model contracts. This document records what was tried,
+what changed, what failed, and what may help anyone building a
+small-vocabulary sign-recognition system.
 
 It is an engineering case study, not a claim of a new state-of-the-art model.
-The useful contribution is the documented path from experiments to a browser
-runtime: task separation, feature parity, artifact provenance, deterministic
-fixtures, and honest treatment of live reliability.
+What it offers is the path from experiments to a browser runtime: keeping the
+tasks apart, matching features between Python and JavaScript, tracing every
+deployed file to its source, testing with deterministic fixtures, and being
+straightforward about how reliable the live result is.
 
 ## Research context
 
@@ -23,11 +24,11 @@ into one accuracy number:
 This project covers the first two tasks only. Its word model predicts one of 50
 isolated signs and does not translate ASL sentences.
 
-The project's word research used only the
+The word research used only the
 [Google Isolated Sign Language Recognition competition](https://www.kaggle.com/competitions/asl-signs)
-data. The final model was trained in Kaggle on a selected 50-class subset with
-a signer-independent split. Its reported results apply only to that subset,
-feature pipeline, and split.
+data. The final model was trained in Kaggle on a 50-class subset with a
+signer-independent split, and its reported results apply only to that subset,
+feature pipeline and split.
 
 ## Phase 1: desktop prototype
 
@@ -38,18 +39,18 @@ LightGBM/scikit-learn, and PyTorch. It combined:
 - a 25-class word model with 30 frames of 321D holistic landmarks and a
   bidirectional GRU with attention pooling.
 
-The static-letter images came from three alphabet sources, were converted to
-landmarks, merged, and trained locally. The exact sources, retained sample
-counts, and exclusions are recorded in [Models and data](models-and-data.md#training-data-and-environments).
+The letter images came from three alphabet sources. They were converted to
+landmarks, merged, and trained locally. The sources, retained sample counts and
+exclusions are listed in [Models and data](models-and-data.md#training-data-and-environments).
 
 This phase established two lessons early. First, static handshape and temporal
 sign recognition are different problems and need separate models. Second, a
 high offline score does not guarantee stable webcam behavior when landmark
 quality, framing, handedness, and signer style change.
 
-The desktop application remains as a historical prototype. Its 25-word model
-is preserved under `models/word/desktop-25/`; it is not the source of the
-current web word model.
+The desktop application is kept as a prototype (see
+[asl-desktop](../asl-desktop/README.md)). Its 25-word model is preserved under
+`models/word/desktop-25/` and is not the source of the current web word model.
 
 ## Phase 2: word-model experiments
 
@@ -63,7 +64,7 @@ extension, but MS-ASL was not used to train the published 25- or 50-class word
 models. Keeping that distinction explicit prevents an experimental data path
 from being mistaken for model provenance.
 
-The preserved notebooks and exported results show this progression:
+The experiments went through these stages:
 
 1. a 15-word recurrent baseline;
 2. a 25-word hand-landmark BiGRU;
@@ -72,6 +73,13 @@ The preserved notebooks and exported results show this progression:
 5. feature-set and sequence-length ablations;
 6. 50-word recurrent and Transformer comparisons; and
 7. a separate raw-video experiment that did not produce the deployed model.
+
+Only the later stages are kept in the repository: the final 25-word desktop
+notebook and the 50-word notebooks with their results
+([notebooks/README.md](../notebooks/README.md)). The earlier iterations and the
+video experiment were left out of the public tree because their findings are
+carried by the final workflow. The tables below come from
+`notebooks/word_50_results/all_experiment_results.json`.
 
 ### Feature ablation
 
@@ -84,11 +92,10 @@ The preserved notebooks and exported results show this progression:
 | Compact | 168D | 0.699 |
 | Full engineered set | 519D | 0.639 |
 
-The largest feature vector was not the best. The 168D representation retained
-dominant-hand geometry, shape, hand-to-body relations, and motion while
-avoiding part of the noise and deployment cost of the 519D set. This was a
-practical reminder that more engineered variables can increase redundancy and
-overfitting rather than information.
+The largest feature vector was not the best. The 168D representation kept
+dominant-hand geometry, hand shape, hand-to-body distances and motion, and
+avoided part of the noise and download cost of the 519D set. More engineered
+variables can add redundancy and overfitting instead of information.
 
 ### Sequence strategy
 
@@ -98,9 +105,9 @@ overfitting rather than information.
 | 45 frames with padding mask | 0.700 |
 | Motion-focused variant | 0.694 |
 
-The numerical difference was small. The 45-frame masked representation was
-chosen because it expresses variable valid length explicitly and matches the
-final ONNX contract.
+The differences are small. The 45-frame masked representation was chosen
+because it states the valid length explicitly and matches the final ONNX
+contract.
 
 ### Model comparison
 
@@ -112,46 +119,56 @@ final ONNX contract.
 | SignTransformer | 446,195 | 0.719 |
 | Two-model ensemble | 1,048,934 | 0.733 |
 
-The ensemble scored slightly higher but doubled the footprint and complicated
-browser deployment. The single SignTransformer was selected as the better
-performance/complexity tradeoff. The final export records 71.92% accuracy,
-0.714 macro-F1, and 0.803 best validation F1 on its signer-independent setup.
+The ensemble scored higher but has more than twice the parameters and would
+have meant shipping two models to the browser. The single SignTransformer was
+chosen as the better trade between accuracy and complexity.
+
+The comparison table and the deployed model are different runs. The
+SignTransformer scored 0.719 macro-F1 in the comparison; the final full-training
+run that was exported records 71.92% accuracy, 0.714 macro-F1 and 0.803 best
+validation F1 on the same signer-independent split (4 test signers, 3,918
+samples). The latter are the figures used everywhere else in this repository.
 
 ## Phase 3: browser application
 
-The product moved from a local desktop GUI to `asl-web/`, a static
-HTML/CSS/JavaScript application. MediaPipe extracts landmarks, and ONNX Runtime
-Web performs inference in the browser. Python remains in training, validation,
-and fixture-export workflows but is not part of the deployed request path.
+The product moved from a desktop GUI to `asl-web/`, a static
+HTML/CSS/JavaScript application with no build step. MediaPipe extracts
+landmarks and ONNX Runtime Web runs inference in the browser. Python remains in
+training, validation and fixture export, and is not part of anything the
+visitor loads.
 
-This direction matches the intended strengths of
-[ONNX Runtime Web](https://onnxruntime.ai/docs/tutorials/web/): client-side
-inference can reduce server dependency and keep inference inputs on the device.
-The tradeoffs are model-download size, browser compatibility, device limits,
-and careful reproduction of preprocessing in JavaScript.
+Running the models client-side
+([ONNX Runtime Web](https://onnxruntime.ai/docs/tutorials/web/)) means no
+inference server and no camera frames leaving the device. The costs are model
+download size, browser compatibility, device limits, and having to reproduce
+the preprocessing exactly in JavaScript.
 
-Landmark input was selected instead of a large raw-pixel video model. The
+The models take landmarks, not raw video frames. The
 [MediaPipe framework](https://arxiv.org/abs/1906.08172) was designed for
 cross-platform perception pipelines, and
 [MediaPipe Hands](https://arxiv.org/abs/2006.10214) provides an on-device palm
-detector plus hand-landmark model. Landmarks make the web model smaller and the
-features inspectable, but MediaPipe errors become part of total system error.
+detector plus hand-landmark model. Landmarks keep the models small and the
+features inspectable, but any MediaPipe error becomes part of the system's
+error.
 
 ## Why letter mode became the primary feature
 
-The letter metadata reports 99.35% accuracy on a held-out landmark set for 24
+The letter metadata reports 99.35% accuracy on a held-out landmark set of 24
 static classes. The browser reproduces the ordered 93D feature pipeline and
 uses a probability-tensor ONNX export.
 
-That score should not be read as universal live accuracy. Still, the task is
-fundamentally narrower than word recognition: one hand pose is classified
-without temporal alignment, padding, face/pose visibility, sequence-level
-dominant-hand selection, or motion history. In real use, letter mode proved the
-more dependable and understandable product surface.
+That score is not live accuracy: the held-out rows were drawn at random from
+the same image collections as the training rows, not from unseen signers (see
+[Models and data](models-and-data.md#training-data-and-environments)). Even so,
+the task is much narrower than word recognition. One hand pose is classified
+with no temporal alignment, padding, face or pose visibility, sequence-level
+hand choice or motion history. In use, letter mode proved the more dependable
+and easier to understand feature.
 
-Word mode remains useful as an experiment and limitation-aware result viewer.
-The UI shows top-3 alternatives, confusion hints, and requires explicit user
-acceptance. It is not presented as a reliable translator.
+Word mode stays as an experiment that shows its limits: the interface lists the
+top three alternatives, hints at known look-alike pairs, and appends nothing to
+the transcript until the user accepts a word. It is not presented as a reliable
+translator.
 
 ## Problems that changed the design
 
@@ -198,10 +215,12 @@ on start, finish, retry, mode change, and camera stop.
 
 ### Calibration does not solve ambiguity
 
-Temperature scaling changed the recorded word ECE only marginally. It did not
-turn a low-margin live prediction into a trustworthy result. The product
-response was to expose alternatives and require user confirmation rather than
-hide uncertainty behind a threshold.
+Temperature scaling did not improve the recorded word ECE (0.0235 before,
+0.0252 after), and no recalibration turns a low-margin live prediction into a
+trustworthy one. The product response was to show the alternatives and require
+the user's confirmation. A single low minimum confidence
+(`WORD_ACCEPT_THRESHOLD` in `asl-web/js/core/config.js`) only filters out
+results that are close to noise.
 
 ## Approaches not used in the final runtime
 
@@ -209,7 +228,7 @@ hide uncertainty behind a threshold.
 |---|---|
 | 15-word and early 25-word recurrent models | Superseded by later experiments. The final 25-word V4 checkpoint remains only for the desktop prototype. |
 | 507D experimental Python pipeline | Feature and label contracts do not match the deployed 168D model. |
-| Two-model ensemble | Better experiment score but larger and more complex for the web target. |
+| Two-model ensemble | Better experiment score, but more than twice the parameters and two models to ship to the browser. |
 | Raw-video classifier | Did not produce the active artifact or a browser integration. |
 | J/Z recognition | Not implemented; no trained or deployed J/Z model is included. Configuration and an experimental training utility remain reserved for possible future work. |
 | React and standalone mockups | Design experiments; the maintained app uses plain HTML, CSS, and JavaScript. |
@@ -285,8 +304,9 @@ The current claims can be traced to:
 - `scripts/validation/check_runtime_assets.py` and
   `scripts/validation/verify_project_assets.py`.
 
-Run `make health` for repository-level validation. A real browser/camera check
-is still required for live behavior.
+Run `make health` for the repository-level checks. They do not replace a test
+with a real camera and real hands in a real browser, which is still needed for
+live behavior.
 
 ## References
 

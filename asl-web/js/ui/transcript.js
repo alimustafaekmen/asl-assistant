@@ -58,10 +58,29 @@ function appendWordResultToTranscript() {
   if (!wordResultIsCurrent() || wordResultAccepted) return;
   if (!state.prediction || state.prediction === "?" || state.prediction.length <= 1) return;
   if (state.confidence < CONFIG.WORD_ACCEPT_THRESHOLD) return;
-  appendTranscriptToken(`${state.prediction} `, { debounceKey: `word:${state.prediction}` });
+  const word = state.prediction;
+  const token = `${word} `;
+  const appended = appendTranscriptToken(token, { debounceKey: `word:${word}` });
   wordResultAccepted = true;
   syncActionBar();
-  showFeedback(`"${state.prediction}" metne eklendi. Yeni bir kelime için kaydı yeniden başlatın.`, "good");
+  // A press the debounce swallowed repeats one already confirmed.
+  if (!appended) return;
+  showToast(`“${word}” metne eklendi`, {
+    returnFocus: els.recordWord,
+    action: {
+      label: "Geri al",
+      // Takes out exactly the word that was added, and only while it is still
+      // the last thing in the text: anything typed since is left alone. The
+      // result stays accepted, so undo never offers the same consent twice.
+      run: () => {
+        if (!state.transcript.endsWith(token)) return;
+        state.transcript = state.transcript.slice(0, -token.length);
+        saveTranscript();
+        renderTranscript();
+        announce(`${word} metinden çıkarıldı`);
+      },
+    },
+  });
 }
 
 /**

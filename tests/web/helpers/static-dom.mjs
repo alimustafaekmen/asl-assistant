@@ -852,6 +852,11 @@ export function createDomClasses({ listenerLog }) {
       return !prevented;
     }
 
+    /** A click made by script, as HTMLElement.click() makes one: no pointer, so detail 0. */
+    click() {
+      this.dispatchEvent({ type: "click", detail: 0 });
+    }
+
     // Focus, selection, scrolling and popovers have no layout here; only the
     // popover's open state is kept, because :popover-open selects on it.
     focus() {}

@@ -1,0 +1,337 @@
+/* Screens: the word screen and the reference viewer.
+ *
+ * Everything here sits in the screens layer, above components and layout, so
+ * it can restyle a shared part for the word screen without touching the files
+ * that every screen uses. Colours, sizes and spacing come from tokens.css.
+ * Behaviour never hangs on these class names.
+ */
+
+@layer screens {
+  /* ── Icons this screen adds ──────────────────────────────────────── */
+  [data-icon="chevron-left"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 18-6-6 6-6'/%3E%3C/svg%3E"); }
+  [data-icon="chevron-right"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E"); }
+  [data-icon="zoom-in"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3M11 8v6M8 11h6'/%3E%3C/svg%3E"); }
+  [data-icon="zoom-out"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3M8 11h6'/%3E%3C/svg%3E"); }
+  [data-icon="check"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E"); }
+
+  /* ── A word's card: the page image cropped to one rectangle ──────────
+     The script gives the frame the card's rectangle as fractions of the page
+     (--ref-x, --ref-y, --ref-w, --ref-h) and its aspect ratio (--ref-aspect).
+     The page image is scaled so the card fills the frame, then shifted. */
+  .ref-card {
+    position: relative;
+    width: 100%;
+    aspect-ratio: var(--ref-aspect, 1.7);
+    overflow: hidden;
+    border-radius: var(--r-m);
+    background: var(--color-sunken);
+  }
+  .ref-card > img {
+    position: absolute;
+    display: block;
+    max-width: none;
+    /* The panel's image rule caps the height and fits the picture inside
+       it; here the whole page must keep its own proportions. */
+    max-height: none;
+    object-fit: fill;
+    border-radius: 0;
+    background: none;
+    width: calc(100% / var(--ref-w, 1));
+    height: auto;
+    left: calc(var(--ref-x, 0) / var(--ref-w, 1) * -100%);
+    top: calc(var(--ref-y, 0) / var(--ref-h, 1) * -100%);
+  }
+  .reference__body .ref-card { cursor: zoom-in; }
+  .reference__body #referenceImage { cursor: zoom-in; }
+
+  /* ── The reference viewer ────────────────────────────────────────── */
+  .viewer {
+    padding: 0;
+    border: 1px solid var(--color-line);
+    border-radius: var(--r-l);
+    background: var(--color-surface);
+    color: var(--color-text);
+    width: min(820px, calc(100vw - 2 * var(--sp-6)));
+    height: calc(100dvh - 2 * var(--sp-6));
+    max-width: none;
+    max-height: none;
+    overflow: hidden;
+  }
+  .viewer[open] {
+    display: flex;
+    flex-direction: column;
+  }
+  /* A solid backdrop: no blur, so nothing behind the dialog competes with it. */
+  .viewer::backdrop { background: rgb(16 17 19 / 0.72); }
+  /* The page behind a modal dialog must not scroll. */
+  :root:has(dialog.viewer[open]) { overflow: hidden; }
+
+  .viewer__bar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    flex: none;
+    min-height: 56px;
+    padding: 0 var(--sp-2) 0 var(--sp-5);
+    border-bottom: 1px solid var(--color-line);
+  }
+  .viewer__title {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: var(--fs-lg);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-snug);
+  }
+  .viewer__tools { display: flex; align-items: center; gap: var(--sp-1); }
+  .viewer__zoom {
+    min-width: 4.25rem;
+    min-height: var(--size-target);
+    padding: 0 var(--sp-2);
+    border: 0;
+    border-radius: var(--r-m);
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+    text-align: center;
+    cursor: pointer;
+  }
+
+  .viewer__body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: var(--sp-4);
+    background: var(--color-sunken);
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+  /* Fit: as wide as the body allows, but never wider than stays readable. */
+  .viewer__body[data-zoom="fit"] > .viewer__image,
+  .viewer__body[data-zoom="fit"] > .ref-card {
+    width: min(100%, 800px);
+  }
+  .viewer__body[data-zoom="set"] > .viewer__image,
+  .viewer__body[data-zoom="set"] > .ref-card {
+    width: calc(var(--viewer-natural, 1024px) * var(--viewer-zoom, 1));
+  }
+  .viewer__image,
+  .viewer__body > .ref-card {
+    display: block;
+    max-width: none;
+    height: auto;
+    margin-inline: auto;
+  }
+  .viewer__body > .ref-card { cursor: auto; }
+
+  .viewer__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2) var(--sp-3);
+    flex: none;
+    padding: var(--sp-3) var(--sp-5);
+    border-top: 1px solid var(--color-line);
+  }
+  .viewer__note {
+    flex: 1 1 14rem;
+    margin: 0;
+    color: var(--color-text-3);
+    font-size: var(--fs-xs);
+  }
+
+  /* Phones: the viewer takes the whole screen, with the safe areas respected. */
+  @media (max-width: 47.99rem) {
+    .viewer {
+      width: 100dvw;
+      height: 100dvh;
+      max-width: none;
+      max-height: none;
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .viewer__bar { padding-left: var(--sp-4); }
+    .viewer__body { padding: var(--sp-2); }
+    .viewer__foot { padding: var(--sp-2) var(--sp-4); }
+    .viewer__note { display: none; }
+  }
+
+  /* ══ The word screen ═════════════════════════════════════════════════
+     The scripts write data-word-step (idle, countdown, recording,
+     processing, result) on the stage and on the dock, and everything below
+     is chosen from it. */
+
+  [data-icon="record"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Ccircle cx='12' cy='12' r='7'/%3E%3C/svg%3E"); }
+
+  /* An action that is the main one only while it can be pressed. A second
+     primary button would leave the dock with two; this class is not one. */
+  .btn--accent:not(:disabled) {
+    border-color: transparent;
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+  }
+  .btn--accent:not(:disabled):hover { background: color-mix(in srgb, var(--color-primary) 86%, var(--color-surface)); }
+  .btn--accent:not(:disabled) .kbd { border-color: transparent; padding-inline: 0; opacity: 0.9; }
+
+  /* ── Recording readout, at the top of the stage ─────────────────────
+     The head and shoulders are in frame at the top, and no sign is made
+     there; the bottom is where the torso and two-handed signs are. */
+  .app-shell[data-mode="word"] .stage__top { flex-wrap: wrap; }
+  .stage-hud { display: none; }
+  .app-shell[data-mode="word"] .stage[data-word-step="countdown"] .stage-hud,
+  .app-shell[data-mode="word"] .stage[data-word-step="recording"] .stage-hud {
+    display: grid;
+    flex: 0 0 100%;
+    order: 3;
+    gap: var(--sp-2);
+    padding: var(--sp-3);
+    border: 1px solid var(--stage-line);
+    border-radius: var(--r-m);
+    background: var(--stage-plate);
+    color: var(--stage-text);
+    pointer-events: none;
+  }
+  .stage-hud__line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    font-size: var(--fs-sm);
+  }
+  .stage-hud__line .num { font-family: var(--font-mono); font-size: var(--fs-md); }
+  .stage-hud .meter {
+    height: 4px;
+    margin: 0;
+    border-radius: var(--r-pill);
+    background: var(--stage-bar-off);
+    overflow: hidden;
+  }
+  .stage-hud .meter > span { display: block; height: 100%; border-radius: var(--r-pill); background: var(--stage-rec); }
+  .stage-hud .quality-pills { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: 0; }
+  .stage-hud .quality-pills span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 var(--sp-3);
+    border: 1px solid var(--stage-line);
+    border-radius: var(--r-pill);
+    background: var(--stage-raised);
+    color: var(--stage-text-2);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+  }
+  /* Present: solid and bright. Missing: a dashed outline, so the difference
+     is not carried by colour alone. */
+  .stage-hud .quality-pills span[data-ok="true"] { color: var(--stage-text); }
+  .stage-hud .quality-pills span[data-ok="false"] {
+    border-style: dashed;
+    border-color: var(--stage-rec);
+    background: transparent;
+    color: var(--stage-rec);
+  }
+  .stage-hud__hint { margin: 0; color: var(--stage-text-2); font-size: var(--fs-sm); line-height: var(--lh-snug); }
+
+  /* ── The plate, per step ─────────────────────────────────────────────
+     While the user signs the plate gives way to the readout above, so their
+     hands are never hidden behind it. */
+  .app-shell[data-mode="word"] .stage[data-word-step="countdown"] + .plate,
+  .app-shell[data-mode="word"] .stage[data-word-step="recording"] + .plate { display: none; }
+
+  /* The head takes the plate's first row, so the plate always wraps. */
+  .app-shell[data-mode="word"] .plate { flex-wrap: wrap; }
+  .app-shell[data-mode="word"] .stage[data-word-step="idle"] + .plate .plate__body,
+  .app-shell[data-mode="word"] .stage[data-word-step="processing"] + .plate .plate__body { flex: 1 1 100%; }
+
+  .plate__head { display: none; }
+  /* The steps and the tag describe a recording, so they wait for the camera:
+     on a short phone the first-visit stage needs that height. */
+  .app-shell[data-mode="word"] .stage:not(:has(> .stage__empty:not([hidden]))) + .plate .plate__head {
+    display: flex;
+    flex: 0 0 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+  }
+  .plate__steps { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); font-size: var(--fs-xs); }
+  .plate__steps span { color: var(--stage-text-2); }
+  .plate__steps span[data-state="active"] { color: var(--stage-text); font-weight: var(--fw-bold); }
+  .plate__steps span[data-state="done"]::before { content: "✓ "; }
+  .plate__tag {
+    flex: none;
+    padding: 2px var(--sp-3);
+    border: 1px solid var(--stage-line);
+    border-radius: var(--r-pill);
+    color: var(--stage-text-2);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+  }
+
+  /* Before a result and while it is computed, a single message line. */
+  .app-shell[data-mode="word"] .stage[data-word-step="idle"] + .plate .plate__visual,
+  .app-shell[data-mode="word"] .stage[data-word-step="idle"] + .plate .plate__level,
+  .app-shell[data-mode="word"] .stage[data-word-step="processing"] + .plate .plate__visual,
+  .app-shell[data-mode="word"] .stage[data-word-step="processing"] + .plate .plate__level { display: none; }
+
+  .plate__near { margin: 0; color: var(--stage-text-2); font-size: var(--fs-sm); line-height: var(--lh-snug); }
+  .plate__near[hidden] { display: none; }
+
+  /* The guide is the plate's action line; the level word above it says the
+     verdict already. It reads as a line, not as a card. */
+  .plate .word-result-guide {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    display: block;
+    /* The level shows as the edge of the line, not by colour alone: the
+       level word and the signal bars above it say the same in words. */
+    padding-left: var(--sp-3);
+    border-left: 3px solid transparent;
+  }
+  .plate .word-result-guide[data-level="low"] { border-left-color: var(--stage-rec); }
+  .plate .word-result-guide[data-level="maybe"] { border-left-color: var(--stage-text); }
+  .plate .word-result-guide[data-level="good"] { border-left-color: var(--stage-lock); }
+  .plate .word-result-guide strong { display: none; }
+  .plate .word-result-guide span { color: var(--stage-text); font-size: var(--fs-sm); line-height: var(--lh-snug); }
+  /* A result shows the guide's action, not the ranked sentence the message
+     line carries for the other modes. */
+  .app-shell[data-mode="word"] .stage[data-word-step="result"] + .plate .plate__message { display: none; }
+
+  /* The legacy "Kelime akışı" card: its steps, readout and guide now live on
+     the stage and the plate. */
+  .app-shell[data-mode="word"] .word-state-card { display: none; }
+
+  /* Landscape phones: the word face leaves room for the longest word. */
+  @media (orientation: landscape) and (max-height: 32rem) {
+    .stage[data-kind="word"] + .plate { --fs-word: 2rem; }
+  }
+
+  /* ── The dock, per step ──────────────────────────────────────────────
+     Rest and processing: record, with the two result actions kept in place
+     but disabled. Countdown and recording: only Vazgeç. Result: record again
+     and accept. Accepted: a new recording first, the accept spent. */
+  .app-shell[data-mode="word"] #controlBar[data-word-step="countdown"] :is(#recordWord, #retryWord, #appendWordResult),
+  .app-shell[data-mode="word"] #controlBar[data-word-step="recording"] :is(#recordWord, #retryWord, #appendWordResult) { display: none; }
+  .app-shell[data-mode="word"] #controlBar[data-word-step="result"] #recordWord { display: none; }
+  .app-shell[data-mode="word"] #controlBar[data-word-step="result"][data-word-accepted="true"] #recordWord { display: inline-flex; }
+  .app-shell[data-mode="word"] #controlBar[data-word-step="result"][data-word-accepted="true"] #retryWord { display: none; }
+  /* The primary action is the one to take next: after an accept it is the
+     new recording, and the spent accept steps back. */
+  .app-shell[data-mode="word"] #controlBar[data-word-accepted="true"] #appendWordResult { order: 2; }
+  .app-shell[data-mode="word"] #cancelWord { flex: 1 1 100%; }
+
+  /* Phones: the dock is a wrapping row (portrait) or a two-column grid
+     (landscape). At rest and while processing, record takes a row to itself
+     and the two result actions share the next one; Vazgeç takes a whole row. */
+  @media (max-width: 63.99rem) {
+    .app-shell[data-mode="word"] #controlBar[data-word-step="idle"] #recordWord,
+    .app-shell[data-mode="word"] #controlBar[data-word-step="processing"] #recordWord,
+    .app-shell[data-mode="word"] #cancelWord { flex: 1 1 100%; grid-column: 1 / -1; }
+  }
+}

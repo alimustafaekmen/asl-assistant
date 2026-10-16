@@ -69,13 +69,17 @@ test("a later visit restores the flow and learns from the first letter not yet s
   });
   const coach = await coachOn(storage);
   assert.equal(coach.app.evaluate("state.coachFlow"), "practice");
-  assert.equal(coach.text("coachFlowTitle"), "Pratik");
+  assert.equal(
+    coach.app.evaluate(`document.querySelector('[data-coach-flow="practice"]')`).getAttribute("aria-checked"),
+    "true",
+    "the restored flow is the one the radios say is on",
+  );
 
   coach.click(coach.app.evaluate(`document.querySelector('[data-coach-flow="learn"]')`));
   assert.equal(stored(storage).flow, "learn", "the flow chosen is remembered");
 
   const again = await coachOn(storage);
-  assert.equal(again.text("coachTargetBig"), ORDER[1], "the letter already shown is not taught first again");
+  assert.equal(again.text("coachTargetGlyph"), ORDER[1], "the letter already shown is not taught first again");
 });
 
 for (const [kind, raw] of [
@@ -89,7 +93,7 @@ for (const [kind, raw] of [
 
     assert.equal(coach.app.evaluate("state.mode"), "coach");
     assert.equal(coach.app.evaluate("state.coachFlow"), "learn");
-    assert.equal(coach.text("coachTargetBig"), ORDER[0]);
+    assert.equal(coach.text("coachTargetGlyph"), ORDER[0]);
   });
 }
 
@@ -99,7 +103,7 @@ test("a stored count that is not a number does not mark a letter as shown", asyn
   });
   const coach = await coachOn(storage);
 
-  assert.equal(coach.text("coachTargetBig"), ORDER[0]);
+  assert.equal(coach.text("coachTargetGlyph"), ORDER[0]);
 });
 
 test("storage that throws keeps progress in memory and says it cannot be kept", async () => {
@@ -115,7 +119,7 @@ test("storage that throws keeps progress in memory and says it cannot be kept", 
     },
   };
   const coach = await coachOn(refusing);
-  assert.ok(coach.text("coachFlowText").endsWith(UNSAVED_NOTE), coach.text("coachFlowText"));
+  assert.ok(coach.text("coachStorageNote").endsWith(UNSAVED_NOTE), coach.text("coachStorageNote"));
 
   await coach.startCamera();
   const first = coach.app.evaluate("state.coachTarget");
@@ -128,7 +132,7 @@ test("storage that throws keeps progress in memory and says it cannot be kept", 
 
 test("where storage works, the coach says progress stays on this device", async () => {
   const coach = await coachOn(memoryStorage());
-  assert.ok(coach.text("coachFlowText").endsWith(SAVED_NOTE), coach.text("coachFlowText"));
+  assert.ok(coach.text("coachStorageNote").endsWith(SAVED_NOTE), coach.text("coachStorageNote"));
 });
 
 test("resetting progress offers an undo that brings it back", async () => {

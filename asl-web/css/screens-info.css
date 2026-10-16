@@ -1,0 +1,369 @@
+/* The information screens: Kamerasız dene, Telefonda aç and Nasıl çalışır.
+ *
+ * They share a page frame and a few components (a choice group, a notice, a
+ * list of facts), so those live at the top; each screen's own layout follows.
+ * The cards are the .panel of components.css, a hairline and no shadow. Every
+ * size, colour and space is a token, so the dark theme needs nothing here.
+ *
+ * The camera workspace is hidden on these routes, so nothing of the stage or
+ * the side panel is styled in this file.
+ */
+
+@layer screens {
+  /* ── The page frame ───────────────────────────────────────────────── */
+
+  /* layout.css gives the workspace a fixed laptop height and a two-column
+     grid for the camera. These screens are ordinary documents that scroll. */
+  .app-shell:is([data-mode="test"], [data-mode="qr"], [data-mode="project"]) .workspace {
+    display: block;
+    height: auto;
+    padding: 0;
+  }
+
+  .page {
+    box-sizing: border-box;
+    display: grid;
+    align-content: start;
+    gap: var(--sp-6);
+    width: 100%;
+    max-width: 72rem;
+    margin-inline: auto;
+    padding: var(--sp-6) max(var(--sp-4), env(safe-area-inset-right))
+      calc(var(--sp-8) + env(safe-area-inset-bottom)) max(var(--sp-4), env(safe-area-inset-left));
+  }
+  .page :where(h1, h2, h3, p, ul, ol, dl, dd, figure) { margin: 0; }
+  .page__head { display: grid; gap: var(--sp-2); }
+  .page__title {
+    font-size: var(--fs-xl);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-tight);
+    text-wrap: balance;
+  }
+  /* Focus lands here from script when the route changes; a ring around a
+     heading would look like a control. */
+  .page__title:focus { outline: none; }
+  .page__lead { max-width: 60ch; font-size: var(--fs-md); color: var(--color-text-2); }
+
+  .page :where(summary) { cursor: pointer; }
+  .page details.panel { display: block; }
+  .page details.panel > summary { font-weight: var(--fw-semibold); }
+
+  /* A choice between a few options, as radios or as buttons. */
+  .choices {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: var(--sp-2);
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .choice {
+    display: grid;
+    gap: 2px;
+    align-content: center;
+    min-height: var(--size-control);
+    padding: var(--sp-2) var(--sp-4);
+    border: 1px solid var(--color-control);
+    border-radius: var(--r-m);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  .choice:hover { background: var(--color-sunken); }
+  .choice strong { font-weight: var(--fw-semibold); }
+  .choice small { font-size: var(--fs-xs); color: var(--color-text-2); }
+  .choice:is(.is-active, :has(input:checked)) {
+    border-color: transparent;
+    background: var(--color-selected-bg);
+    color: var(--color-selected-fg);
+  }
+  .choice:is(.is-active, :has(input:checked)) small { color: inherit; opacity: 0.85; }
+  /* The radio inside is visually hidden, so its ring is drawn on the choice. */
+  .choice:has(input:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+
+  /* A plain list of facts with a small icon, not a row of stat cards. */
+  .facts { display: grid; gap: var(--sp-2); margin: 0; padding: 0; list-style: none; font-size: var(--fs-sm); color: var(--color-text-2); }
+  .facts li { display: flex; align-items: center; gap: var(--sp-2); }
+  .facts li::before { --size-icon: 16px; }
+
+  @media (min-width: 64rem) {
+    .page { padding-inline: var(--sp-6); }
+    .page__title { font-size: var(--fs-2xl); }
+  }
+  @media (min-width: 90rem) {
+    .page { padding-inline: var(--sp-8); }
+  }
+
+  /* ── Kamerasız dene ───────────────────────────────────────────────── */
+
+  .mt__grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); }
+  .mt__main, .mt__side { display: grid; align-content: start; gap: var(--sp-4); min-width: 0; }
+  .mt__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+  .mt__actions .btn { flex: 1 1 10rem; }
+  .mt .panel > .btn { justify-self: start; }
+
+  .mt__steps { display: flex; flex-wrap: wrap; gap: var(--sp-2); font-size: var(--fs-xs); }
+  .mt__steps span {
+    padding: 2px var(--sp-3);
+    border: 1px solid var(--color-line);
+    border-radius: var(--r-pill);
+    color: var(--color-text-3);
+  }
+  .mt__steps span[data-state="done"] {
+    border-color: transparent;
+    background: var(--color-selected-bg);
+    color: var(--color-selected-fg);
+  }
+
+  /* The legacy layer still styles .model-test-advanced as a boxed card;
+     the class stays because the guided-actions contract names it. */
+  .mt .mt__advanced {
+    margin: 0;
+    padding: var(--sp-3) 0 0;
+    border: 0;
+    border-top: 1px solid var(--color-line);
+    border-radius: 0;
+    background: transparent;
+  }
+  .mt .mt__advanced > summary { color: inherit; font-weight: var(--fw-semibold); }
+  .mt .mt__advanced[open] > summary { margin-bottom: var(--sp-3); }
+  .mt .mt__advanced > :not(summary) + :not(summary) { margin-top: var(--sp-3); }
+  .mt .model-test-simple-copy { margin: 0; color: var(--color-text-2); font-size: var(--fs-md); line-height: var(--lh-body); }
+  .mt .model-test-task-switch { margin: 0; }
+  .mt__label { display: block; margin-bottom: var(--sp-1); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+  .mt__library-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+  .mt__select {
+    flex: 1 1 12rem;
+    min-width: 0;
+    min-height: var(--size-control);
+    padding: 0 var(--sp-3);
+    border: 1px solid var(--color-control);
+    border-radius: var(--r-m);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+  }
+  .mt__drop {
+    display: grid;
+    gap: var(--sp-1);
+    padding: var(--sp-4);
+    border: 1px dashed var(--color-control);
+    border-radius: var(--r-m);
+    text-align: center;
+    cursor: pointer;
+  }
+  .mt__drop:is(:hover, .is-dragging) { background: var(--color-sunken); }
+  .mt__drop span { font-weight: var(--fw-semibold); }
+  .mt__drop small { font-size: var(--fs-xs); color: var(--color-text-2); }
+  .mt__drop:has(+ input:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+
+  .mt__badge {
+    padding: 2px var(--sp-3);
+    border: 1px solid var(--color-control);
+    border-radius: var(--r-pill);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+  }
+  .mt__badge[data-match="yes"] { border-color: transparent; background: var(--color-selected-bg); color: var(--color-selected-fg); }
+  .mt__badge[data-match="no"] { border-color: var(--color-error); color: var(--color-error); }
+
+  .mt__prediction { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-3); }
+  .mt__prediction-label { font-size: var(--fs-sm); color: var(--color-text-2); }
+  .mt__prediction-value {
+    font-size: var(--fs-word);
+    font-weight: var(--fw-heavy);
+    line-height: 1;
+    overflow-wrap: anywhere;
+  }
+  .mt__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); }
+  .mt__stats dt, .mt__facts dt { font-size: var(--fs-xs); color: var(--color-text-3); }
+  .mt__stats dd, .mt__facts dd { font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
+  .mt__sub { font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--color-text-2); }
+
+  .mt__tech > summary { display: flex; justify-content: space-between; gap: var(--sp-3); }
+  .mt__tech > summary strong { font-weight: var(--fw-regular); color: var(--color-text-2); }
+  .mt__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); margin-top: var(--sp-3); }
+
+  .mt__batch { min-width: 0; }
+  .mt__summary { font-size: var(--fs-md); font-weight: var(--fw-semibold); line-height: var(--lh-snug); }
+  .mt__table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+  .mt__table :is(th, td) {
+    padding: var(--sp-2) var(--sp-3);
+    border-bottom: 1px solid var(--color-line);
+    text-align: start;
+  }
+  .mt__table thead th { font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--color-text-2); }
+  .mt__table tbody th { font-weight: var(--fw-semibold); }
+  .mt__table td:is(:nth-child(4), :nth-child(5)) {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+  }
+  /* A wrong or failed row is marked by its verdict word and a sunken ground,
+     never by colour alone. */
+  .mt__table tr:is([data-verdict="wrong"], [data-verdict="error"]) { background: var(--color-sunken); }
+  .mt__table tr:is([data-verdict="wrong"], [data-verdict="error"]) td:last-child { font-weight: var(--fw-bold); }
+
+  @media (min-width: 64rem) {
+    .mt__grid { grid-template-columns: minmax(0, 1fr) var(--size-side); align-items: start; }
+    .mt__side { position: sticky; top: calc(var(--size-topbar) + var(--sp-4)); }
+  }
+
+  /* Phones: a row of the table becomes a small stack, so nothing scrolls
+     sideways. The header row stays for a screen reader. */
+  @media (max-width: 39.99rem) {
+    .mt__table thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+    .mt__table :is(tbody, tr) { display: block; }
+    .mt__table tr {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-1) var(--sp-4);
+      padding: var(--sp-3) var(--sp-2);
+      border-bottom: 1px solid var(--color-line);
+    }
+    .mt__table :is(th, td) { padding: 0; border: 0; }
+    .mt__table tbody th { flex: 0 0 calc(100% - 7rem); min-width: 0; overflow-wrap: anywhere; }
+    .mt__table td:last-child { order: -1; flex: 0 0 6rem; margin-left: auto; text-align: end; }
+    .mt__table tbody th { order: -2; }
+    .mt__table td:nth-child(2)::before { content: "Beklenen "; }
+    .mt__table td:nth-child(3)::before { content: "Tahmin "; }
+    .mt__table td:nth-child(2)::before,
+    .mt__table td:nth-child(3)::before { font-size: var(--fs-xs); color: var(--color-text-3); }
+    .mt__table td:nth-child(3) { overflow-wrap: anywhere; }
+    .mt__table td:is(:nth-child(4), :nth-child(5)) { text-align: start; }
+    .mt .btn, .mt__actions .btn { width: 100%; }
+    .mt .panel > .btn { justify-self: stretch; }
+    .mt__prediction-value { font-size: var(--fs-2xl); }
+  }
+
+  /* ── Telefonda aç ─────────────────────────────────────────────────── */
+
+  .qr { max-width: 60rem; }
+  .qr__copy { display: grid; align-content: start; gap: var(--sp-5); min-width: 0; }
+  .qr__link { display: grid; gap: var(--sp-3); }
+  .qr__url {
+    min-height: var(--size-target);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-m);
+    background: var(--color-sunken);
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+    overflow-wrap: anywhere;
+  }
+  .qr__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+  .qr__targets .mt__label { grid-column: 1 / -1; margin: 0; padding: 0; }
+  .qr__steps { display: grid; gap: var(--sp-2); padding-inline-start: var(--sp-5); color: var(--color-text-2); }
+  .qr__phone-step { display: none; color: var(--color-text-2); }
+  .qr__fact { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--color-text-2); }
+  .qr__fact::before { --size-icon: 16px; }
+
+  /* The code is dark on light in both themes, so its tile does not follow
+     the page. */
+  .qr__tile {
+    box-sizing: border-box;
+    display: grid;
+    gap: var(--sp-3);
+    justify-items: center;
+    width: min(100%, 22rem);
+    margin: 0;
+    padding: var(--sp-6);
+    border: 1px solid var(--color-line);
+    border-radius: var(--r-l);
+    background: var(--qr-back);
+    color: var(--qr-ink);
+  }
+  .qr__canvas { width: min(100%, 280px); aspect-ratio: 1; }
+  /* kjua sizes its canvas with an inline pixel style (420 px, drawn at that
+     size for a sharp image); the tile scales it down. */
+  .qr__canvas :is(canvas, img) { display: block; width: 100% !important; height: auto !important; }
+  .qr__canvas p { margin: 0; overflow-wrap: anywhere; font-size: var(--fs-sm); }
+  .qr__caption { font-size: var(--fs-sm); text-align: center; }
+
+  @media (min-width: 64rem) {
+    .qr { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--sp-12); }
+    .qr__tile { width: auto; }
+  }
+
+  /* Phones, in the order a phone visitor needs: the link first, the choice,
+     then the code to show someone next to them. */
+  @media (max-width: 39.99rem) {
+    .qr, .qr__copy { display: flex; flex-direction: column; }
+    .qr__copy { display: contents; }
+    .qr .page__head { order: 0; }
+    .qr__link { order: 1; }
+    .qr__targets { order: 2; grid-template-columns: minmax(0, 1fr); }
+    .qr__tile { order: 3; align-self: center; width: min(100%, 264px); padding: var(--sp-4); }
+    .qr__steps { display: none; }
+    .qr__phone-step { display: block; order: 4; }
+    .qr__fact { order: 5; }
+    .qr__actions .btn { flex: 1 1 100%; }
+    .qr__open { display: none; }
+    .qr__actions .btn { min-height: var(--size-control); }
+  }
+  @media (max-width: 22.5rem) {
+    .qr__tile { width: min(100%, 240px); }
+  }
+
+  /* ── Nasıl çalışır ────────────────────────────────────────────────── */
+
+  .page a:not(.btn) { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+  .pj__cta { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
+  .pj__grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-6); }
+  .pj__main { display: grid; align-content: start; gap: var(--sp-6); min-width: 0; max-width: 40rem; }
+  .pj__aside { display: grid; align-content: start; gap: var(--sp-3); min-width: 0; }
+  .pj__section { display: grid; gap: var(--sp-3); }
+  .pj__section h2 { font-size: var(--fs-lg); font-weight: var(--fw-bold); line-height: var(--lh-snug); }
+
+  .pj__steps { display: grid; gap: var(--sp-4); margin: 0; padding: 0; list-style: none; counter-reset: step; }
+  .pj__steps li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--sp-3);
+    counter-increment: step;
+  }
+  .pj__steps li::before {
+    content: counter(step);
+    grid-row: span 2;
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--r-pill);
+    background: var(--color-selected-bg);
+    color: var(--color-selected-fg);
+    font-family: var(--font-mono);
+    font-weight: var(--fw-bold);
+  }
+  .pj__steps strong { font-weight: var(--fw-semibold); }
+  .pj__steps span { color: var(--color-text-2); }
+
+  .pj__list { display: grid; gap: var(--sp-2); margin: 0; padding-inline-start: var(--sp-5); }
+  .pj__list--plain { padding-inline-start: 0; list-style: none; }
+  .pj__numbers .pj__list { color: var(--color-text); }
+  .pj__tech > summary { font-weight: var(--fw-semibold); }
+  .pj__tech > .pj__list { margin-top: var(--sp-3); color: var(--color-text-2); }
+
+  .pj__credits { display: grid; gap: var(--sp-3); }
+  .pj__credits dt { font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
+  .pj__credits dd { font-size: var(--fs-sm); color: var(--color-text-2); overflow-wrap: anywhere; }
+  .pj__footer { font-size: var(--fs-sm); color: var(--color-text-3); }
+
+  @media (min-width: 64rem) {
+    .pj__grid { grid-template-columns: minmax(0, 1fr) var(--size-side); gap: var(--sp-8); align-items: start; }
+  }
+  @media (max-width: 39.99rem) {
+    .pj__cta .btn { flex: 1 1 100%; }
+  }
+}

@@ -8,7 +8,7 @@ and the desktop prototype (`asl-desktop/`) all consume this function.
 
 The browser runtime (`asl-web/js/ml/features.js::normalizeHandForLetter`)
 implements the same algorithm in JavaScript. Numerical parity is verified
-in `scripts/validation/check_runtime_assets.py`.
+in `tests/validation/check_letter_feature_parity.py` (run by `make parity`).
 """
 
 import numpy as np

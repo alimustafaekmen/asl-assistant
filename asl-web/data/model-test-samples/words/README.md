@@ -1,9 +1,11 @@
 # Word fixtures
 
-This folder holds a single fixture, `word-give-smoke.json`. It is synthetic:
-its feature values are generated, not taken from a recording, and it exists to
-show that the word model runs end to end. Its expected result is `give` at
-about 7.6% confidence, so it is a pipeline check, not an accuracy sample.
+This folder holds one fixture, `word-give-smoke.json`, and it is synthetic. Its
+30 frames (padded to 45 with a mask) are drawn from a seeded random generator
+rather than recorded, and the file exists to show that the word model runs end
+to end in the browser. Its expected result is `give` at about 7.6% confidence,
+so it is a pipeline check, not an accuracy sample. The letter fixtures are
+real held-out rows and live in `../letters/`.
 
 ## Why there are no real word samples
 
@@ -17,7 +19,10 @@ repository does not publish any.
 
 ## Creating them locally
 
-1. Accept the competition rules on Kaggle and download the data.
+1. Accept the competition rules on Kaggle and get the data: either the full
+   download, or a small subset from
+   `scripts/evaluation/download_kaggle_sample_subset.py`. The directory must
+   contain `train.csv` and the Parquet files it lists.
 2. Export the fixtures:
 
    ```bash
@@ -26,12 +31,13 @@ repository does not publish any.
      --samples-per-word 1
    ```
 
-   The script writes them to `../local/` with a manifest of their own. That
-   folder is ignored by Git, and the Model Test panel lists its fixtures when
-   it exists.
+   `make model-test-fixtures` does the same for `data/raw/asl-signs-sample-subset`.
+   The script writes the fixtures to `../local/` with a manifest of their own.
+   Git ignores that folder, and the Model Test panel lists what it finds there
+   when the folder exists.
 3. Remove `../local/` before deploying `asl-web/`. A drag-and-drop deploy
    uploads the whole folder, which would publish the fixtures. `make validate`
-   warns while the folder is there.
+   warns while the folder is there, and `make deploy-check` fails.
 
 See the
 [Model Test fixture contract](../../../../docs/models-and-data.md#model-test-fixture-contract)

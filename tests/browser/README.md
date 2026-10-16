@@ -1,27 +1,31 @@
 # Browser checks
 
-Facts about the web app that only a real browser can decide: which CSS rule
+Some facts about the web app only a real browser can decide: which CSS rule
 wins, whether an element is rendered, whether a page scrolls sideways, whether
-a camera track is still live after a stop. The node suite in `tests/web` stubs
-the DOM and has no cascade, no layout and no media, so these facts are checked
+a camera track is still live after a stop. The Node suite in `tests/web` has a
+stub DOM with no cascade, no layout and no media, so these facts are checked
 here, in headless Chrome, against the files in `asl-web/` as they are.
 
-Every check reads computed style, layout boxes or the CSSOM. None reads the
-source text, so moving a rule from one stylesheet to another, or renaming a
-class in the markup and the CSS together, changes nothing here.
+Every check reads computed style, layout boxes, the CSSOM or media state. None
+reads source text, so moving a rule from one stylesheet to another, or renaming
+a class in the markup and the CSS together, changes nothing here.
 
 ## Running
 
 ```bash
-node tests/browser/run.mjs                 # every check
-node tests/browser/run.mjs --offline       # skip the camera check (no CDN)
+make browser-check                         # every check
+make browser-check OFFLINE=1               # skip the camera check (no CDN)
+
+node tests/browser/run.mjs                 # the same, without make
+node tests/browser/run.mjs --offline
 node tests/browser/run.mjs --only boot,hidden
 node tests/browser/run.mjs --list
 ```
 
-It needs Node 22 or later and a Chrome or Chromium. Chrome is found through the
-`CHROME` environment variable, then the standard install locations on macOS,
-Linux and Windows. Nothing is installed: there is no npm dependency.
+It needs Node 22 or later (the DevTools connection uses the WebSocket built
+into Node) and a Chrome or Chromium. Chrome is found through the `CHROME`
+environment variable, then the standard install locations on macOS, Linux and
+Windows. Nothing is installed: there is no npm dependency.
 
 | Exit code | Meaning |
 |---|---|
@@ -40,15 +44,15 @@ A missing Chrome is never reported as a pass.
   not used: it reset about one page load in four under the burst of script
   requests the app makes. `node tests/browser/serve.mjs [port]` serves the
   folder the same way for a manual look.
-- **Its own Chrome.** A headless Chrome with a temporary profile and a
-  DevTools port the OS picks, and a fake camera
-  (`--use-fake-device-for-media-stream`). The owner's own browser, profile and
-  cache are never touched. Chrome and the server are stopped on every way
-  out: success, failure, an exception, and Ctrl+C. Chrome gets no pipe back to
-  the runner, so a helper that outlives it cannot hold the run open: branded
-  Google Chrome on macOS wakes the system's Google updater about 20 s after
-  it starts, a launchd service that exits by itself. Chromium and Chrome for
-  Testing, chosen through `CHROME`, ship without that updater.
+- **Its own Chrome.** A headless Chrome with a temporary profile, a DevTools
+  port the OS picks, and a fake camera (`--use-fake-device-for-media-stream`).
+  Your own browser, profile and cache are never touched. Chrome and the server
+  are stopped on every way out: success, failure, an exception, and Ctrl+C.
+  Chrome gets no pipe back to the runner, so a helper that outlives it cannot
+  hold the run open: branded Google Chrome on macOS wakes the system's Google
+  updater about 20 s after it starts, a launchd service that exits by itself.
+  Chromium and Chrome for Testing, chosen through `CHROME`, ship without that
+  updater.
 - **A fresh context per page.** No check sees storage, cache or permissions
   an earlier one left behind. Pages emulate a light colour scheme and no
   motion preference unless a check says otherwise, so the host's own dark
@@ -79,7 +83,8 @@ scratch copy of `asl-web/`, and to pass on the real tree.
 | `mode-only` | in letter, word and coach mode every control tagged for another mode has `display: none`, every control tagged for the mode is left to its component, and each mode's own actions are rendered | mode rule deleted; its letter line deleted; `#insertSpace` tagged word-only |
 | `reduced-motion` | with `prefers-reduced-motion: reduce` nothing transitions or animates, with and without the legacy layer; without the preference something does, so the check is not vacuous | the `base.css` reduced-motion query disabled |
 | `dark-theme` | the theme toggle changes `--color-page`; the body background becomes that colour and the page canvas follows | dark-token selector broken; legacy last |
-| `no-hscroll` | no camera mode scrolls sideways at 320×640, 360×780, 390×844, 844×390 and 1366×768 | a planted 400 px `min-width` on the action bar; the mode rule deleted |
+| `qr-colours` | the QR ink and paper resolve to near-black on white, in the light and the dark theme | the two tokens removed; a dark-theme override of either |
+| `no-hscroll` | no route, camera mode or information screen, scrolls sideways at 320×640, 360×780, 390×844, 844×390 and 1366×768 | a planted 400 px `min-width` on the action bar or on the information page frame; the mode rule deleted |
 | `landscape` | at 844×390, 740×360, 667×375, 568×320 and 932×430, in letter, word and coach mode, at rest, live and with a refused camera: the stage starts at the top left and fills the height; the mode switch, "Diğer", the result, the transcript and the actions sit beside it, none on it; no part on the stage or beside it overlaps another or is cut off; every action is at least 44 px high; no sideways scroll | the layout before the landscape rework (a 49 px top bar above the stage, the result on the stage, the result over the call to action and the chip over the headline at 568×320); the top bar put back in the flow; the result placed back on the stage |
 | `stage-fit` | at 320×568, 360×640, 375×667, 360×780, 375×812, 390×844, 768×1024, 1366×768 and 1440×900, in letter, word and coach mode, at rest and with a refused camera: the chip, the first-visit content or the camera problem, and the message line under them each lie whole inside the stage and none lies on another | the first-visit fact list under the message line at 390×844, 375×812, 360×780 and 375×667; the problem's help link past the stage at 375×667 and 320×568 in word mode; the first visit no longer ending above the message line; the illustration not shrinking on mid-height phones |
 | `strip-tail` | at 844×390, 390×844 and 1366×768, a 39-letter transcript rendered by the app keeps the caret after its newest letter inside the strip; a two-letter one does too, and the long one really overflows | the strip cut at its end with an ellipsis, which hid the letter just added |
@@ -100,17 +105,17 @@ rules for them are overridden by the stage bar in the components layer, so
 they paint nothing today. Whether those two kinds should look different is a
 design decision, not something this check can settle.
 
-The last three checks are the computed-style replacements for the
-`tests/project` tests that read `css/style.css` for selector text. Those fail
-when a rule moves to another stylesheet or a class is renamed in markup and
-CSS together, which the redesign does on purpose; these do not. Two facts
-those tests also check are not browser facts: a `showFeedback()` or
-`setMessage()` call with a value outside its JSDoc union is caught by
-`make js-typecheck`, and a kind added to the union with no CSS of its own is
-caught by neither (it renders as the neutral bar, like `confusion` and
-`hard`).
+`feedback-kinds`, `confidence-levels` and `guided-actions` are the
+computed-style counterparts of tests in `tests/project/test_web_ui_contracts.py`
+that read `css/style.css` for selector text. Those fail when a rule moves to
+another stylesheet or a class is renamed in markup and CSS together, which the
+ongoing stylesheet restructuring does on purpose; these do not. Two facts those
+tests also check are not browser facts: a `showFeedback()` or `setMessage()`
+call with a value outside its JSDoc union is caught by `make js-typecheck`, and
+a kind added to the union with no CSS of its own is caught by neither (it
+renders as the neutral bar, like `confusion` and `hard`).
 
-A run takes about 9 s with `--offline` and about 16 s with the camera check,
+A run takes about 8 s with `--offline` and about 16 s with the camera check,
 most of which is the CDN download; Chrome's first start on a new profile can
 add a few seconds.
 
@@ -119,7 +124,9 @@ add a few seconds.
 `make health` must run in a fresh clone with the Python environment alone, and
 fast enough to run after every edit. These checks need a Chrome, and the
 camera check needs the network. They are a separate gate, run before a deploy
-and after any change to `index.html` or the CSS.
+and after any change to `index.html` or the CSS. `tests/scripts/test_make_targets.py`
+checks that `make browser-check` runs this runner and fails with it, and that
+`make health` never starts a browser.
 
 ## Adding a check
 

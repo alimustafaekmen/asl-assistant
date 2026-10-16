@@ -1,45 +1,47 @@
-# Model Artifacts
+# Model artifacts
 
-This directory is the repository's curated model registry. Training code lives
-under `scripts/model_training/` and `notebooks/`; deployable browser copies
-live under `asl-web/models/`.
+The curated source copy of every published model. Training code lives in
+`scripts/model_training/` and `notebooks/`; the copies the browser loads live in
+`asl-web/models/` and `asl-web/data/`.
 
 ```text
 models/
-├── letter/                         24-class static-letter model
+├── letter/                         24-class static-letter model (LightGBM)
 │   ├── letter_label_map.json
 │   ├── letter_model.pkl
 │   ├── letter_model_meta.json
 │   └── onnx_exports/
 │       └── letter_model_static_24_web_no_zipmap.onnx
 └── word/
-    ├── web-50/                     current 50-class web model
-    └── desktop-25/                 historical desktop runtime model
+    ├── web-50/                     50-class SignTransformer used by the web app
+    └── desktop-25/                 25-class BiGRU used by the desktop prototype
 ```
 
-The browser does not load files directly from this directory. Its ONNX files
-and JSON contracts are copied to `asl-web/`, then checked against these source
-artifacts by SHA-256.
+The browser never reads this directory. Its ONNX files and JSON contracts are
+copies, and `make validate` compares each copy with the file here by SHA-256 and
+checks the ONNX inputs and outputs. The mapping is listed in
+[Models and data](../docs/models-and-data.md#artifact-provenance).
 
-The two word models are intentionally separate. `web-50` is the current
-SignTransformer pipeline; `desktop-25` is the earlier BiGRU + Attention model
-retained so the desktop prototype remains runnable. Their inputs, class counts,
-and model formats are incompatible.
+The two word models are separate on purpose. `web-50` is the current model;
+`desktop-25` is the earlier one, kept so the desktop prototype still runs. Their
+inputs, class counts and file formats are incompatible, and neither can stand in
+for the other.
 
-Generated model files remain ignored by default. `.gitignore` contains narrow
-exceptions for the documented artifacts needed to run the desktop prototype,
-deploy the browser copies, or validate Python/ONNX parity. An unlisted model
-file is not automatically a publishable source artifact.
+Model files are ignored by `.gitignore` unless listed there. The exceptions
+cover exactly what is needed to run the desktop prototype, deploy the browser
+copies and check Python against ONNX. A model file that is not listed is not
+automatically a source artifact worth publishing.
 
 ## Licence
 
-These model files are released under the repository's
+The model files are released under the repository's
 [PolyForm Noncommercial License 1.0.0](../LICENSE) and are treated as part of
-the software. The terms of their training data also apply; the sources and
-their licences are listed in the README's
-[data and attribution](../README.md#data-and-attribution) section. The `.pkl`
-and `.pt` files are Python pickles, which can run code when loaded: load them
-only from a copy you trust.
+the software. The terms of their training data also apply; the sources and their
+licences are listed in the root README's
+[data and attribution](../README.md#data-and-attribution) section.
 
-See [Word models](word/README.md) and
+The `.pkl` and `.pt` files are Python pickles, which can run arbitrary code when
+loaded. Load them only from a copy you trust.
+
+See [Letter model](letter/README.md), [Word models](word/README.md) and
 [Models and data](../docs/models-and-data.md).

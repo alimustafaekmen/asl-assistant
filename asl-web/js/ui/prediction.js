@@ -98,6 +98,9 @@ function updatePrediction(prediction) {
   updateMessageForPrediction();
   renderWordResultGuide();
   syncActionBar();
+  // The word reference follows the word on screen; the letter reference does
+  // not change with a prediction, so this is not asked for on every frame.
+  if (state.mode === "word") updateReferenceForMode();
 }
 
 /**
@@ -273,11 +276,37 @@ function assessWordResult() {
 }
 
 /**
+ * Show the nearest other words under a finished word result, on the plate.
+ *
+ * The winner is already the plate's face, so only the runners-up are named,
+ * with their Turkish gloss once a signer has reviewed the glosses.
+ *
+ * @returns {void}
+ */
+function renderPlateNear() {
+  const near = document.getElementById("plateNear");
+  if (!near) return;
+  const show = state.mode === "word" && state.wordState === "RESULT" && state.top3.length > 1;
+  near.hidden = !show;
+  if (!show) {
+    near.textContent = "";
+    return;
+  }
+  const others = state.top3.slice(1, 3).map((item) => {
+    const card = wordCard(item.label);
+    const gloss = card ? wordGloss(card) : "";
+    return `${item.label}${gloss ? ` — ${gloss}` : ""} %${Math.round((item.confidence || 0) * 100)}`;
+  });
+  near.textContent = `Yakın: ${others.join(" · ")}`;
+}
+
+/**
  * Render the word result guide and store the assessment in state.
  *
  * @returns {void}
  */
 function renderWordResultGuide() {
+  renderPlateNear();
   if (!els.wordResultGuide || !els.wordResultDecision || !els.wordResultAction) return;
   const assessment = assessWordResult();
   state.wordResultAssessment = assessment;

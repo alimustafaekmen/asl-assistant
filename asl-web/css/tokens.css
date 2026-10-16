@@ -50,9 +50,16 @@
     --stage-button: #f2b705;
     --stage-on-button: #17181b;
 
+    /* QR code: black on white in both themes. A scanner needs dark on light
+       whatever the page looks like, so these are not part of the dark set
+       below. The drawing in js/ui/qr.js reads them. */
+    --qr-ink: #17181b;
+    --qr-back: #ffffff;
+
     /* Brand mark: ink tile, saffron trace. */
     --brand-tile: #17181b;
     --brand-trace: #f2b705;
+    --brand-caret: #f3f2ee;
     --brand-edge: transparent;
 
     /* Type. Sizes are rem so the reader's own text size setting applies. */

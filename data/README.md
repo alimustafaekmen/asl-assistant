@@ -1,105 +1,109 @@
-# Local Data Workspace
+# Data
 
-`data/` is a machine-local workspace for dataset downloads, generated
-landmarks, and evaluation subsets. The deployed browser application does not
-read this directory. Its reviewed runtime data is stored separately in
-`asl-web/data/`.
+This is where datasets are downloaded and where generated landmark tables are
+written. Nothing in it ships with the repository: the web app does not read this
+directory (its reviewed runtime data lives in `asl-web/data/`), and the trained
+models contain learned parameters only, not the data.
 
-Only this README belongs in the public repository. `raw/`, `processed/`, and
-`reference/` are ignored because their contents may be large, generated,
-licensed separately, or machine-specific.
-
-## Directory roles
+Only this README is tracked. `raw/`, `processed/` and `reference/` are ignored
+because their contents are large, generated, under separate licences, or specific
+to one machine. They are created when a script first needs them.
 
 ```text
 data/
-├── raw/         downloaded images, metadata, videos, and parquet subsets
-├── processed/   generated landmark CSVs and intermediate feature data
+├── raw/         downloaded images, metadata, videos and parquet subsets
+├── processed/   generated landmark CSVs and intermediate feature tables
 └── reference/   local reference mappings used during development
 ```
 
-The directories are created when needed; a fresh clone does not require empty
-placeholders.
+## What trained the published models
 
-## Data used by the published models
+### Letter model
 
-### Static-letter model
-
-The 24-class letter model was trained locally from MediaPipe hand landmarks
+The 24-class letter model was trained locally on MediaPipe hand landmarks
 extracted from three image collections:
 
-| Source | Final-model role | Retained landmark rows |
-|---|---|---:|
-| [ASL Alphabet](https://www.kaggle.com/datasets/grassknoted/asl-alphabet) | Main alphabet image source | 52,419 |
-| [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset) | Additional capture variation | 962 |
-| Local `ASL_SemCom` collection associated with [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) | Additional alphabet images | 1,580 |
+| Source | Role | Landmark rows kept | Terms |
+|---|---|---:|---|
+| [ASL Alphabet](https://www.kaggle.com/datasets/grassknoted/asl-alphabet) | Main alphabet image source | 52,419 | GPL-2.0, as labelled by Kaggle |
+| [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset) | Extra capture variation | 962 | CC0 |
+| Local `ASL_SemCom` collection, associated with [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) | Extra alphabet images | 1,580 | Not recorded |
 
-The merged table contains 54,961 rows and only the static classes A–Y excluding
-J and Z. It was split into 46,716 training rows and 8,245 held-out rows before
-training augmentation. These are successfully extracted landmark counts, not
-the providers' original image counts.
+The merged table has 54,961 rows covering the 24 static letters (A to Y without
+J and Z). It was split into 46,716 training rows and 8,245 held-out rows before
+training augmentation. The row counts are successfully extracted landmarks, not
+the providers' image counts.
 
-The exact local raw-data layout and the `ASL_SemCom` redistribution terms are
-not sufficiently preserved to publish or promise one-command reconstruction of
-the final merged CSV. The model, metadata, label map, training script, and
-feature contract are published so the recorded artifact remains inspectable.
+The exact local raw-data layout and the `ASL_SemCom` terms are not recorded well
+enough to publish the images or to promise that one command rebuilds the final
+table. The model, its metadata, the label map, the training script and the
+feature definition are published, so the recorded artifact can still be
+inspected and checked.
 
 ### Word models
 
-Both the 25-class desktop model and the final 50-class web model use the
-[Google Isolated Sign Language Recognition competition](https://www.kaggle.com/competitions/asl-signs)
-landmark data. The 50-class run selected a subset of signs and used a
-signer-independent train/validation/test split in Kaggle.
+The 25-word desktop model and the 50-word web model both use landmark data from
+the [Google Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs)
+competition (CC BY 4.0, subject to the competition rules). The 50-word run
+selected a subset of the signs and used a signer-independent train, validation
+and test split inside Kaggle.
 
-Raw competition parquet files are not needed by either deployed application.
-They are needed only to rerun training or export new Model Test fixtures. The
-competition rules forbid redistributing the data, so exported fixtures are
-written to the ignored `asl-web/data/model-test-samples/local/` folder.
+Neither deployed app needs the competition files. You need them only to retrain
+or to export new Model Test fixtures. Section 7.B of the competition rules
+forbids redistributing the data, so fixtures exported from it are written to the
+ignored `asl-web/data/model-test-samples/local/` folder and are never committed.
 
-## Explored but not used for the active models
+The full licence and attribution text, including the changes made to each
+dataset, is in the root README's
+[Data and attribution](../README.md#data-and-attribution) section. Dataset roles,
+splits and caveats are in [Models and data](../docs/models-and-data.md).
 
-| Local source | Status |
+## Explored, but not used for the published models
+
+| Source | What happened |
 |---|---|
-| [MediaPipe Processed ASL Dataset](https://www.kaggle.com/datasets/vignonantoine/mediapipe-processed-asl-dataset) | Evaluated for the letter pipeline, but the preserved extraction run produced no usable hand detections; excluded from the final merge |
-| [MS-ASL](https://www.microsoft.com/en-us/research/project/ms-asl/) | Download and landmark-extraction utilities exist as an experimental word-data path; it did not produce either published word model |
-| `asl-signs-sample-subset/` | Small local Kaggle subset used only to export deterministic browser fixtures, not to train the final model |
+| [MediaPipe Processed ASL](https://www.kaggle.com/datasets/vignonantoine/mediapipe-processed-asl-dataset) | Tried for the letter pipeline; the preserved run found no usable hands, so it is not in the final merge |
+| [MS-ASL](https://www.microsoft.com/en-us/research/project/ms-asl/) | Download and extraction scripts exist as an experimental word-data path; neither published word model used it |
+| `raw/asl-signs-sample-subset/` | A small slice of the competition data, used only to export Model Test fixtures |
 
-Do not present these exploratory sources as final-model training data.
+Do not describe these as training data for the published models.
 
-## Reproduction entry points
+## Commands
 
 ```bash
-# Letter image -> landmark CSV
+# Letter images -> landmark CSV (one folder per letter)
 python scripts/data_preparation/extract_static_letter_landmarks.py \
   --input /path/to/letter-folders \
   --output data/processed/source_landmarks.csv
 
-# Merge prepared letter CSV files and create a split
+# Merge the CSV files and write train and test splits
 python scripts/data_preparation/merge_static_letter_datasets.py \
   --inputs data/processed/source_a_landmarks.csv \
            data/processed/source_b_landmarks.csv
 
-# Download a small Google competition subset for browser fixtures
+# A small slice of the competition data, for Model Test fixtures
 python scripts/evaluation/download_kaggle_sample_subset.py \
   --output data/raw/asl-signs-sample-subset \
   --samples-per-word 1
 ```
 
-The final 50-class training workflow is
-`notebooks/word_50_training.ipynb`. Dataset roles, split details, feature
-contracts, limitations, and licensing notes are maintained in
-[Models and data](../docs/models-and-data.md).
+By default the merge step undersamples every class to the size of the smallest
+one. The preserved final tables are not balanced, so add `--no-balance` to keep
+all rows. The 50-word model is trained in
+`notebooks/word_50_training.ipynb`; see [notebooks/README.md](../notebooks/README.md).
+The Kaggle download needs your own credentials and an accepted copy of the
+competition rules.
 
-## Publication boundary
+## What may be committed
 
-Do not commit raw images, videos, participant-level parquet files, generated
-CSVs, Kaggle credentials, download logs, or archives. Publish only:
+Never commit raw images, videos, participant-level parquet files, generated CSVs,
+Kaggle credentials, download logs or archives. What belongs in the repository:
 
-- source links and dataset roles in documentation;
-- small reviewed runtime JSON under `asl-web/data/`;
-- deterministic feature fixtures that contain no raw camera frames; and
-- curated model/provenance artifacts explicitly allowed by `.gitignore`.
+- source links and dataset roles, in documentation;
+- small, reviewed runtime JSON under `asl-web/data/`;
+- deterministic feature fixtures that contain no camera frames; and
+- the model and provenance files that `.gitignore` explicitly allows.
 
-Always review the current upstream terms before downloading, using, or
-redistributing a dataset. An upstream dataset license does not automatically
-license this repository's code or every derived artifact.
+Check a dataset's current terms before you download, use or redistribute it. A
+dataset's licence does not automatically apply to this repository's code, and
+this repository's licence does not apply to the data.

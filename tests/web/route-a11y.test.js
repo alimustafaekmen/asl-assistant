@@ -27,9 +27,9 @@ const TITLES = {
   letter: "Harf tanıma · ASL Assistant",
   coach: "Koç · ASL Assistant",
   word: "Kelime (deneysel) · ASL Assistant",
-  test: "Kamerasız dene · ASL Assistant",
+  test: "Modeli kamerasız deneyin · ASL Assistant",
   project: "Nasıl çalışır · ASL Assistant",
-  qr: "Telefonda aç · ASL Assistant",
+  qr: "Telefonda açın · ASL Assistant",
 };
 
 /**

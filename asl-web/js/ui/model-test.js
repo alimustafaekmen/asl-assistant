@@ -373,13 +373,16 @@ async function loadAndRunPreferredModelTestSample(task) {
  * @returns {void}
  */
 function updateModelTestDomainHelp() {
-  if (!els.modelTestDomainHelp) return;
-  if (state.modelTestTask === "word") {
-    els.modelTestDomainHelp.textContent =
-      "Kelime modu hareketi değerlendirir: 45 frame boyunca çıkarılan özellikler ve gerçek frame maskesi modele verilir. Bu yüzden tek fotoğraf değil, kısa bir hareket dizisi test edilir.";
-  } else {
-    els.modelTestDomainHelp.textContent =
-      "Harf modu statik el pozunu değerlendirir: tek frame üzerinden 93 sayısal özellik çıkarılır ve 24 harf sınıfından biri tahmin edilir.";
+  const isWord = state.modelTestTask === "word";
+  if (els.modelTestDomainHelp) {
+    els.modelTestDomainHelp.textContent = isWord
+      ? "Kelime modeli, 45 kareden oluşan kısa bir hareket dizisine bakıp 50 kelimeden birini seçer."
+      : "Harf modeli, tek bir el duruşuna bakıp 24 harften birini seçer.";
+  }
+  // The run-all button is bound to whichever model is selected, so the line
+  // under it says which one that is.
+  if (els.modelTestBatchHint) {
+    els.modelTestBatchHint.textContent = `${isWord ? "Kelime" : "Harf"} modelinin hazır örneklerini sırayla çalıştırır ve kaçının doğru olduğunu sayar.`;
   }
 }
 
@@ -1244,6 +1247,10 @@ const MODEL_TEST_VERDICT_LABELS = {
 function renderModelTestBatch() {
   const batch = state.modelTestBatch;
   if (els.modelTestBatch) els.modelTestBatch.hidden = !batch;
+  // What the samples can and cannot show differs by model, so only the note of
+  // the model that ran is shown.
+  if (els.modelTestNoteLetter) els.modelTestNoteLetter.hidden = batch?.task !== "letter";
+  if (els.modelTestNoteWord) els.modelTestNoteWord.hidden = batch?.task !== "word";
   if (els.modelTestSummary) els.modelTestSummary.textContent = batch ? describeModelTestBatch(batch) : "";
   if (!els.modelTestRows) return;
   els.modelTestRows.innerHTML = "";
@@ -1269,6 +1276,98 @@ function renderModelTestBatch() {
     });
     els.modelTestRows.appendChild(row);
   }
+}
+
+// ── Project page: the model card ─────────────────────────────────────────
+// The page states how well each model does. Those figures are read from
+// data/model-card.json when the page opens instead of being typed into the
+// markup, where they would go stale at the next retraining. They sit here
+// because the number formats above are what they are written with.
+
+/**
+ * The card's load, kept so a second visit does not fetch again. It is null
+ * before the first visit and after a failure, so the next visit retries.
+ *
+ * @type {Promise<void> | null}
+ */
+let _modelCardLoad = null;
+
+/**
+ * A figure of the card, by its dotted path.
+ *
+ * @param {unknown} card
+ * @param {string} path For example "word.accuracy".
+ * @returns {number | null} Null when the path leads nowhere or to a non-number.
+ */
+function modelCardFigure(card, path) {
+  /** @type {unknown} */
+  let value = card;
+  for (const key of path.split(".")) value = isRecord(value) ? value[key] : undefined;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Write a figure the way the page states it.
+ *
+ * @param {number} value
+ * @param {string | undefined} format "percent", "mb" (a size in bytes) or, by
+ *   default, a whole number.
+ * @returns {string}
+ */
+function formatModelCardFigure(value, format) {
+  if (format === "percent") return formatPercent(value);
+  if (format === "mb") return `${formatTurkishNumber(value / 1048576)} MB`;
+  return String(value);
+}
+
+/**
+ * Fill the page's figures from a card, all or none.
+ *
+ * A sentence with one figure missing would read as nonsense, so when any
+ * figure is absent nothing is written and the block stays hidden.
+ *
+ * @param {unknown} card
+ * @returns {void}
+ */
+function renderProjectModelCard(card) {
+  const slots = queryElements("[data-card]").map((element) => ({
+    element,
+    value: modelCardFigure(card, element.dataset.card ?? ""),
+  }));
+  if (slots.some((slot) => slot.value === null)) {
+    console.warn("model-card.json lacks a figure the page needs; the numbers stay hidden");
+    return;
+  }
+  for (const { element, value } of slots) {
+    element.textContent = formatModelCardFigure(/** @type {number} */ (value), element.dataset.format);
+  }
+  if (els.projectNumbers) els.projectNumbers.hidden = false;
+}
+
+/**
+ * @returns {Promise<unknown>}
+ */
+async function fetchModelCard() {
+  const response = await fetch("./data/model-card.json");
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
+/**
+ * Read the model card and fill the project page with it.
+ *
+ * @returns {Promise<void>} Never rejects; on a failure the numbers stay hidden.
+ */
+function loadProjectModelCard() {
+  if (_modelCardLoad) return _modelCardLoad;
+  const load = fetchModelCard()
+    .then(renderProjectModelCard)
+    .catch((err) => {
+      console.warn("model-card.json could not be read:", err);
+      if (_modelCardLoad === load) _modelCardLoad = null;
+    });
+  _modelCardLoad = load;
+  return load;
 }
 
 /**

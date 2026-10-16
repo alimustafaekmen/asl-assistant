@@ -95,8 +95,10 @@ camera (getUserMedia)      core/app.js    toggleCamera / stopCamera
      ui/coach.js           target scoring
 ```
 
-`core/app.js` drives the render loop, which calls `realInference()`;
-`media/camera.js` drives the detection loop, which calls `drawOverlay()`.
+`core/app.js` drives the render loop, which calls `realInference()` and
+`drawOverlay()`; `media/camera.js` drives the detection loop, which calls
+`drawOverlay()` as well. `drawOverlay()` lives in `core/app.js` and hands the
+drawing to `drawLandmarks()` in `media/overlay.js`.
 
 Models load on first use, not at startup. `ensureLetterModel()` in
 `ml/letter-model.js` and `ensureWordModel()` in `ml/word-model.js` download and

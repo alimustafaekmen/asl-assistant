@@ -15,8 +15,8 @@ test("a missing required element fails while the scripts load", () => {
   // Failing here rather than when the coach screen opens is the whole point:
   // the id is in the message, so the markup that dropped it is findable.
   assert.throws(
-    () => loadWebApp({ missingIds: ["coachCard"] }),
-    /coachCard/,
+    () => loadWebApp({ missingIds: ["coachTargetTile"] }),
+    /coachTargetTile/,
     "a missing required element must name itself",
   );
 });
@@ -64,8 +64,8 @@ test("the word guidance panel renders nothing without its lists", () => {
 test("every optional element resolves to null rather than a placeholder", () => {
   // optionalElement() returns null for a missing element instead of an object
   // that would silently absorb writes.
-  const app = loadWebApp({ missingIds: ["recordWord", "coachVideoLink"] });
+  const app = loadWebApp({ missingIds: ["recordWord", "coachReference"] });
 
   assert.equal(app.evaluate("els.recordWord"), null);
-  assert.equal(app.evaluate("els.coachVideoLink"), null);
+  assert.equal(app.evaluate("els.coachReference"), null);
 });

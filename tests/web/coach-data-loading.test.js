@@ -60,12 +60,12 @@ test("with the data, learning starts at the first letter of the teaching order a
 
   const first = curriculum.suggested_order[0];
   assert.equal(coach.app.evaluate("state.coachFlow"), "learn", "precondition: a first visit learns");
-  assert.equal(coach.text("coachTargetBig"), first);
+  assert.equal(coach.text("coachTargetGlyph"), first);
   assert.equal(coach.text("coachHint"), cueOf(first));
 
   coach.click(coach.el("coachNextTarget"));
   const second = curriculum.suggested_order[1];
-  assert.equal(coach.text("coachTargetBig"), second, "the next target follows the teaching order");
+  assert.equal(coach.text("coachTargetGlyph"), second, "the next target follows the teaching order");
   assert.equal(coach.text("coachHint"), cueOf(second));
 });
 
@@ -76,10 +76,10 @@ test("when the data cannot be read, the coach still opens, in alphabetical order
   await flush();
 
   assert.equal(coach.app.evaluate("state.mode"), "coach");
-  assert.equal(coach.text("coachTargetBig"), "A");
+  assert.equal(coach.text("coachTargetGlyph"), "A");
   assert.equal(coach.text("coachHint"), FAILED_LINE);
   coach.click(coach.el("coachNextTarget"));
-  assert.equal(coach.text("coachTargetBig"), "B", "the alphabet is the fallback order");
+  assert.equal(coach.text("coachTargetGlyph"), "B", "the alphabet is the fallback order");
 
   // The camera and the hold work without the data.
   await coach.startCamera();
@@ -98,7 +98,7 @@ test("a file of another schema is not taught from", async () => {
   openTab(coach, "coach");
   await flush();
 
-  assert.equal(coach.text("coachTargetBig"), "A");
+  assert.equal(coach.text("coachTargetGlyph"), "A");
   assert.equal(coach.text("coachHint"), FAILED_LINE);
 });
 
@@ -111,12 +111,12 @@ test("the coach does not wait for the data, and starts the teaching order when i
 
   openTab(coach, "coach");
   await flush();
-  assert.equal(coach.text("coachTargetBig"), "A", "the coach opened on the alphabet while the data loads");
+  assert.equal(coach.text("coachTargetGlyph"), "A", "the coach opened on the alphabet while the data loads");
 
   // Untouched, the target moves to the teaching order once the data is in.
   release();
   await flush();
-  assert.equal(coach.text("coachTargetBig"), curriculum.suggested_order[0]);
+  assert.equal(coach.text("coachTargetGlyph"), curriculum.suggested_order[0]);
 });
 
 test("data that arrives late does not move a target the learner already chose", async () => {
@@ -135,6 +135,6 @@ test("data that arrives late does not move a target the learner already chose", 
   release();
   await flush();
 
-  assert.equal(coach.text("coachTargetBig"), "W");
+  assert.equal(coach.text("coachTargetGlyph"), "W");
   assert.equal(coach.text("coachHint"), cueOf("W"), "the cue arrives for the chosen target");
 });

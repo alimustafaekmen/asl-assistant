@@ -646,6 +646,59 @@ function buildCoachProgress() {
 }
 
 /**
+ * Rebuild the letter grid: one button per letter, in the alphabet's order, so
+ * a letter is always where the learner last saw it.
+ *
+ * Every build starts from an empty grid, so it never keeps a button from an
+ * earlier one. A quiz asks the letters itself, and its grid does not take a
+ * pick.
+ *
+ * @returns {void}
+ */
+function buildCoachGrid() {
+  els.coachGrid.innerHTML = "";
+  LETTERS.forEach((letter) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "letter-grid__item";
+    button.dataset.letter = letter;
+    button.textContent = letter;
+    button.addEventListener("click", () => {
+      if (state.coachFlow === "quiz") return;
+      chooseCoachTarget(letter);
+    });
+    els.coachGrid.appendChild(button);
+  });
+  renderCoachGrid();
+}
+
+/**
+ * Paint the letter grid from the progress and the target: which letter is
+ * current, and which have been shown correctly at least once.
+ *
+ * @returns {void}
+ */
+function renderCoachGrid() {
+  const quiz = state.coachFlow === "quiz";
+  els.coachGrid.setAttribute("aria-disabled", String(quiz));
+  if (els.coachGridNote) els.coachGridNote.hidden = !quiz;
+  let done = 0;
+  for (const button of els.coachGrid.children) {
+    if (!(button instanceof HTMLElement)) continue;
+    const letter = button.dataset.letter ?? "";
+    const shown = coachProgress.letters[letter]?.ok >= 1;
+    const current = state.coachTargetType === "letter" && letter === state.coachTarget;
+    if (shown) done += 1;
+    button.dataset.state = current ? "current" : shown ? "done" : "todo";
+    button.setAttribute("aria-label", current ? `${letter}, şimdiki hedef` : shown ? `${letter}, tamamlandı` : letter);
+    button.setAttribute("aria-disabled", String(quiz));
+    if (current) button.setAttribute("aria-current", "true");
+    else button.removeAttribute("aria-current");
+  }
+  if (els.coachDone) els.coachDone.textContent = `${done}/${LETTERS.length}`;
+}
+
+/**
  * Switch between letter and word practice, resetting progress.
  *
  * @param {string} type Anything other than "word" selects letters.
@@ -698,17 +751,31 @@ function setCoachFlow(flow) {
 }
 
 /**
- * Mark which target type is active.
+ * Mark the one checked radio of a group, and leave only it in the tab order.
+ *
+ * @param {HTMLElement | null} radio
+ * @param {boolean} checked
+ * @returns {void}
+ */
+function _markCoachRadio(radio, checked) {
+  if (!radio) return;
+  radio.classList.toggle("is-active", checked);
+  radio.setAttribute("aria-checked", String(checked));
+  radio.setAttribute("tabindex", checked ? "0" : "-1");
+}
+
+/**
+ * Mark which target type is active, and show the picker that goes with it:
+ * the letter grid, or the word list.
  *
  * @returns {void}
  */
 function updateCoachModeButtons() {
   const isWord = state.coachTargetType === "word";
-  els.coachLettersOnly?.classList.toggle("is-active", !isWord);
-  els.coachWordsOnly?.classList.toggle("is-active", isWord);
-  if (els.coachModeLabel) {
-    els.coachModeLabel.textContent = isWord ? "Kelime çalışması" : "Harf çalışması";
-  }
+  _markCoachRadio(els.coachLettersOnly, !isWord);
+  _markCoachRadio(els.coachWordsOnly, isWord);
+  if (els.coachLetterPicker) els.coachLetterPicker.hidden = isWord;
+  if (els.coachWordPicker) els.coachWordPicker.hidden = !isWord;
 }
 
 /**
@@ -718,23 +785,124 @@ function updateCoachModeButtons() {
  */
 function updateCoachFlowButtons() {
   queryElements("[data-coach-flow]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.coachFlow === state.coachFlow);
+    _markCoachRadio(button, button.dataset.coachFlow === state.coachFlow);
   });
 }
 
 /**
- * Redraw the coach panel for the current target and progress.
+ * Move the choice of a radio group with the arrow keys, as a radio group
+ * does: the next or previous radio is checked and takes focus, and the ends
+ * wrap round.
+ *
+ * @param {KeyboardEvent} event A keydown inside the group.
+ * @returns {void}
+ */
+function moveCoachRadio(event) {
+  const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+  const group = event.currentTarget;
+  if (!step || !(group instanceof HTMLElement) || !(event.target instanceof HTMLElement)) return;
+  const radios = queryElements('[role="radio"]', group);
+  const from = radios.indexOf(event.target);
+  if (from < 0) return;
+  event.preventDefault();
+  const next = radios[(from + step + radios.length) % radios.length];
+  next.focus();
+  next.click();
+}
+
+/**
+ * Whether the phone's study sheet is open.
+ *
+ * @returns {boolean}
+ */
+function isCoachSheetOpen() {
+  return els.coachStudy.dataset.open === "true";
+}
+
+/**
+ * Open or close the study controls as a sheet over the screen, on a phone.
+ * Beside the stage, on a laptop, they are always there and this changes
+ * nothing the learner can see.
+ *
+ * @param {boolean} open
+ * @returns {void}
+ */
+function setCoachSheet(open) {
+  if (open === isCoachSheetOpen()) return;
+  els.coachStudy.dataset.open = String(open);
+  els.coachSessionButton?.setAttribute("aria-expanded", String(open));
+  if (open) {
+    els.coachStudy.setAttribute("role", "dialog");
+    els.coachStudy.setAttribute("aria-modal", "true");
+    els.coachStudy.setAttribute("aria-label", "Çalışma");
+    els.coachSheetClose?.focus();
+  } else {
+    els.coachStudy.removeAttribute("role");
+    els.coachStudy.removeAttribute("aria-modal");
+    els.coachStudy.removeAttribute("aria-label");
+    els.coachSessionButton?.focus();
+  }
+}
+
+/**
+ * The name of the study flow with its measure, as the session button says it.
+ *
+ * @returns {string}
+ */
+function coachSessionLabel() {
+  if (state.coachFlow === "practice") return `Pratik: ${state.coachGoal} tekrar`;
+  if (state.coachFlow === "quiz") return `Sınav: ${state.quizTotal} soru`;
+  return "Öğrenme: sırayla";
+}
+
+/**
+ * Show the dock buttons and the plate's extras that fit where the attempt is.
+ *
+ * After a success the dock offers Tekrar and Sonraki, and the wait for the
+ * next target shows its bar and Burada kal. Before one it offers Atla and
+ * İpucu; the quiz has no hint, and a word has no hint and a button check
+ * instead. Hiding a button is only for the eye: every one of them is still
+ * a real control that does its own work.
+ *
+ * @returns {void}
+ */
+function syncCoachControls() {
+  const isWord = _isCoachWordTarget();
+  const done = !isWord && (state.coach.phase === "success" || state.coach.phase === "staying");
+  const quiz = state.coachFlow === "quiz";
+  if (els.coachRepeat) els.coachRepeat.hidden = !done;
+  if (els.coachNext) els.coachNext.hidden = !done;
+  if (els.coachNextTarget) els.coachNextTarget.hidden = done;
+  if (els.coachHintButton instanceof HTMLButtonElement) {
+    els.coachHintButton.hidden = done || isWord;
+    els.coachHintButton.disabled = quiz;
+  }
+  // Holding the letter is its check; the button only records a word.
+  if (els.coachCheck instanceof HTMLButtonElement) {
+    els.coachCheck.hidden = !isWord;
+    els.coachCheck.disabled = !isWord;
+  }
+  if (els.coachAdvance) els.coachAdvance.hidden = !state.coach.advancing;
+  els.coachAdvanceBar?.style.setProperty("--advance-ms", `${CONFIG.COACH_ADVANCE_MS}ms`);
+  // The cue stays out of the way while the plate says what happened; it is
+  // there while the learner studies a letter, and always once asked for.
+  const attempting = state.coach.phase === "miss" || done;
+  els.coachHint.hidden = !isWord && !state.coach.hintOpen && (state.coachFlow !== "learn" || attempting);
+}
+
+/**
+ * Redraw the coach for the current target and progress.
  *
  * @returns {void}
  */
 function updateCoachPanel() {
   const target = state.coachTarget;
   const isLetter = target.length === 1;
-  if (els.coachCard) els.coachCard.dataset.targetType = isLetter ? "letter" : "word";
-  els.coachTargetBig.textContent = isLetter ? target.toUpperCase() : target;
+  els.coachTargetTile.dataset.kind = isLetter ? "letter" : "word";
+  els.coachTargetGlyph.textContent = isLetter ? target.toUpperCase() : target;
   const targetText = isLetter
     ? `Hedef harf: ${target}. El şekli kameraya net görünmeli; poz en az 1 saniye sabit kalmalı.`
-    : `Hedef kelime: ${target}. Hareketi 3-5 saniye içinde tamamla. El, yüz ve omuzlar kadrajda kalmalı.`;
+    : `Hedef kelime: ${target}. Hareketi 3-5 saniye içinde tamamlayın. El, yüz ve omuzlar kadrajda kalmalı.`;
   els.coachHint.textContent =
     isLetter && state.coach.hintOpen
       ? coachHintLine(target)
@@ -745,11 +913,17 @@ function updateCoachPanel() {
     state.coachFlow === "quiz"
       ? `${state.quizScore}/${state.quizTotal}`
       : `${Math.min(state.coachStep, state.coachGoal)}/${state.coachGoal}`;
-  updateCoachFlowCopy(isLetter);
-  updateCoachNextAction(isLetter);
-  updateCoachPathSteps();
-  // Holding the letter is its check; the button only records a word.
-  if (els.coachCheck instanceof HTMLButtonElement) els.coachCheck.disabled = isLetter;
+  const counted = state.coachFlow === "quiz" ? state.quizScore : Math.min(state.coachStep, state.coachGoal);
+  els.coachProgress.setAttribute("aria-label", `Oturum: ${state.coachGoal} hedeften ${counted} tamamlandı`);
+  if (els.coachSession) els.coachSession.dataset.flow = state.coachFlow;
+  if (els.coachSessionLabel) els.coachSessionLabel.textContent = coachSessionLabel();
+  if (els.coachSessionFlow) els.coachSessionFlow.textContent = coachSessionLabel();
+  // Where the progress is kept, or that it is not.
+  if (els.coachStorageNote) {
+    els.coachStorageNote.textContent = coachProgressSaved
+      ? "İlerlemeniz yalnızca bu cihazda saklanır, kimseyle paylaşılmaz."
+      : "İlerleme bu tarayıcıda saklanamıyor; sayfayı kapatınca sıfırlanır.";
+  }
   // data-state is what the stylesheet selects: "hit" for a done target and
   // "active" for the current one.
   [...els.coachProgress.children].forEach((cell, index) => {
@@ -758,127 +932,11 @@ function updateCoachPanel() {
     else if (index === state.coachStep) cell.dataset.state = "active";
     else delete cell.dataset.state;
   });
+  renderCoachGrid();
+  syncCoachControls();
   updateReferenceForMode();
   syncRecordButton();
   syncActionBar();
-}
-
-/**
- * Mark how far the learner has got through the three setup steps.
- *
- * @returns {void}
- */
-function updateCoachPathSteps() {
-  const steps = queryAllUi("coach-step");
-  const activeIndex = state.cameraOn ? 2 : state.coachTarget ? 1 : 0;
-  steps.forEach((step, index) => {
-    step.dataset.state = index < activeIndex ? "done" : index === activeIndex ? "active" : "";
-  });
-}
-
-/**
- * Write the explanation for the active study flow.
- *
- * @param {boolean} isLetter Whether the current target is a single letter.
- * @returns {void}
- */
-function updateCoachFlowCopy(isLetter) {
-  if (!els.coachFlowTitle || !els.coachFlowText) return;
-  const liveText = state.prediction && state.prediction !== "?"
-    ? ` Canlı algılanan: ${state.prediction}.`
-    : " Canlı algılanan sonuç kamera başladıktan sonra görünür.";
-  if (state.coachFlow === "learn") {
-    els.coachFlowTitle.textContent = "Öğren";
-    els.coachFlowText.textContent = isLetter
-      ? `Referans harfi inceleyin, el şeklini kadraja ortalayın ve video rehberle karşılaştırın.${liveText}`
-      : `Referans kelimeyi inceleyin, hareket süresini 3-5 saniye aralığında tutun ve video rehberi kullanın.${liveText}`;
-  } else if (state.coachFlow === "practice") {
-    els.coachFlowTitle.textContent = "Pratik";
-    els.coachFlowText.textContent = isLetter
-      ? `Amaç 5 doğru tekrardır. Hedef harfi sabit tuttuğunuzda tekrar kendiliğinden sayılır; bir sonraki için elinizi indirip yeniden gösterin.${liveText}`
-      : `Amaç 5 doğru tekrardır. Doğru eşleşmeler ilerlemeye işlenir; yanlış eşleşmede hedef, açı ve kadraj yeniden kontrol edilir.${liveText}`;
-  } else {
-    els.coachFlowTitle.textContent = "Quiz";
-    els.coachFlowText.textContent = isLetter
-      ? `Quiz ${state.quizTotal} sorudan oluşur. Hedef harfi sabit tuttuğunuzda soru kendiliğinden puanlanır; Sonraki Hedef ile yeni soruya geçin.${liveText}`
-      : `Quiz ${state.quizTotal} sorudan oluşur. Her kontrolde skor güncellenir ve Sonraki Hedef ile yeni soru seçilir.${liveText}`;
-  }
-  // Where the progress is kept, or that it is not.
-  els.coachFlowText.textContent += coachProgressSaved
-    ? " İlerlemeniz yalnızca bu cihazda saklanır, kimseyle paylaşılmaz."
-    : " İlerleme bu tarayıcıda saklanamıyor; sayfayı kapatınca sıfırlanır.";
-}
-
-/**
- * Write the single next step the learner should take.
- *
- * @param {boolean} isLetter Whether the current target is a single letter.
- * @returns {void}
- */
-function updateCoachNextAction(isLetter) {
-  if (!els.coachNextActionTitle || !els.coachNextActionText) return;
-  const target = state.coachTarget;
-  const hasPrediction = state.prediction && state.prediction !== "?";
-
-  if (!state.cameraOn) {
-    els.coachNextActionTitle.textContent = "Çalışmayı başlat";
-    els.coachNextActionText.textContent = isLetter
-      ? `${target} hedefi hazır. Kamerayı aç, elini kadraja al ve pozunu sabit tut.`
-      : `${target} hedefi hazır. Kamerayı aç, el-yüz-omuz görünürlüğünü kontrol et.`;
-    return;
-  }
-
-  if (!isLetter && ["COUNTDOWN", "RECORDING", "PROCESSING"].includes(state.wordState)) {
-    els.coachNextActionTitle.textContent = "Kayıt tamamlanıyor";
-    els.coachNextActionText.textContent =
-      "Hareketi bitir, kamera karşısında kal ve top-3 sonucu bekle.";
-    return;
-  }
-
-  if (isLetter) {
-    els.coachNextActionTitle.textContent = "Hedef harfi tutun";
-    els.coachNextActionText.textContent =
-      "El şeklini kameraya gösterip sabit tutun; halka dolunca kendiliğinden kontrol edilir.";
-    return;
-  }
-
-  if (state.coachFlow === "learn") {
-    els.coachNextActionTitle.textContent = "Kelime pratiği yap";
-    els.coachNextActionText.textContent =
-      "Hedefi Kontrol Et butonu kısa bir kelime kaydı alır ve sonucu yorumlar.";
-    return;
-  }
-
-  if (!hasPrediction) {
-    els.coachNextActionTitle.textContent = "Hedefi kamerada göster";
-    els.coachNextActionText.textContent = "Kelime kaydı için Hedefi Kontrol Et butonunu kullan.";
-    return;
-  }
-
-  els.coachNextActionTitle.textContent =
-    state.coachFlow === "quiz" ? "Cevabı kontrol et" : "Tekrarı işle";
-  els.coachNextActionText.textContent =
-    `${hasPrediction ? `Canlı sonuç: ${state.prediction}. ` : ""}` +
-    "Hedefle eşleşiyorsa ilerleme güncellenir; eşleşmiyorsa kadrajı ve hareketi düzelt.";
-}
-
-/**
- * Start or stop a study session by toggling the camera.
- *
- * @returns {Promise<void>}
- */
-async function startCoachStudy() {
-  if (state.cameraOn) {
-    stopCamera();
-    return;
-  }
-  await toggleCamera();
-  if (state.cameraOn) {
-    state.coachFeedback = _isCoachWordTarget()
-      ? "Çalışma aktif. Hedefi kamerada uygulayın ve Kontrol Et butonunu kullanın."
-      : "Çalışma açık. Hedef harfi kameraya gösterip sabit tutun.";
-    updateCoachPanel();
-  }
 }
 
 /**
@@ -918,6 +976,25 @@ function nextCoachTarget() {
   const nextIndex = (currentIndex + 1) % list.length;
   state.coachStep = state.coachFlow === "quiz" ? state.coachStep : 0;
   _showCoachTarget(list[nextIndex]);
+}
+
+/**
+ * Show the target again: the attempt starts over on the same letter.
+ *
+ * Nothing already counted is taken back, and a letter that was counted stays
+ * counted, so a quiz question still scores once. The wait for the next target
+ * ends, since the learner chose this one.
+ *
+ * @returns {void}
+ */
+function repeatCoachTarget() {
+  if (state.mode !== "coach" || _isCoachWordTarget()) return;
+  state.coachFeedback = "";
+  resetCoachAttempt();
+  if (typeof resetSmoother === "function") resetSmoother();
+  if (typeof resetLetterLandmarkSmoother === "function") resetLetterLandmarkSmoother();
+  updatePrediction({ label: "?", confidence: 0, alternatives: [] });
+  updateCoachPanel();
 }
 
 /**
@@ -1022,7 +1099,27 @@ function renderCoachPlate() {
   els.confidenceRing.className = `confidence-ring ${plate.ring}`;
   els.cameraStage.dataset.state = plate.stage;
   els.decisionLabel.textContent = plate.decision(target);
-  setMessage(plate.message(target, state.coach), plate.level);
+  const message = plate.message(target, state.coach);
+  setMessage(message, plate.level);
+  // A screen reader hears the verdict when the phase changes: written only
+  // when it differs, so a hold that goes on says nothing more.
+  const verdict = _coachVerdictText(plate.decision(target), message);
+  if (els.coachVerdict.textContent !== verdict) els.coachVerdict.textContent = verdict;
+  syncCoachControls();
+}
+
+/**
+ * What a screen reader is told about the attempt: the success or the miss,
+ * and nothing while the learner is still on the way to either.
+ *
+ * @param {string} decision The plate's headline.
+ * @param {string} message The plate's line under it.
+ * @returns {string}
+ */
+function _coachVerdictText(decision, message) {
+  const { phase } = state.coach;
+  if (phase !== "success" && phase !== "staying" && phase !== "miss") return "";
+  return /[.!?…]$/.test(decision) ? `${decision} ${message}` : `${decision}. ${message}`;
 }
 
 /**

@@ -25,14 +25,17 @@
     <link rel="preload" href="assets/fonts/atkinson-hyperlegible-next.woff2" as="font" type="font/woff2" crossorigin />
     <!-- Before the stylesheets, so the first frame is already in the visitor's
          theme; a blocking script after them would wait for them. -->
-    <script src="js/core/theme-boot.js?v=10"></script>
+    <script src="js/core/theme-boot.js?v=11"></script>
     <!-- style.css first: it declares the cascade layer order, and the first
          declaration wins. The files after it add layers above the legacy one. -->
-    <link rel="stylesheet" href="css/style.css" />
-    <link rel="stylesheet" href="css/tokens.css" />
-    <link rel="stylesheet" href="css/base.css" />
-    <link rel="stylesheet" href="css/layout.css" />
-    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/style.css?v=11" />
+    <link rel="stylesheet" href="css/tokens.css?v=11" />
+    <link rel="stylesheet" href="css/base.css?v=11" />
+    <link rel="stylesheet" href="css/layout.css?v=11" />
+    <link rel="stylesheet" href="css/components.css?v=11" />
+    <link rel="stylesheet" href="css/screens-coach.css?v=11" />
+    <link rel="stylesheet" href="css/screens-info.css?v=11" />
+    <link rel="stylesheet" href="css/screens-word.css?v=11" />
   </head>
   <body>
     <div class="app-shell" data-ui="app-shell" data-view="app" data-mode="letter">
@@ -44,7 +47,7 @@
 
       <header class="topbar">
         <a class="brand" href="#letter" aria-label="ASL Assistant" data-home-link>
-          <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="0.5" y="0.5" width="31" height="31" rx="8"></rect><polyline points="9,23 16,9 23,23" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></polyline><circle cx="9" cy="23" r="2.2"></circle><circle cx="16" cy="9" r="2.2"></circle><circle cx="23" cy="23" r="2.2"></circle></svg>
+          <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="0.5" y="0.5" width="31" height="31" rx="8"></rect><polyline points="7.5,21 12.5,12 17.5,18.5" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></polyline><circle cx="7.5" cy="21" r="2.1"></circle><circle cx="12.5" cy="12" r="2.1"></circle><circle cx="17.5" cy="18.5" r="2.1"></circle><line x1="24" y1="8" x2="24" y2="24" stroke-width="2.6" stroke-linecap="round"></line></svg>
           <span class="brand__name">ASL Assistant</span>
         </a>
 
@@ -87,13 +90,12 @@
                   <svg class="stage__illustration" viewBox="6 46 152 182" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"><polyline class="bone" points="100,220 78,200 58,182 40,170 22,160"></polyline><polyline class="bone" points="100,220 88,150 86,110 85,84 84,60"></polyline><polyline class="bone" points="88,150 106,150 112,126 100,134 96,148"></polyline><polyline class="bone" points="106,150 122,154 128,134 116,140 112,152"></polyline><polyline class="bone" points="122,154 136,162 142,146 132,150 128,160"></polyline><polyline class="bone" points="100,220 136,162"></polyline></g><g><circle class="joint" cx="100" cy="220" r="4"></circle><circle class="joint" cx="22" cy="160" r="4"></circle><circle class="joint" cx="84" cy="60" r="4"></circle><circle class="joint" cx="88" cy="150" r="4"></circle><circle class="joint" cx="86" cy="110" r="4"></circle><circle class="joint" cx="58" cy="182" r="4"></circle><circle class="joint" cx="96" cy="148" r="4"></circle><circle class="joint" cx="112" cy="152" r="4"></circle><circle class="joint" cx="128" cy="160" r="4"></circle><circle class="joint" cx="136" cy="162" r="4"></circle></g></svg>
                   <h2 class="stage__headline">
                     <span class="mode-only letter-only">Kameraya bir ASL harfi gösterin; tanınan harf metne yazılır.</span>
-                    <span class="mode-only coach-only">Hedef harfi gösterin; koç doğru olup olmadığını söyler.</span>
+                    <span class="mode-only coach-only">Gösterilen harfi kameraya yapın; doğru tuttuğunuzda halka dolar.</span>
                     <span class="mode-only word-only">Bir ASL kelimesi kaydedin; onaylarsanız metne eklenir.</span>
                   </h2>
                   <p class="stage__lead">Kamerayı açınca tarayıcı izin ister. Görüntü cihazınızdan çıkmaz, kaydedilmez.</p>
                   <div class="stage__cta">
-                    <button class="btn btn--stage-primary mode-only letter-only word-only" type="button" data-trigger="camera" data-icon="camera">Kamerayı aç</button>
-                    <button class="btn btn--stage-primary mode-only coach-only" type="button" data-trigger="coach-start" data-icon="camera">Çalışmayı başlat</button>
+                    <button class="btn btn--stage-primary" type="button" data-trigger="camera" data-icon="camera"><span class="mode-only letter-only word-only">Kamerayı aç</span><span class="mode-only coach-only">Çalışmayı başlat</span></button>
                     <button class="btn btn--stage" type="button" data-go-mode="test">Kamerasız dene</button>
                   </div>
                   <ul class="stage__facts">
@@ -135,7 +137,31 @@
               <div class="stage__top">
                 <span class="stage-chip" id="latencyBadge">Hazır</span>
                 <span class="visually-hidden" id="modeBadge">Harf Modu</span>
-                <button class="btn btn--stage stage__close mode-only letter-only word-only" type="button" id="cameraToggle" data-icon="camera-off">Kamerayı kapat</button>
+                <button class="btn btn--stage stage__close" type="button" id="cameraToggle" data-icon="camera-off">Kamerayı kapat</button>
+                <!-- Word recording readout, at the top of the stage where the
+                     head is and no sign is made. Shown from the countdown to
+                     the end of the recording (css/screens-word.css). -->
+                <div class="stage-hud" id="wordHud">
+                  <div class="stage-hud__line">
+                    <strong id="wordHudStep">Hazırlanın</strong>
+                    <span class="num" id="wordHudPercent">%0</span>
+                  </div>
+                  <div class="meter" id="wordProgress" role="progressbar" aria-label="Kayıt ilerlemesi" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="frameProgress" style="width: 0%"></span></div>
+                  <div class="quality-pills" id="wordQualityPills" aria-label="Kayıt kalitesi">
+                    <span data-quality="hand">El ?</span><span data-quality="face">Yüz ?</span><span data-quality="pose">Omuz ?</span>
+                  </div>
+                  <p class="stage-hud__hint" id="wordStateHint">Kaydı başlatın. Geri sayımdan sonra işareti bir kez, doğal hızda yapın.</p>
+                </div>
+              </div>
+
+              <!-- The coach's target, beside the learner's own hand: the
+                   letter, and a button for the reference image. -->
+              <div class="target-tile mode-only coach-only" id="coachTargetTile" data-kind="letter">
+                <button class="target-tile__ref" type="button" id="coachReference" data-icon="image" aria-haspopup="dialog" aria-label="Referans görselini büyüt"><span>Referans</span></button>
+                <div class="target-tile__main" role="group" aria-labelledby="coachTargetLabel coachTargetGlyph">
+                  <span class="target-tile__label" id="coachTargetLabel">Hedef</span>
+                  <strong class="target-tile__glyph" id="coachTargetGlyph" lang="en">A</strong>
+                </div>
               </div>
 
               <div class="feedback-bar" id="feedbackBar" hidden></div>
@@ -152,9 +178,20 @@
                  can lay it over the stage (portrait, laptop) or beside it (phone
                  landscape). The stage's data attributes still style it. -->
             <div class="plate" id="resultPlate">
+              <!-- Word mode only: where the recording is, and that the model
+                   is still experimental. -->
+              <div class="plate__head">
+                <div class="plate__steps" aria-label="Kelime kayıt akışı">
+                  <span data-ui="word-step">Hazırlık</span>
+                  <span data-ui="word-step">Kayıt</span>
+                  <span data-ui="word-step">Onay</span>
+                </div>
+                <span class="plate__tag">deneysel</span>
+              </div>
               <div class="plate__visual">
                 <div class="confidence-ring" id="confidenceRing" style="--score: 0" aria-hidden="true"></div>
                 <strong class="plate__glyph" id="primaryPrediction">?</strong>
+                <span class="plate__check mode-only coach-only" data-icon="check" aria-hidden="true"></span>
               </div>
               <div class="plate__body">
                 <p class="plate__level">
@@ -163,7 +200,21 @@
                   <span class="signal" aria-hidden="true"><i></i><i></i><i></i></span>
                   <span class="plate__pct num" id="confidenceText">--</span>
                 </p>
+                <p class="plate__near" id="plateNear" hidden></p>
                 <p class="plate__message" id="confidenceMessage">Kamerayı açtığınızda sonuç burada görünür.</p>
+                <div class="word-result-guide" id="wordResultGuide" hidden>
+                  <strong id="wordResultDecision">Sonuç bekleniyor</strong>
+                  <span id="wordResultAction">Kayıt tamamlandığında model sonucu burada yorumlanır.</span>
+                </div>
+                <!-- The coach's cue and hint for the target. -->
+                <p class="plate__cue mode-only coach-only" id="coachHint"></p>
+                <!-- Wait for the next target, which the learner can stop. -->
+                <div class="plate__advance mode-only coach-only" id="coachAdvance" hidden>
+                  <span class="plate__bar" id="coachAdvanceBar" role="progressbar" aria-label="Sıradaki harfe geçiş"><i></i></span>
+                  <button class="btn btn--stage plate__stay" type="button" id="coachStay">Burada kal</button>
+                </div>
+                <!-- Success, miss and the end of a session, for a screen reader. Written when the phase changes. -->
+                <p class="visually-hidden mode-only coach-only" id="coachVerdict" role="status" aria-atomic="true"></p>
               </div>
             </div>
 
@@ -176,31 +227,77 @@
                 <button class="btn btn--quiet btn--icon" type="button" id="clearText" data-icon="x" title="Metni temizle" aria-label="Metni temizle"></button>
               </section>
 
+              <section class="session mode-only coach-only" id="coachSession" data-flow="learn" aria-label="Oturum">
+                <button class="session__button" type="button" id="coachSessionButton" aria-controls="coachStudy" aria-expanded="false" data-icon="chevron"><span id="coachSessionLabel">Öğrenme: sırayla</span></button>
+                <span class="session__flow" id="coachSessionFlow" aria-hidden="true">Öğrenme: sırayla</span>
+                <span class="session__count">Oturum <b class="num" id="coachScore">0/5</b></span>
+                <span class="session-dots" id="coachProgress" role="img" aria-label="Oturum: 5 hedeften 0 tamamlandı"></span>
+              </section>
+
               <div class="dock" id="controlBar" role="group" aria-label="İşlemler">
                 <button class="btn mode-only letter-only" type="button" id="removeLastChar" data-icon="delete" aria-keyshortcuts="Backspace"><span class="btn__label--phone-hidden">Sil</span></button>
                 <button class="btn mode-only letter-only" type="button" id="insertSpace" data-icon="space" aria-keyshortcuts="Enter"><span class="btn__label">Boşluk</span> <span class="kbd" aria-hidden="true">Enter</span></button>
                 <button class="btn btn--primary btn--grow mode-only letter-only" type="button" id="manualAddLetter" data-icon="plus" aria-keyshortcuts="Space">Ekle <span class="kbd" aria-hidden="true">Space</span></button>
 
-                <button class="btn btn--primary btn--grow mode-only word-only" type="button" id="recordWord">Kelime Kaydı Başlat</button>
-                <button class="btn mode-only word-only" type="button" id="retryWord">Tekrar Dene</button>
-                <button class="btn mode-only word-only" type="button" id="appendWordResult">Sonucu Metne Ekle</button>
-                <a class="btn mode-only word-only" id="actionVideoLink" href="https://www.youtube.com/results?search_query=ASL+basic+words+tutorial" target="_blank" rel="noreferrer">Video Rehber</a>
+                <!-- Word dock: which of these show depends on the recording
+                     step (data-word-step, css/screens-word.css). The labels
+                     are written by the scripts into the data-label spans. -->
+                <button class="btn btn--primary btn--grow mode-only word-only" type="button" id="recordWord" data-icon="record"><span data-label>Kaydı başlat</span> <span class="kbd" aria-hidden="true">Enter</span></button>
+                <button class="btn mode-only word-only" type="button" id="retryWord" data-icon="retry"><span data-label>Yeniden kaydet</span> <span class="kbd" aria-hidden="true">Enter</span></button>
+                <button class="btn btn--accent btn--grow mode-only word-only" type="button" id="appendWordResult" data-icon="check"><span data-label>Metne ekle</span> <span class="kbd" aria-hidden="true">Space</span></button>
+                <button class="btn btn--grow mode-only word-only" type="button" id="cancelWord" data-icon="x" hidden>Vazgeç <span class="kbd" aria-hidden="true">Esc</span></button>
+                <a class="btn mode-only word-only" id="actionVideoLink" href="https://www.youtube.com/results?search_query=ASL+basic+words+tutorial" target="_blank" rel="noreferrer" hidden>Video Rehber</a>
 
-                <button class="btn btn--primary btn--grow mode-only coach-only" type="button" id="coachStart">Çalışmayı Başlat</button>
-                <button class="btn mode-only coach-only" type="button" id="coachCheck">Hedefi Kontrol Et</button>
-                <button class="btn mode-only coach-only" type="button" id="coachNextTarget">Sonraki Hedef</button>
-                <a class="btn mode-only coach-only" id="coachVideoLink" href="https://www.youtube.com/results?search_query=ASL+alphabet+tutorial" target="_blank" rel="noreferrer">Video Rehber</a>
+                <button class="btn mode-only coach-only" type="button" id="coachNextTarget" data-icon="skip">Atla</button>
+                <button class="btn btn--grow coach-hint mode-only coach-only" type="button" id="coachHintButton" data-icon="info">İpucu</button>
+                <button class="btn mode-only coach-only" type="button" id="coachRepeat" data-icon="retry" hidden>Tekrar</button>
+                <button class="btn btn--primary btn--grow coach-next mode-only coach-only" type="button" id="coachNext" hidden>Sonraki <span class="kbd" aria-hidden="true">Space</span></button>
+                <button class="btn btn--grow mode-only coach-only" type="button" id="coachCheck" disabled hidden>Kaydı başlat</button>
               </div>
             </div>
           </section>
 
           <aside class="side-panel" data-ui="workspace-pane" aria-label="Ayrıntılar">
-            <section class="panel ranked">
+            <section class="panel ranked mode-only letter-only word-only">
               <h2 class="panel__title" id="rankedTitle">En olası sonuçlar</h2>
               <div class="top3-list" id="top3List"></div>
               <p class="panel__note mode-only word-only">Kayıt bittikten sonra önce sonuçlara bakın; emin değilseniz yeniden kaydedin.</p>
-              <p class="panel__note mode-only coach-only">Önce hedefi seçin, kamerayı açın, sonra sonucu hedefle karşılaştırın.</p>
             </section>
+
+            <!-- The study controls. A card pair beside the stage on a laptop;
+                 on a phone the session button opens them as a sheet. -->
+            <div class="coach-study mode-only coach-only" id="coachStudy">
+              <section class="panel" aria-labelledby="coachStudyTitle">
+                <div class="panel__head">
+                  <h2 class="panel__title" id="coachStudyTitle">Çalışma</h2>
+                  <button class="btn btn--quiet btn--icon coach-study__close" type="button" id="coachSheetClose" data-icon="x" aria-label="Kapat"></button>
+                </div>
+                <div class="modes modes--panel" id="coachFlowGroup" role="radiogroup" aria-label="Çalışma biçimi">
+                  <button class="modes__item is-active" type="button" role="radio" aria-checked="true" tabindex="0" data-coach-flow="learn">Öğrenme</button>
+                  <button class="modes__item" type="button" role="radio" aria-checked="false" tabindex="-1" data-coach-flow="practice">Pratik</button>
+                  <button class="modes__item" type="button" role="radio" aria-checked="false" tabindex="-1" data-coach-flow="quiz">Sınav</button>
+                </div>
+                <div class="modes modes--panel" id="coachContentGroup" role="radiogroup" aria-label="Çalışma içeriği">
+                  <button class="modes__item is-active" type="button" role="radio" aria-checked="true" tabindex="0" id="coachLettersOnly">Harfler</button>
+                  <button class="modes__item" type="button" role="radio" aria-checked="false" tabindex="-1" id="coachWordsOnly">Kelimeler</button>
+                </div>
+                <div class="coach-words" id="coachWordPicker" hidden>
+                  <label class="field-label" for="coachTarget">Kelime hedefi</label>
+                  <select id="coachTarget" class="select-input"></select>
+                </div>
+              </section>
+
+              <section class="panel" id="coachLetterPicker" aria-labelledby="coachLettersTitle">
+                <div class="panel__head">
+                  <h2 class="panel__title" id="coachLettersTitle">Harfler</h2>
+                  <span class="panel__kicker">Tamamlanan: <b class="num" id="coachDone">0/24</b></span>
+                </div>
+                <div class="letter-grid" id="coachGrid" role="group" aria-label="Hedef harf"></div>
+                <p class="panel__note" id="coachGridNote" hidden>Sınav sırasında harf seçilemez.</p>
+                <p class="panel__note" id="coachStorageNote">İlerlemeniz yalnızca bu cihazda saklanır, kimseyle paylaşılmaz.</p>
+                <button class="btn btn--quiet coach-study__reset" type="button" id="coachReset">İlerlemeyi sıfırla</button>
+              </section>
+            </div>
 
             <section class="panel reference app-reference">
               <div class="panel__head">
@@ -213,9 +310,11 @@
               <p class="panel__note" id="referenceNote">Referans görseli ve video rehber hedefe göre güncellenir.</p>
               <div class="reference__body" id="referenceBody" hidden>
                 <img id="referenceImage" src="./assets/signs/letters.png" alt="ASL harf referans görseli" loading="lazy" decoding="async" />
+                <div class="ref-card" id="referenceCard" hidden><img id="referenceCardImage" alt="" decoding="async" /></div>
                 <div class="reference-thumbs" id="referenceThumbs" hidden aria-label="Kelime referans sayfaları"></div>
               </div>
               <div class="reference__actions">
+                <button class="btn" type="button" id="referenceOpen" aria-haspopup="dialog" data-icon="image">Büyüt</button>
                 <a class="btn" id="referenceVideoLink" href="https://www.youtube.com/results?search_query=ASL+alphabet+tutorial" target="_blank" rel="noreferrer" data-icon="external">Video rehber</a>
               </div>
             </section>
@@ -230,74 +329,10 @@
               <p class="panel__note">Bir düğme ya da form alanı seçiliyken tuşlar ona gider.</p>
             </section>
 
-            <section class="card coach-card mode-only coach-only" id="coachCard">
-              <div class="card-heading">
-                <span>Öğrenme koçu</span>
-                <strong id="coachScore">%0</strong>
-              </div>
-              <div class="coach-path">
-                <span data-ui="coach-step">1. Hedef</span>
-                <span data-ui="coach-step">2. Kamera</span>
-                <span data-ui="coach-step">3. Kontrol</span>
-              </div>
-              <div class="coach-next-action" id="coachNextAction">
-                <span>Sıradaki adım</span>
-                <strong id="coachNextActionTitle">Hedef seç</strong>
-                <p id="coachNextActionText">Harf veya kelime seç, sonra çalışmayı başlat.</p>
-              </div>
-              <div class="coach-mode-switch" aria-label="Koç hedef tipi">
-                <button class="segmented-button is-active" type="button" id="coachLettersOnly">Harfler</button>
-                <button class="segmented-button" type="button" id="coachWordsOnly">Kelimeler</button>
-              </div>
-              <div class="coach-flow-switch" aria-label="Koç çalışma akışı">
-                <button class="segmented-button is-active" type="button" data-coach-flow="learn">Öğren</button>
-                <button class="segmented-button" type="button" data-coach-flow="practice">Pratik</button>
-                <button class="segmented-button" type="button" data-coach-flow="quiz">Quiz</button>
-              </div>
-              <label class="field-label" for="coachTarget">Hedef <span id="coachModeLabel">Harf çalışması</span></label>
-              <select id="coachTarget" class="select-input"></select>
-              <div class="coach-target">
-                <span id="coachTargetBig">A</span>
-                <p id="coachHint">Hedefi seçin ve kamerada kontrollü biçimde uygulayın.</p>
-              </div>
-              <div class="coach-flow-card">
-                <strong id="coachFlowTitle">Öğren</strong>
-                <p id="coachFlowText">Referans görseli inceleyin, video rehberi açın ve canlı algılanan sonucu hedefle karşılaştırın.</p>
-              </div>
-              <div class="coach-guide" aria-label="Öğrenme koçu kullanım adımları">
-                <div><strong>Harf</strong><span>El pozunu sabit tut, tahmini kontrol et.</span></div>
-                <div><strong>Kelime</strong><span>3-5 saniyelik hareket kaydı al, top-3 sonucu incele.</span></div>
-                <div><strong>Quiz</strong><span>Her doğru kontrolde skor ilerler.</span></div>
-              </div>
-              <div class="coach-progress" id="coachProgress"></div>
-              <details class="coach-tips compact-details" aria-label="Pratik ipuçları">
-                <summary>Uygulama ipuçları</summary>
-                <ul>
-                  <li>Harf çalışmasında el şekli 1 saniye sabit kalmalı.</li>
-                  <li>Kelime çalışmasında hareket 3–5 saniye içinde tamamlanmalı.</li>
-                  <li>Kelime için el, yüz ve omuzlar aynı anda kadrajda olmalı.</li>
-                </ul>
-              </details>
-            </section>
-
             <section class="card word-state-card mode-only word-only" id="wordStateCard">
               <div class="card-heading">
                 <span>Kelime akışı</span>
                 <strong id="wordStateLabel">IDLE</strong>
-              </div>
-              <div class="word-flow-steps" aria-label="Kelime kayıt akışı">
-                <span data-ui="word-step">1. Başlat</span>
-                <span data-ui="word-step">2. İşareti yap</span>
-                <span data-ui="word-step">3. Sonucu incele</span>
-              </div>
-              <div class="meter"><span id="frameProgress" style="width: 0%"></span></div>
-              <p id="wordStateHint">45 frame kaydedilir, sonra top-3 sonuç gösterilir.</p>
-              <div class="quality-pills" id="wordQualityPills" aria-label="Kayıt kalitesi">
-                <span data-quality="hand">El ?</span><span data-quality="face">Yüz ?</span><span data-quality="pose">Omuz ?</span>
-              </div>
-              <div class="word-result-guide" id="wordResultGuide" hidden>
-                <strong id="wordResultDecision">Sonuç bekleniyor</strong>
-                <span id="wordResultAction">Kayıt tamamlandığında model sonucu burada yorumlanır.</span>
               </div>
             </section>
 
@@ -350,231 +385,277 @@
             </details>
           </aside>
 
-          <section class="project-screen" id="projectScreen" hidden>
-            <h1 class="visually-hidden" data-screen-title="project" tabindex="-1">Nasıl çalışır</h1>
-            <div class="project-content">
-              <span class="eyebrow">Proje özeti</span>
-              <h2>ASL Sign Language Assistant</h2>
-              <p class="project-subtitle">
-                Kamera görüntüsünden el/poz landmark'ları çıkaran, bu sayısal verileri ONNX
-                modelleriyle yorumlayan ve kullanıcıya harf, kelime, pratik ve test akışları
-                sunan tarayıcı tabanlı bir işaret dili asistanı.
+          <section class="page pj" id="projectScreen" hidden aria-labelledby="projectTitle">
+            <div class="page__head">
+              <h1 class="page__title" id="projectTitle" data-screen-title="project" tabindex="-1">Nasıl çalışır</h1>
+              <p class="page__lead">
+                ASL Assistant, kameraya gösterdiğiniz ASL parmak alfabesi harflerini tarayıcınızda tanır
+                ve metne yazar. Görüntü cihazınızdan çıkmaz.
               </p>
-              <div class="project-actions" aria-label="Proje aksiyonları">
-                <button class="button primary" type="button" id="showDemoFlow">Demo Akışını Göster</button>
-                <button class="button" type="button" id="showTechSummary">Teknik Özeti Aç</button>
-              </div>
-
-              <div class="metric-row">
-                <div class="metric-card"><strong>24</strong><span>Statik harf sınıfı</span></div>
-                <div class="metric-card"><strong>50</strong><span>Kelime / hareket sınıfı</span></div>
-                <div class="metric-card"><strong>%71.4</strong><span>Kelime test macro F1</span></div>
-              </div>
-
-              <div class="project-section project-story">
-                <h3>Problem ve amaç</h3>
-                <p>
-                  Amaç, kullanıcının kameraya gösterdiği temel ASL harflerini ve seçili
-                  kelime hareketlerini tarayıcı içinde algılayıp okunabilir bir sonuca
-                  dönüştürmek. Proje yalnızca tahmin üretmeyi değil, öğrenme koçu ve model
-                  test ekranıyla modelin nasıl çalıştığını anlaşılır göstermeyi hedefler.
-                </p>
-                <div class="project-callout">
-                  <strong>Kısa teknik özet</strong>
-                  <span>Görüntüyü doğrudan sunucuya göndermiyoruz; tarayıcıda landmark çıkarıp modeli yine tarayıcıda çalıştırıyoruz.</span>
-                </div>
-              </div>
-
-              <div class="project-section" id="demoFlowSection">
-                <h3>Önerilen inceleme akışı</h3>
-                <div class="project-demo-grid">
-                  <div><strong>1. Harf Çeviri</strong><span>Kamerayı aç, A/B/L/Y gibi statik harfleri göster, canlı tahmini ve güven skorunu anlat.</span></div>
-                  <div><strong>2. Öğrenme Koçu</strong><span>Hedef seç, referans görseli aç, kontrol butonuyla hedefe uyumu göster.</span></div>
-                  <div><strong>3. Model Test</strong><span>Hazır JSON fixture çalıştır; modelin gerçek bir test girdisine verdiği top-3 çıktıyı göster.</span></div>
-                  <div><strong>4. Kelime Pratik</strong><span>Rahat kelimelerle başla; benzer hareketlerde top-3 ve tekrar deneme akışını açıkla.</span></div>
-                </div>
-              </div>
-
-              <div class="project-section" id="techSummarySection">
-                <h3>Teknik pipeline</h3>
-                <div class="pipeline-flow">
-                  <span class="pipeline-step">Kamera</span><span class="pipeline-arrow">→</span>
-                  <span class="pipeline-step">MediaPipe</span><span class="pipeline-arrow">→</span>
-                  <span class="pipeline-step">Landmark</span><span class="pipeline-arrow">→</span>
-                  <span class="pipeline-step">Feature</span><span class="pipeline-arrow">→</span>
-                  <span class="pipeline-step">ONNX</span><span class="pipeline-arrow">→</span>
-                  <span class="pipeline-step">Top-3 + Feedback</span>
-                </div>
-                <div class="project-model-grid">
-                  <article>
-                    <span>Harf modeli</span>
-                    <h4>Tek el pozu → 93 özellik</h4>
-                    <p>21 el landmark'ı normalize edilir; parmak mesafeleri, açıları, el kutusu ve parmak açık/kapalı bilgileri çıkarılır. LightGBM modeli 24 harften birini tahmin eder.</p>
-                  </article>
-                  <article>
-                    <span>Kelime modeli</span>
-                    <h4>45 frame → 168 özellik</h4>
-                    <p>Her kayıt 45 frame'e tamamlanır. Dominant el, el şekli, yüz/omuz ilişkisi ve hareket vektörleri SignTransformer modeline verilir.</p>
-                  </article>
-                </div>
-              </div>
-
-              <div class="project-section">
-                <h3>Veri ve değerlendirme</h3>
-                <div class="project-info-grid">
-                  <div>
-                    <strong>Harf verisi</strong>
-                    <span>Statik el pozlarından 93 boyutlu feature çıkarıldı. Web tarafında aynı feature sırası korunuyor.</span>
-                  </div>
-                  <div>
-                    <strong>Kelime verisi</strong>
-                    <span>Kaggle ASL Signs landmark/parquet verisi eğitimde kullanıldı; web demosu için küçük JSON fixture'lara dönüştürüldü.</span>
-                  </div>
-                  <div>
-                    <strong>Model çıktısı</strong>
-                    <span>Sonuç tek tahminle sınırlı değil; top-3 liste, güven skoru, kalite uyarısı ve tekrar deneme akışı gösteriliyor.</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="project-section">
-                <h3>Canlı kullanım notu</h3>
-                <p>
-                  Harf modeli tek poz üzerinden daha stabil çalışır. Kelime modeli ise hareket
-                  süresi, omuz/yüz görünürlüğü, elin kadrajda kalması ve benzer işaret çiftleri
-                  nedeniyle canlıda daha hassastır. Bu yüzden kelime tarafında kullanıcıya
-                  kayıt kalitesi, top-3 sonuç ve tekrar deneme kararı birlikte gösterilir.
-                </p>
-              </div>
-
-              <div class="project-section project-footer">
-                <p>ASL Assistant · Tarayıcı tabanlı landmark ve ONNX çıkarımı</p>
-                <p>Kamera görüntüsü cihazda işlenir; demo statik web sitesi olarak çalışır.</p>
+              <ul class="facts">
+                <li data-icon="info">24 ASL harfi · J ve Z hareketli olduğu için yok</li>
+                <li data-icon="info">50 kelime · deneysel</li>
+                <li data-icon="info">ASL (Amerikan İşaret Dili) — TİD değil</li>
+              </ul>
+              <div class="pj__cta">
+                <button class="btn btn--primary" type="button" data-go-mode="letter" data-icon="camera">Kamerayı açıp deneyin</button>
+                <button class="btn" type="button" data-go-mode="test">Kamerasız deneyin</button>
               </div>
             </div>
+
+            <div class="pj__grid">
+              <div class="pj__main">
+                <section class="pj__section" aria-labelledby="pjStepsTitle">
+                  <h2 id="pjStepsTitle">Tanıma üç adımda</h2>
+                  <ol class="pj__steps">
+                    <li>
+                      <strong>Kamera elinizi görür</strong>
+                      <span>Tarayıcı, görüntüdeki elin 21 eklem noktasını bulur. Görüntünün kendisi saklanmaz, hiçbir yere gönderilmez.</span>
+                    </li>
+                    <li>
+                      <strong>Noktalar sayılara dönüşür</strong>
+                      <span>Parmakların açıları ve aralarındaki mesafeler 93 sayılık bir özete çevrilir.</span>
+                    </li>
+                    <li>
+                      <strong>Model harfi tahmin eder</strong>
+                      <span>Model, 24 harften hangisine en çok benzediğini ve ne kadar emin olduğunu söyler. Ekle'ye bastığınızda harf metne yazılır.</span>
+                    </li>
+                  </ol>
+                </section>
+
+                <section class="pj__section" aria-labelledby="pjWordTitle">
+                  <h2 id="pjWordTitle">Kelime modu (deneysel)</h2>
+                  <p>
+                    Yaklaşık 2–3 saniyelik bir hareket kaydedilir; el, yüz ve omuz noktaları birlikte
+                    değerlendirilir. Siz onaylamadan metne hiçbir kelime eklenmez.
+                  </p>
+                </section>
+
+                <!-- Rakamlar model-card.json'dan gelir; dosya okunana kadar blok gizli kalır. -->
+                <section class="panel pj__numbers" id="projectNumbers" hidden aria-labelledby="pjNumbersTitle">
+                  <h2 class="panel__title" id="pjNumbersTitle">Ne kadar iyi tanır?</h2>
+                  <ul class="pj__list">
+                    <li>
+                      <strong>Harf:</strong> ayrılmış test verisinde
+                      <span data-card="letter.accuracy_held_out" data-format="percent"></span> doğru.
+                      Bu veri eğitimle aynı fotoğraf dizilerinden geldiği için kameradaki başarı daha düşük olabilir.
+                    </li>
+                    <li>
+                      <strong>Kelime:</strong> modelin hiç görmediği kişilerin kayıtlarında
+                      <span data-card="word.accuracy" data-format="percent"></span> doğru.
+                      Bazı kelimeler birbirine karışabilir.
+                    </li>
+                  </ul>
+                  <p class="panel__note">
+                    Modeller <span data-card="letter.classes" data-format="int"></span> harf ve
+                    <span data-card="word.classes" data-format="int"></span> kelime arasından seçer.
+                    İlk kullanımda harf modeli yaklaşık
+                    <span data-card="letter.size_bytes_gzip" data-format="mb"></span>, kelime modeli yaklaşık
+                    <span data-card="word.size_bytes" data-format="mb"></span> indirilir.
+                  </p>
+                </section>
+
+                <section class="pj__section" aria-labelledby="pjLimitsTitle">
+                  <h2 id="pjLimitsTitle">Sınırlar</h2>
+                  <ul class="pj__list">
+                    <li>Yalnızca tek tek harfleri ve 50 kelimeyi tanır; cümle çevirmez.</li>
+                    <li>Farklı el, ışık ve kamera açılarında hata yapabilir.</li>
+                    <li>Gerçek telefonlarda henüz sınanmadı.</li>
+                    <li>Referans görselleri yeniden hazırlanıyor; M, N, S, T ve E çizimleri birbirine çok benziyor.</li>
+                  </ul>
+                </section>
+
+                <section class="pj__section" aria-labelledby="pjPrivacyTitle">
+                  <h2 id="pjPrivacyTitle">Gizlilik</h2>
+                  <p>
+                    Görüntü cihazınızdan çıkmaz. Tanıma tarayıcınızda yapılır; görüntü kaydedilmez.
+                    Yazdığınız metin yalnızca bu tarayıcıda saklanır.
+                  </p>
+                  <p>
+                    Sayfa açıldığında model indirilmez; kamera ya da test ilk başladığında indirilir. Çalıştırıcılar
+                    herkese açık içerik ağlarından (jsDelivr, Google) gelir.
+                  </p>
+                </section>
+
+                <details class="panel pj__tech">
+                  <summary>Teknik ayrıntılar</summary>
+                  <ul class="pj__list">
+                    <li>Harf modeli: karar ağaçları (LightGBM); girdisi tek elin 93 sayılık özeti.</li>
+                    <li>Kelime modeli: dönüştürücü ağ (SignTransformer); girdisi 45 kare × 168 sayı ve hangi karelerin gerçek olduğunu söyleyen bir maske.</li>
+                    <li>İki model de tarayıcıda çalışır; sunucuya ne görüntü ne de sayı gönderilir.</li>
+                  </ul>
+                </details>
+              </div>
+
+              <div class="pj__aside">
+                <section class="panel" aria-labelledby="pjCreditsTitle">
+                  <h2 class="panel__title" id="pjCreditsTitle">Veri kaynakları ve emeği geçenler</h2>
+                  <dl class="pj__credits">
+                    <div>
+                      <dt><a href="https://www.kaggle.com/datasets/grassknoted/asl-alphabet" target="_blank" rel="noreferrer"><span lang="en">ASL Alphabet</span><span class="visually-hidden"> (yeni sekmede açılır)</span></a></dt>
+                      <dd>Akash Nagaraj, 2018 · GPL-2.0 (sağlayıcının belirttiği lisans)</dd>
+                    </div>
+                    <div>
+                      <dt><a href="https://www.kaggle.com/datasets/ayuraj/asl-dataset" target="_blank" rel="noreferrer"><span lang="en">American Sign Language Dataset</span><span class="visually-hidden"> (yeni sekmede açılır)</span></a></dt>
+                      <dd>Ayush Thakur · CC0 1.0</dd>
+                    </div>
+                    <div>
+                      <dt><a href="https://github.com/Mohammed-Shoaib/ASL-Fingerspelling" target="_blank" rel="noreferrer"><span lang="en">ASL_SemCom</span> alt kümesi<span class="visually-hidden"> (yeni sekmede açılır)</span></a></dt>
+                      <dd><span lang="en">ASL-Fingerspelling</span> ile ilişkili · koşulları kayıtlı değil; görseller paylaşılmıyor</dd>
+                    </div>
+                    <div>
+                      <dt><a href="https://www.kaggle.com/competitions/asl-signs" target="_blank" rel="noreferrer"><span lang="en">Google – Isolated Sign Language Recognition</span> (Kaggle, 2023)<span class="visually-hidden"> (yeni sekmede açılır)</span></a></dt>
+                      <dd>
+                        <span lang="en">Deaf Professional Arts Network</span> ve
+                        <span lang="en">Georgia Institute of Technology</span> tarafından sağlandı ·
+                        <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0<span class="visually-hidden"> (yeni sekmede açılır)</span></a>,
+                        yarışma kurallarına bağlı
+                      </dd>
+                    </div>
+                  </dl>
+                </section>
+
+                <section class="panel" aria-labelledby="pjLicenceTitle">
+                  <h2 class="panel__title" id="pjLicenceTitle">Lisans</h2>
+                  <p class="panel__note">
+                    Kaynak kodu <a href="https://polyformproject.org/licenses/noncommercial/1.0.0" target="_blank" rel="noreferrer">PolyForm Noncommercial 1.0.0<span class="visually-hidden"> (yeni sekmede açılır)</span></a>
+                    lisansı altındadır: kişisel, eğitim ve araştırma amaçlı kullanım serbesttir; ticari kullanım
+                    izin gerektirir. Model dosyaları aynı lisansla yayınlanır; eğitim verilerinin koşulları da geçerlidir.
+                  </p>
+                </section>
+
+                <section class="panel" aria-labelledby="pjSoftwareTitle">
+                  <h2 class="panel__title" id="pjSoftwareTitle">Kullanılan yazılımlar</h2>
+                  <ul class="pj__list pj__list--plain">
+                    <li><a href="https://github.com/microsoft/onnxruntime" target="_blank" rel="noreferrer"><span lang="en">ONNX Runtime Web</span> 1.22.0<span class="visually-hidden"> (yeni sekmede açılır)</span></a> · MIT</li>
+                    <li><a href="https://github.com/google-ai-edge/mediapipe" target="_blank" rel="noreferrer"><span lang="en">MediaPipe Tasks Vision</span> 0.10.18<span class="visually-hidden"> (yeni sekmede açılır)</span></a> · Apache-2.0</li>
+                    <li><a href="https://github.com/lrsjng/kjua" target="_blank" rel="noreferrer"><span lang="en">kjua</span> 0.9.0<span class="visually-hidden"> (yeni sekmede açılır)</span></a> · MIT</li>
+                    <li><a href="https://github.com/googlefonts/atkinson-hyperlegible-next" target="_blank" rel="noreferrer"><span lang="en">Atkinson Hyperlegible Next</span> ve <span lang="en">Mono</span><span class="visually-hidden"> (yeni sekmede açılır)</span></a> · SIL OFL 1.1</li>
+                  </ul>
+                </section>
+              </div>
+            </div>
+
+            <p class="pj__footer">© 2026 Ali Mustafa Ekmen · PolyForm Noncommercial 1.0.0</p>
           </section>
 
-          <section class="model-test-screen" id="modelTestScreen" hidden aria-labelledby="modelTestTitle">
-            <h1 class="visually-hidden" data-screen-title="test" tabindex="-1">Kamerasız dene</h1>
-            <div class="model-test-header">
-              <div>
-                <span class="eyebrow">Model Test</span>
-                <h2 id="modelTestTitle">Test Verisiyle Canlı ONNX Çıktısı</h2>
-                <p>
-                  Hazır örnek seç veya JSON yükle. Kamera kullanılmaz; aynı web modeli doğrudan
-                  çalışır ve tahmin, güven skoru, top-3 ve süre net şekilde görünür.
-                </p>
-              </div>
-              <div class="model-test-badges" aria-label="Desteklenen test formatları">
-                <span>Kamera yok</span>
-                <span>Harf + Kelime</span>
-                <span>Top-3 sonuç</span>
-              </div>
-            </div>
-            <div class="model-test-brief" aria-label="Model test açıklaması">
-              <div>
-                <strong>1. Test verisi seçilir</strong>
-                <span>Hazır fixture kullanılır veya aynı formatta JSON yüklenir.</span>
-              </div>
-              <div>
-                <strong>2. Web modeli çalışır</strong>
-                <span>Tarayıcıdaki ONNX modeli, kamera açmadan bu girdiden tahmin üretir.</span>
-              </div>
-              <div>
-                <strong>3. Sonuç karşılaştırılır</strong>
-                <span>Tahmin, beklenen etiket, güven skoru ve top-3 birlikte gösterilir.</span>
-              </div>
+          <section class="page mt" id="modelTestScreen" hidden aria-labelledby="modelTestTitle">
+            <div class="page__head">
+              <h1 class="page__title" id="modelTestTitle" data-screen-title="test" tabindex="-1">Modeli kamerasız deneyin</h1>
+              <p class="page__lead">
+                Yayındaki modeller hazır örnekler üzerinde tarayıcınızda çalışır. Kamera açılmaz;
+                sonuçlar bu cihazda hesaplanır.
+              </p>
             </div>
 
-            <div class="model-test-grid">
-              <section class="card model-test-card" aria-label="Test girdisi">
-                <div class="card-heading">
-                  <span>1. Hızlı demo</span>
-                  <strong id="modelTestSampleStatus">Örnek bekleniyor</strong>
-                </div>
-                <p class="model-test-simple-copy">
-                  Bir örnek seçildiğinde tarayıcıdaki ONNX modeli çalışır ve sonuç sağda görünür.
-                </p>
-                <div class="model-test-quick-actions" aria-label="Hızlı model test örnekleri">
-                  <button class="button primary" type="button" id="loadDemoLetter">Harf Modelini Test Et</button>
-                  <button class="button primary" type="button" id="loadDemoWord">Kelime Modelini Test Et</button>
-                </div>
-                <button class="button full quiet" type="button" id="runModelTestSample" disabled>Seçili Örneği Tekrar Çalıştır</button>
-                <div class="model-test-process" id="modelTestProcessSteps" aria-label="Model test işlem adımları">
-                  <span data-step="sample">1. Örnek</span>
-                  <span data-step="validate">2. Kontrol</span>
-                  <span data-step="inference">3. Model</span>
-                  <span data-step="result">4. Sonuç</span>
-                </div>
-
-                <details class="model-test-advanced">
-                  <summary>Gelişmiş: model tipi, farklı fixture veya JSON seç</summary>
-                  <div class="model-test-task-switch" aria-label="Model tipi">
-                    <button class="segmented-button is-active" type="button" data-model-test-task="letter">
-                      <strong>Harf Modeli</strong>
-                      <small>Tek el · 93 özellik</small>
-                    </button>
-                    <button class="segmented-button" type="button" data-model-test-task="word">
-                      <strong>Kelime Modeli</strong>
-                      <small>45 frame · hareket</small>
-                    </button>
+            <div class="mt__grid">
+              <div class="mt__main">
+                <section class="panel" aria-labelledby="mtTryTitle">
+                  <h2 class="panel__title" id="mtTryTitle">Tek örnek</h2>
+                  <p class="model-test-simple-copy">Bir örnek seçin; model onu çalıştırır ve sonucu gösterir.</p>
+                  <div class="mt__actions" aria-label="Hazır örnekler">
+                    <button class="btn btn--primary" type="button" id="loadDemoLetter">Harf örneği dene</button>
+                    <button class="btn" type="button" id="loadDemoWord">Kelime örneği dene</button>
                   </div>
-                  <p class="card-note" id="modelTestDomainHelp">
-                    Harf örnekleri tek frame 93D feature ile, kelime örnekleri 45 frame compact feature ve mask ile çalışır.
-                  </p>
-                  <div class="model-test-library">
-                    <label class="field-label" for="modelTestSampleSelect">Hazır model test örnekleri</label>
-                    <div class="model-test-library-row">
-                      <select id="modelTestSampleSelect" class="select-input"></select>
-                      <button class="button" type="button" id="loadSelectedModelTestSample">Örneği Hazırla</button>
+                  <button class="btn btn--quiet" type="button" id="runModelTestSample" disabled>Seçili örneği yeniden çalıştır</button>
+                  <p class="panel__note">Durum: <strong id="modelTestSampleStatus">Örnek bekleniyor</strong></p>
+                  <div class="mt__steps" id="modelTestProcessSteps" aria-label="Örneğin geçtiği adımlar">
+                    <span data-step="sample">Örnek</span>
+                    <span data-step="validate">Kontrol</span>
+                    <span data-step="inference">Model</span>
+                    <span data-step="result">Sonuç</span>
+                  </div>
+
+                  <details class="model-test-advanced mt__advanced">
+                    <summary>Başka model, başka örnek ya da kendi dosyanız</summary>
+                    <div class="model-test-task-switch choices" role="group" aria-label="Model">
+                      <button class="choice is-active" type="button" data-model-test-task="letter">
+                        <strong>Harf modeli</strong>
+                        <small>Tek el, 24 harf</small>
+                      </button>
+                      <button class="choice" type="button" data-model-test-task="word">
+                        <strong>Kelime modeli</strong>
+                        <small>Kısa hareket, 50 kelime</small>
+                      </button>
                     </div>
-                  </div>
-                  <label class="file-drop" id="modelTestDropZone" for="modelTestSampleFile">
-                    <span>JSON fixture yükle veya buraya bırak</span>
-                    <small id="modelTestFileName">Harf: features[93]. Kelime: features[7560] + mask[45].</small>
-                  </label>
-                  <input id="modelTestSampleFile" class="visually-hidden" type="file" accept="application/json,.json" />
-                  <div class="sample-schema-note">
-                    <strong>JSON formatı</strong>
-                    <code>letter: features[93]</code>
-                    <code>word: features[7560], mask[45]</code>
-                  </div>
-                </details>
-              </section>
+                    <p class="panel__note" id="modelTestDomainHelp">
+                      Harf modeli, tek bir el duruşuna bakıp 24 harften birini seçer.
+                    </p>
+                    <div class="mt__library">
+                      <label class="mt__label" for="modelTestSampleSelect">Hazır örnekler</label>
+                      <div class="mt__library-row">
+                        <select id="modelTestSampleSelect" class="mt__select"></select>
+                        <button class="btn" type="button" id="loadSelectedModelTestSample">Örneği hazırla</button>
+                      </div>
+                    </div>
+                    <label class="mt__drop" id="modelTestDropZone" for="modelTestSampleFile">
+                      <span>Bir JSON dosyasını buraya bırakın ya da seçin</span>
+                      <small id="modelTestFileName">Harf örneği 93 sayı, kelime örneği 45 × 168 sayı ve 45 değerli bir maske içerir.</small>
+                    </label>
+                    <input id="modelTestSampleFile" class="visually-hidden" type="file" accept="application/json,.json" />
+                  </details>
+                </section>
 
-              <section class="card model-output-card" aria-label="Model sonucu">
-                <div class="card-heading">
-                  <span>2. Sonuç</span>
-                  <strong id="modelTestMatchBadge">Beklemede</strong>
-                </div>
-                <div class="model-test-prediction-hero">
-                  <span>Tahmin</span>
-                  <strong id="modelTestPredictedLabel">-</strong>
-                </div>
-                <div class="model-test-result-main">
-                  <div>
-                    <span>Beklenen</span>
-                    <strong id="modelTestExpectedLabel">-</strong>
+                <section class="panel" aria-labelledby="mtAllTitle">
+                  <h2 class="panel__title" id="mtAllTitle">Tüm örnekler</h2>
+                  <p class="panel__note" id="modelTestBatchHint">Harf modelinin hazır örneklerini sırayla çalıştırır ve kaçının doğru olduğunu sayar.</p>
+                  <button class="btn btn--primary" type="button" id="runModelTestBatch">Tümünü çalıştır</button>
+                </section>
+              </div>
+
+              <div class="mt__side">
+                <section class="panel mt__result" aria-labelledby="mtResultTitle">
+                  <div class="panel__head">
+                    <h2 class="panel__title" id="mtResultTitle">Sonuç</h2>
+                    <strong class="mt__badge" id="modelTestMatchBadge">Beklemede</strong>
                   </div>
-                  <div>
-                    <span>Güven</span>
-                    <strong id="modelTestConfidence">-</strong>
+                  <p class="mt__prediction">
+                    <span class="mt__prediction-label">Tahmin</span>
+                    <strong class="mt__prediction-value" id="modelTestPredictedLabel">-</strong>
+                  </p>
+                  <dl class="mt__stats">
+                    <div><dt>Beklenen</dt><dd id="modelTestExpectedLabel">-</dd></div>
+                    <div><dt>Güven</dt><dd class="num" id="modelTestConfidence">-</dd></div>
+                    <div><dt>Süre</dt><dd class="num" id="modelTestLatency">-</dd></div>
+                  </dl>
+                  <h3 class="mt__sub">En olası üç sonuç</h3>
+                  <div class="ranked">
+                    <div class="top3-list model-test-top3" id="modelTestTop3List"></div>
                   </div>
-                  <div>
-                    <span>Süre</span>
-                    <strong id="modelTestLatency">-</strong>
-                  </div>
-                </div>
-                <div class="model-test-top3-heading">MODELİN EN GÜÇLÜ 3 TAHMİNİ</div>
-                <div class="top3-list model-test-top3" id="modelTestTop3List"></div>
-                <p class="card-note" id="modelTestResultNote">Fixture seçildiğinde burada tahmin özeti görünür.</p>
-              </section>
+                  <p class="panel__note" id="modelTestResultNote">Bir örnek seçtiğinizde sonuç burada görünür.</p>
+                </section>
+
+                <details class="panel mt__tech">
+                  <summary>
+                    <span>Teknik ayrıntılar</span>
+                    <strong id="modelTestTaskLabel">Detay</strong>
+                  </summary>
+                  <dl class="mt__facts">
+                    <div><dt>Kaynak</dt><dd id="modelTestSourceLabel">-</dd></div>
+                    <div><dt>Biçim sürümü</dt><dd id="modelTestSchemaLabel">-</dd></div>
+                    <div><dt>Girdi</dt><dd id="modelTestShapeLabel">-</dd></div>
+                    <div><dt>Gerçek kare</dt><dd id="modelTestMaskLabel">-</dd></div>
+                  </dl>
+                </details>
+              </div>
             </div>
 
             <!-- Toplu çalıştırmanın sonucu. Bir çalıştırma başlayana kadar gizli kalır. -->
-            <section class="card" id="modelTestBatch" hidden aria-label="Toplu çalıştırma sonuçları">
-              <p class="card-note" id="modelTestSummary"></p>
-              <table id="modelTestTable">
+            <section class="panel mt__batch" id="modelTestBatch" hidden aria-labelledby="mtBatchTitle">
+              <h2 class="panel__title" id="mtBatchTitle">Tüm örneklerin sonucu</h2>
+              <p class="mt__summary" id="modelTestSummary"></p>
+              <p class="panel__note" id="modelTestNoteLetter" hidden>
+                Bu örnekler, eğitimde ayrılan test bölümünden her harf için birer kayıttır. Eğitim fotoğraflarıyla
+                aynı dizilerden geldikleri için kamerada başarı daha düşük olabilir. Süreler bu cihazda ölçüldü;
+                kamerayla canlı tanımada elin bulunması da zaman alır.
+              </p>
+              <p class="panel__note" id="modelTestNoteWord" hidden>
+                Kelime modeli, Google'ın ASL yarışma verisiyle eğitildi. Yarışma kuralları bu verinin paylaşılmasına
+                izin vermediği için gerçek kayıtlardan çıkarılan örnekler yayınlanmaz. Yayındaki tek örnek yapaydır
+                ve yalnızca modelin baştan sona çalıştığını gösterir. Projeyi kendi bilgisayarınıza kurarsanız bu
+                örnekleri orada yerel olarak oluşturabilirsiniz.
+              </p>
+              <table class="mt__table" id="modelTestTable">
                 <caption class="visually-hidden">Örneklerin sonuçları</caption>
                 <thead>
                   <tr>
@@ -589,98 +670,84 @@
                 <tbody id="modelTestRows"></tbody>
               </table>
             </section>
-
-            <details class="card model-sample-meta" aria-label="Fixture bilgisi">
-              <summary class="card-summary">
-                <span>Fixture ve teknik sorular</span>
-                <strong id="modelTestTaskLabel">Detay</strong>
-              </summary>
-              <div class="card-heading">
-                <span>Fixture bilgisi</span>
-                <strong>Teknik detay</strong>
-              </div>
-              <dl class="model-facts">
-                <div><dt>Kaynak</dt><dd id="modelTestSourceLabel">-</dd></div>
-                <div><dt>Şema</dt><dd id="modelTestSchemaLabel">-</dd></div>
-                <div><dt>Ölçü</dt><dd id="modelTestShapeLabel">-</dd></div>
-                <div><dt>Gerçek frame</dt><dd id="modelTestMaskLabel">-</dd></div>
-              </dl>
-              <div class="model-test-faq" aria-label="Model testi hakkında kısa cevaplar">
-                <details>
-                  <summary>Bu sonuç resmi F1 skoru mu?</summary>
-                  <p>Hayır. Bu panel tek tek fixture üzerinde canlı tahmin gösterir. Resmi başarı değerleri eğitim/evaluasyon raporlarından gelir.</p>
-                </details>
-                <details>
-                  <summary>Harf ve kelime verisi neden farklı?</summary>
-                  <p>Harf modeli tek el pozundan çıkarılan 93 özellik kullanır. Kelime modeli hareket içerdiği için 45 frame boyunca 168 özellik ve mask bilgisi kullanır.</p>
-                </details>
-                <details>
-                  <summary>JSON neden kullanılıyor?</summary>
-                  <p>Tarayıcıya ham Kaggle/parquet dosyası yüklemek yerine, aynı eğitim pipeline'ından geçirilmiş küçük ve doğrulanabilir test fixture yüklenir.</p>
-                </details>
-                <details>
-                  <summary>Güven skoru nasıl okunmalı?</summary>
-                  <p>Güven skoru modelin bu tek girdideki softmax olasılığıdır. Top-3 listesi, modelin karıştırabileceği yakın alternatifleri görmeyi sağlar.</p>
-                </details>
-              </div>
-            </details>
           </section>
 
-          <section class="qr-screen" id="qrScreen" hidden aria-labelledby="qrTitle">
-            <h1 class="visually-hidden" data-screen-title="qr" tabindex="-1">Telefonda aç</h1>
-            <div class="qr-copy">
-              <span class="eyebrow">Telefon üzerinden deneyin</span>
-              <h2 id="qrTitle">QR kodu okut, canlı web sitesini aç.</h2>
-              <p>
-                Bu ekran başka bir cihazdan kolayca açılabilen bir QR kod gösterir. Telefon kamerasıyla
-                okutulduğunda site HTTPS üzerinden açılır; harf modeli için kamerayı başlatıp elinizi
-                gösterebilir.
-              </p>
-              <div class="qr-target-switch" aria-label="QR hedefi">
-                <button class="segmented-button is-active" type="button" data-qr-target="letter">
-                  <strong>Canlı Harf</strong>
-                  <small>Telefon kamerası ile en stabil demo</small>
-                </button>
-                <button class="segmented-button" type="button" data-qr-target="word">
+          <section class="page qr" id="qrScreen" hidden aria-labelledby="qrTitle">
+            <div class="qr__copy">
+              <div class="page__head">
+                <h1 class="page__title" id="qrTitle" data-screen-title="qr" tabindex="-1">Telefonda açın</h1>
+                <p class="page__lead">
+                  Telefonunuzun kamerasıyla kodu okutun; ASL Assistant telefonda açılır. Hiçbir şey
+                  yüklemeniz gerekmez. Bağlantıyı paylaşarak da gönderebilirsiniz.
+                </p>
+              </div>
+              <div class="qr__link">
+                <p class="qr__url" id="qrDemoUrl">https://asl-assistant.netlify.app/#letter</p>
+                <div class="qr__actions">
+                  <button class="btn btn--primary" type="button" id="qrShare" hidden>Bağlantıyı paylaş</button>
+                  <button class="btn" type="button" id="qrCopyDemo" data-icon="copy">Bağlantıyı kopyala</button>
+                  <a class="btn btn--quiet qr__open" id="qrOpenDemo" href="https://asl-assistant.netlify.app/#letter" target="_blank" rel="noreferrer" data-icon="external">Yeni sekmede aç</a>
+                </div>
+                <p class="panel__note" id="qrStatus">QR hazırlanıyor...</p>
+              </div>
+              <fieldset class="choices qr__targets">
+                <legend class="mt__label">Hangi ekran açılsın?</legend>
+                <label class="choice">
+                  <input class="visually-hidden" type="radio" name="qrTarget" data-qr-target="letter" checked />
+                  <strong>Harf</strong>
+                  <small>Kameranın karşısında harfleri tanır</small>
+                </label>
+                <label class="choice">
+                  <input class="visually-hidden" type="radio" name="qrTarget" data-qr-target="word" />
                   <strong>Kelime</strong>
-                  <small>Telefonla denenebilir, ışık/kadraj önemli</small>
-                </button>
-                <button class="segmented-button" type="button" data-qr-target="test">
-                  <strong>Model Test</strong>
-                  <small>Kamera gerektirmeyen yedek demo</small>
-                </button>
-              </div>
-              <ol class="qr-steps">
-                <li>Telefon kamerasıyla QR kodu okut.</li>
-                <li>Modeller sayfa açılınca değil, kamera ya da test ilk başlatılınca yüklenir.</li>
-                <li>Canlı deneme için <strong>Başlat</strong> butonuna bas.</li>
+                  <small>Deneysel; ışık ve kadraj önemli</small>
+                </label>
+                <label class="choice">
+                  <input class="visually-hidden" type="radio" name="qrTarget" data-qr-target="test" />
+                  <strong>Kamerasız dene</strong>
+                  <small>Hazır örneklerle modeli dener</small>
+                </label>
+              </fieldset>
+              <ol class="qr__steps">
+                <li>Telefonunuzun kamera uygulamasını açıp kodu çerçeveye alın.</li>
+                <li>Çıkan bağlantıya dokunun.</li>
+                <li>Kamerayı açın; tarayıcı sorduğunda izin verin.</li>
               </ol>
-              <div class="qr-actions">
-                <a class="button primary" id="qrOpenDemo" href="https://asl-assistant.netlify.app/#letter" target="_blank" rel="noreferrer">Linki Aç</a>
-                <button class="button" type="button" id="qrCopyDemo">Linki Kopyala</button>
-              </div>
-              <p class="card-note" id="qrStatus">QR hazırlanıyor...</p>
+              <p class="qr__phone-step">Diğer telefonun kamerasını koda tutun ve çıkan bağlantıya dokunun.</p>
+              <p class="qr__fact" data-icon="info">İlk açılışta yaklaşık 17 MB indirilir; Wi-Fi önerilir.</p>
             </div>
-            <div class="qr-stage" aria-label="Canlı demo QR kodu">
-              <div class="qr-frame">
-                <div id="qrCanvas" class="qr-canvas" role="img" aria-label="ASL Assistant canlı demo QR kodu"></div>
-                <div class="qr-scanline" aria-hidden="true"></div>
-              </div>
-              <div class="qr-url" id="qrDemoUrl">https://asl-assistant.netlify.app/#letter</div>
-            </div>
+            <figure class="qr__tile">
+              <div id="qrCanvas" class="qr__canvas" role="img" aria-label="ASL Assistant canlı demo QR kodu"></div>
+              <figcaption class="qr__caption">Yanınızdaki birine gösterin</figcaption>
+            </figure>
           </section>
         </section>
       </main>
 
-      <!-- Referans görseli için tam ekran lightbox -->
-      <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-labelledby="lightboxTitle">
-        <button class="lightbox-close" id="lightboxClose" type="button" aria-label="Kapat (ESC)">×</button>
-        <div class="lightbox-content">
-          <h2 class="lightbox-title" id="lightboxTitle">ASL referans görseli</h2>
-          <img class="lightbox-image" id="lightboxImage" alt="" />
-          <p class="lightbox-hint">Kapatmak için ESC, arka plan veya × tuşunu kullan.</p>
+      <!-- Reference viewer: a native modal dialog, so the page behind it is
+           inert and Tab stays inside. The ids keep their lightbox names. -->
+      <dialog class="viewer" id="lightbox" aria-labelledby="lightboxTitle">
+        <div class="viewer__bar">
+          <h2 class="viewer__title" id="lightboxTitle">ASL referans görseli</h2>
+          <div class="viewer__tools" role="group" aria-label="Görüntü araçları">
+            <button class="btn btn--quiet btn--icon" type="button" id="lightboxPrev" data-icon="chevron-left" aria-label="Önceki" hidden></button>
+            <button class="btn btn--quiet btn--icon" type="button" id="lightboxNext" data-icon="chevron-right" aria-label="Sonraki" hidden></button>
+            <button class="btn btn--quiet btn--icon" type="button" id="lightboxZoomOut" data-icon="zoom-out" aria-label="Uzaklaştır"></button>
+            <button class="viewer__zoom num" type="button" id="lightboxZoom" title="Sığdır">Sığdır</button>
+            <button class="btn btn--quiet btn--icon" type="button" id="lightboxZoomIn" data-icon="zoom-in" aria-label="Yakınlaştır"></button>
+            <button class="btn btn--quiet btn--icon" type="button" id="lightboxClose" data-icon="x" aria-label="Kapat"></button>
+          </div>
         </div>
-      </div>
+        <div class="viewer__body" id="lightboxBody" tabindex="0" data-zoom="fit">
+          <img class="viewer__image" id="lightboxImage" alt="" />
+          <div class="ref-card" id="lightboxCard" hidden><img id="lightboxCardImage" alt="" /></div>
+        </div>
+        <div class="viewer__foot">
+          <button class="btn" type="button" id="lightboxMode" hidden>Sayfanın tamamı</button>
+          <a class="btn" id="lightboxVideo" href="https://www.youtube.com/results?search_query=ASL+basic+words+tutorial" target="_blank" rel="noreferrer" data-icon="external" hidden>Videoda izle</a>
+          <p class="viewer__note">Referans görselleri yenileniyor; bazı kartlar standart ASL'den farklı olabilir.</p>
+        </div>
+      </dialog>
 
       <section class="debug-panel" id="debugPanel" hidden aria-label="Debug paneli">
         <strong>Debug</strong>
@@ -699,28 +766,28 @@
     <!-- MediaPipe Tasks Vision ESM loader is lazily imported in media/camera.js -->
 
     <!-- Uygulama modülleri (sırayla, bağımlılık sırası) -->
-    <script src="js/core/config.js?v=10"></script>
-    <script src="js/core/runtime.js?v=10"></script>
-    <script src="js/ml/landmarks.js?v=10"></script>
-    <script src="js/ml/features.js?v=10"></script>
-    <script src="js/services/benchmark.js?v=10"></script>
-    <script src="js/ml/gating.js?v=10"></script>
-    <script src="js/ml/hold.js?v=10"></script>
-    <script src="js/ml/letter-model.js?v=10"></script>
-    <script src="js/ml/word-model.js?v=10"></script>
-    <script src="js/media/overlay.js?v=10"></script>
-    <script src="js/media/camera.js?v=10"></script>
-    <script src="js/ml/live-inference.js?v=10"></script>
-    <script src="js/ui/prediction.js?v=10"></script>
-    <script src="js/ui/plate-side.js?v=10"></script>
-    <script src="js/ui/toast.js?v=10"></script>
-    <script src="js/ui/transcript.js?v=10"></script>
-    <script src="js/ui/word-flow.js?v=10"></script>
-    <script src="js/ui/coach.js?v=10"></script>
-    <script src="js/ui/reference.js?v=10"></script>
-    <script src="js/ui/qr.js?v=10"></script>
-    <script src="js/ui/model-test.js?v=10"></script>
-    <script src="js/core/app.js?v=10"></script>
+    <script src="js/core/config.js?v=11"></script>
+    <script src="js/core/runtime.js?v=11"></script>
+    <script src="js/ml/landmarks.js?v=11"></script>
+    <script src="js/ml/features.js?v=11"></script>
+    <script src="js/services/benchmark.js?v=11"></script>
+    <script src="js/ml/gating.js?v=11"></script>
+    <script src="js/ml/hold.js?v=11"></script>
+    <script src="js/ml/letter-model.js?v=11"></script>
+    <script src="js/ml/word-model.js?v=11"></script>
+    <script src="js/media/overlay.js?v=11"></script>
+    <script src="js/media/camera.js?v=11"></script>
+    <script src="js/ml/live-inference.js?v=11"></script>
+    <script src="js/ui/prediction.js?v=11"></script>
+    <script src="js/ui/plate-side.js?v=11"></script>
+    <script src="js/ui/toast.js?v=11"></script>
+    <script src="js/ui/transcript.js?v=11"></script>
+    <script src="js/ui/word-flow.js?v=11"></script>
+    <script src="js/ui/coach.js?v=11"></script>
+    <script src="js/ui/reference.js?v=11"></script>
+    <script src="js/ui/qr.js?v=11"></script>
+    <script src="js/ui/model-test.js?v=11"></script>
+    <script src="js/core/app.js?v=11"></script>
 
   </body>
 </html>

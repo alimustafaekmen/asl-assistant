@@ -46,9 +46,11 @@ async function init() {
   watchSystemTheme();
   buildCoachOptions();
   buildCoachProgress();
+  buildCoachGrid();
   bindEvents();
   restoreTranscript();
   loadReferenceVideoLinks();
+  loadWordReference();
   setMode(modeFromHash(window.location.hash), { syncHash: false });
   updatePrediction({ label: "?", confidence: 0, alternatives: [] });
 
@@ -113,6 +115,11 @@ async function loadModelsWithStatus(needs) {
     models.push({ label: "Kelime", loaded: !!wordSession, ready: ensureWordModel() });
   }
   const downloading = models.some((model) => !model.loaded);
+  // A record press waiting on the word model, now or by the time it settles,
+  // reports that model's outcome itself: its refusal (hand tracking not ready)
+  // or its failure (try again) must not be overwritten by "Hazır" or repeated.
+  const pressesBefore = wordModelPresses;
+  const pressWaiting = needs.word === true && _wordModelWait;
   if (downloading) {
     setMessage("Modeller indiriliyor…", "maybe");
     setBadge("Hazırlanıyor");
@@ -122,6 +129,7 @@ async function loadModelsWithStatus(needs) {
     const results = await Promise.all(models.map((model) => model.ready));
     const allReady = results.every(Boolean);
     if (!downloading || sessionEnded()) return allReady;
+    if (needs.word && (pressWaiting || wordModelPresses !== pressesBefore)) return allReady;
 
     const status = models.filter((_, i) => results[i]).map((model) => model.label.toLocaleLowerCase("tr"));
     if (allReady) {
@@ -222,10 +230,13 @@ function bindEvents() {
     setMode(modeFromHash(window.location.hash), { syncHash: false, focus: true });
   });
 
-  queryElements("[data-qr-target]").forEach((button) => {
-    button.addEventListener("click", () => setQrTarget(button.dataset.qrTarget));
+  // The targets are radios: the arrow keys move between them and fire change,
+  // which a click handler would miss.
+  queryElements("[data-qr-target]").forEach((radio) => {
+    radio.addEventListener("change", handleQrTargetChange);
   });
   els.qrCopyDemo?.addEventListener("click", copyQrDemoUrl);
+  els.qrShare?.addEventListener("click", shareQrDemoUrl);
 
   els.themeToggle?.addEventListener("click", toggleTheme);
 
@@ -254,28 +265,27 @@ function bindEvents() {
       afterCameraStart(event);
     });
   });
-  queryElements('[data-trigger="coach-start"]').forEach((button) => {
-    button.addEventListener("click", async (event) => {
-      await startCoachStudy();
-      if (!state.cameraOn) afterCameraStart(event);
-    });
-  });
-  // The problem's retry starts the camera the way the mode's own start does.
+  // The problem's retry starts the camera the way the stage's own start does.
   els.cameraRetry?.addEventListener("click", async (event) => {
-    if (state.mode === "coach") {
-      await startCoachStudy();
-      if (!state.cameraOn) afterCameraStart(event);
-    } else {
-      await toggleCamera();
-      afterCameraStart(event);
-    }
+    await toggleCamera();
+    afterCameraStart(event);
   });
   els.recordWord?.addEventListener("click", startWordRecording);
   els.retryWord?.addEventListener("click", retryWordRecording);
   els.appendWordResult?.addEventListener("click", appendWordResultToTranscript);
-  els.coachStart?.addEventListener("click", startCoachStudy);
+  // The button disappears when the recording ends, so a keyboard user's focus
+  // goes to the button that starts the next one.
+  els.cancelWord?.addEventListener("click", (event) => {
+    cancelWordRecording();
+    if (event.detail === 0) els.recordWord?.focus();
+  });
   els.coachCheck?.addEventListener("click", checkCoachTarget);
   els.coachNextTarget?.addEventListener("click", nextCoachTarget);
+  els.coachHintButton?.addEventListener("click", showCoachHint);
+  els.coachNext?.addEventListener("click", coachPrimaryAction);
+  els.coachRepeat?.addEventListener("click", repeatCoachTarget);
+  els.coachStay?.addEventListener("click", stayOnCoachTarget);
+  els.coachReset?.addEventListener("click", resetCoachProgress);
   els.speakText?.addEventListener("click", speakTranscript);
   els.clearText?.addEventListener("click", clearTranscript);
   els.copyText.addEventListener("click", copyTranscript);
@@ -299,11 +309,16 @@ function bindEvents() {
   queryElements("[data-coach-flow]").forEach((button) => {
     button.addEventListener("click", () => setCoachFlow(button.dataset.coachFlow));
   });
-  els.showDemoFlow?.addEventListener("click", () => {
-    els.demoFlowSection?.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-  els.showTechSummary?.addEventListener("click", () => {
-    els.techSummarySection?.scrollIntoView({ behavior: "smooth", block: "start" });
+  els.coachFlowGroup?.addEventListener("keydown", moveCoachRadio);
+  els.coachContentGroup?.addEventListener("keydown", moveCoachRadio);
+  // On a phone the study controls are a sheet: the session button opens it,
+  // and its close button, a press outside it and Escape close it.
+  els.coachSessionButton?.addEventListener("click", () => setCoachSheet(!isCoachSheetOpen()));
+  els.coachSheetClose?.addEventListener("click", () => setCoachSheet(false));
+  document.addEventListener("click", (event) => {
+    if (!isCoachSheetOpen() || !(event.target instanceof Node)) return;
+    if (els.coachStudy.contains(event.target) || els.coachSessionButton?.contains(event.target)) return;
+    setCoachSheet(false);
   });
   queryElements("[data-model-test-task]").forEach((button) => {
     button.addEventListener("click", () => setModelTestTask(button.dataset.modelTestTask));
@@ -313,6 +328,9 @@ function bindEvents() {
   els.loadSelectedModelTestSample?.addEventListener("click", loadSelectedModelTestSample);
   els.modelTestSampleFile?.addEventListener("change", handleModelTestSampleFile);
   els.runModelTestSample?.addEventListener("click", runModelTestSample);
+  // Read the model when the button is pressed, not when it is bound: the
+  // visitor may have switched models since.
+  els.runModelTestBatch?.addEventListener("click", () => runModelTestBatch(state.modelTestTask));
   els.modelTestDropZone?.addEventListener("dragover", (event) => {
     event.preventDefault();
     els.modelTestDropZone.classList.add("is-dragging");
@@ -345,15 +363,25 @@ function bindEvents() {
     // Any other modified key belongs to the browser: Cmd+Backspace and
     // Alt+Enter are editing and system keys, not transcript commands.
     if (event.ctrlKey || event.metaKey || event.altKey) return;
-    // In the coach, Escape only ever keeps the current target, which no
-    // focused control would miss, so it works wherever focus is.
+    // The reference viewer is a modal dialog: its keys are its own.
+    if (referenceViewerOpen()) return;
+    // In the coach, Escape closes the phone's study sheet when it is open,
+    // and otherwise only ever keeps the current target, which no focused
+    // control would miss, so it works wherever focus is.
     if (state.mode === "coach" && event.key === "Escape") {
-      stayOnCoachTarget();
+      if (isCoachSheetOpen()) setCoachSheet(false);
+      else stayOnCoachTarget();
       return;
     }
     // Everything below is an unmodified key, which belongs to the focused
-    // control whenever there is one that consumes typing.
-    if (isEditableTarget(event.target)) return;
+    // control whenever there is one that consumes typing. Word mode decides
+    // that itself, because Escape cancels a recording whatever has focus.
+    const fromControl = isEditableTarget(event.target);
+    if (state.mode === "word") {
+      handleWordKey(event, fromControl);
+      return;
+    }
+    if (fromControl) return;
     // In the coach, Space takes what the coach offers next, as it takes the
     // letter on the letter screen; with nothing on offer it keeps its default
     // action. The coach has no other key.
@@ -623,6 +651,8 @@ function setMode(mode, options = {}) {
     el.hidden = isProject || isTest || isQr;
   });
   if (isQr) renderQrDemo();
+  // The page's figures come from the model card, read when the page opens.
+  if (isProject) loadProjectModelCard();
   // The panel re-renders its fixture list when the read settles.
   if (isTest) loadLocalModelTestFixtures();
   if (isProject || isTest || isQr) {
@@ -642,7 +672,8 @@ function setMode(mode, options = {}) {
   els.resultKind.textContent =
     mode === "word" ? "Kelime" : mode === "coach" ? "Hedef" : "Harf";
   els.wordStateCard.dataset.hidden = mode === "letter" ? "true" : "false";
-  els.coachCard.dataset.hidden = mode === "coach" ? "false" : "true";
+  els.coachStudy.dataset.hidden = mode === "coach" ? "false" : "true";
+  if (mode !== "coach" && isCoachSheetOpen()) setCoachSheet(false);
   els.controlBar.dataset.count = mode === "letter" ? "3" : "4";
   clearFeedback();
 

@@ -255,8 +255,7 @@ export async function coachApp(options = {}) {
 
   /** Start the camera with the screen's own start button on the stage. */
   const startCamera = async () => {
-    const trigger = app.evaluate("state.mode") === "coach" ? "coach-start" : "camera";
-    click(app.evaluate(`document.querySelector('[data-trigger="${trigger}"]')`));
+    click(app.evaluate(`document.querySelector('[data-trigger="camera"]')`));
     await flush(20);
   };
 

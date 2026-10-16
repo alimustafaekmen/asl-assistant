@@ -154,6 +154,11 @@ SCENARIOS: dict[str, Scenario] = {
     "git-hygiene": Scenario("git-hygiene"),
     "web": Scenario("web", make_args=("PORT=8123",)),
     "git-hygiene/tracked ignored file": Scenario("git-hygiene", git_output="Makefile"),
+    # The subset lives in an ignored folder, so a fresh clone has none.
+    "model-test-fixtures/no subset": Scenario("model-test-fixtures", tree=("README.md",)),
+    "model-test-fixtures/with subset": Scenario(
+        "model-test-fixtures", tree=("data/raw/asl-signs-sample-subset/train.csv",)
+    ),
 }
 
 # What a bare PATH keeps: the system tools make's recipes use, and no node.
@@ -543,3 +548,26 @@ def test_git_hygiene_fails_on_a_tracked_file_that_gitignore_matches(runs: dict[s
 
     assert run.returncode != 0, run.output
     assert "Makefile" in run.output
+
+
+def test_model_test_fixtures_without_the_subset_says_how_to_get_it(runs: dict[str, Run]) -> None:
+    """The Kaggle subset is ignored data; a clone must be told, not handed a traceback."""
+    run = runs["model-test-fixtures/no subset"]
+
+    assert run.returncode != 0, run.output
+    assert run.ran("export_model_test_word_samples.py") == []
+    assert "download_kaggle_sample_subset.py" in run.output
+
+
+def test_model_test_fixtures_exports_from_the_subset(runs: dict[str, Run]) -> None:
+    run = runs["model-test-fixtures/with subset"]
+
+    assert run.returncode == 0, run.output
+    (call,) = run.ran("export_model_test_word_samples.py")
+    assert _arguments(call) == [
+        "scripts/evaluation/export_model_test_word_samples.py",
+        "--kaggle-dir",
+        "data/raw/asl-signs-sample-subset",
+        "--samples-per-word",
+        "1",
+    ]

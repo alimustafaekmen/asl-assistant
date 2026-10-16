@@ -36,7 +36,7 @@ function shown(coach) {
     glyph: coach.text("primaryPrediction"),
     decision: coach.text("decisionLabel"),
     percent: coach.text("confidenceText"),
-    target: coach.text("coachTargetBig"),
+    target: coach.text("coachTargetGlyph"),
   };
 }
 
@@ -381,7 +381,7 @@ test("Escape keeps the target, and the plate says how to move on", async () => {
 });
 
 for (const [way, leave] of [
-  ["stopping the camera", (coach) => coach.click(coach.el("coachStart"))],
+  ["stopping the camera", (coach) => coach.click(coach.el("cameraToggle"))],
   ["changing screen", (coach) => coach.click(modeTab(coach, "letter"))],
   ["the page going to the background", (coach) => {
     coach.app.evaluate("document").visibilityState = "hidden";

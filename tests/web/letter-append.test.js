@@ -162,7 +162,9 @@ test("an added letter is announced, a repeat of it is not announced again", asyn
   assert.equal(app.evaluate("els.announcer.textContent"), "", "a suppressed repeat must stay silent");
 });
 
-for (const mode of ["word", "coach", "test", "qr", "project"]) {
+// Word mode has keys of its own now (Enter records, Space accepts, Escape
+// cancels); word-keys.test.js holds what it must not do with the letter keys.
+for (const mode of ["coach", "test", "qr", "project"]) {
   test(`Space, Enter and Backspace do nothing on the ${mode} screen`, async () => {
     const { app, press, transcript, show } = await bootedApp();
     app.evaluate('state.transcript = "AB";');

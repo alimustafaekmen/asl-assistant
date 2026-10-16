@@ -22,6 +22,10 @@ Outputs:
   data/processed/train_landmarks.csv
   data/processed/test_landmarks.csv
   docs/assets/static-letter-class-distribution.png
+  docs/assets/static-letter-class-distribution-train.png
+
+The two charts are regenerated on every run and are not tracked, so a clone has
+no docs/assets/ copy of them until this script has run.
 """
 
 import argparse

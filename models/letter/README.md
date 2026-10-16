@@ -1,28 +1,44 @@
-# Static Letter Model
+# Static letter model
 
-The static-letter pipeline is trained by
-`scripts/model_training/train_static_letter_model.py` and recognizes 24 static
-classes from a 93D feature vector. J and Z are not included in the trained
-model, label map, or deployed artifacts.
+A LightGBM classifier that reads a 93-value hand feature vector and predicts one
+of 24 static letters. J and Z need motion and are not in the model, the label map
+or any deployed file.
 
-The final model was trained locally from a merged landmark table derived from
-ASL Alphabet, American Sign Language Dataset, and the local `ASL_SemCom`
-subset. See [Models and data](../../docs/models-and-data.md#training-data-and-environments)
-for source links, retained sample counts, and exclusions.
+| | |
+|---|---|
+| Classifier | LightGBM, 300 estimators, seed 42 |
+| Input | `float32 (1, 93)` |
+| Output | probabilities over 24 letters, indices `0..23` in `letter_label_map.json` |
+| Held-out accuracy | 0.9935 on 8,245 rows (set aside before augmentation) |
+| Training script | `scripts/model_training/train_static_letter_model.py` (metadata dated 2026-03-13) |
 
-The normalization, augmentation, 93D feature layout, model comparison,
-evaluation caveats, and browser parity checks are documented in the
-[letter training flow](../../docs/models-and-data.md#letter-training-flow).
+The held-out rows are a random split, not unseen signers, so 0.9935 says little
+about how the model does with a new person and camera. The caveats are spelled
+out in [Models and data](../../docs/models-and-data.md#evaluation-caveat).
+
+## Files
 
 | File | Role |
 |---|---|
-| `letter_model_meta.json` | Training parameters and reported evaluation results |
-| `letter_label_map.json` | Model output label order |
-| `letter_model.pkl` | Published Python source artifact used by the desktop prototype and ONNX parity checks |
-| `onnx_exports/letter_model_static_24_web_no_zipmap.onnx` | Active browser-source ONNX |
-| `onnx_exports/letter_model_static_24_web_duplicate.onnx` | Historical ZipMap export; ignored and not deployed |
+| `letter_model_meta.json` | Training settings and the recorded results |
+| `letter_label_map.json` | Letter to output index |
+| `letter_model.pkl` | Python model used by the desktop prototype and the ONNX parity check |
+| `onnx_exports/letter_model_static_24_web_no_zipmap.onnx` | ONNX source of the browser model |
 
-The pickle is version-sensitive and is not loaded by the browser. The deployed
-copies are `asl-web/models/letter_model.onnx` and
-`asl-web/data/letter_labels.json`. Use `make validate` to confirm their
-provenance and ONNX I/O contract.
+The browser loads `asl-web/models/letter_model.onnx` (a byte-for-byte copy of the
+ONNX file here, plus a gzip version it downloads first) and
+`asl-web/data/letter_labels.json`. The pickle is tied to the scikit-learn
+version it was written with, and the browser never loads it. Like any pickle it
+can run code when loaded, so open it only from a copy you trust. `make validate`
+checks the copies against their sources and the ONNX inputs and outputs.
+
+The ONNX file must have ZipMap disabled so it returns a plain probability tensor.
+ONNX Runtime Web cannot reliably read the sequence-of-maps output that a ZipMap
+export produces, so an export with ZipMap must not be deployed.
+
+## Where the details are
+
+How the data was collected and split, how the 93 features are built and in what
+order, the augmentation, the model comparison and the browser parity checks are
+in [Models and data](../../docs/models-and-data.md#training-data-and-environments)
+and its [letter training flow](../../docs/models-and-data.md#letter-training-flow).

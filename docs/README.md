@@ -1,32 +1,47 @@
 # Documentation
 
-ASL Assistant keeps a small set of documents, each with one purpose. Start
-with the root [README](../README.md) for the project overview.
+Start with the root [README](../README.md) for what the project is and what it
+can do. The documents here go into detail, one purpose each.
 
-| Document | Audience | Purpose |
+| Document | For | What it covers |
 |---|---|---|
-| [Getting started](getting-started.md) | Users and developers | Run the web app, prepare a Python environment, validate the project, and troubleshoot common problems. |
-| [Başlangıç rehberi (Türkçe)](getting-started.tr.md) | Kullanıcılar ve geliştiriciler | Web uygulamasını çalıştırın, izole ortam kurun ve projeyi doğrulayın. |
-| [Architecture](architecture.md) | Developers | Understand component boundaries, browser pipelines, repository layout, state, and failure modes. |
-| [Models and data](models-and-data.md) | ML developers and reviewers | Inspect feature order, ONNX I/O, labels, runtime JSON, evaluation scope, and artifact provenance. |
-| [Project journey](project-journey.md) | Researchers and contributors | Follow the desktop-to-web evolution, experiments, engineering problems, lessons, limitations, and relation to sign-recognition research. |
-| [Data workspace](../data/README.md) | ML developers | See which datasets trained the published models, which sources were only explored, and what stays outside Git. |
+| [Getting started](getting-started.md) | Users and developers | Running the web app, setting up Python and Node, the `make` commands, deploying, and fixing common problems. |
+| [Başlangıç rehberi](getting-started.tr.md) | Kullanıcılar ve geliştiriciler | The same guide in Turkish. |
+| [Architecture](architecture.md) | Developers | Repository layout, the browser modules and their load order, the letter and word pipelines, the camera lifecycle, artifact ownership and failure modes. |
+| [Models and data](models-and-data.md) | ML developers and reviewers | Feature order, ONNX inputs and outputs, labels, runtime JSON files, evaluation scope, data sources and licences. |
+| [Project journey](project-journey.md) | Researchers and contributors | How the project moved from a desktop prototype to the browser, which experiments were tried, what went wrong, and the known limits. |
+| [Data workspace](../data/README.md) | ML developers | Which datasets trained the published models, which were only explored, and what stays out of Git. |
 
-## Reading paths
+Each part of the repository also has its own README:
 
-- To try the application: README → Getting started.
-- To change browser code: Architecture → Models and data.
-- To inspect or replace a model: Models and data → the referenced training
-  source and validation scripts.
-- To trace dataset use: Data workspace → Models and data.
-- To understand why the project made its current choices: Project journey.
+| Folder | Notes |
+|---|---|
+| [`asl-web/`](../asl-web/README.md) | The web application: running it, settings, the Model Test fixture format. |
+| [`asl-web/js/`](../asl-web/js/README.md) | Script load order, module map, markup contracts, type contracts. |
+| [`asl-ml/`](../asl-ml/README.md) | Shared Python feature code. |
+| [`asl-desktop/`](../asl-desktop/README.md) | The legacy desktop prototype. |
+| [`models/`](../models/README.md) | The curated model files and their metadata. |
+| [`notebooks/`](../notebooks/README.md) | Word-model training notebooks and results. |
+| [`scripts/`](../scripts/README.md) | Data preparation, training, evaluation, validation and environment tools. |
+| [`tests/`](../tests/README.md) | Test layout, what each gate runs, and the [browser checks](../tests/browser/README.md). |
+
+## Where to start
+
+- To try the application: README, then Getting started.
+- To change browser code: Architecture, then the notes in `asl-web/js/`.
+- To inspect or replace a model: Models and data, then the training and
+  validation scripts it names.
+- To see where the data came from: Data workspace, then Models and data.
+- To understand why the project looks the way it does: Project journey.
 
 ## Documentation rules
 
-- Working code and exported artifact metadata take precedence over prose.
-- Metrics must name their dataset and evaluation scope. Browser fixtures are
-  regression samples, not a substitute for held-out evaluation.
-- Letter and word recognition are separate tasks and must not share claims,
-  thresholds, or reliability language without evidence.
-- Changes to feature order, labels, ONNX I/O, runtime JSON, or artifact sources
-  must update [Models and data](models-and-data.md) in the same change.
+- Code and the metadata exported with each artifact win over prose.
+- A metric names its dataset and evaluation scope. Browser fixtures are
+  regression samples, not a replacement for held-out evaluation.
+- Letter and word recognition are different tasks. Claims, thresholds and
+  reliability statements for one do not carry over to the other without
+  evidence.
+- A change to feature order, labels, ONNX inputs or outputs, runtime JSON, or
+  an artifact's source updates [Models and data](models-and-data.md) in the
+  same commit.

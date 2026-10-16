@@ -139,6 +139,9 @@ function renderQrDemo() {
     // A radio shows the state it is drawn from, whatever last changed it.
     if (button instanceof HTMLInputElement) button.checked = isTarget;
   });
+  // The share sheet is a browser feature: the button is only there where it
+  // opens something.
+  if (els.qrShare) els.qrShare.hidden = !canShareQrDemoUrl();
   if (els.qrDemoUrl) els.qrDemoUrl.textContent = url;
   if (els.qrOpenDemo) els.qrOpenDemo.href = url;
 

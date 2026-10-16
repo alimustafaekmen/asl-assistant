@@ -1,42 +1,54 @@
 # asl-desktop
 
-`asl-desktop` is the legacy CustomTkinter prototype. The active product is the
-browser application under `asl-web/`; this package is retained for reference,
-experiments, and desktop-specific tests.
+The first version of the project: a Python app built with CustomTkinter, OpenCV
+and MediaPipe. The browser app in `asl-web/` is the maintained product. This one
+is kept working, as a reference and for experiments, but is no longer where
+development is going.
 
-## Responsibilities
+## What it does
+
+- **Translation view:** reads letters from the camera with the 93-feature
+  LightGBM model and words with the older 25-word BiGRU, and can speak the result
+  with offline text-to-speech (`pyttsx3`).
+- **Learning coach:** guided practice for letters and the 25 words.
+- **Personalization:** few-shot letter templates recorded by the user and matched
+  by cosine similarity before the base model runs. They are stored under the
+  ignored `models/profiles/` folder and are never committed.
+
+J and Z are not available. They need motion, and no trained J/Z model is
+published.
+
+## How it is organised
 
 ```text
 src/asl_desktop/
-├── app/         application controller
+├── app/         main window and navigation
 ├── camera/      camera widget
-├── config.py    desktop paths, camera, thresholds, UI, and model defaults
-├── detection/   Python MediaPipe wrappers
+├── config.py    desktop paths, camera, thresholds, UI and model settings
+├── detection/   MediaPipe hand and holistic wrappers
 ├── models/      letter and sequence classifier wrappers
 ├── services/    personalization and text-to-speech
 ├── ui/          translation and coach views
-└── utils/       smoothing and motion helpers
+└── utils/       landmark smoothing and motion tracking
 ```
 
-It depends on `asl-ml` and the local Python ML/GUI stack. Shared landmark and
-class-domain values come from `asl_ml.config`; desktop-only paths, camera
-behavior, thresholds, UI values, and the 25-word artifact contract live in
-`asl_desktop.config`. The browser keeps an independent JavaScript config.
+The app depends on [`asl-ml`](../asl-ml/README.md) for landmark normalization,
+the 93D features and the label-map helpers. Values shared with training (the 21
+landmarks, the 24 letters, augmentation defaults) come from `asl_ml.config`. Paths,
+camera behaviour, thresholds, colours and the 25-word model settings live in
+`asl_desktop.config`. The browser has its own JavaScript configuration. Similar
+screens do not mean identical inference: for letters the web app mirrors a detected
+left hand, which the desktop app does not do.
 
-This removes the former root `config/` package and prevents training tools
-from depending on desktop UI settings. Visual similarity between desktop and
-web still does not imply inference parity.
-
-The desktop word path is the earlier 25-class BiGRU+Attention implementation:
-30 frames of 321D holistic landmarks. It does not load the browser's 50-class,
-45 × 168 SignTransformer. See the
-[project journey](../docs/project-journey.md) for the verified
-transition between these versions.
+The word path is the 25-class BiGRU with attention pooling, fed 30 frames of 321
+holistic landmark values from `models/word/desktop-25/`. It does not load the web
+app's 50-word SignTransformer (45 × 168 features). How the two came about is told
+in the [project journey](../docs/project-journey.md).
 
 ## Install and run
 
-The recommended public setup creates the isolated Python 3.12 environment and
-installs Node 24 for the repository checks:
+You need Python 3.12, a camera and a desktop session. The simplest route is the
+Conda environment, which also installs Node 24 for the repository checks:
 
 ```bash
 conda env create -f environment.yml
@@ -45,30 +57,32 @@ make doctor
 make desktop
 ```
 
-For an existing isolated Conda environment or Python 3.12 `venv`, run
-`make setup` before `make desktop`. Setup refuses Conda base and installs the
-two local packages in editable mode after the pinned requirements. See the
-[getting-started guide](../docs/getting-started.md) for direct commands and
-platform notes.
+In an existing Conda environment (not `base`) or a Python 3.12 `venv`, run
+`make setup` first. It installs the pinned requirements, then `asl-ml` and
+`asl-desktop` in editable mode, and refuses to run in Conda's base environment.
+[Getting started](../docs/getting-started.md) has the direct commands and notes
+for each platform.
 
-The application requires a GUI session and camera permission. On macOS,
-LightGBM also requires an OpenMP runtime; `environment.yml` includes
-`llvm-openmp`. The 25-word checkpoint is published under
-`models/word/desktop-25/`; J/Z remains unavailable because no trained J/Z model
-is included. Personalization profiles and newly generated training artifacts
-remain local-only.
+Things to know:
 
-Python pickle/joblib model files are scikit-learn-version sensitive. The pinned
-requirements match the published letter artifact's scikit-learn 1.8.0 runtime.
-If the artifact is replaced, update and validate that contract together. This
-does not affect the browser's ONNX models.
+- The app needs camera permission.
+- LightGBM needs an OpenMP runtime on macOS; `environment.yml` includes
+  `llvm-openmp`.
+- The letter model is a scikit-learn-compatible pickle, so the pinned
+  scikit-learn (1.8.0 in `requirements.txt`) has to match the version that wrote
+  it. If you replace the model, update and validate both together. The browser's
+  ONNX models are not affected.
+- The `.pkl` and `.pt` model files are Python pickles and can run code when
+  loaded; use only copies you trust.
+- Newly trained artifacts and personalization profiles stay local.
 
-## Test
+## Tests
 
 ```bash
 python -m pytest tests/asl_desktop/unit
 python -m pytest tests/asl_desktop/integration
 ```
 
-Integration tests may require MediaPipe, ONNX/PyTorch artifacts, and camera
-access. See [tests/README.md](../tests/README.md).
+The unit tests are the fast, deterministic ones. The integration tests may need
+MediaPipe, the model files, PyTorch and a camera. See
+[tests/README.md](../tests/README.md).

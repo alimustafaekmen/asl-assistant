@@ -71,7 +71,7 @@ function bootedExpression(route) {
   // in the authored markup, so seeing it means init() got that far.
   const applied = screen
     ? `document.getElementById(${JSON.stringify(screen)})?.hidden === false`
-    : `document.getElementById("coachCard")?.dataset.hidden !== undefined`;
+    : `document.getElementById("coachStudy")?.dataset.hidden !== undefined`;
   return `(() => {
     if (document.readyState !== "complete") return false;
     const shell = document.querySelector('[data-ui="app-shell"]');
@@ -255,8 +255,11 @@ export const CHECKS = [
     async run(ctx) {
       const page = await openApp(ctx, { route: "letter" });
       const problems = await page.eval(`(() => {
-        const target = new URL("css/style.css", document.baseURI).href;
-        const links = [...document.querySelectorAll('link[rel="stylesheet"]')].filter((link) => link.href === target);
+        // The path, not the whole URL: a cache tag such as ?v=11 still links the same file.
+        const target = new URL("css/style.css", document.baseURI).pathname;
+        const links = [...document.querySelectorAll('link[rel="stylesheet"]')].filter(
+          (link) => new URL(link.href).pathname === target,
+        );
         if (links.length !== 1) return ["css/style.css is linked " + links.length + " times; expected once"];
         const [link] = links;
         const problems = [];
@@ -285,7 +288,7 @@ export const CHECKS = [
       const mustRender = {
         letter: ["#removeLastChar", "#insertSpace", "#manualAddLetter"],
         word: ["#recordWord", "#retryWord", "#appendWordResult"],
-        coach: ["#coachStart", "#coachCheck", "#coachNextTarget"],
+        coach: ["#coachTargetTile", "#coachHintButton", "#coachNextTarget"],
       };
       const problems = [];
       const page = await openApp(ctx, { route: "letter" });
@@ -403,8 +406,39 @@ export const CHECKS = [
   },
 
   {
+    name: "qr-colours",
+    summary: "the QR code stays black on white in both themes, so a scanner always sees dark on light",
+    async run(ctx) {
+      const page = await openApp(ctx, { route: "qr" });
+      const read = `(() => {
+        const style = getComputedStyle(document.documentElement);
+        const probe = document.createElement("div");
+        document.body.append(probe);
+        const resolve = (name) => {
+          probe.style.color = "var(" + name + ", transparent)";
+          return getComputedStyle(probe).color;
+        };
+        const colours = { ink: resolve("--qr-ink"), back: resolve("--qr-back"), declared: style.getPropertyValue("--qr-ink").trim() };
+        probe.remove();
+        return colours;
+      })()`;
+      const problems = [];
+      const light = await page.eval(read);
+      if (!light.declared) problems.push("--qr-ink is not defined, so the drawing falls back to a colour of its own");
+      await page.eval(`document.getElementById("themeToggle").click()`);
+      await page.waitFor(`document.body.dataset.theme === "dark"`, { what: "the toggle to set the dark theme" });
+      const dark = await page.eval(read);
+      for (const [label, colours] of [["light", light], ["dark", dark]]) {
+        if (colours.ink !== "rgb(23, 24, 27)") problems.push(`${label} theme: the QR ink is ${colours.ink}, not the near-black ink`);
+        if (colours.back !== "rgb(255, 255, 255)") problems.push(`${label} theme: the QR paper is ${colours.back}, not white`);
+      }
+      return problems;
+    },
+  },
+
+  {
     name: "no-hscroll",
-    summary: "no camera mode scrolls sideways at 320, 360, 390, 844x390 or 1366x768",
+    summary: "no route, camera or information screen, scrolls sideways at 320, 360, 390, 844x390 or 1366x768",
     async run(ctx) {
       const viewports = [
         { width: 320, height: 640, mobile: true },
@@ -416,7 +450,7 @@ export const CHECKS = [
       const problems = [];
       for (const viewport of viewports) {
         const page = await openApp(ctx, { route: "letter", viewport });
-        for (const mode of CAMERA_MODES) {
+        for (const mode of ROUTES) {
           await switchMode(page, mode);
           const result = await page.eval(`(() => {
             ${IN_PAGE}
@@ -740,11 +774,11 @@ export const CHECKS = [
           ${IN_PAGE}
           const problems = [];
           const reference = document.querySelector(".app-reference");
-          const card = document.getElementById("coachCard");
+          const study = document.getElementById("coachStudy");
           if (!rendered(reference)) problems.push("#coach: the reference panel is not rendered");
-          if (!rendered(card)) problems.push("#coach: the coach card is not rendered");
-          if (rendered(reference) && rendered(card) && reference.getBoundingClientRect().top >= card.getBoundingClientRect().top) {
-            problems.push("#coach: the reference panel is not above the coach card");
+          if (!rendered(study)) problems.push("#coach: the study cards are not rendered");
+          if (rendered(reference) && rendered(study) && study.getBoundingClientRect().top >= reference.getBoundingClientRect().top) {
+            problems.push("#coach: the study cards are not above the reference panel");
           }
           return problems;
         })()`)),

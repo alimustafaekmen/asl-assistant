@@ -53,6 +53,8 @@
   .brand__mark rect { fill: var(--brand-tile); stroke: var(--brand-edge); }
   .brand__mark polyline { stroke: var(--brand-trace); }
   .brand__mark circle { fill: var(--brand-trace); }
+  /* The caret the traced sign turns into: the mark reads as sign to text. */
+  .brand__mark line { stroke: var(--brand-caret); }
   .brand__name { font-size: 1.0625rem; font-weight: var(--fw-bold); letter-spacing: -0.005em; }
 
   /* ── Buttons ─────────────────────────────────────────────────────────

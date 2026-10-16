@@ -1,53 +1,67 @@
 # asl-ml
 
-`asl-ml` is the reusable Python-side ML contract layer. It keeps landmark
-normalization, the 93D static-letter feature implementation, label-map I/O,
-and the small set of preprocessing constants that training and Python
-inference must share.
+The Python source of truth for how a MediaPipe hand becomes the model's input.
+`asl-ml` holds hand-landmark normalization, the 93-value letter feature
+vector, label-map reading and writing, and the few constants that training and
+Python inference must agree on.
 
-The browser application does not import this package. `asl-web/` contains a
-separate JavaScript implementation whose outputs are checked against the
-Python contract with parity tests.
+The web app does not use this package. `asl-web/js/ml/features.js` implements the
+same feature code in JavaScript, and parity checks compare the two (see below).
+Because the feature order is part of the model, a vector with the right shape but
+the wrong order would run and predict nonsense; this package is where that order
+is defined.
 
 ## Contents
 
 ```text
 src/asl_ml/
-├── config.py                       shared 21-landmark, 24-class, and augmentation defaults
-├── features/letter_features.py   93D letter feature extraction
+├── config.py                   landmark count, the 24 letters, augmentation defaults
+├── features/letter_features.py 93D letter feature extraction
 └── utils/
-    ├── landmarks.py              wrist-origin/scale normalization
-    ├── labels.py                 label-map load/save/invert helpers
-    └── io.py                     filesystem helper
+    ├── landmarks.py            wrist-origin and hand-size normalization
+    ├── labels.py               load, save and invert label maps
+    └── io.py                   ensure_dir
 ```
 
-Consumers include data-preparation and letter-training scripts, Python tests,
-and the desktop prototype. UI colors, camera lifecycle policy, desktop model
-paths, and web thresholds do not belong here.
+The letter data-preparation and training scripts under `scripts/`, the Python
+tests and the desktop prototype all import it. Anything about the UI, the camera,
+desktop model paths or web thresholds belongs elsewhere. Word feature extraction
+is not here yet; it can move in once it can be tested against both the training
+notebook and the browser.
 
-This separation gives `asl-ml` one clear role: it is the canonical Python
-implementation of model-adjacent preprocessing, not a second application and
-not a generic dumping ground for project settings. Future reusable word
-feature extraction may be added only after it can be tested against the
-notebook and browser contracts.
+## Use
+
+```python
+from asl_ml.config import NUM_LANDMARKS, STATIC_LETTERS
+from asl_ml.features.letter_features import extract_features
+from asl_ml.utils import ensure_dir, load_label_map, normalize_landmarks
+```
+
+`normalize_landmarks` takes the flat 63 values of one hand, moves the wrist to
+the origin and divides by the wrist to middle-finger-base distance. It returns
+zeros if that distance is degenerate. `extract_features` takes those 63
+normalized values and returns the 93-value vector. Its layout is in
+[Models and data](../docs/models-and-data.md#letter-feature-engineering).
 
 ## Install and test
 
+From the repository root, in a Python 3.12 environment you created for this
+project:
+
 ```bash
-# Activate any isolated Python environment first.
 python -m pip install -e ./asl-ml
 python -m pytest tests/asl_ml
 ```
 
-Public imports:
+`make setup` installs this package and `asl-desktop` together with the pinned
+requirements ([Getting started](../docs/getting-started.md)).
 
-```python
-from asl_ml.features.letter_features import extract_features
-from asl_ml.utils import ensure_dir, load_label_map, normalize_landmarks
-from asl_ml.config import NUM_LANDMARKS, STATIC_LETTERS
-```
+## Keeping Python and JavaScript in step
 
-The 93D order and normalization are protected by the
-[models and data contract](../docs/models-and-data.md). Update the Python and
-JavaScript paths together and run the letter parity checks before changing
-them.
+Changing the normalization or the feature order means changing
+`letter_features.py`, `landmarks.py` and `asl-web/js/ml/features.js` together.
+`make parity` runs `tests/validation/check_letter_feature_parity.py` (and the word
+equivalent), which feeds the same hands to both implementations and fails if any
+value differs by `1e-4` or more. It needs Node. The browser unit tests hold the
+same Python outputs as golden values in `tests/web/fixtures/feature-golden.json`,
+regenerated with `scripts/evaluation/export_feature_goldens.py`.
