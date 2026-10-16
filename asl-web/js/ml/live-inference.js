@@ -114,6 +114,15 @@ let _inferenceInFlight = false;
 let _firstInferenceLogged = false;
 let _firstPredictionLogged = false;
 let _wordWaitMessageShown = false;
+/**
+ * Timestamp of the last MediaPipe result a word recording took, or null at
+ * the start of one. The render loop runs word inference on every frame, but
+ * MediaPipe publishes from its own loop, so a frame can read a result that
+ * has already been recorded.
+ *
+ * @type {number | null}
+ */
+let _lastWordFrameTimestamp = null;
 
 // Per-recording visibility and parity diagnostics. These counters do not alter
 // inference; they expose dominant-hand changes and shoulder-normalization
@@ -144,6 +153,7 @@ let _wordRecordingStats = {
  */
 function resetWordRecordingStats() {
   _wordWaitMessageShown = false;
+  _lastWordFrameTimestamp = null;
   _wordRecordingStats = {
     startTs: 0,
     totalObservedFrames: 0,
@@ -227,10 +237,15 @@ async function realInference(now) {
     state.mode === "letter" ||
     (state.mode === "coach" && state.coachTarget?.length === 1);
 
-  // Skip frames without hands. Letter contexts also reset temporal smoothing so
-  // a previous sign cannot leak across a hand-loss gap.
+  // Skip frames without hands. Letter contexts also reset temporal smoothing,
+  // of the predictions and of the landmarks, so a previous sign cannot leak
+  // across a hand-loss gap. This frame never reaches computeLetterFeatures(),
+  // so its own all-zero reset of the landmark average does not happen here.
   if (!latestMediaPipeResult.rightHandLandmarks && !latestMediaPipeResult.leftHandLandmarks) {
-    if (isLetterContext && typeof resetSmoother === "function") resetSmoother();
+    if (isLetterContext) {
+      resetSmoother();
+      resetLetterLandmarkSmoother();
+    }
     return;
   }
 
@@ -380,6 +395,11 @@ async function realInference(now) {
       }
     } else if (state.mode === "word" || _isCoachWordTarget()) {
       if (state.wordState === "RECORDING") {
+        // One MediaPipe result is one frame of the sign, however many render
+        // frames read it: a repeat would fill the window with a hand standing
+        // still and shorten the recording in time.
+        if (latestMediaPipeResult.timestamp === _lastWordFrameTimestamp) return;
+        _lastWordFrameTimestamp = latestMediaPipeResult.timestamp;
         // Track landmark visibility for every captured recording frame.
         if (_wordRecordingStats.startTs === 0) {
           _wordRecordingStats.startTs = now;
@@ -513,11 +533,14 @@ function _isCoachWordTarget() {
  * A result that arrives after the user changed mode or stopped the camera is
  * discarded rather than displayed. Either way the motion buffers and the
  * per-recording counters are cleared before returning, so the next recording
- * starts clean.
+ * starts clean. A result that arrives after a newer recording started touches
+ * nothing, because the state and the buffers belong to that recording. A run
+ * that produced no result still ends in RESULT, with no word on offer.
  *
  * @returns {Promise<void>}
  */
 async function _finishWordRecordingReal() {
+  const recording = wordRecordingSerial;
   state.wordState = "PROCESSING";
   updateWordState();
 
@@ -610,6 +633,10 @@ async function _finishWordRecordingReal() {
     console.error("Word inference hatası:", err);
   }
 
+  // A newer recording started while the model ran: the state and the
+  // buffers are that recording's now, so this one leaves them alone.
+  if (recording !== wordRecordingSerial) return;
+
   // Ignore a late asynchronous result if the user changed mode or stopped the camera.
   const coachWordTarget = _isCoachWordTarget();
   if ((state.mode !== "word" && !coachWordTarget) || !state.cameraOn) {
@@ -623,7 +650,13 @@ async function _finishWordRecordingReal() {
   }
 
   let wordFeedbackShown = false;
-  if (result) {
+  if (!result) {
+    // A failed run ends in a RESULT with no word, never with the previous
+    // word still on offer.
+    updatePrediction({ label: "?", confidence: 0, alternatives: [] });
+    reportProblem("Bu kayıt değerlendirilemedi. Tekrar Dene ile yeni bir kayıt alın.");
+  } else {
+    wordResultSerial = recording;
     updatePrediction(result);
     if (coachWordTarget && typeof updateCoachFromPrediction === "function") {
       updateCoachFromPrediction();

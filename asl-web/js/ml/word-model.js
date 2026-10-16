@@ -141,27 +141,17 @@ function _buildMaskTensor(mask45, dtype = wordMaskDtype) {
 }
 
 /**
- * Move to the next mask element type after the session rejected the current one.
- *
- * @returns {boolean} False when every dtype has been tried.
- */
-function _advanceMaskDtype() {
-  const idx = WORD_MASK_DTYPES.indexOf(wordMaskDtype);
-  if (idx < 0 || idx >= WORD_MASK_DTYPES.length - 1) return false;
-  wordMaskDtype = WORD_MASK_DTYPES[idx + 1];
-  return true;
-}
-
-/**
  * Classify one word recording.
  *
  * The input length and mask length are checked here rather than trusted from
  * the type, because a wrong shape would otherwise reach the session and fail
  * with an opaque runtime error.
  *
- * If the session rejects the mask tensor, the next element type is tried and
- * the run is repeated. The published graph varies by export, so this is a
- * compatibility path, not error recovery.
+ * If a run fails, the other mask element types are tried for this call, and
+ * the remembered type changes only when another one succeeds. The published
+ * graph varies by export, so this is a compatibility path; a run that fails
+ * for another reason fails with every type and leaves the remembered one as
+ * it was, so the next recording is not sent a type the graph rejects.
  *
  * @param {WordFeatures45x168} features45x168 Flattened input; length must be 7560.
  * @param {WordMask45} mask45 Padding mask; length must be 45.
@@ -181,30 +171,36 @@ async function predictWord(features45x168, mask45) {
   const t0 = performance.now();
 
   const inputTensor = new ort.Tensor("float32", features45x168, [1, 45, 168]);
+  const session = wordSession;
+  const usesMask = session.inputNames.length > 1;
+  // The type in force first, then the others in their usual order. A graph
+  // without a mask input runs once.
+  /** @type {(WordMaskDtype | null)[]} */
+  const attempts = usesMask
+    ? [wordMaskDtype, ...WORD_MASK_DTYPES.filter((dtype) => dtype !== wordMaskDtype)]
+    : [null];
+  /** @type {Record<string, OnnxTensorLike> | null} */
   let results = null;
+  /** @type {unknown} */
   let lastRunError = null;
-
-  while (!results) {
+  for (const dtype of attempts) {
     try {
       /** @type {Record<string, unknown>} */
       const feeds = {};
-      feeds[wordSession.inputNames[0]] = inputTensor;
-      if (wordSession.inputNames.length > 1) {
-        feeds[wordSession.inputNames[1]] = _buildMaskTensor(mask45);
-      }
-      results = await wordSession.run(feeds);
+      feeds[session.inputNames[0]] = inputTensor;
+      if (dtype !== null) feeds[session.inputNames[1]] = _buildMaskTensor(mask45, dtype);
+      results = await session.run(feeds);
+      if (dtype !== null) wordMaskDtype = dtype;
+      break;
     } catch (err) {
       lastRunError = err;
-      if (wordSession.inputNames.length <= 1 || !_advanceMaskDtype()) {
-        throw lastRunError;
+      if (dtype !== null) {
+        console.warn(`Word mask dtype ${dtype} başarısız:`, err instanceof Error ? err.message : err);
       }
-      console.warn(
-        `Word mask dtype başarısız, ${wordMaskDtype} deneniyor:`,
-        err?.message || err,
-      );
     }
   }
-  const logits = results[wordSession.outputNames[0]].data;
+  if (!results) throw lastRunError;
+  const logits = results[session.outputNames[0]].data;
 
   const t1 = performance.now();
   if (typeof recordBenchmark === "function") recordBenchmark("onnx", t1 - t0);

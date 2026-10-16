@@ -7,13 +7,26 @@ export manifest, and ONNX input/output contracts by default. It intentionally
 skips local dataset inspection; use ``verify_project_assets.py`` for the broader
 repository audit.
 
+With ``--deploy`` (``make deploy-check``) it also lists every file under
+``asl-web/`` in the working tree, which is what a drag-and-drop upload takes,
+and fails on anything the site does not ship: the local Model Test fixture
+folder, files Git ignores, hidden files, and paths outside the allowlist in
+``contracts.py``. Run it before every upload.
+
 Examples:
   python scripts/validation/check_runtime_assets.py
   python scripts/validation/check_runtime_assets.py --verbose
   python scripts/validation/check_runtime_assets.py --no-onnx
+  python scripts/validation/check_runtime_assets.py --deploy
+  python scripts/validation/check_runtime_assets.py --root path/to/checkout
 
-Exit status is zero when every required check passes and one otherwise. See
-``docs/models-and-data.md`` for model provenance and ONNX contracts.
+Exit status:
+  0  every check ran and every contract held
+  1  a contract failed (this outranks 2: a fault that was found is reported)
+  2  bad usage, or ONNX Runtime cannot be imported and --no-onnx was not given,
+     so the models were not verified
+
+See ``docs/models-and-data.md`` for model provenance and ONNX contracts.
 """
 
 from __future__ import annotations
@@ -24,17 +37,23 @@ import hashlib
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import zlib
 from collections.abc import Iterable
-from pathlib import Path
-from typing import NamedTuple
+from pathlib import Path, PurePosixPath
+from typing import Literal, NamedTuple
 
 if __package__ in (None, ""):  # Allow running this file directly.
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.validation.contracts import (  # noqa: E402
     ALL_ARTIFACTS,
+    DEPLOY_ALLOWED_ENDINGS,
+    DEPLOY_FILES_ANYWHERE,
+    DEPLOY_FORBIDDEN_DIRS,
+    DEPLOY_ROOT_FILES,
     NOTEBOOKS_RESULTS,
     PROJECT_ROOT,
     WEB_DATA_DIR,
@@ -43,15 +62,9 @@ from scripts.validation.contracts import (  # noqa: E402
     WORD_MODEL_DIR,
     gzip_pairs,
     provenance_pairs,
+    rebased,
     relative,
 )
-
-# Coarse floors that catch a truncated copy or a committed Git LFS pointer.
-# Source files are not in here: see check_web_sources().
-MIN_SIZES_KB = {relative(artifact.deploy_path): artifact.min_size_kb for artifact in ALL_ARTIFACTS}
-
-# Source-to-deploy hash pairs detect unreviewed runtime drift.
-PROVENANCE_PAIRS = provenance_pairs()
 
 
 def _sha256(path: str) -> str | None:
@@ -80,7 +93,15 @@ def _warn(msg: str) -> None:
     print(f"  \033[33m⚠\033[0m {msg}")
 
 
-def check_file_existence_and_size() -> bool:
+class ToolMissing(Exception):
+    """A step could not run because a required tool cannot be imported.
+
+    That is neither a pass nor a contract failure, so it is raised to main(),
+    which reports it as exit 2 rather than letting the step count as passed.
+    """
+
+
+def check_file_existence_and_size(root: Path) -> bool:
     """Check required runtime artifacts exist and are not truncated.
 
     The floors here are coarse and apply to binaries and curated data only:
@@ -90,8 +111,10 @@ def check_file_existence_and_size() -> bool:
     """
     print("\n[1/6] Dosya mevcudiyet + minimum boyut kontrolu")
     ok = True
-    for rel_path, min_kb in MIN_SIZES_KB.items():
-        abs_path = os.path.join(PROJECT_ROOT, rel_path)
+    for artifact in ALL_ARTIFACTS:
+        abs_path = rebased(artifact.deploy_path, root)
+        rel_path = relative(abs_path, root)
+        min_kb = artifact.min_size_kb
         if not os.path.exists(abs_path):
             _fail(f"{rel_path}: BULUNAMADI")
             ok = False
@@ -102,7 +125,7 @@ def check_file_existence_and_size() -> bool:
             ok = False
         else:
             _ok(f"{rel_path}: {actual_kb:.1f} KB")
-    return ok and check_web_sources()
+    return ok and check_web_sources(root)
 
 
 def _loaded_local_scripts(html: str) -> set[str]:
@@ -177,9 +200,9 @@ def find_web_source_issues(web_dir: Path) -> WebSourceCheck:
     return WebSourceCheck(issues, len(on_disk), len(stylesheets))
 
 
-def check_web_sources() -> bool:
+def check_web_sources(root: Path) -> bool:
     """Report the browser source inspection to the user."""
-    result = find_web_source_issues(WEB_DIR)
+    result = find_web_source_issues(rebased(WEB_DIR, root))
     for issue in result.issues:
         _fail(issue)
     if not result.issues:
@@ -188,10 +211,11 @@ def check_web_sources() -> bool:
     return not result.issues
 
 
-def check_json_schemas() -> bool:
+def check_json_schemas(root: Path) -> bool:
     """Validate parseability and core schemas for deploy JSON files."""
     print("\n[2/6] JSON sema kontrolu")
     ok = True
+    web_data_dir = rebased(WEB_DATA_DIR, root)
 
     schemas = {
         "word_labels.json": {"expect_count": 50, "type": "labels"},
@@ -203,7 +227,7 @@ def check_json_schemas() -> bool:
     }
 
     for filename, schema in schemas.items():
-        path = os.path.join(WEB_DATA_DIR, filename)
+        path = os.path.join(web_data_dir, filename)
         if not os.path.exists(path):
             _fail(f"{filename}: yok")
             ok = False
@@ -283,10 +307,12 @@ def check_json_schemas() -> bool:
     return ok
 
 
-def check_model_test_fixtures() -> bool:
+def check_model_test_fixtures(root: Path) -> bool:
     """Validate the deployable fixture registry and every referenced sample."""
     print("\n[3/6] Model Test fixture paketi")
-    manifest_path = os.path.join(WEB_DATA_DIR, "model-test-samples", "manifest.json")
+    web_dir = rebased(WEB_DIR, root)
+    web_data_dir = rebased(WEB_DATA_DIR, root)
+    manifest_path = os.path.join(web_data_dir, "model-test-samples", "manifest.json")
     if not os.path.exists(manifest_path):
         _fail("model-test-samples/manifest.json: yok")
         return False
@@ -306,7 +332,7 @@ def check_model_test_fixtures() -> bool:
     # Word fixtures exported from the Google competition data stay in the
     # ignored local/ folder with their own manifest, because the competition
     # rules forbid redistributing the data. They are checked when present.
-    local_path = os.path.join(WEB_DATA_DIR, "model-test-samples", "local", "manifest.json")
+    local_path = os.path.join(web_data_dir, "model-test-samples", "local", "manifest.json")
     if os.path.exists(local_path):
         try:
             with open(local_path, encoding="utf-8") as handle:
@@ -320,7 +346,8 @@ def check_model_test_fixtures() -> bool:
         manifest = {**manifest, "words": manifest["words"] + local_words}
         _warn(
             "model-test-samples/local/ mevcut: asl-web/ oldugu gibi yuklenirse yarisma "
-            "verisinden turetilmis fixture'lar yayinlanir; deploy oncesi bu klasoru cikarin"
+            "verisinden turetilmis fixture'lar yayinlanir; deploy oncesi bu klasoru cikarin "
+            "(make deploy-check bu klasor varken basarisiz olur)"
         )
 
     registered: set[str] = set()
@@ -354,7 +381,7 @@ def check_model_test_fixtures() -> bool:
                 ok = False
                 continue
 
-            sample_path = os.path.join(WEB_DIR, rel_path)
+            sample_path = os.path.join(web_dir, rel_path)
             try:
                 with open(sample_path, encoding="utf-8") as handle:
                     sample = json.load(handle)
@@ -384,10 +411,10 @@ def check_model_test_fixtures() -> bool:
                     _fail(f"{raw_path}: 45 boolean mask bekleniyor")
                     ok = False
 
-    fixture_root = os.path.join(WEB_DATA_DIR, "model-test-samples")
+    fixture_root = os.path.join(web_data_dir, "model-test-samples")
     actual = {
-        "./" + os.path.relpath(os.path.join(root, filename), WEB_DIR).replace(os.sep, "/")
-        for root, _, files in os.walk(fixture_root)
+        "./" + os.path.relpath(os.path.join(folder, filename), web_dir).replace(os.sep, "/")
+        for folder, _, files in os.walk(fixture_root)
         for filename in files
         if filename.endswith(".json") and filename != "manifest.json"
     }
@@ -433,46 +460,78 @@ def find_gzip_drift(pairs: Iterable[tuple[str, Path, Path]]) -> list[str]:
     return issues
 
 
-def check_provenance() -> bool:
+class ProvenanceCheck(NamedTuple):
+    """One deploy file, its source, and how they compare."""
+
+    name: str
+    deploy: Path
+    source: Path
+    deploy_hash: str | None
+    source_hash: str | None
+    status: Literal["match", "drift", "missing_deploy", "missing_source"]
+
+
+def compare_provenance(pairs: Iterable[tuple[str, Path, Path]]) -> list[ProvenanceCheck]:
+    """Hash every deploy file and its source and say whether they are the same bytes.
+
+    Both validators report provenance, each in its own words; this is the one
+    place that decides the outcome. Every source is tracked by Git, so a clone
+    has them all: a missing one was lost, and without it nothing shows the
+    deploy file is the exported one. This prints nothing.
+    """
+    checks: list[ProvenanceCheck] = []
+    for name, deploy, source in pairs:
+        deploy_hash = _sha256(str(deploy))
+        source_hash = _sha256(str(source))
+        if deploy_hash is None:
+            status = "missing_deploy"
+        elif source_hash is None:
+            status = "missing_source"
+        elif deploy_hash == source_hash:
+            status = "match"
+        else:
+            status = "drift"
+        checks.append(ProvenanceCheck(name, deploy, source, deploy_hash, source_hash, status))
+    return checks
+
+
+def check_provenance(root: Path) -> bool:
     """Verify that deploy artifacts match their documented source copies."""
     print("\n[4/6] Provenance hash chain (asl-web ↔ kaynak)")
     ok = True
-    for label, web_path, source_path in PROVENANCE_PAIRS:
-        web_hash = _sha256(web_path)
-        src_hash = _sha256(source_path)
-        if web_hash is None:
+    for check in compare_provenance(provenance_pairs(root)):
+        label = check.name
+        if check.status == "missing_deploy":
             _fail(f"{label}: web dosyasi yok")
-            ok = False
+        elif check.status == "missing_source":
+            _fail(f"{label}: kaynak dosya yok ({relative(check.source, root)})")
+        elif check.status == "match":
+            _ok(f"{label}: {check.deploy_hash[:16]}... (web == kaynak)")
             continue
-        if src_hash is None:
-            _warn(
-                f"{label}: kaynak dosya yok ({source_path}) — gelistirme ortami eksik, web run OK"
-            )
-            continue
-        if web_hash == src_hash:
-            _ok(f"{label}: {web_hash[:16]}... (web == kaynak)")
         else:
             _fail(f"{label}: DRIFT")
-            print(f"      web   : {web_hash}")
-            print(f"      kaynak: {src_hash}")
-            print(f"      → cp {source_path} {web_path}")
-            ok = False
+            print(f"      web   : {check.deploy_hash}")
+            print(f"      kaynak: {check.source_hash}")
+            print(f"      → cp {check.source} {check.deploy}")
+        ok = False
 
-    gzip_issues = find_gzip_drift(gzip_pairs())
+    gzip_issues = find_gzip_drift(gzip_pairs(root))
     for issue in gzip_issues:
         _fail(issue)
     if gzip_issues:
         ok = False
     else:
-        for name, _, raw in gzip_pairs():
-            _ok(f"{name}: acildiginda {relative(raw)} ile birebir ayni")
+        for name, _, raw in gzip_pairs(root):
+            _ok(f"{name}: acildiginda {relative(raw, root)} ile birebir ayni")
     return ok
 
 
-def check_export_manifest() -> bool:
+def check_export_manifest(root: Path) -> bool:
     """Validate the original Kaggle bundle manifest against curated paths."""
     print("\n[5/6] Word export manifesti")
-    manifest_path = os.path.join(NOTEBOOKS_RESULTS, "manifest.json")
+    notebooks_results = rebased(NOTEBOOKS_RESULTS, root)
+    word_model_dir = rebased(WORD_MODEL_DIR, root)
+    manifest_path = os.path.join(notebooks_results, "manifest.json")
     try:
         with open(manifest_path, encoding="utf-8") as handle:
             manifest = json.load(handle)
@@ -491,10 +550,10 @@ def check_export_manifest() -> bool:
         ok = False
 
     renamed = {
-        "word_model.onnx": os.path.join(WORD_MODEL_DIR, "word_model.onnx"),
-        "final_model.pt": os.path.join(WORD_MODEL_DIR, "word_model.pt"),
-        "word_to_idx.json": os.path.join(WORD_MODEL_DIR, "word_labels.json"),
-        "temperature.json": os.path.join(WORD_MODEL_DIR, "temperature.json"),
+        "word_model.onnx": os.path.join(word_model_dir, "word_model.onnx"),
+        "final_model.pt": os.path.join(word_model_dir, "word_model.pt"),
+        "word_to_idx.json": os.path.join(word_model_dir, "word_labels.json"),
+        "temperature.json": os.path.join(word_model_dir, "temperature.json"),
     }
 
     for entry in entries:
@@ -503,9 +562,9 @@ def check_export_manifest() -> bool:
             _fail("Word export manifest filename gecersiz")
             ok = False
             continue
-        path = renamed.get(filename, os.path.join(NOTEBOOKS_RESULTS, filename))
+        path = renamed.get(filename, os.path.join(notebooks_results, filename))
         if not os.path.isfile(path) and filename.endswith(".png"):
-            path = os.path.join(NOTEBOOKS_RESULTS, "figures", filename)
+            path = os.path.join(notebooks_results, "figures", filename)
         if not os.path.isfile(path):
             _fail(f"Word export hedefi yok: {filename}")
             ok = False
@@ -523,19 +582,26 @@ def check_export_manifest() -> bool:
     return ok
 
 
-def check_onnx_contracts(verbose: bool = False) -> bool:
-    """Validate ONNX input/output contracts when ONNX Runtime is available."""
+def check_onnx_contracts(root: Path, verbose: bool = False) -> bool:
+    """Validate the ONNX input/output contracts with ONNX Runtime.
+
+    Raises ToolMissing when ONNX Runtime cannot be imported: the models were
+    not looked at, which must not read as their contracts having held.
+    """
     print("\n[6/6] ONNX I/O sozlesmesi")
+    web_models_dir = rebased(WEB_MODELS_DIR, root)
+    web_data_dir = rebased(WEB_DATA_DIR, root)
     try:
         import onnxruntime as ort  # type: ignore
-    except ImportError:
-        _warn("onnxruntime kurulu degil — atlandi (pip install -r requirements-dev.txt)")
-        return True
+    except ImportError as exc:
+        raise ToolMissing(f"onnxruntime ice aktarilamadi ({exc})") from exc
 
     ok = True
 
-    # Word model: 45 x 168 float input plus a boolean validity mask.
-    word_path = os.path.join(WEB_MODELS_DIR, "word_model.onnx")
+    # Word model: 45 x 168 float input plus a boolean validity mask. The browser
+    # sends the mask as booleans, so a float mask is as much a break as a
+    # wrong length.
+    word_path = os.path.join(web_models_dir, "word_model.onnx")
     if not os.path.exists(word_path):
         _fail("word_model.onnx yok")
         return False
@@ -544,25 +610,33 @@ def check_onnx_contracts(verbose: bool = False) -> bool:
     out_names = [o.name for o in sess.get_outputs()]
     in_shapes = [i.shape for i in sess.get_inputs()]
     out_shapes = [o.shape for o in sess.get_outputs()]
+    in_types = [i.type for i in sess.get_inputs()]
+    out_types = [o.type for o in sess.get_outputs()]
 
     word_ok = (
         len(in_names) == 2
         and in_shapes[0][1:] == [45, 168]
+        and in_types[0] == "tensor(float)"
         and in_shapes[1][1:] == [45]
+        and in_types[1] == "tensor(bool)"
         and len(out_names) == 1
         and out_shapes[0][1:] == [50]
+        and out_types[0] == "tensor(float)"
     )
     if word_ok:
         _ok(f"word_model: input={in_names}, output={out_names}, shapes OK")
     else:
         _fail(
-            f"word_model SHAPE MISMATCH: inputs={list(zip(in_names, in_shapes))}, outputs={list(zip(out_names, out_shapes))}"
+            f"word_model SHAPE MISMATCH: inputs={list(zip(in_names, in_shapes, in_types))}, outputs={list(zip(out_names, out_shapes, out_types))}"
         )
-        print("      Beklenen: input(1,45,168) + mask(1,45) → output(1,50)")
+        print(
+            "      Beklenen: input tensor(float)[N,45,168] + mask tensor(bool)[N,45]"
+            " → output tensor(float)[N,50]"
+        )
         ok = False
 
     # Letter model: one 93D engineered feature vector.
-    letter_path = os.path.join(WEB_MODELS_DIR, "letter_model.onnx")
+    letter_path = os.path.join(web_models_dir, "letter_model.onnx")
     if not os.path.exists(letter_path):
         _fail("letter_model.onnx yok")
         return False
@@ -594,43 +668,171 @@ def check_onnx_contracts(verbose: bool = False) -> bool:
         )
         ok = False
 
-    # Optionally verify deterministic inference against the smoke fixture.
-    sample_path = os.path.join(WEB_DATA_DIR, "test_sample.json")
-    if os.path.exists(sample_path):
-        try:
-            import numpy as np  # type: ignore
-
-            sample = json.load(open(sample_path, encoding="utf-8"))
-            features = np.array(sample["features"], dtype=np.float32).reshape(1, 45, 168)
-            mask = np.array([sample["mask"]], dtype=bool)
-            T = sample.get("temperature", 1.0)
-
-            logits = sess.run(out_names, {in_names[0]: features, in_names[1]: mask})[0][0]
-            calib = logits / T
-            ex = np.exp(calib - calib.max())
-            probs = ex / ex.sum()
-            top1 = int(np.argmax(probs))
-
-            with open(os.path.join(WEB_DATA_DIR, "word_labels.json"), encoding="utf-8") as f:
-                i2w = {int(v): k for k, v in json.load(f).items()}
-
-            predicted = i2w.get(top1)
-            expected = sample.get("expected_word")
-            conf_diff = abs(probs[top1] - sample.get("expected_confidence", 0))
-
-            if predicted == expected and conf_diff < 1e-3:
-                _ok(
-                    f"offline test: {predicted} @ {probs[top1]:.4f} (Δconf={conf_diff:.2e}) — ground truth {expected}"
-                )
-            else:
-                _fail(
-                    f"offline test FAIL: predicted={predicted} ({probs[top1]:.4f}), expected={expected} (Δconf={conf_diff:.2e})"
-                )
-                ok = False
-        except (ImportError, KeyError, ValueError) as exc:
-            _warn(f"offline test atlandi: {exc}")
+    # A model that breaks its interface has already failed, and feeding it the
+    # fixture would only crash or add a second failure that hides the first.
+    if word_ok:
+        ok = check_word_smoke_inference(sess, in_names, out_names, web_data_dir) and ok
+    else:
+        _warn("offline test atlandi: word_model arayuzu sozlesmeye uymuyor")
 
     return ok
+
+
+def check_word_smoke_inference(session, in_names, out_names, web_data_dir: Path) -> bool:
+    """Run the word model on the smoke fixture and compare the recorded result.
+
+    This is the only step that shows the deployed model still predicts what it
+    did at export time. A fixture that is missing or cannot be fed to the model
+    is therefore a failure, not a reason to skip.
+    """
+    import numpy as np  # onnxruntime depends on it, so it is importable here.
+
+    sample_path = web_data_dir / "test_sample.json"
+    labels_path = web_data_dir / "word_labels.json"
+    try:
+        with open(sample_path, encoding="utf-8") as handle:
+            sample = json.load(handle)
+        with open(labels_path, encoding="utf-8") as handle:
+            i2w = {int(v): k for k, v in json.load(handle).items()}
+        features = np.array(sample["features"], dtype=np.float32).reshape(1, 45, 168)
+        mask = np.array([sample["mask"]], dtype=bool)
+        if mask.shape != (1, 45):
+            raise ValueError(f"mask uzunlugu 45 olmali, {mask.shape[-1]}")
+        T = float(sample.get("temperature", 1.0))
+        if not T > 0:
+            raise ValueError(f"temperature pozitif olmali, {T}")
+    except (OSError, json.JSONDecodeError, AttributeError, KeyError, TypeError, ValueError) as exc:
+        _fail(f"offline test calistirilamadi: {exc}")
+        return False
+
+    logits = session.run(out_names, {in_names[0]: features, in_names[1]: mask})[0][0]
+    calib = logits / T
+    ex = np.exp(calib - calib.max())
+    probs = ex / ex.sum()
+    top1 = int(np.argmax(probs))
+
+    predicted = i2w.get(top1)
+    expected = sample.get("expected_word")
+    conf_diff = abs(probs[top1] - sample.get("expected_confidence", 0))
+
+    if predicted == expected and conf_diff < 1e-3:
+        _ok(
+            f"offline test: {predicted} @ {probs[top1]:.4f} (Δconf={conf_diff:.2e}) — ground truth {expected}"
+        )
+        return True
+    _fail(
+        f"offline test FAIL: predicted={predicted} ({probs[top1]:.4f}), expected={expected} (Δconf={conf_diff:.2e})"
+    )
+    return False
+
+
+class DeployInventory(NamedTuple):
+    """What listing the folder about to be uploaded found."""
+
+    issues: list[str]
+    files: int
+
+
+def _shipped_kind(rel: PurePosixPath) -> bool:
+    """Whether the allowlist in contracts.py admits a file at this path."""
+    name = rel.name
+    if name in DEPLOY_FILES_ANYWHERE:
+        return True
+    if len(rel.parts) == 1:
+        return name in DEPLOY_ROOT_FILES
+    for depth in range(len(rel.parts) - 1, 0, -1):
+        endings = DEPLOY_ALLOWED_ENDINGS.get("/".join(rel.parts[:depth]))
+        if endings is not None:
+            return any(
+                name.endswith(ending) if ending.startswith(".") else name == ending
+                for ending in endings
+            )
+    return False
+
+
+def find_deploy_inventory_issues(web_dir: Path, ignored: Iterable[Path] = ()) -> DeployInventory:
+    """Every file under `web_dir` that an upload of it must not carry.
+
+    `ignored` holds the files Git ignores there, when Git can say; the
+    allowlist applies either way, so a checkout without Git is still checked.
+    Each offending path is reported once, with the first reason that applies.
+    This prints nothing and reads nothing outside `web_dir`.
+    """
+    label = web_dir.name
+    forbidden = {web_dir / path.relative_to(WEB_DIR) for path in DEPLOY_FORBIDDEN_DIRS}
+    found: dict[str, str] = {}
+    files = 0
+
+    for directory in sorted(forbidden):
+        if directory.is_dir():
+            rel = directory.relative_to(web_dir).as_posix()
+            found[f"{rel}/"] = (
+                f"{label}/{rel}/: yalniz yerel, yayinlanmaz (yarisma verisinden turetilmis "
+                "fixture'lar); yuklemeden once klasoru asl-web/ disina tasiyin"
+            )
+
+    for folder, dirs, names in os.walk(web_dir):
+        folder_path = Path(folder)
+        dirs[:] = sorted(d for d in dirs if folder_path / d not in forbidden)
+        for name in sorted(names):
+            files += 1
+            rel = PurePosixPath((folder_path / name).relative_to(web_dir).as_posix())
+            if name == ".DS_Store":
+                reason = "macOS Finder bilgisi; make clean siler"
+            elif any(part.startswith(".") for part in rel.parts):
+                reason = "gizli dosya; site bunu yayinlamaz"
+            elif not _shipped_kind(rel):
+                reason = "yayin izin listesinde yok (contracts.DEPLOY_ALLOWED_ENDINGS)"
+            else:
+                continue
+            found.setdefault(str(rel), f"{label}/{rel}: {reason}")
+
+    for path in sorted(ignored):
+        if any(directory in path.parents for directory in forbidden):
+            continue
+        rel = path.relative_to(web_dir).as_posix()
+        found.setdefault(rel, f"{label}/{rel}: Git bu dosyayi yok sayiyor; yuklenmemeli")
+
+    return DeployInventory([found[key] for key in sorted(found)], files)
+
+
+def git_ignored_files(root: Path) -> list[Path] | None:
+    """Files Git ignores under asl-web/, or None when `root` is not a Git checkout."""
+    git = shutil.which("git")
+    if git is None:
+        return None
+    top = subprocess.run(
+        [git, "-C", str(root), "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if top.returncode != 0 or Path(top.stdout.strip()).resolve() != root.resolve():
+        return None
+    web = relative(WEB_DIR)
+    listed = subprocess.run(
+        [git, "-C", str(root), "ls-files", "-z", "--others", "--ignored", "--exclude-standard"]
+        + ["--", web],
+        capture_output=True,
+        check=True,
+        timeout=60,
+    ).stdout.decode("utf-8")
+    return [root / name for name in listed.split("\0") if name]
+
+
+def check_deploy_inventory(root: Path) -> bool:
+    """Report what an upload of asl-web/ from this working tree would carry."""
+    print("\n[deploy] Yuklenecek klasorun envanteri (asl-web/)")
+    web_dir = rebased(WEB_DIR, root)
+    ignored = git_ignored_files(root)
+    if ignored is None:
+        _warn("Git calisma agaci degil: yalniz izin listesi uygulandi")
+    result = find_deploy_inventory_issues(web_dir, ignored or ())
+    for issue in result.issues:
+        _fail(issue)
+    if not result.issues:
+        _ok(f"asl-web/: {result.files} dosya, tamami yayinlanacak turden")
+    return not result.issues
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -640,29 +842,53 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--no-onnx", action="store_true", help="ONNX kontrolunu atla (sadece dosya/json/hash)"
     )
+    parser.add_argument(
+        "--deploy",
+        action="store_true",
+        help="Yuklemeden once: asl-web/ altindaki her dosyayi izin listesine karsi denetle",
+    )
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=PROJECT_ROOT,
+        help="Kontrol edilecek checkout koku (varsayilan: bu depo)",
+    )
     return parser.parse_args(argv)
 
 
-def main() -> int:
-    args = parse_args()
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    root = args.root.resolve()
 
     print("=" * 60)
     print("  asl-web/ Runtime Asset Smoke Test")
     print("=" * 60)
 
-    file_ok = check_file_existence_and_size()
-    json_ok = check_json_schemas()
-    fixtures_ok = check_model_test_fixtures()
-    hash_ok = check_provenance()
-    export_ok = check_export_manifest()
-    onnx_ok = True if args.no_onnx else check_onnx_contracts(args.verbose)
+    file_ok = check_file_existence_and_size(root)
+    json_ok = check_json_schemas(root)
+    fixtures_ok = check_model_test_fixtures(root)
+    hash_ok = check_provenance(root)
+    export_ok = check_export_manifest(root)
+    onnx_ok = True
+    unverified: str | None = None
+    if not args.no_onnx:
+        try:
+            onnx_ok = check_onnx_contracts(root, args.verbose)
+        except ToolMissing as exc:
+            unverified = str(exc)
+            _warn(f"{unverified}: ONNX sozlesmesi DOGRULANAMADI")
+    inventory_ok = check_deploy_inventory(root) if args.deploy else True
 
     print("\n" + "=" * 60)
-    overall = file_ok and json_ok and fixtures_ok and hash_ok and export_ok and onnx_ok
-    if overall:
-        print("  SONUC: \033[32m✓ DEPLOY GUVENLI\033[0m")
-    else:
+    overall = (
+        file_ok and json_ok and fixtures_ok and hash_ok and export_ok and onnx_ok and inventory_ok
+    )
+    if not overall:
         print("  SONUC: \033[31m✗ DUZELTME GEREKLI\033[0m")
+    elif unverified:
+        print("  SONUC: \033[33m⚠ DOGRULANAMADI\033[0m (ONNX adimi calisamadi)")
+    else:
+        print("  SONUC: \033[32m✓ DEPLOY GUVENLI\033[0m")
     print("=" * 60 + "\n")
 
     if not overall:
@@ -681,10 +907,19 @@ def main() -> int:
             print("  - Word export manifesti ile curated dosyalari yeniden eslestir")
         if not onnx_ok:
             print("  - ONNX shape mismatch: model yeniden export edilmis ama web kopyasi eski")
+        if not inventory_ok:
+            print("  - Deploy envanteri: listelenen dosyalari asl-web/ disina tasi, sonra yukle")
         print()
+        return 1
 
-    return 0 if overall else 1
+    if unverified:
+        print("Sonraki adim:")
+        print("  - pip install -r requirements-dev.txt; ONNX'i bilerek atlamak icin --no-onnx")
+        print()
+        return 2
+
+    return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

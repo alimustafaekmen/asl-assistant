@@ -150,8 +150,11 @@ an input.
 ## Deployment
 
 The live site is deployed by dragging this repository's `asl-web/` folder into
-the Netlify deploy page; there is no build command. The checks to run before
-and after the upload are in
+the Netlify deploy page; there is no build command. The upload takes the folder
+as it is on disk, so run `make deploy-check` from the repository root first: it
+fails on anything in here the site does not ship, such as the local
+`data/model-test-samples/local/` fixtures, a `.DS_Store` or a `.env`. The other
+checks to run before and after the upload are in
 [Getting started](../docs/getting-started.md#static-deployment).
 
 Response headers come from `_headers` in this folder, which Netlify applies on

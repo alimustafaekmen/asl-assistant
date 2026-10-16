@@ -31,14 +31,14 @@ def test_project_asset_audit_propagates_required_failures(
     provenance_ok: bool,
     expected: int,
 ) -> None:
-    monkeypatch.setattr(verify_project_assets, "check_web_runtime", lambda: runtime_ok)
+    monkeypatch.setattr(verify_project_assets, "check_web_runtime", lambda _root: runtime_ok)
     monkeypatch.setattr(
         verify_project_assets,
         "check_provenance_hash_chain",
-        lambda: provenance_ok,
+        lambda _root: provenance_ok,
     )
     monkeypatch.setattr(verify_project_assets, "check_dataset", lambda _name, _path: None)
-    monkeypatch.setattr(verify_project_assets, "check_dynamic_data", lambda: None)
-    monkeypatch.setattr(verify_project_assets, "check_models", lambda: None)
+    monkeypatch.setattr(verify_project_assets, "check_dynamic_data", lambda _raw_dir: None)
+    monkeypatch.setattr(verify_project_assets, "check_models", lambda _root: None)
 
-    assert verify_project_assets.main() == expected
+    assert verify_project_assets.main([]) == expected

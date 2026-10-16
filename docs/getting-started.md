@@ -104,19 +104,36 @@ make setup  PYTHON="$CONDA_PREFIX/bin/python"
 | `make doctor` | Inspect the active Python environment without changing it. |
 | `make setup` | Install pinned dependencies and editable local packages. |
 | `make web` | Serve `asl-web/` locally. |
-| `make js-check` | Check every JavaScript file; Node 24 is required. |
-| `make health` | Run lint, formatting, JavaScript, assets, parity, and fast tests. |
+| `make lint` | Check Python syntax, names, and import order with Ruff. |
+| `make format` / `make format-check` | Format Python sources, or only check the formatting. |
+| `make js-check` | Check the syntax of every JavaScript file; Node 24 is required. |
+| `make js-test` | Run every web test (`tests/web/**/*.test.js` and `.test.mjs`) with `node --test`. |
+| `make js-typecheck` | Check the JSDoc contracts with TypeScript in no-emit mode; needs `npm ci` once. |
+| `make quick` | Lint, format check, and web tests: the fastest loop, under a second. |
+| `make test-web FILE=... NAME=...` | One web test file, optionally only the tests whose names match. |
+| `make watch-web FILE=...` | Rerun web tests on every save. |
+| `make test-py FILE=... K=...` | One pytest file, optionally with `-k`. |
+| `make health` | The gate after an edit: lint, formatting, JS syntax and tests, git hygiene, runtime assets, the project audit, feature parity, and the fast Python tests. Needs no npm install. |
+| `make check` | The gate before a commit: `make health` plus `make js-typecheck`. |
+| `make parity` | Word and letter feature parity between Python and the browser code. |
 | `make validate` | Check JavaScript plus runtime assets, ONNX I/O, hashes, and the offline fixture. |
-| `make validate-full` | Add broader source-artifact and local dataset reporting. |
+| `make validate-full` | Add the project asset audit and the local dataset report. |
+| `make deploy-check` | Before every upload: `make validate` plus a list of every file in `asl-web/`; fails on anything the site does not ship. |
+| `make git-hygiene` | Fail when a tracked file matches `.gitignore`. |
 | `make test` | Run fast unit and repository contract tests. |
-| `make test-full` | Run the complete Python test suite, including integrations. |
+| `make test-full` | Run every Python test, including the desktop integrations; no JavaScript, validators, or parity. |
 | `make model-test-fixtures` | Export browser fixtures from a downloaded Kaggle subset. |
 | `make desktop` | Start the legacy desktop prototype. |
 | `make clean` | Remove caches without deleting data, models, notebooks, or environments. |
 
 Node is a required validation dependency. `make js-check`, `make validate`, and
 `make health` fail clearly instead of silently skipping JavaScript or parity
-checks when Node is missing.
+checks when Node is missing; the parity commands exit 2 without it.
+
+`check_runtime_assets.py`, behind `make validate`, exits 0 when every contract
+held, 1 when one failed, and 2 when it could not check: bad usage, or ONNX
+Runtime cannot be imported. Pass `--no-onnx` to leave the model step out on
+purpose.
 
 ## Direct validation
 
@@ -181,12 +198,18 @@ The site is deployed by hand, by dragging a folder into its Netlify deploy page:
 1. Run `make health`, then manually verify model readiness, the offline
    fixture, camera start/stop, letter acceptance, word recording, and the
    `#letter`, `#word`, and `#test` deep links.
-2. Drag this repository's own `asl-web/` folder into the deploy page, not a
-   copy of it; a copy can be out of date. If you exported word fixtures from
-   the competition data, move `asl-web/data/model-test-samples/local/` out
-   first: the competition rules forbid publishing them, and the runtime asset
-   check warns while the folder is there.
-3. Check that the live site serves these exact files. Comparing `<script>`
+2. Run `make deploy-check` and fix what it reports. The upload takes the
+   folder as it is on disk, ignored files included, so this lists every file
+   under `asl-web/` and fails on any the site does not ship: the
+   `asl-web/data/model-test-samples/local/` folder of word fixtures exported
+   from the competition data (its rules forbid publishing them; move the
+   folder out of `asl-web/`), files Git ignores, hidden files such as
+   `.DS_Store` (`make clean` removes those) or `.env`, and anything outside the
+   allowlist in `scripts/validation/contracts.py`. `make validate` only warns
+   about the `local/` folder, so that testing with it keeps working.
+3. Drag this repository's own `asl-web/` folder into the deploy page, not a
+   copy of it; a copy can be out of date.
+4. Check that the live site serves these exact files. Comparing `<script>`
    tags is not enough: the `?v=` suffixes rarely change, so a stale deploy can
    list the same tags. Compare content instead:
 

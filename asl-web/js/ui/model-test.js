@@ -88,44 +88,82 @@ function setModelTestTask(task) {
   updateModelTestDomainHelp();
 }
 
+/** The published manifest's load, shared by every caller; null before it starts. @type {Promise<void> | null} */
+let _modelTestManifestLoad = null;
+/** The local fixtures' load, started when Model Test opens; null before. @type {Promise<void> | null} */
+let _localModelTestFixturesLoad = null;
+
 /**
- * Load the bundled fixture manifest.
+ * Load every fixture the panel can offer: the published manifest, then the
+ * local word fixtures when there are any.
  *
- * A missing or unreadable manifest falls back to one built-in fixture per task,
- * so the demo screen still works offline.
- *
- * @returns {Promise<void>}
+ * @returns {Promise<void>} Never rejects.
  */
 async function loadModelTestManifest() {
-  try {
-    const res = await fetch("./data/model-test-samples/manifest.json", { cache: "no-store" });
-    if (!res.ok) throw new Error(`manifest HTTP ${res.status}`);
-    state.modelTestManifest = await res.json();
+  await loadPublishedModelTestManifest();
+  await loadLocalModelTestFixtures();
+}
+
+/**
+ * Load the bundled fixture manifest, once.
+ *
+ * init() starts this after the route and the render loop, so a slow answer
+ * delays nothing on screen. A missing or unreadable manifest falls back to
+ * one built-in fixture per task, so the demo screen still works offline.
+ *
+ * @returns {Promise<void>} Never rejects.
+ */
+function loadPublishedModelTestManifest() {
+  _modelTestManifestLoad ??= (async () => {
+    try {
+      const res = await fetch("./data/model-test-samples/manifest.json", { cache: "no-store" });
+      if (!res.ok) throw new Error(`manifest HTTP ${res.status}`);
+      state.modelTestManifest = await res.json();
+    } catch (err) {
+      console.warn("Model Test fixture manifest okunamadı:", err?.message || err);
+      state.modelTestManifest = {
+        letters: [
+          {
+            id: "legacy-letter-a",
+            label: "A",
+            title: "Harf A",
+            path: "./data/letter_test_sample.json",
+            expected_label: "A",
+          },
+        ],
+        words: [
+          {
+            id: "legacy-word-give",
+            label: "give",
+            title: "Kelime give",
+            path: "./data/test_sample.json",
+            expected_label: "give",
+          },
+        ],
+      };
+    }
+    renderModelTestSampleOptions();
+  })();
+  return _modelTestManifestLoad;
+}
+
+/**
+ * Add the local word fixtures to the panel, once, when Model Test opens.
+ *
+ * Only the owner's machine has the local folder, so on every other visit
+ * the request is a 404. It is made only where the fixtures are used, not on
+ * every page load.
+ *
+ * @returns {Promise<void>} Never rejects.
+ */
+function loadLocalModelTestFixtures() {
+  _localModelTestFixturesLoad ??= (async () => {
+    await loadPublishedModelTestManifest();
+    if (!state.modelTestManifest) return;
     await appendLocalWordFixtures(state.modelTestManifest);
-  } catch (err) {
-    console.warn("Model Test fixture manifest okunamadı:", err?.message || err);
-    state.modelTestManifest = {
-      letters: [
-        {
-          id: "legacy-letter-a",
-          label: "A",
-          title: "Harf A",
-          path: "./data/letter_test_sample.json",
-          expected_label: "A",
-        },
-      ],
-      words: [
-        {
-          id: "legacy-word-give",
-          label: "give",
-          title: "Kelime give",
-          path: "./data/test_sample.json",
-          expected_label: "give",
-        },
-      ],
-    };
-  }
-  renderModelTestSampleOptions();
+    renderModelTestSampleOptions();
+  })();
+  return _localModelTestFixturesLoad;
 }
 
 /**

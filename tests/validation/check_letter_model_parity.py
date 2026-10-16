@@ -8,6 +8,9 @@ model. It feeds deterministic 93D fixtures to:
   - asl-web/models/letter_model.onnx
 
 and checks whether top-1 labels match.
+
+Exit status: 0 every top-1 label matched, 1 a mismatch, 2 joblib or ONNX
+Runtime cannot be imported, so nothing was compared.
 """
 
 from __future__ import annotations
@@ -85,8 +88,12 @@ def _onnx_top1(sess, input_name: str, output_names: list[str], x: np.ndarray) ->
 
 
 def main() -> int:
-    import joblib
-    import onnxruntime as ort
+    try:
+        import joblib
+        import onnxruntime as ort
+    except ImportError as exc:
+        print(f"ERROR: {exc}; letter model parity cannot run (pip install -r requirements.txt).")
+        return 2
 
     model = joblib.load(PKL_PATH)
     sess = ort.InferenceSession(str(ONNX_PATH), providers=["CPUExecutionProvider"])

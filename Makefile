@@ -28,7 +28,9 @@
 # bazen Apple CommandLineTools'a düşebildiği için ilk tercih DEĞİL.
 PYTHON ?= $(shell command -v python >/dev/null 2>&1 && echo python || (command -v python3 >/dev/null 2>&1 && echo python3 || echo python))
 PIP    := $(PYTHON) -m pip
-PYTEST := $(PYTHON) -m pytest
+# -rs prints why each test was skipped. A skip is fine for an optional local
+# dataset; one that names a file the repository tracks is a lost file.
+PYTEST := $(PYTHON) -m pytest -rs
 
 
 # ── Klasör yolları ──────────────────────────────────────────
@@ -45,6 +47,11 @@ SAMPLES_PER_WORD ?= 1
 VALIDATION_DIR ?= scripts/validation
 CHECK_RUNTIME  ?= $(VALIDATION_DIR)/check_runtime_assets.py
 VERIFY_ASSETS  ?= $(VALIDATION_DIR)/verify_project_assets.py
+
+# Python ↔ JavaScript feature parity: 0 equal, 1 a mismatch, 2 cannot run.
+PARITY_DIR     ?= tests/validation
+WORD_PARITY    ?= $(PARITY_DIR)/check_word_feature_parity.py
+LETTER_PARITY  ?= $(PARITY_DIR)/check_letter_feature_parity.py
 
 
 # ── Lint/format kapsamı ──────────────────────────────────────
@@ -64,7 +71,7 @@ TEST_PYTHONPATH  ?= $(CURDIR)/asl-ml/src:$(CURDIR)/asl-desktop/src
 # ── Bağımlılık manifestoları ────────────────────────────────
 REQS_DEV       ?= requirements-dev.txt
 JS_FILES       := $(shell find $(WEB_DIR)/js -type f -name '*.js' -print 2>/dev/null | sort)
-JS_TEST_FILES  := $(shell find tests/web -type f -name '*.test.js' -print 2>/dev/null | sort)
+JS_TEST_FILES  := $(shell find tests/web -type f \( -name '*.test.js' -o -name '*.test.mjs' \) -print 2>/dev/null | sort)
 TS_WEB_CONFIG  ?= tsconfig.web.json
 TSC            ?= node_modules/.bin/tsc
 
@@ -74,8 +81,9 @@ TSC            ?= node_modules/.bin/tsc
 
 # ── PHONY hedefler ──────────────────────────────────────────
 .PHONY: help doctor setup web frontend backend test test-full format format-check lint validate \
-        validate-full health js-check js-test js-typecheck models notebook-check scripts-check \
-        model-test-fixtures git-hygiene docker desktop clean
+        validate-full deploy-check health check quick parity js-check js-test js-typecheck \
+        test-web watch-web test-py models notebook-check \
+        scripts-check model-test-fixtures git-hygiene docker desktop clean
 
 .DEFAULT_GOAL := help
 
@@ -113,9 +121,16 @@ help:
 	@echo "  make js-check        Tüm web JavaScript dosyalarının sözdizimini denetle"
 	@echo "  make js-test         Web modül sözleşmelerini node --test ile doğrula"
 	@echo "  make js-typecheck    JSDoc sözleşmelerini checkJs ile denetle (npm ci gerektirir)"
+	@echo "  make quick           En hızlı döngü: lint + format-check + js-test (1 sn altı)"
+	@echo "  make test-web FILE=tests/web/x.test.js NAME=desen   Tek dosya ve/veya test adı"
+	@echo "  make watch-web FILE=...   Dosyalar değiştikçe web testlerini yeniden çalıştır"
+	@echo "  make test-py FILE=tests/scripts/test_x.py K=desen   Tek dosya ve/veya pytest -k"
 	@echo "  make validate        Web runtime asset/model/data sağlık kontrolü (hash chain + ONNX I/O)"
 	@echo "  make validate-full   validate + dataset/Python script asset kontrolü"
+	@echo "  make deploy-check    Her yüklemeden önce: validate + asl-web/ dosya envanteri"
 	@echo "  make health          Düzenleme sonrası hızlı genel sağlık kapısı"
+	@echo "  make check           Commit öncesi: health + js-typecheck (npm ci gerektirir)"
+	@echo "  make parity          Python ↔ JavaScript harf ve kelime feature eşitliği (Node gerekir)"
 	@echo "  make models          Deploy model/data artifact sağlık kontrolü"
 	@echo "  make notebook-check  Kritik notebook, model ve sonuç dosyaları yerinde mi?"
 	@echo "  make scripts-check   Önemli script entrypoint'leri yerinde mi?"
@@ -192,16 +207,35 @@ format-check:
 lint:
 	$(PYTHON) -m ruff check $(RUFF_TARGETS)
 
+# node --check takes one file, so the checks run eight at a time. xargs exits
+# non-zero when any of them fails, and printf before it cannot fail.
 js-check:
 	@command -v node >/dev/null 2>&1 || { echo "✗ Node.js bulunamadı; JavaScript kontrolü çalıştırılamaz."; exit 1; }
 	@test -n "$(JS_FILES)" || { echo "✗ $(WEB_DIR)/js altında JavaScript dosyası bulunamadı."; exit 1; }
-	@for file in $(JS_FILES); do node --check "$$file" || exit 1; done
+	@printf '%s\n' $(JS_FILES) | xargs -n 1 -P 8 node --check
 	@echo "✓ JavaScript syntax kontrolü tamamlandı ($$(printf '%s\n' $(JS_FILES) | wc -l | tr -d ' ') dosya)."
 
 js-test:
 	@command -v node >/dev/null 2>&1 || { echo "✗ Node.js bulunamadı; JavaScript testleri çalıştırılamaz."; exit 1; }
 	@test -n "$(JS_TEST_FILES)" || { echo "✗ tests/web altında JavaScript testi bulunamadı."; exit 1; }
 	node --test $(JS_TEST_FILES)
+
+# The inner loop. FILE narrows a run to one test file (or several, space
+# separated) and NAME or K to the tests whose names match; without them these
+# run what js-test and test run.
+test-web:
+	@command -v node >/dev/null 2>&1 || { echo "✗ Node.js bulunamadı; JavaScript testleri çalıştırılamaz."; exit 1; }
+	node --test $(if $(NAME),--test-name-pattern="$(NAME)") $(or $(FILE),$(JS_TEST_FILES))
+
+watch-web:
+	@command -v node >/dev/null 2>&1 || { echo "✗ Node.js bulunamadı; JavaScript testleri çalıştırılamaz."; exit 1; }
+	node --test --watch $(if $(NAME),--test-name-pattern="$(NAME)") $(or $(FILE),$(JS_TEST_FILES))
+
+test-py:
+	PYTHONPATH="$(TEST_PYTHONPATH):$$PYTHONPATH" $(PYTEST) $(or $(FILE),$(TEST_FAST)) $(if $(K),-k "$(K)")
+
+quick: lint format-check js-test
+	@echo "✓ Quick OK (lint + format-check + js-test)"
 
 js-typecheck:
 	@command -v node >/dev/null 2>&1 || { echo "✗ Node.js bulunamadı; tip kontrolü çalıştırılamaz."; exit 1; }
@@ -220,6 +254,12 @@ validate: js-check
 validate-full: validate
 	@echo ""
 	$(PYTHON) $(VERIFY_ASSETS)
+
+# The upload is a drag-and-drop of asl-web/ as it is on disk, so this also fails
+# on files the site must not carry. Not part of health: a development checkout
+# may hold the local Model Test fixtures on purpose.
+deploy-check: js-check
+	$(PYTHON) $(CHECK_RUNTIME) --deploy
 
 models: validate
 	@echo ""
@@ -271,6 +311,10 @@ model-test-fixtures:
 	@echo "Samples/word : $(SAMPLES_PER_WORD)"
 	$(PYTHON) scripts/evaluation/export_model_test_word_samples.py --kaggle-dir $(KAGGLE_DIR) --samples-per-word $(SAMPLES_PER_WORD)
 
+parity:
+	$(PYTHON) $(WORD_PARITY)
+	$(PYTHON) $(LETTER_PARITY)
+
 health: lint format-check js-check js-test
 	@echo ""
 	@echo "── Project health gate ───────────────────"
@@ -278,14 +322,18 @@ health: lint format-check js-check js-test
 	@echo ""
 	@$(MAKE) --no-print-directory git-hygiene
 	$(PYTHON) $(CHECK_RUNTIME)
-	$(PYTHON) $(VERIFY_ASSETS)
+	$(PYTHON) $(VERIFY_ASSETS) --no-datasets
 	@$(MAKE) --no-print-directory notebook-check
 	@$(MAKE) --no-print-directory scripts-check
-	$(PYTHON) tests/validation/check_word_feature_parity.py
-	$(PYTHON) tests/validation/check_letter_feature_parity.py
+	@$(MAKE) --no-print-directory parity
 	PYTHONPATH="$(TEST_PYTHONPATH):$$PYTHONPATH" $(PYTEST) $(TEST_FAST)
 	@echo ""
 	@echo "✓ Project health OK"
+
+# The gate before a commit. health stays free of npm so it works in a fresh
+# clone; the JSDoc type check needs `npm ci`, so it joins here instead.
+check: health js-typecheck
+	@echo "✓ Check OK (health + js-typecheck)"
 
 docker:
 	@echo ""

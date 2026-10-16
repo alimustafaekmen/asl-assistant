@@ -138,6 +138,11 @@ let mpFaceFactory = null;
 /** @type {number | null} */
 let _rafId = null;
 let mpStarting = false;
+// Every start awaits the network several times, and a stop can land in any of
+// those waits. stopMediaPipe() bumps the generation; a start or optional load
+// that finds it changed after an await was cancelled, closes what it created,
+// and leaves every flag to whichever start is current.
+let _mpGeneration = 0;
 
 const MP_TASKS_VERSION = "0.10.18";
 
@@ -192,7 +197,8 @@ async function _createWithFallback(name, factory, options) {
  * which is what keeps letter mode usable on a slow connection.
  *
  * Re-entry is refused while a start is in flight, so a second detection loop
- * cannot be created.
+ * cannot be created. A stop while this awaits cancels it: the start closes
+ * whatever task it was given and resolves without detecting anything.
  *
  * @param {HTMLVideoElement} videoEl Live camera video.
  * @returns {Promise<void>}
@@ -205,113 +211,129 @@ async function startMediaPipe(videoEl) {
   }
   mpStarting = true;
   mpVideoEl = videoEl;
+  const generation = _mpGeneration;
+  const cancelled = () => generation !== _mpGeneration;
 
-  console.log("[MP] vision_bundle.mjs import ediliyor...");
-  let vision;
   try {
-    vision = await _importTasksVision();
-    console.log("[MP] import OK ✓");
-  } catch (err) {
-    console.error("[MP] import HATASI — CDN erişimi yok mu?", err);
-    mpStarting = false;
-    throw err;
+    console.log("[MP] vision_bundle.mjs import ediliyor...");
+    let vision;
+    try {
+      vision = await _importTasksVision();
+      console.log("[MP] import OK ✓");
+    } catch (err) {
+      console.error("[MP] import HATASI — CDN erişimi yok mu?", err);
+      throw err;
+    }
+    if (cancelled()) return;
+
+    const { FilesetResolver, HandLandmarker, PoseLandmarker, FaceLandmarker } = vision;
+
+    console.log("[MP] FilesetResolver.forVisionTasks (wasm) yükleniyor...");
+    const resolver = await FilesetResolver.forVisionTasks(
+      `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_TASKS_VERSION}/wasm`,
+    );
+    if (cancelled()) return;
+    console.log("[MP] resolver OK ✓");
+
+    // Pinned like the bundle: a /latest/ model could change under it unseen.
+    // When pinned, /1/ and /latest/ served identical bytes (same md5).
+    const HAND_MODEL =
+      "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+    const POSE_MODEL =
+      "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
+    const FACE_MODEL =
+      "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+
+    // Hands are required by every inference mode. Pose and face are required
+    // only for words, so letter mode can remain available if either optional
+    // task fails.
+    const handDetConf =
+      typeof CONFIG !== "undefined" && CONFIG.HAND_DETECTION_CONFIDENCE != null
+        ? CONFIG.HAND_DETECTION_CONFIDENCE
+        : 0.5;
+    const handPresConf =
+      typeof CONFIG !== "undefined" && CONFIG.HAND_PRESENCE_CONFIDENCE != null
+        ? CONFIG.HAND_PRESENCE_CONFIDENCE
+        : 0.5;
+    const handTrackConf =
+      typeof CONFIG !== "undefined" && CONFIG.HAND_TRACKING_CONFIDENCE != null
+        ? CONFIG.HAND_TRACKING_CONFIDENCE
+        : 0.5;
+    console.log(
+      `[MP] Hand thresholds: detection=${handDetConf}, presence=${handPresConf}, tracking=${handTrackConf}, numHands=2`,
+    );
+    /** @type {LandmarkerFactory<HandLandmarkerResult>} */
+    const handFactory = (delegate) =>
+      HandLandmarker.createFromOptions(resolver, {
+        baseOptions: { modelAssetPath: HAND_MODEL, delegate },
+        numHands: 2,
+        runningMode: "VIDEO",
+        minHandDetectionConfidence: handDetConf,
+        minHandPresenceConfidence: handPresConf,
+        minTrackingConfidence: handTrackConf,
+      });
+    /** @type {LandmarkerFactory<PoseLandmarkerResult>} */
+    const poseFactory = (delegate) =>
+      PoseLandmarker.createFromOptions(resolver, {
+        baseOptions: { modelAssetPath: POSE_MODEL, delegate },
+        runningMode: "VIDEO",
+        numPoses: 1,
+        minPoseDetectionConfidence: 0.3,
+        minPosePresenceConfidence: 0.3,
+        minTrackingConfidence: 0.3,
+      });
+    /** @type {LandmarkerFactory<FaceLandmarkerResult>} */
+    const faceFactory = (delegate) =>
+      FaceLandmarker.createFromOptions(resolver, {
+        baseOptions: { modelAssetPath: FACE_MODEL, delegate },
+        runningMode: "VIDEO",
+        numFaces: 1,
+        minFaceDetectionConfidence: 0.3,
+        minFacePresenceConfidence: 0.3,
+        minTrackingConfidence: 0.3,
+      });
+    mpPoseFactory = poseFactory;
+    mpFaceFactory = faceFactory;
+
+    // Hand startup errors are fatal and must reach the caller for user feedback.
+    /** @type {VideoLandmarkerTask<HandLandmarkerResult>} */
+    let hand;
+    try {
+      hand = await _createWithFallback("HandLandmarker", handFactory, {
+        gpu: "GPU",
+        cpu: "CPU",
+      });
+    } catch (err) {
+      console.error("[MP] HandLandmarker başlatılamadı, MediaPipe iptal:", err);
+      throw err;
+    }
+    if (cancelled()) {
+      try { hand.close(); } catch (e) { /* noop */ }
+      return;
+    }
+    handLandmarker = hand;
+
+    // Start hand detection immediately. Pose and face assets are larger and
+    // may continue loading in the background without blocking letter mode.
+    mpRunning = true;
+    lastHandTs = 0;
+    _firstFrameLogged = false;
+    _firstHandLogged = false;
+    _noHandWarnLogged = false;
+    _frameStats = { processed: 0, handsDetected: 0, lastSummary: 0 };
+    console.log("[MP] başlatıldı: Hand hazır (1/3)");
+    if (typeof state !== "undefined" && typeof els !== "undefined" && els.latencyBadge) {
+      els.latencyBadge.textContent = "El izleme hazır";
+    }
+    _rafId = requestAnimationFrame(_processFrame);
+
+    _ensureOptionalHolisticLandmarkers();
+  } finally {
+    // A failed start must not keep the lock, or no later start could run. A
+    // cancelled one leaves it alone: stopMediaPipe() already released it, and
+    // a newer start may hold it now.
+    if (!cancelled()) mpStarting = false;
   }
-
-  const { FilesetResolver, HandLandmarker, PoseLandmarker, FaceLandmarker } = vision;
-
-  console.log("[MP] FilesetResolver.forVisionTasks (wasm) yükleniyor...");
-  const resolver = await FilesetResolver.forVisionTasks(
-    `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_TASKS_VERSION}/wasm`,
-  );
-  console.log("[MP] resolver OK ✓");
-
-  // Pinned like the bundle: a /latest/ model could change under it unseen.
-  // When pinned, /1/ and /latest/ served identical bytes (same md5).
-  const HAND_MODEL =
-    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
-  const POSE_MODEL =
-    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
-  const FACE_MODEL =
-    "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
-
-  // Hands are required by every inference mode. Pose and face are required only
-  // for words, so letter mode can remain available if either optional task fails.
-  const handDetConf =
-    typeof CONFIG !== "undefined" && CONFIG.HAND_DETECTION_CONFIDENCE != null
-      ? CONFIG.HAND_DETECTION_CONFIDENCE
-      : 0.5;
-  const handPresConf =
-    typeof CONFIG !== "undefined" && CONFIG.HAND_PRESENCE_CONFIDENCE != null
-      ? CONFIG.HAND_PRESENCE_CONFIDENCE
-      : 0.5;
-  const handTrackConf =
-    typeof CONFIG !== "undefined" && CONFIG.HAND_TRACKING_CONFIDENCE != null
-      ? CONFIG.HAND_TRACKING_CONFIDENCE
-      : 0.5;
-  console.log(
-    `[MP] Hand thresholds: detection=${handDetConf}, presence=${handPresConf}, tracking=${handTrackConf}, numHands=2`,
-  );
-  /** @type {LandmarkerFactory<HandLandmarkerResult>} */
-  const handFactory = (delegate) =>
-    HandLandmarker.createFromOptions(resolver, {
-      baseOptions: { modelAssetPath: HAND_MODEL, delegate },
-      numHands: 2,
-      runningMode: "VIDEO",
-      minHandDetectionConfidence: handDetConf,
-      minHandPresenceConfidence: handPresConf,
-      minTrackingConfidence: handTrackConf,
-    });
-  /** @type {LandmarkerFactory<PoseLandmarkerResult>} */
-  const poseFactory = (delegate) =>
-    PoseLandmarker.createFromOptions(resolver, {
-      baseOptions: { modelAssetPath: POSE_MODEL, delegate },
-      runningMode: "VIDEO",
-      numPoses: 1,
-      minPoseDetectionConfidence: 0.3,
-      minPosePresenceConfidence: 0.3,
-      minTrackingConfidence: 0.3,
-    });
-  /** @type {LandmarkerFactory<FaceLandmarkerResult>} */
-  const faceFactory = (delegate) =>
-    FaceLandmarker.createFromOptions(resolver, {
-      baseOptions: { modelAssetPath: FACE_MODEL, delegate },
-      runningMode: "VIDEO",
-      numFaces: 1,
-      minFaceDetectionConfidence: 0.3,
-      minFacePresenceConfidence: 0.3,
-      minTrackingConfidence: 0.3,
-    });
-  mpPoseFactory = poseFactory;
-  mpFaceFactory = faceFactory;
-
-  // Hand startup errors are fatal and must reach the caller for user feedback.
-  try {
-    handLandmarker = await _createWithFallback("HandLandmarker", handFactory, {
-      gpu: "GPU",
-      cpu: "CPU",
-    });
-  } catch (err) {
-    console.error("[MP] HandLandmarker başlatılamadı, MediaPipe iptal:", err);
-    handLandmarker = null;
-    throw err;
-  }
-
-  // Start hand detection immediately. Pose and face assets are larger and may
-  // continue loading in the background without blocking letter mode.
-  mpRunning = true;
-  mpStarting = false;
-  lastHandTs = 0;
-  _firstFrameLogged = false;
-  _firstHandLogged = false;
-  _noHandWarnLogged = false;
-  _frameStats = { processed: 0, handsDetected: 0, lastSummary: 0 };
-  console.log("[MP] başlatıldı: Hand hazır (1/3)");
-  if (typeof state !== "undefined" && typeof els !== "undefined" && els.latencyBadge) {
-    els.latencyBadge.textContent = "El izleme hazır";
-  }
-  _rafId = requestAnimationFrame(_processFrame);
-
-  _ensureOptionalHolisticLandmarkers();
 }
 
 /**
@@ -323,6 +345,8 @@ async function startMediaPipe(videoEl) {
  * @returns {void}
  */
 function stopMediaPipe() {
+  // Any start or optional load still awaiting the network is now cancelled.
+  _mpGeneration++;
   mpRunning = false;
   mpStarting = false;
   // Cancel the pending frame so no loop survives a stop/restart cycle.
@@ -366,13 +390,21 @@ function _ensureOptionalHolisticLandmarkers() {
  */
 async function _loadOptionalHolisticLandmarkers() {
   if (mpOptionalLoading) return;
+  // Read once: a stop during the download clears them for the next session.
+  const poseFactory = mpPoseFactory;
+  const faceFactory = mpFaceFactory;
+  if (!poseFactory || !faceFactory) return;
   mpOptionalLoading = true;
+  const generation = _mpGeneration;
+  // mpRunning alone cannot tell this load's session from a newer one: a stop
+  // and a start during the download set it back to true.
+  const cancelled = () => generation !== _mpGeneration;
 
   let pose = null;
   let face = null;
 
   try {
-    pose = await _createWithFallback("PoseLandmarker", mpPoseFactory, {
+    pose = await _createWithFallback("PoseLandmarker", poseFactory, {
       gpu: "GPU",
       cpu: "CPU",
     });
@@ -380,15 +412,15 @@ async function _loadOptionalHolisticLandmarkers() {
     console.warn("[MP] PoseLandmarker yüklenemedi (kelime modu etkilenir):", err);
   }
 
-  if (!mpRunning) {
+  // A cancelled load leaves mpOptionalLoading to the newer session.
+  if (cancelled()) {
     try { pose?.close(); } catch (e) { /* noop */ }
-    mpOptionalLoading = false;
     return;
   }
   poseLandmarker = pose;
 
   try {
-    face = await _createWithFallback("FaceLandmarker", mpFaceFactory, {
+    face = await _createWithFallback("FaceLandmarker", faceFactory, {
       gpu: "GPU",
       cpu: "CPU",
     });
@@ -396,9 +428,8 @@ async function _loadOptionalHolisticLandmarkers() {
     console.warn("[MP] FaceLandmarker yüklenemedi (kelime modu etkilenir):", err);
   }
 
-  if (!mpRunning) {
+  if (cancelled()) {
     try { face?.close(); } catch (e) { /* noop */ }
-    mpOptionalLoading = false;
     return;
   }
   faceLandmarker = face;

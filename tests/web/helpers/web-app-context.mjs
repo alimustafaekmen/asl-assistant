@@ -2,118 +2,212 @@
 //
 // The web app has no build step and no module system: index.html loads plain
 // <script> files that share one global scope. A vm context reproduces that
-// setup closely enough to exercise the pure helpers without a browser and
-// without adding a dependency. It also reproduces the failure mode that matters
-// most while modules are being split apart: declaring the same const/let in two
+// setup closely enough to exercise the app without a browser and without
+// adding a dependency. It also reproduces the failure mode that matters most
+// while modules are being split apart: declaring the same const/let in two
 // scripts throws a SyntaxError here exactly as it would in the browser.
 //
-// Only module-level declarations are evaluated. app.js's bootstrap call and the
-// debug API that follows it are cut off, because those drive the live DOM,
-// camera, and model pipeline. The DOM stub below exists solely so the shared
-// DOM registry can be constructed; no test asserts anything about it, and
-// DOM-dependent behaviour is deliberately left to manual browser smoke tests.
+// Every script is evaluated in full, as the browser does, including the
+// bootstrap call at the end of app.js. The harness does not look for that
+// call in the source text: it watches the global the call goes through (see
+// BOOTSTRAP_GLOBAL), so a comment or a reformat of that line changes nothing
+// here. With `boot: true` the real init() runs against the default boundary
+// fakes below and `app.ready` is its promise. Without it the call is observed
+// and recorded but not carried out, which is the state the older tests were
+// written against: modules declared, nothing started.
+//
+// The document is built from the real index.html (static-dom.mjs): an id the
+// markup lacks is not found, and each element starts with the markup's
+// attributes and text and has the constructor its tag gives it. An event can
+// be dispatched at one element, which runs that element's own listeners.
+// There is no layout, style, focus order, capture or bubbling; those are left
+// to a browser.
 
 import { readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
+
+import { buildDocument, createDomClasses, findElement, parseHtml } from "./static-dom.mjs";
 
 export const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 export const WEB_DIR = join(PROJECT_ROOT, "asl-web");
 
-// The single top-level bootstrap statement in the application script.
-const BOOTSTRAP_CALL = /^init\(\);$/m;
+// The global function the last script calls to start the app. Its call is the
+// one statement in the scripts that has side effects at load; everything else
+// only declares. The harness observes the call through this binding, never by
+// reading the source.
+const BOOTSTRAP_GLOBAL = "init";
+
+/** @type {ReturnType<typeof parseHtml> | null} */
+let parsedIndex = null;
+
+/**
+ * index.html as parsed markup, read once per test process.
+ *
+ * Each loadWebApp() builds its own live document from this, so one test's
+ * DOM writes never reach another's.
+ */
+export function parsedIndexHtml() {
+  parsedIndex ??= parseHtml(readFileSync(join(WEB_DIR, "index.html"), "utf8"));
+  return parsedIndex;
+}
+
+/** Every parsed element of the static document, in document order. */
+function* parsedElements(nodes) {
+  for (const node of nodes) {
+    if (node.type !== "element") continue;
+    yield node;
+    yield* parsedElements(node.children);
+  }
+}
 
 /** Application script paths in index.html order, without the cache-busting query. */
 export function webScriptPaths() {
-  const html = readFileSync(join(WEB_DIR, "index.html"), "utf8");
-  return [...html.matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g)]
-    .map((match) => match[1].split("?", 1)[0].replace(/^\.\//, ""))
-    .filter((src) => src.startsWith("js/"));
+  const paths = [];
+  for (const element of parsedElements(parsedIndexHtml().children)) {
+    if (element.name !== "script" || element.foreign) continue;
+    const src = element.attrs.find(([name]) => name === "src")?.[1];
+    if (src === undefined) continue;
+    const path = src.split("?", 1)[0].split("#", 1)[0];
+    const relativePath = path.startsWith("./") ? path.slice(2) : path;
+    if (relativePath.startsWith("js/")) paths.push(relativePath);
+  }
+  return paths;
 }
 
-// The DOM registry checks each element against its expected constructor. One
-// stub class stands in for all of them: these tests never assert anything about
-// the DOM, they only need module load to get past that check.
-class StubElement {
-  constructor(listenerLog = []) {
-    this.listenerLog = listenerLog;
-    this.dataset = {};
-    this.hidden = false;
-    this.textContent = "";
-    // Children are tracked so a test can show that re-rendering a list
-    // replaces its rows instead of appending a second set.
-    this.children = [];
-    // A status pill ends in its label text node (#cameraStatus in the
-    // markup), and stopping the camera writes through it. Without one, any
-    // path that reaches stopCamera() throws on the stub, not in the app.
-    this.lastChild = { textContent: "" };
-    this._innerHTML = "";
-    this.style = { setProperty() {} };
-    this.classList = { add() {}, remove() {}, toggle() {} };
-  }
+// ---------------------------------------------------------------------------
+// Default boundary fakes. Each stands in for a host API at the edge of the app,
+// never for an app module. A test replaces any of them through `globals`.
+// ---------------------------------------------------------------------------
 
-  // Assigning innerHTML replaces the subtree, which is how every list renderer
-  // here clears its root before rebuilding it.
-  get innerHTML() {
-    return this._innerHTML;
-  }
+const CONTENT_TYPES = { ".json": "application/json", ".gz": "application/gzip", ".onnx": "application/octet-stream" };
 
-  set innerHTML(value) {
-    this._innerHTML = value;
-    this.children = [];
-  }
-
-  getContext() {
-    return {};
-  }
-
-  addEventListener(type) {
-    this.listenerLog.push(`element:${type}`);
-  }
-
-  removeEventListener() {}
-
-  // Every element can take focus; a test that watches it replaces this.
-  focus() {}
-
-  setAttribute() {}
-
-  // Plain elements carry no role; a test that needs one passes getAttribute.
-  getAttribute() {
-    return null;
-  }
-
-  removeAttribute() {}
-
-  appendChild(child) {
-    this.children.push(child);
-    return child;
-  }
-
-  append(...nodes) {
-    this.children.push(...nodes);
-  }
-
-  querySelector() {
-    return null;
-  }
-
-  querySelectorAll() {
-    return [];
-  }
+/** A fetch Response for bytes read from disk, or a 404. */
+function diskResponse(url, bytes) {
+  const status = bytes ? 200 : 404;
+  const body = bytes ?? Buffer.alloc(0);
+  const extension = url.pathname.slice(url.pathname.lastIndexOf("."));
+  return {
+    ok: status === 200,
+    status,
+    url: url.href,
+    headers: new Headers(bytes ? { "content-type": CONTENT_TYPES[extension] ?? "text/plain" } : {}),
+    json: async () => JSON.parse(body.toString("utf8")),
+    text: async () => body.toString("utf8"),
+    arrayBuffer: async () => body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength),
+    // A stream only when asked for, as the gzip path reads the body that way.
+    get body() {
+      return new Response(body).body;
+    },
+  };
 }
 
-const ELEMENT_CONSTRUCTORS = [
-  "HTMLElement",
-  "HTMLVideoElement",
-  "HTMLCanvasElement",
-  "HTMLSelectElement",
-  "HTMLImageElement",
-  "HTMLAnchorElement",
-  "HTMLButtonElement",
-  "HTMLInputElement",
-];
+/**
+ * fetch() serving the deployed folder from disk, the way the static host does.
+ *
+ * A same-origin path resolves against asl-web/; a missing file is a 404, and
+ * nothing outside the folder is readable. Any other origin (the CDNs) fails as
+ * a network error, so a test that needs one says so.
+ *
+ * @param {URL} location The page address the app resolves relative URLs against.
+ */
+function diskFetch(location) {
+  const requests = [];
+  const fetch = async (input) => {
+    const url = new URL(String(input), location.href);
+    requests.push(url.pathname + url.search);
+    if (url.origin !== location.origin) throw new TypeError(`network unavailable in the harness: ${url.href}`);
+    const path = join(WEB_DIR, decodeURIComponent(url.pathname));
+    const inside = relative(WEB_DIR, path);
+    if (inside.startsWith("..") || inside.split(sep).includes("..")) return diskResponse(url, null);
+    try {
+      return diskResponse(url, readFileSync(path));
+    } catch {
+      return diskResponse(url, null);
+    }
+  };
+  return { fetch, requests };
+}
+
+/** localStorage backed by a Map, empty at load as for a first visit. */
+function memoryStorage() {
+  const items = new Map();
+  return {
+    get length() {
+      return items.size;
+    },
+    key: (index) => [...items.keys()][index] ?? null,
+    getItem: (key) => (items.has(String(key)) ? items.get(String(key)) : null),
+    setItem: (key, value) => void items.set(String(key), String(value)),
+    removeItem: (key) => void items.delete(String(key)),
+    clear: () => items.clear(),
+  };
+}
+
+/** requestAnimationFrame that queues; runFrame() plays one browser frame. */
+function queuedAnimationFrames() {
+  const pending = new Map();
+  let nextId = 1;
+  return {
+    pending,
+    requestAnimationFrame(callback) {
+      const id = nextId++;
+      pending.set(id, callback);
+      return id;
+    },
+    cancelAnimationFrame(id) {
+      pending.delete(id);
+    },
+    /** Run every callback queued at this moment once; returns how many ran. */
+    runFrame(time = 0) {
+      const callbacks = [...pending.values()];
+      pending.clear();
+      for (const callback of callbacks) callback(time);
+      return callbacks.length;
+    },
+  };
+}
+
+/** A media query list that never matches and accepts listeners. */
+function matchMediaFake() {
+  return (query) => ({
+    media: String(query),
+    matches: false,
+    onchange: null,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+  });
+}
+
+/** history that moves the fake location, as replaceState and pushState do. */
+function historyFake(location) {
+  const entries = [];
+  const move = (url) => {
+    if (url === undefined || url === null) return;
+    location.href = new URL(String(url), location.href).href;
+  };
+  return {
+    entries,
+    get length() {
+      return entries.length + 1;
+    },
+    state: null,
+    replaceState(state, _title, url) {
+      this.state = state;
+      move(url);
+    },
+    pushState(state, _title, url) {
+      entries.push(location.href);
+      this.state = state;
+      move(url);
+    },
+  };
+}
+
+const DEFAULT_PAGE_URL = "https://asl-assistant.netlify.app/";
 
 function createSandbox(missingIds, wrongTypeIds) {
   // Every addEventListener call in this context, so a test can show that
@@ -122,37 +216,119 @@ function createSandbox(missingIds, wrongTypeIds) {
   // Window handlers are kept so a test can invoke one directly; the keyboard
   // shortcuts are only reachable that way.
   const windowHandlers = new Map();
-  const stubElement = () => new StubElement(listenerLog);
+  const location = new URL(DEFAULT_PAGE_URL);
+  const network = diskFetch(location);
+  const frames = queuedAnimationFrames();
   const context = vm.createContext({
     console,
     performance: { now: () => 0 },
-    // Every browser has it; the theme reads the system preference through it.
-    // A test that needs a preference passes its own through `globals`.
-    matchMedia: () => ({ matches: false }),
+    matchMedia: matchMediaFake(),
+    fetch: network.fetch,
+    localStorage: memoryStorage(),
+    location,
+    history: historyFake(location),
+    requestAnimationFrame: frames.requestAnimationFrame,
+    cancelAnimationFrame: frames.cancelAnimationFrame,
+    // Real timers, but unreferenced: a toast's 6 s auto-hide left pending at
+    // the end of a file would otherwise hold the test process open that long.
+    setTimeout: (fn, ms, ...rest) => {
+      const timer = setTimeout(fn, ms, ...rest);
+      timer.unref();
+      return timer;
+    },
+    clearTimeout,
+    URL,
     // window is globalThis here, so this is what window.addEventListener hits.
     addEventListener: (type, handler) => {
       listenerLog.push(`window:${type}`);
       windowHandlers.set(type, handler);
     },
-    document: {
-      body: stubElement(),
-      getElementById: (id) => {
-        if (missingIds.has(id)) return null;
-        // A plain object is not an instance of any element constructor, which
-        // is what the registry's type check is there to catch.
-        if (wrongTypeIds.has(id)) return {};
-        return stubElement();
-      },
-      createElement: () => stubElement(),
-      querySelector: () => stubElement(),
-      querySelectorAll: () => [],
-    },
+    document: createDocument({ listenerLog, missingIds, wrongTypeIds }),
   });
   context.__listenerLog = listenerLog;
   context.__windowHandlers = windowHandlers;
-  for (const name of ELEMENT_CONSTRUCTORS) context[name] = StubElement;
+  Object.assign(context, context.document.__constructors);
+  delete context.document.__constructors;
   vm.runInContext("globalThis.window = globalThis;", context);
-  return context;
+  return { context, network, frames };
+}
+
+/**
+ * A live document built from index.html for one context.
+ *
+ * getElementById() finds an element only if the markup has its id, so a
+ * required id the markup lost fails at load, as it does in the browser.
+ * `missingIds` and `wrongTypeIds` still override it for the registry's
+ * failure-path tests. The query methods are closures rather than methods,
+ * because tests keep a reference to one and call it unbound.
+ *
+ * @param {{listenerLog: string[], missingIds: Set<string>, wrongTypeIds: Set<string>}} options
+ */
+function createDocument({ listenerLog, missingIds, wrongTypeIds }) {
+  const dom = createDomClasses({ listenerLog });
+  const { documentElement, head, body } = buildDocument(parsedIndexHtml(), dom);
+  const matching = (selector) => [
+    ...(documentElement.matches(selector) ? [documentElement] : []),
+    ...documentElement.querySelectorAll(selector),
+  ];
+  return {
+    documentElement,
+    head,
+    body,
+    getElementById: (id) => {
+      if (missingIds.has(id)) return null;
+      // A plain object is not an instance of any element constructor, which
+      // is what the registry's type check is there to catch.
+      if (wrongTypeIds.has(id)) return {};
+      const wanted = String(id);
+      return findElement(documentElement, (element) => element._attrs.get("id") === wanted);
+    },
+    createElement: (tagName) => dom.createElement(tagName),
+    createTextNode: (text) => dom.createTextNode(text),
+    querySelector: (selector) => matching(selector)[0] ?? null,
+    querySelectorAll: (selector) => matching(selector),
+    __constructors: dom.constructors,
+  };
+}
+
+/**
+ * Watch the bootstrap global while the scripts load.
+ *
+ * A function declaration in a classic script defines a property on the global
+ * object, and a bare call reads it back from there. In a vm context both go
+ * through the sandbox object, so an accessor on it sees the script define
+ * init() and sees the bootstrap read it to call it. During load the read hands
+ * back a recorder; after load it hands back the real function, so a later
+ * `init()` from a test is the app's own.
+ */
+function watchBootstrap(context, { boot, currentScript }) {
+  let real;
+  let loading = true;
+  const watch = { calls: [], ready: null };
+  const recorder = function (...args) {
+    watch.calls.push(currentScript());
+    // init() is async: a bootstrap that is observed but not carried out
+    // still returns a promise, one that never settles, so a script may chain
+    // on the call as it would on the real one.
+    if (!boot) return new Promise(() => {});
+    const result = real.apply(this, args);
+    if (watch.ready === null) watch.ready = Promise.resolve(result);
+    return result;
+  };
+  Object.defineProperty(context, BOOTSTRAP_GLOBAL, {
+    configurable: true,
+    enumerable: true,
+    get: () => (real !== undefined && loading ? recorder : real),
+    set: (value) => {
+      real = value;
+    },
+  });
+  return {
+    watch,
+    done() {
+      loading = false;
+    },
+  };
 }
 
 /**
@@ -162,37 +338,91 @@ function createSandbox(missingIds, wrongTypeIds) {
  * const/let bindings are both reachable, mirroring how the scripts see each
  * other at runtime.
  *
+ * `boot` lets the bootstrap call at the end of app.js run the real init(), as
+ * the browser does; `app.ready` is then the promise it returned. It is off by
+ * default because most tests here drive one function of a module that has
+ * been declared but not started, and several replace a command or a selector
+ * before calling bindEvents() themselves (event-binding, a11y-state), which a
+ * booted app has already done. Either way the bootstrap call itself is
+ * observed: `bootstrapScripts` lists the scripts that made it, and loading
+ * fails if none did.
+ *
  * `missingIds` makes document.getElementById() return null for those ids, which
  * is what a redesign that drops an element looks like to the registry.
  * `wrongTypeIds` returns something that is not an element, which is what
- * retagging one looks like. They are the only way to reach the registry's two
- * failure paths from here, since one stub class satisfies every constructor.
+ * retagging one looks like. Both reach the registry's two failure paths
+ * without editing index.html; the document itself is the real markup, so an
+ * id it lacks is already null and a retagged element already has the wrong
+ * constructor.
  *
- * `globals` hands real host APIs to the scripts, for a test that needs one the
- * sandbox leaves out, such as the streams used to decompress a download.
+ * `unloadedScripts` lists scripts the page failed to fetch (a 404, a network
+ * error, a deploy that left a file out). They are not evaluated, and the
+ * scripts after them still run, as a browser runs them.
  *
- * @param {{missingIds?: string[], wrongTypeIds?: string[], globals?: Record<string, unknown>}} [options]
+ * `globals` replaces host APIs: the default boundary fakes (fetch from the
+ * asl-web folder on disk, queued animation frames, Map-backed localStorage,
+ * matchMedia, location and history on https://asl-assistant.netlify.app/), or
+ * ones the sandbox leaves out, such as the streams used to decompress a
+ * download. They are in place before the first script runs.
+ *
+ * @param {{
+ *   boot?: boolean,
+ *   missingIds?: string[],
+ *   wrongTypeIds?: string[],
+ *   unloadedScripts?: string[],
+ *   globals?: Record<string, unknown>,
+ * }} [options]
  */
 export function loadWebApp(options = {}) {
-  const context = createSandbox(
+  const { context, network, frames } = createSandbox(
     new Set(options.missingIds ?? []),
     new Set(options.wrongTypeIds ?? []),
   );
   Object.assign(context, options.globals ?? {});
   const scripts = webScriptPaths();
-  const bootstrapScripts = [];
+  let evaluating = null;
+  const bootstrap = watchBootstrap(context, {
+    boot: options.boot === true,
+    currentScript: () => evaluating,
+  });
 
+  const unloaded = new Set(options.unloadedScripts ?? []);
+  for (const relPath of unloaded) {
+    if (!scripts.includes(relPath)) throw new Error(`index.html does not load ${relPath}`);
+  }
   for (const relPath of scripts) {
+    if (unloaded.has(relPath)) continue;
+    evaluating = relPath;
     const source = readFileSync(join(WEB_DIR, relPath), "utf8");
-    const bootstrap = source.match(BOOTSTRAP_CALL);
-    if (bootstrap) bootstrapScripts.push(relPath);
-    const evaluated = bootstrap ? source.slice(0, bootstrap.index) : source;
-    vm.runInContext(evaluated, context, { filename: relPath });
+    vm.runInContext(source, context, { filename: relPath });
+  }
+  evaluating = null;
+  bootstrap.done();
+
+  const bootstrapScripts = [...new Set(bootstrap.watch.calls)];
+  if (bootstrapScripts.length === 0) {
+    throw new Error(
+      `no script called ${BOOTSTRAP_GLOBAL}() while loading; the harness cannot tell the app started`,
+    );
   }
 
   return {
     scripts,
     bootstrapScripts,
+    /**
+     * The promise init() returned when `boot` is set; null otherwise. It
+     * settles when startup has finished: the fixture manifest, the route,
+     * and the word guidance data.
+     *
+     * @type {Promise<void> | null}
+     */
+    ready: bootstrap.watch.ready,
+    /** Paths the default fetch was asked for, in order, with their query. */
+    requests: network.requests,
+    /** Play one browser frame of the default requestAnimationFrame queue. */
+    runFrame: (time) => frames.runFrame(time),
+    /** Callbacks waiting for the next frame in the default queue. */
+    pendingFrames: () => frames.pending.size,
     /** Read a global by name; throws when the scripts never declared it. */
     get(name) {
       return vm.runInContext(name, context);

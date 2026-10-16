@@ -10,10 +10,14 @@ against the Python source-of-truth pipeline:
 
 Node.js gerektirir (features.js'i calistirmak icin); runtime asset'lerini
 degistirmez. / Requires Node.js to run features.js; modifies no runtime assets.
+
+Exit status: 0 every fixture matched, 1 a mismatch or browser code that did
+not run, 2 Node.js is not on PATH, so nothing was compared.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import shutil
@@ -77,13 +81,9 @@ def _python_features(raw63: np.ndarray) -> np.ndarray:
     return extract_features(normalized)
 
 
-def _js_features(frames: list[np.ndarray]) -> list[np.ndarray]:
-    node = shutil.which("node")
-    if not node:
-        raise RuntimeError("Node.js not found; cannot execute browser JS parity check")
-
+def _js_features(frames: list[np.ndarray], features_js: Path, node: str) -> list[np.ndarray]:
     payload = {
-        "featuresJs": str(FEATURES_JS),
+        "featuresJs": str(features_js),
         "frames": [frame.astype(float).tolist() for frame in frames],
     }
     js = r"""
@@ -118,7 +118,19 @@ process.stdout.write(JSON.stringify(out));
     return [np.array(row, dtype=np.float32) for row in json.loads(proc.stdout)]
 
 
-def main() -> int:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--features-js",
+        type=Path,
+        default=FEATURES_JS,
+        help="features.js to compare with Python (default: the deployed one)",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
     right = _fixture_hand()
     left = right.copy()
     left[0::3] = 1.0 - left[0::3]
@@ -133,8 +145,22 @@ def main() -> int:
         ),
     ]
 
-    js_rows = _js_features([f[1] for f in fixtures])
+    node = shutil.which("node")
+    if not node:
+        print("ERROR: `node` not found on PATH; letter feature parity cannot run.")
+        return 2
+
     print("fixture,python_shape,js_shape,max_abs_diff,result")
+    try:
+        js_rows = _js_features([f[1] for f in fixtures], args.features_js, node)
+    except (RuntimeError, ValueError) as exc:
+        # The browser code is what is under test, so code that does not run
+        # is a failed comparison for every fixture, not a check that could
+        # not run.
+        for name, _frame, _raw in fixtures:
+            print(f"{name},?,?,?,FAIL")
+        print(f"JS runner error: {exc}")
+        return 1
     ok = True
     for (name, _frame, python_raw), js_out in zip(fixtures, js_rows):
         py_out = _python_features(python_raw)

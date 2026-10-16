@@ -23,14 +23,17 @@
  * Bring the app up, in the order the modules depend on.
  *
  * Preferences, coach options, and event bindings come first so the UI is
- * usable; the fixture manifest and the route are applied next, then the render
- * loop starts.
+ * usable; the route is applied next and the render loop starts. Only then do
+ * the reads that can be slow begin: a deep link must not show the wrong
+ * screen, nor a started camera go unread, while a fetch is pending. The local
+ * Model Test fixtures are not read here at all; that screen asks for them.
  *
  * No model loads here. A bare URL opens letter mode, but most visitors never
  * start the camera, so the models wait for their first real need: the camera
  * starting in a mode that runs one, a word recording, the offline check, or a
- * Model Test run. The word guidance data is a few kilobytes and loads last;
- * its panel renders once that fetch has settled.
+ * Model Test run. The fixture manifest and the word guidance data are a few
+ * kilobytes and load last; the guidance panel renders once its fetch has
+ * settled.
  *
  * @returns {Promise<void>}
  */
@@ -41,13 +44,12 @@ async function init() {
   bindEvents();
   restoreTranscript();
   loadReferenceVideoLinks();
-  await loadModelTestManifest();
   setMode(modeFromHash(window.location.hash), { syncHash: false });
   updatePrediction({ label: "?", confidence: 0, alternatives: [] });
 
   requestAnimationFrame(renderLoop);
 
-  await loadGatingData();
+  await Promise.all([loadPublishedModelTestManifest(), loadGatingData()]);
   renderWordGuidancePanel();
 }
 
@@ -77,7 +79,10 @@ function liveModelNeeds(mode) {
  * is missing rather than failing outright.
  *
  * While the camera is on, the badge reports the camera and MediaPipe, so model
- * progress goes to the message line alone.
+ * progress goes to the message line alone. A load asked for while the camera
+ * was on belongs to that camera session: if the camera has been stopped (or
+ * restarted) by the time it settles, the outcome is not reported at all,
+ * because the stop has already put the badge and the stage back to idle.
  *
  * @param {{letter?: boolean, word?: boolean}} needs
  * @returns {Promise<boolean>} True when every needed model is ready. Never rejects.
@@ -87,6 +92,9 @@ async function loadModelsWithStatus(needs) {
   const setBadge = (text) => {
     if (!state.cameraOn) els.latencyBadge.textContent = text;
   };
+  // The camera session this load belongs to, or null when the camera is off.
+  const session = state.stream;
+  const sessionEnded = () => session !== null && state.stream !== session;
   // Whether each model was already loaded is read before its load is asked
   // for, so a download that starts here is reported.
   /** @type {{label: string, loaded: boolean, ready: Promise<boolean>}[]} */
@@ -106,7 +114,7 @@ async function loadModelsWithStatus(needs) {
   try {
     const results = await Promise.all(models.map((model) => model.ready));
     const allReady = results.every(Boolean);
-    if (!downloading) return allReady;
+    if (!downloading || sessionEnded()) return allReady;
 
     const status = models.filter((_, i) => results[i]).map((model) => model.label.toLocaleLowerCase("tr"));
     if (allReady) {
@@ -124,6 +132,7 @@ async function loadModelsWithStatus(needs) {
     return allReady;
   } catch (err) {
     console.error("Model yükleme hatası:", err);
+    if (sessionEnded()) return false;
     reportProblem("Model indirilemedi. Bağlantınızı kontrol edip sayfayı yenileyin.");
     setBadge("Hata");
     return false;
@@ -401,6 +410,7 @@ function setMode(mode, options = {}) {
   if (shell) { shell.dataset.view = "app"; shell.dataset.mode = mode; }
   // Clear temporal state so predictions cannot leak across mode changes.
   if (typeof resetSmoother === "function") resetSmoother();
+  resetLetterLandmarkSmoother();
   frameBuffer = [];
   normalizedFrameBuffer = [];
   previousFrame = null;
@@ -437,6 +447,8 @@ function setMode(mode, options = {}) {
     el.hidden = isProject || isTest || isQr;
   });
   if (isQr) renderQrDemo();
+  // The panel re-renders its fixture list when the read settles.
+  if (isTest) loadLocalModelTestFixtures();
   if (isProject || isTest || isQr) {
     // These screens replace the camera workspace, so they release the camera
     // exactly as returning home does.
@@ -475,17 +487,32 @@ function setMode(mode, options = {}) {
 }
 
 /**
- * The camera start waiting on getUserMedia, or null when none is.
+ * The camera start still in progress, or null when none is.
  *
  * state.cameraOn turns true only once the stream arrives, so without this a
  * second Start would open a second stream and a stop during the permission
- * prompt would have nothing to stop. stopCamera() clears it, which is how the
- * start learns, when its stream arrives, that it was cancelled. Each start
- * gets its own token, so a cancelled start cannot take over a newer one.
+ * prompt would have nothing to stop. The start then still waits for the first
+ * video frame and for hand tracking, and a stop can land in either wait too.
+ * stopCamera() clears the token, which is how the start learns, after each
+ * wait, that it was cancelled. Each start gets its own token, so a cancelled
+ * start cannot take over a newer one.
  *
  * @type {object | null}
  */
 let _cameraStartAttempt = null;
+
+/**
+ * The listener on the live stream's tracks for an end the app did not ask
+ * for, or null while no stream is live.
+ *
+ * The browser ends a track on its own when the permission is revoked, the
+ * camera is unplugged, or another app takes it. stopCamera() removes the
+ * listener before it stops the tracks, so a stop of its own is never reported
+ * as a lost camera.
+ *
+ * @type {(() => void) | null}
+ */
+let _cameraTrackEnded = null;
 
 /**
  * Start or stop the camera.
@@ -493,7 +520,8 @@ let _cameraStartAttempt = null;
  * getUserMedia needs a secure context, so an insecure page is reported before
  * the permission prompt would fail. Standard media errors are mapped to
  * actionable Turkish messages. MediaPipe failing to start is not fatal: the
- * camera stays on and the status line explains what is missing.
+ * camera stays on and the status line explains what is missing. A track the
+ * browser ends releases the camera as a stop does, and the user is told.
  *
  * A granted camera is what starts the live models downloading; a refused one
  * downloads nothing.
@@ -517,21 +545,31 @@ async function toggleCamera() {
 
   const attempt = {};
   _cameraStartAttempt = attempt;
+  // stopCamera() ran during the last wait, so this start was cancelled.
+  const cancelled = () => _cameraStartAttempt !== attempt;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false,
     });
-    // stopCamera() ran while the prompt was open, so this start was cancelled.
-    if (_cameraStartAttempt !== attempt) {
+    if (cancelled()) {
       stream.getTracks().forEach((track) => track.stop());
       return;
     }
-    _cameraStartAttempt = null;
     state.stream = stream;
     state.cameraOn = true;
     els.video.srcObject = stream;
+    // Watched from here on, so a camera lost during the video wait also
+    // cancels this start.
+    const onTrackEnded = () => {
+      stopCamera();
+      reportProblem("Kamera bağlantısı kesildi. Kamerayı yeniden açabilirsiniz.");
+    };
+    stream.getTracks().forEach((track) => track.addEventListener("ended", onTrackEnded));
+    _cameraTrackEnded = onTrackEnded;
     await waitForVideoReady(els.video);
+    // The stream is now state.stream, so the stop already released it.
+    if (cancelled()) return;
     els.cameraEmpty.hidden = true;
     syncActionBar();
     els.cameraStatus.classList.add("is-live");
@@ -546,18 +584,27 @@ async function toggleCamera() {
       try {
         els.latencyBadge.textContent = "El izleme hazırlanıyor";
         await startMediaPipe(els.video);
+        if (cancelled()) return;
         els.latencyBadge.textContent = "El izleme hazır";
       } catch (err) {
         console.warn("MediaPipe başlatılamadı:", err);
+        // A camera stopped meanwhile has nothing left to track hands on.
+        if (cancelled()) return;
         els.latencyBadge.textContent = "El izleme yok";
         // Without MediaPipe no model can run, so this must be the message left
         // standing, not a later "models ready".
         await liveModelsLoad;
+        if (cancelled()) return;
         reportProblem("El izleme bileşeni indirilemedi. İnternet bağlantınızı kontrol edip yeniden deneyin.");
       }
     }
   } catch (error) {
-    if (_cameraStartAttempt === attempt) _cameraStartAttempt = null;
+    // A start the user cancelled (home, an information screen) has nothing
+    // left to report: the stop already put the camera area back to idle.
+    if (cancelled()) {
+      console.warn("Vazgeçilen kamera başlatması başarısız oldu:", error);
+      return;
+    }
     // Map standard browser media errors to actionable messages.
     let msg = "Kamera açılamadı.";
     switch (error?.name) {
@@ -587,6 +634,8 @@ async function toggleCamera() {
     els.latencyBadge.textContent = "Kamera açılamadı";
     reportProblem(msg);
     console.error("getUserMedia error:", error);
+  } finally {
+    if (_cameraStartAttempt === attempt) _cameraStartAttempt = null;
   }
 }
 
@@ -601,7 +650,12 @@ async function toggleCamera() {
  */
 function stopCamera() {
   _cameraStartAttempt = null;
-  state.stream?.getTracks().forEach((track) => track.stop());
+  const onTrackEnded = _cameraTrackEnded;
+  _cameraTrackEnded = null;
+  state.stream?.getTracks().forEach((track) => {
+    if (onTrackEnded) track.removeEventListener("ended", onTrackEnded);
+    track.stop();
+  });
   state.stream = null;
   state.cameraOn = false;
   els.video.srcObject = null;
@@ -625,6 +679,7 @@ function stopCamera() {
   els.countdown.hidden = true;
   els.cameraStage.dataset.state = "idle";
   if (typeof resetSmoother === "function") resetSmoother();
+  resetLetterLandmarkSmoother();
   updateWordState();
   syncRecordButton();
 
@@ -832,7 +887,32 @@ async function waitForVideoReady(videoEl) {
   }
 }
 
-init();
+/**
+ * Tell the user the app could not start.
+ *
+ * Until init() has bound it, the page is static markup whose buttons look
+ * ready and do nothing, so a failed start must not stay silent. The likely
+ * causes are a script the page could not fetch, which leaves names init()
+ * needs undefined, and an error thrown while starting. The elements are read
+ * with getElementById rather than through the registry, because runtime.js,
+ * which builds the registry, may be the script that failed.
+ *
+ * @param {unknown} error
+ * @returns {void}
+ */
+function reportStartupFailure(error) {
+  console.error("Uygulama başlatılamadı:", error);
+  const text = "Uygulama başlatılamadı. Sayfayı yenileyin; sorun sürerse bağlantınızı kontrol edin.";
+  const notice = document.getElementById("startupError");
+  if (notice) {
+    notice.textContent = text;
+    notice.hidden = false;
+  }
+  const announcer = document.getElementById("announcer");
+  if (announcer) announcer.textContent = text;
+}
+
+init().catch(reportStartupFailure);
 
 // Runtime diagnostics are available from the browser console via aslDebug.dump().
 window.aslDebug = {

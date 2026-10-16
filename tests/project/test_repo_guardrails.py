@@ -6,6 +6,7 @@ import ast
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -46,34 +47,52 @@ STALE_NOTEBOOK_REFERENCES = {
 }
 
 
-def _git_ls_files() -> list[str]:
-    result = subprocess.run(
-        ["git", "ls-files"],
-        cwd=PROJECT_ROOT,
+def _is_checkout_root(git: str, root: Path) -> bool:
+    top = subprocess.run(
+        [git, "-C", str(root), "rev-parse", "--show-toplevel"],
         check=False,
         capture_output=True,
         text=True,
     )
-    if result.returncode != 0:
-        pytest.skip("Git metadata is not available")
-    return [line for line in result.stdout.splitlines() if line]
+    return top.returncode == 0 and Path(top.stdout.strip()).resolve() == root.resolve()
 
 
-def _public_worktree_files() -> list[str]:
+def _git_listing(root: Path, *args: str) -> list[str]:
+    """`git ls-files` for `root`, whether or not it has Git metadata.
+
+    A ZIP download or a copied tree has no .git, and the guards that read
+    this list used to skip there, silently: six of them, with a planted home
+    directory path in a public doc. Without metadata the listing runs against
+    a temporary empty repository with `root` as its work tree, so .gitignore
+    still decides what is public and nothing counts as tracked; every file is
+    then "other", which is what a download of the tracked files holds.
+    """
+    git = shutil.which("git")
+    if git is None:
+        pytest.skip("git is not installed, so .gitignore cannot be applied")
+    if _is_checkout_root(git, root):
+        command = [git, "-C", str(root), "ls-files", "-z", *args]
+        listed = subprocess.run(command, check=True, capture_output=True).stdout
+    else:
+        with tempfile.TemporaryDirectory() as git_dir:
+            subprocess.run([git, "init", "--bare", "-q", git_dir], check=True)
+            command = [git, f"--git-dir={git_dir}", f"--work-tree={root}", "-C", str(root)]
+            command += ["ls-files", "-z", "--others", "--exclude-standard"]
+            listed = subprocess.run(command, check=True, capture_output=True).stdout
+    return [name for name in listed.decode("utf-8").split("\0") if name]
+
+
+def _git_ls_files(root: Path = PROJECT_ROOT) -> list[str]:
+    """Tracked files, or every public file of a tree without Git metadata."""
+    return _git_listing(root)
+
+
+def _public_worktree_files(root: Path = PROJECT_ROOT) -> list[str]:
     """Return tracked and non-ignored untracked files that currently exist."""
-    result = subprocess.run(
-        ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        pytest.skip("Git metadata is not available")
     return sorted(
         rel_path
-        for rel_path in set(result.stdout.splitlines())
-        if rel_path and (PROJECT_ROOT / rel_path).is_file()
+        for rel_path in set(_git_listing(root, "--cached", "--others", "--exclude-standard"))
+        if (root / rel_path).is_file()
     )
 
 
@@ -100,109 +119,6 @@ def _markdown_prose(text: str) -> str:
             prose.append(line)
 
     return "\n".join(prose)
-
-
-def _make_target_recipe(text: str, target: str) -> str:
-    """Extract a Make target recipe without depending on line numbers."""
-    match = re.search(
-        rf"^{re.escape(target)}:(?:[^\n]*)\n(?P<body>(?:\t[^\n]*(?:\n|$)|\s*\n)*)",
-        text,
-        flags=re.MULTILINE,
-    )
-    assert match is not None, f"Missing Make target: {target}"
-    return match.group("body")
-
-
-def _netlify_headers(text: str) -> dict[str, dict[str, str]]:
-    """Parse a Netlify ``_headers`` file into path -> {lower-case name: value}.
-
-    Mirrors the published format: an unindented path line, then indented
-    ``Name: value`` lines. A header line that lost its indentation reads as a
-    path here too, so it cannot pass as a header for ``/*``.
-    """
-    rules: dict[str, dict[str, str]] = {}
-    current: dict[str, str] | None = None
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if not line[0].isspace():
-            current = rules.setdefault(stripped, {})
-            continue
-        assert current is not None, f"Header before any path: {line!r}"
-        name, separator, value = stripped.partition(":")
-        assert separator, f"Header line without a colon: {line!r}"
-        current[name.strip().lower()] = value.strip()
-    return rules
-
-
-def test_deployed_folder_carries_the_security_headers() -> None:
-    """Drag-and-drop deploys upload asl-web/ only, so headers must live there."""
-    headers_path = PROJECT_ROOT / "asl-web" / "_headers"
-    assert headers_path.is_file(), "asl-web/_headers is missing; the site would ship without it"
-
-    site = _netlify_headers(headers_path.read_text(encoding="utf-8")).get("/*", {})
-    permissions = [item.strip() for item in site.get("permissions-policy", "").split(",")]
-
-    assert site.get("x-content-type-options") == "nosniff"
-    assert "camera=(self)" in permissions
-    assert site.get("x-frame-options") == "DENY"
-
-
-def test_makefile_exposes_core_workflow_targets() -> None:
-    text = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
-    targets = set(re.findall(r"^([A-Za-z0-9_.-]+):(?:\s|$)", text, flags=re.MULTILINE))
-
-    expected = {
-        "doctor",
-        "setup",
-        "web",
-        "test",
-        "test-full",
-        "js-check",
-        "js-test",
-        "js-typecheck",
-        "validate",
-        "validate-full",
-        "git-hygiene",
-    }
-    assert expected <= targets
-
-
-def test_make_js_check_covers_every_web_script() -> None:
-    text = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
-    recipe = _make_target_recipe(text, "js-check")
-
-    assert "node --check" in recipe
-    assert "$(JS_FILES)" in recipe
-    assert "Node.js bulunamad" in recipe
-
-
-def test_make_validate_requires_js_and_runtime_asset_checks() -> None:
-    text = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
-    target = re.search(r"^validate:([^\n]*)$", text, flags=re.MULTILINE)
-    recipe = _make_target_recipe(text, "validate")
-
-    assert target is not None
-    assert "js-check" in target.group(1).split()
-    assert "$(CHECK_RUNTIME)" in recipe
-
-
-def test_make_setup_installs_only_this_project() -> None:
-    """Setup installs the two local packages and upgrades nothing else.
-
-    Whether setup refuses to run in the wrong environment is behaviour, and is
-    covered by the guard's own tests in tests/scripts/. What belongs here is
-    the install policy, which lives in the recipe.
-    """
-    text = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
-    recipe = _make_target_recipe(text, "setup")
-
-    # No environment variable may turn the base-environment refusal off.
-    assert "ALLOW_BASE" + "_SETUP" not in text
-    assert "install --upgrade" not in recipe
-    assert "install --no-deps -e $(ASL_ML_DIR)" in recipe
-    assert "install --no-deps -e $(ASL_DESKTOP_DIR)" in recipe
 
 
 def _resolved_recipe(target: str) -> str:
@@ -263,36 +179,12 @@ def test_public_environment_matches_dependency_contract() -> None:
     assert "pytest-cov" not in requirements + desktop_metadata + ml_metadata
 
 
-def test_make_test_uses_the_portable_source_suite() -> None:
-    text = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
-    recipe = _make_target_recipe(text, "test")
-
-    assert "$(TEST_PYTHONPATH)" in recipe
-    assert "$(PYTEST) $(TEST_FAST)" in recipe
-    assert "find_spec" not in recipe
-
-
-def test_make_health_runs_git_hygiene_gate() -> None:
-    text = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
-    target = re.search(r"^health:([^\n]*)$", text, flags=re.MULTILINE)
-    recipe = _make_target_recipe(text, "health")
-
-    assert target is not None
-    assert {"lint", "format-check", "js-check"} <= set(target.group(1).split())
-    assert "git-hygiene" in recipe
-    assert "check_word_feature_parity.py" in recipe
-    assert "check_letter_feature_parity.py" in recipe
-
-
 def test_web_typecheck_is_a_developer_tool_only() -> None:
     """The app and the health gate must keep working without a package install."""
     import json
 
     package = json.loads((PROJECT_ROOT / "package.json").read_text(encoding="utf-8"))
     tsconfig_text = (PROJECT_ROOT / "tsconfig.web.json").read_text(encoding="utf-8")
-    makefile = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
-    health_line = re.search(r"^health:([^\n]*)$", makefile, flags=re.MULTILINE)
-    health_recipe = _make_target_recipe(makefile, "health")
 
     assert (PROJECT_ROOT / "package-lock.json").exists(), "the install must be reproducible"
     assert package["private"] is True
@@ -305,10 +197,6 @@ def test_web_typecheck_is_a_developer_tool_only() -> None:
     assert tsconfig["compilerOptions"]["checkJs"] is True
     assert tsconfig["compilerOptions"]["allowJs"] is True
     assert "outDir" not in tsconfig["compilerOptions"]
-
-    assert health_line is not None
-    assert "js-typecheck" not in health_line.group(1).split()
-    assert "js-typecheck" not in health_recipe
 
 
 def test_web_sources_stay_javascript() -> None:
@@ -374,21 +262,66 @@ def test_no_ignored_or_local_only_files_are_tracked() -> None:
     assert local_only_tracked == []
 
 
-def test_public_text_has_no_machine_specific_environment_markers() -> None:
-    markers = ("ml" + "-ds", "/" + "Users/")
-    matches: list[str] = []
+# Split so that this file does not match itself.
+MACHINE_MARKERS = ("ml" + "-ds", "/" + "Users/")
 
-    for rel_path in _public_worktree_files():
-        path = PROJECT_ROOT / rel_path
+
+def _machine_specific_text(root: Path, rel_paths: list[str]) -> list[str]:
+    """Every `path: marker` where a public text file names a local machine."""
+    matches: list[str] = []
+    for rel_path in rel_paths:
+        path = root / rel_path
         if path.suffix.lower() in TEXT_SKIP_SUFFIXES:
             continue
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        for marker in markers:
+        for marker in MACHINE_MARKERS:
             if marker in text:
                 matches.append(f"{rel_path}: {marker}")
+    return matches
+
+
+def test_the_machine_marker_scan_finds_a_planted_path(tmp_path: Path) -> None:
+    """The guard below has only ever seen a clean tree; this shows it can see a fault.
+
+    A home directory and the old environment name each count, in any text
+    file, and a binary suffix is left alone.
+    """
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "setup.md").write_text(
+        "conda activate " + "ml" + "-ds\n", encoding="utf-8"
+    )
+    (tmp_path / "notes.txt").write_text("see /" + "Users/someone/project\n", encoding="utf-8")
+    (tmp_path / "clean.md").write_text("Pick your own environment name.\n", encoding="utf-8")
+    (tmp_path / "image.png").write_bytes(b"/" + b"Users/in a binary")
+
+    found = _machine_specific_text(
+        tmp_path, ["docs/setup.md", "notes.txt", "clean.md", "image.png"]
+    )
+
+    assert found == [f"docs/setup.md: {MACHINE_MARKERS[0]}", f"notes.txt: {MACHINE_MARKERS[1]}"]
+
+
+def test_a_tree_without_git_metadata_is_still_scanned(tmp_path: Path) -> None:
+    """What a ZIP download looks like: the files and .gitignore, no .git."""
+    (tmp_path / ".gitignore").write_text("/local/\n*.log\n", encoding="utf-8")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "setup.md").write_text("cd /" + "Users/someone\n", encoding="utf-8")
+    (tmp_path / "local").mkdir()
+    (tmp_path / "local" / "notes.md").write_text("cd /" + "Users/someone\n", encoding="utf-8")
+    (tmp_path / "run.log").write_text("cd /" + "Users/someone\n", encoding="utf-8")
+
+    public = _public_worktree_files(tmp_path)
+
+    assert public == [".gitignore", "docs/setup.md"]
+    assert _git_ls_files(tmp_path) == public
+    assert _machine_specific_text(tmp_path, public) == [f"docs/setup.md: {MACHINE_MARKERS[1]}"]
+
+
+def test_public_text_has_no_machine_specific_environment_markers() -> None:
+    matches = _machine_specific_text(PROJECT_ROOT, _public_worktree_files())
 
     assert matches == [], f"Machine-specific public text: {matches}"
 

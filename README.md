@@ -155,7 +155,8 @@ Common commands:
 
 ```bash
 make web             # serve asl-web/ on port 8080
-make health          # full routine safety gate
+make health          # the gate after an edit; needs no npm install
+make check           # before a commit: health plus the type check
 make validate        # runtime assets, hashes, ONNX contracts, smoke fixture
 make test            # fast Python and repository tests
 make js-test         # browser module contracts, via node --test
@@ -223,7 +224,10 @@ Changes made to the data: letter images were reduced to MediaPipe hand
 landmarks and then to 93 engineered features; for words, 50 of the 250 signs
 were selected and each landmark sequence was resampled to 45 frames of 168
 features. The published models contain the learned parameters only, not the
-images, recordings, or landmark tables.
+images, recordings, or landmark tables. The 24 Model Test letter fixtures are
+single 93-feature vectors from held-out landmark rows: 23 from ASL Alphabet and
+the K fixture from the `ASL_SemCom` subset
+([details](docs/models-and-data.md#model-test-fixture-contract)).
 
 The competition rules forbid redistributing its data, so the Model Test word
 fixtures exported from it stay local

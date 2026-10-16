@@ -7,6 +7,8 @@ two files, and nothing would have reported it if only one had changed.
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -67,6 +69,27 @@ def test_provenance_pairs_cover_every_artifact_with_a_source() -> None:
     for _, deploy, source in pairs:
         assert isinstance(deploy, Path)
         assert isinstance(source, Path)
+
+
+def test_every_provenance_source_is_tracked() -> None:
+    """The validators fail on a missing source, which is right only if Git keeps it.
+
+    A source that existed only on one machine would fail every clone. Each one
+    is tracked today; this keeps that premise true for a pair added later.
+    """
+    if shutil.which("git") is None:
+        pytest.skip("git is not on PATH")
+    sources = [relative(source) for _, _, source in provenance_pairs()]
+    listed = subprocess.run(
+        ["git", "-C", str(PROJECT_ROOT), "ls-files", "--", *sources],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if listed.returncode != 0:
+        pytest.skip("Git metadata is not available")
+
+    assert sorted(set(sources) - set(listed.stdout.splitlines())) == []
 
 
 def test_size_floors_are_coarse_and_only_apply_to_binaries_and_data() -> None:

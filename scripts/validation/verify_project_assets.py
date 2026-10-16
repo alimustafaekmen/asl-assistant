@@ -6,12 +6,23 @@ runtime's required files, and checks source-to-deploy SHA-256 provenance.
 
 Example (activate a compatible Python environment first):
   python scripts/validation/verify_project_assets.py
+  python scripts/validation/verify_project_assets.py --no-datasets
+  python scripts/validation/verify_project_assets.py --root path/to/checkout
+
+The dataset report is informational and never changes the exit status;
+``--no-datasets`` leaves it out, which is what ``make health`` does.
+
+Exit status:
+  0  the web runtime files and the provenance chain are complete
+  1  a required web file is missing or invalid, or a deploy file drifted
+  2  bad usage
 """
 
-import hashlib
+import argparse
 import json
 import os
 import sys
+from pathlib import Path
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ASL_ML_SRC = os.path.join(PROJECT_ROOT, "asl-ml", "src")
@@ -22,6 +33,7 @@ if PROJECT_ROOT not in sys.path:  # Allow running this file directly.
 
 from asl_ml.config import DYNAMIC_LETTERS, STATIC_LETTERS  # noqa: E402
 
+from scripts.validation.check_runtime_assets import compare_provenance  # noqa: E402
 from scripts.validation.contracts import (  # noqa: E402
     RAW_DIR,
     WEB_DATA_DIR,
@@ -29,49 +41,32 @@ from scripts.validation.contracts import (  # noqa: E402
     WEB_JS_DIR,
     WEB_MODELS_DIR,
     provenance_pairs,
+    rebased,
 )
 
-# Source-to-deploy pairs documented in ``docs/models-and-data.md``.
-PROVENANCE_PAIRS = provenance_pairs()
 
-
-def _sha256(path: str) -> str | None:
-    """Return a file's SHA-256 digest, or ``None`` when it is missing."""
-    if not os.path.exists(path):
-        return None
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def check_provenance_hash_chain() -> bool:
+def check_provenance_hash_chain(root: Path) -> bool:
     """Check SHA-256 equality between deploy artifacts and documented sources."""
     print(f"\n{'─' * 60}")
     print("  PROVENANCE HASH CHAIN (asl-web ↔ kaynak)")
     print(f"{'─' * 60}")
 
     ok = True
-    for label, web_path, source_path in PROVENANCE_PAIRS:
-        web_hash = _sha256(web_path)
-        src_hash = _sha256(source_path)
-
-        if web_hash is None:
-            print(f"     ✗ {label:24} web dosyasi YOK: {web_path}")
-            ok = False
+    # Source-to-deploy pairs documented in ``docs/models-and-data.md``.
+    for check in compare_provenance(provenance_pairs(root)):
+        label = check.name
+        if check.status == "missing_deploy":
+            print(f"     ✗ {label:24} web dosyasi YOK: {check.deploy}")
+        elif check.status == "missing_source":
+            print(f"     ✗ {label:24} kaynak dosya yok: {check.source}")
+        elif check.status == "match":
+            print(f"     ✓ {label:24} {check.deploy_hash[:12]}... (web == kaynak)")
             continue
-        if src_hash is None:
-            print(f"     ⚠ {label:24} kaynak dosya yok (geliştirme ortami eksik): {source_path}")
-            # The deploy file can still be inspected, but provenance is incomplete.
-            continue
-        if web_hash == src_hash:
-            print(f"     ✓ {label:24} {web_hash[:12]}... (web == kaynak)")
         else:
             print(f"     ✗ {label:24} DRIFT — yeniden export gerekiyor!")
-            print(f"         web:    {web_hash}")
-            print(f"         kaynak: {src_hash}")
-            ok = False
+            print(f"         web:    {check.deploy_hash}")
+            print(f"         kaynak: {check.source_hash}")
+        ok = False
 
     print(f"\n  Hash chain durumu: {'TUM ESLESIYOR' if ok else 'DRIFT — duzeltme gerekli'}")
     return ok
@@ -116,24 +111,28 @@ def _check_dense_label_map(label: str, path: str, expected_count: int) -> bool:
     return ok
 
 
-def check_web_runtime() -> bool:
+def check_web_runtime(root: Path) -> bool:
     """Validate files required by the statically hosted web application."""
+    web_dir = str(rebased(WEB_DIR, root))
+    web_models_dir = str(rebased(WEB_MODELS_DIR, root))
+    web_data_dir = str(rebased(WEB_DATA_DIR, root))
+    web_js_dir = rebased(WEB_JS_DIR, root)
     print(f"\n{'─' * 60}")
     print("  AKTİF WEB RUNTIME (Netlify deploy)")
     print(f"{'─' * 60}")
 
     required_files = [
-        ("index.html", os.path.join(WEB_DIR, "index.html")),
-        ("style.css", os.path.join(WEB_DIR, "css", "style.css")),
-        ("letter_model.onnx", os.path.join(WEB_MODELS_DIR, "letter_model.onnx")),
-        ("word_model.onnx", os.path.join(WEB_MODELS_DIR, "word_model.onnx")),
-        ("letters.png", os.path.join(WEB_DIR, "assets", "signs", "letters.png")),
-        ("word-25.png", os.path.join(WEB_DIR, "assets", "signs", "word-25.png")),
-        ("word-50-1.png", os.path.join(WEB_DIR, "assets", "signs", "word-50-1.png")),
-        ("word-50-2.png", os.path.join(WEB_DIR, "assets", "signs", "word-50-2.png")),
-        ("word-50-3.png", os.path.join(WEB_DIR, "assets", "signs", "word-50-3.png")),
-        ("word-50-4.png", os.path.join(WEB_DIR, "assets", "signs", "word-50-4.png")),
-        ("word-50-5.png", os.path.join(WEB_DIR, "assets", "signs", "word-50-5.png")),
+        ("index.html", os.path.join(web_dir, "index.html")),
+        ("style.css", os.path.join(web_dir, "css", "style.css")),
+        ("letter_model.onnx", os.path.join(web_models_dir, "letter_model.onnx")),
+        ("word_model.onnx", os.path.join(web_models_dir, "word_model.onnx")),
+        ("letters.png", os.path.join(web_dir, "assets", "signs", "letters.png")),
+        ("word-25.png", os.path.join(web_dir, "assets", "signs", "word-25.png")),
+        ("word-50-1.png", os.path.join(web_dir, "assets", "signs", "word-50-1.png")),
+        ("word-50-2.png", os.path.join(web_dir, "assets", "signs", "word-50-2.png")),
+        ("word-50-3.png", os.path.join(web_dir, "assets", "signs", "word-50-3.png")),
+        ("word-50-4.png", os.path.join(web_dir, "assets", "signs", "word-50-4.png")),
+        ("word-50-5.png", os.path.join(web_dir, "assets", "signs", "word-50-5.png")),
     ]
 
     ok = True
@@ -143,12 +142,12 @@ def check_web_runtime() -> bool:
     # Listing eight of the browser modules by hand meant the list went stale
     # every time the layout changed, and said nothing about the rest. Check
     # what the directory holds instead.
-    modules = sorted(WEB_JS_DIR.rglob("*.js"))
+    modules = sorted(web_js_dir.rglob("*.js"))
     if not modules:
         print("  ✗ asl-web/js: JavaScript modulu bulunamadi")
         ok = False
     for module in modules:
-        ok = _check_file(str(module.relative_to(WEB_DIR)), str(module)) and ok
+        ok = _check_file(str(module.relative_to(web_dir)), str(module)) and ok
 
     data_files = [
         ("temperature.json", "temperature.json"),
@@ -158,7 +157,7 @@ def check_web_runtime() -> bool:
         ("test_sample.json", "test_sample.json"),
     ]
     for label, filename in data_files:
-        path = os.path.join(WEB_DATA_DIR, filename)
+        path = os.path.join(web_data_dir, filename)
         ok = _check_file(label, path) and ok
         if os.path.exists(path):
             try:
@@ -170,7 +169,7 @@ def check_web_runtime() -> bool:
     ok = (
         _check_dense_label_map(
             "letter_labels.json",
-            os.path.join(WEB_DATA_DIR, "letter_labels.json"),
+            os.path.join(web_data_dir, "letter_labels.json"),
             24,
         )
         and ok
@@ -178,13 +177,13 @@ def check_web_runtime() -> bool:
     ok = (
         _check_dense_label_map(
             "word_labels.json",
-            os.path.join(WEB_DATA_DIR, "word_labels.json"),
+            os.path.join(web_data_dir, "word_labels.json"),
             50,
         )
         and ok
     )
 
-    sample_path = os.path.join(WEB_DATA_DIR, "test_sample.json")
+    sample_path = os.path.join(web_data_dir, "test_sample.json")
     if os.path.exists(sample_path):
         try:
             sample = _load_json(sample_path)
@@ -278,9 +277,9 @@ def check_dataset(name: str, path: str, letter_subdir: bool = True):
     return True
 
 
-def check_dynamic_data():
+def check_dynamic_data(raw_dir: str):
     """Inspect optional local J/Z recordings used by the desktop experiment."""
-    dynamic_dir = os.path.join(RAW_DIR, "dynamic")
+    dynamic_dir = os.path.join(raw_dir, "dynamic")
 
     print("\n  📂 Dinamik Veriler (J/Z, opsiyonel legacy)")
 
@@ -300,20 +299,20 @@ def check_dynamic_data():
     return True
 
 
-def check_models():
+def check_models(root: str):
     """Public Python model source/provenance records."""
     print("\n  📂 Python model kaynaklari")
 
     model_files = [
-        ("Harf modeli", os.path.join(PROJECT_ROOT, "models", "letter", "letter_model.pkl")),
-        ("Harf label map", os.path.join(PROJECT_ROOT, "models", "letter", "letter_label_map.json")),
+        ("Harf modeli", os.path.join(root, "models", "letter", "letter_model.pkl")),
+        ("Harf label map", os.path.join(root, "models", "letter", "letter_label_map.json")),
         (
             "J/Z modeli (ops.)",
-            os.path.join(PROJECT_ROOT, "models", "letter", "dynamic_jz", "jz_model.pt"),
+            os.path.join(root, "models", "letter", "dynamic_jz", "jz_model.pt"),
         ),
         (
             "J/Z label map (ops.)",
-            os.path.join(PROJECT_ROOT, "models", "letter", "dynamic_jz", "jz_label_map.json"),
+            os.path.join(root, "models", "letter", "dynamic_jz", "jz_label_map.json"),
         ),
     ]
 
@@ -325,29 +324,27 @@ def check_models():
             print(f"     ○ {name:20} — aktif web runtime için zorunlu değil")
 
 
-def main() -> int:
-    print("=" * 60)
-    print("  📊 ASL Assistant — Dataset Kontrol Raporu")
-    print("=" * 60)
+def report_local_data(raw_dir: str) -> None:
+    """Describe the local datasets under data/raw/.
 
-    web_ok = check_web_runtime()
-    hash_ok = check_provenance_hash_chain()
-    web_ok = web_ok and hash_ok
-
+    This is information for whoever trains the models: nothing in it reaches
+    the exit code, and in a checkout with the datasets it stats every one of
+    their files, about 200,000, which is most of this command's run time.
+    """
     # Static-letter sources plus one explicitly excluded exploration source.
     datasets = [
         (
             "ASL Alphabet (final model source)",
-            os.path.join(RAW_DIR, "ASL Alphabet", "asl_alphabet_train", "asl_alphabet_train"),
+            os.path.join(raw_dir, "ASL Alphabet", "asl_alphabet_train", "asl_alphabet_train"),
         ),
         (
             "American Sign Language (final model source)",
-            os.path.join(RAW_DIR, "American Sign Language Dataset"),
+            os.path.join(raw_dir, "American Sign Language Dataset"),
         ),
-        ("ASL_SemCom Train (final model source)", os.path.join(RAW_DIR, "ASL_SemCom", "Train")),
+        ("ASL_SemCom Train (final model source)", os.path.join(raw_dir, "ASL_SemCom", "Train")),
         (
             "MediaPipe Processed ASL (explored, excluded)",
-            os.path.join(RAW_DIR, "MediaPipe_Processed_Asl"),
+            os.path.join(raw_dir, "MediaPipe_Processed_Asl"),
         ),
     ]
 
@@ -366,7 +363,7 @@ def main() -> int:
     print("\n  📂 Google Isolated Sign Language Recognition competition")
     print("     25 ve 50 kelimelik modellerin tek kelime egitim kaynagidir.")
     print("     Egitim Kaggle notebook ortaminda yapildi; tam parquet verisi repoda yoktur.")
-    sample_subset = os.path.join(RAW_DIR, "asl-signs-sample-subset")
+    sample_subset = os.path.join(raw_dir, "asl-signs-sample-subset")
     if os.path.isdir(sample_subset):
         print(f"     ✓ Lokal kucuk fixture subset'i: {sample_subset}")
     else:
@@ -376,21 +373,59 @@ def main() -> int:
     print(f"\n{'─' * 60}")
     print("  DİNAMİK VERİLER (J/Z)")
     print(f"{'─' * 60}")
-    check_dynamic_data()
+    check_dynamic_data(raw_dir)
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Proje asset ve dataset raporu")
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=Path(PROJECT_ROOT),
+        help="Kontrol edilecek checkout koku (varsayilan: bu depo)",
+    )
+    parser.add_argument(
+        "--no-datasets",
+        action="store_true",
+        help="data/raw altindaki yerel veri raporunu atla (sonuc kodunu etkilemez)",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    root_path = args.root.resolve()
+    root = str(root_path)
+    raw_dir = str(rebased(RAW_DIR, root_path))
+
+    print("=" * 60)
+    print("  📊 ASL Assistant — Dataset Kontrol Raporu")
+    print("=" * 60)
+
+    web_ok = check_web_runtime(root_path)
+    hash_ok = check_provenance_hash_chain(root_path)
+    web_ok = web_ok and hash_ok
+
+    if args.no_datasets:
+        print(f"\n{'─' * 60}")
+        print("  YEREL VERİ RAPORU atlandi (--no-datasets)")
+        print(f"{'─' * 60}")
+    else:
+        report_local_data(raw_dir)
 
     # Published and optional model artifacts.
     print(f"\n{'─' * 60}")
     print("  EĞİTİLMİŞ MODELLER")
     print(f"{'─' * 60}")
-    check_models()
+    check_models(root)
 
     # Final readiness summary.
     print(f"\n{'═' * 60}")
     print("  📋 SONRAKİ ADIMLAR")
     print(f"{'═' * 60}")
 
-    letter_model = os.path.join(PROJECT_ROOT, "models", "letter", "letter_model.pkl")
-    jz_model = os.path.join(PROJECT_ROOT, "models", "letter", "dynamic_jz", "jz_model.pt")
+    letter_model = os.path.join(root, "models", "letter", "letter_model.pkl")
+    jz_model = os.path.join(root, "models", "letter", "dynamic_jz", "jz_model.pt")
 
     if not os.path.exists(letter_model):
         print("\n  1️⃣  Harf modeli eğitin:")
@@ -419,4 +454,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

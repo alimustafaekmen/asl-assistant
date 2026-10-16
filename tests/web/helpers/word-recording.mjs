@@ -37,14 +37,21 @@ class FakeTensor {
 /**
  * A fake ONNX Runtime whose word session records its feeds.
  *
- * `winner` gets the only large logit, so the result is confident. When
- * `maskDtype` is given, the session rejects any other mask element type, the
- * way an export that wants that type does.
+ * `winner` gets the only large logit, so the result is confident. A test that
+ * needs a weaker result passes `winnerLogit`, a number or a function read at
+ * every run, so it can depend on the calibration the app has loaded by then.
+ * When `maskDtype` is given, the session rejects any other mask element type,
+ * the way an export that wants that type does. After `hold()` a run does not
+ * finish until the test calls `release()`, so the app can be stopped or moved
+ * while the model is still computing.
  *
- * @param {{winner?: string, maskDtype?: string}} [options]
+ * @param {{winner?: string, maskDtype?: string, winnerLogit?: number | (() => number)}} [options]
  */
-export function fakeOrt({ winner = "book", maskDtype } = {}) {
+export function fakeOrt({ winner = "book", maskDtype, winnerLogit = 10 } = {}) {
   const runs = [];
+  /** @type {Promise<void> | null} */
+  let gate = null;
+  let open = () => {};
   const session = {
     inputNames: ["input", "mask"],
     outputNames: ["output"],
@@ -53,8 +60,9 @@ export function fakeOrt({ winner = "book", maskDtype } = {}) {
         throw new Error(`mask must be ${maskDtype}`);
       }
       runs.push(feeds);
+      if (gate) await gate;
       const logits = new Float32Array(LABEL_COUNT);
-      logits[WORD_LABELS[winner]] = 10;
+      logits[WORD_LABELS[winner]] = typeof winnerLogit === "function" ? winnerLogit() : winnerLogit;
       return { output: { data: logits } };
     },
   };
@@ -63,7 +71,17 @@ export function fakeOrt({ winner = "book", maskDtype } = {}) {
     env: { wasm: {} },
     InferenceSession: { create: async () => session },
   };
-  return { ort, runs };
+  return {
+    ort,
+    runs,
+    hold() {
+      gate = new Promise((resolve) => (open = resolve));
+    },
+    release() {
+      gate = null;
+      open();
+    },
+  };
 }
 
 /** fetch() serving the app's data files from disk. */
@@ -88,31 +106,90 @@ function fakeStorage() {
 
 const quietConsole = { ...console, log() {}, warn() {}, info() {} };
 
+/** Let pending promise continuations run. */
+const settle = async (rounds = 8) => {
+  for (let i = 0; i < rounds; i++) await new Promise((resolve) => setImmediate(resolve));
+};
+
+/**
+ * A clock the test moves by hand, for setTimeout and clearTimeout.
+ *
+ * `advance(ms)` runs every timer that falls due within `ms`, in order, and
+ * lets the promise work each one triggers finish before the next runs. Time
+ * never moves on its own, so a countdown stops exactly where the test says.
+ */
+export function fakeTimers() {
+  let now = 0;
+  let nextId = 1;
+  /** @type {Map<number, {at: number, run: () => void}>} */
+  const pending = new Map();
+  return {
+    setTimeout(run, ms = 0) {
+      const id = nextId++;
+      pending.set(id, { at: now + Number(ms), run });
+      return id;
+    },
+    clearTimeout(id) {
+      pending.delete(id);
+    },
+    /** Timers waiting to fire. */
+    get pending() {
+      return pending.size;
+    },
+    /** @param {number} ms */
+    async advance(ms) {
+      const target = now + ms;
+      await settle();
+      for (;;) {
+        const due = [...pending.entries()]
+          .filter(([, timer]) => timer.at <= target)
+          .sort((a, b) => a[1].at - b[1].at || a[0] - b[0])[0];
+        if (!due) break;
+        pending.delete(due[0]);
+        now = Math.max(now, due[1].at);
+        due[1].run();
+        await settle();
+      }
+      now = target;
+    },
+  };
+}
+
 /**
  * The app in word mode with the camera on and MediaPipe running.
  *
  * The camera and the MediaPipe tasks are not started for real: their state is
- * set the way a successful start leaves it. The countdown has zero steps, so a
- * recording starts without waiting on a timer.
+ * set the way a successful start leaves it. By default the countdown has zero
+ * steps, so a recording starts without waiting on a timer.
  *
- * @param {{winner?: string, maskDtype?: string}} [options]
+ * With `fakeTimers` the countdown keeps its real length and runs on a clock
+ * the test advances (`timers.advance(ms)`). With `boot` the app runs its own
+ * init() first, so its buttons are bound and `app.ready` settles when the
+ * start-up reads are done; the network is then the harness's default fetch.
+ *
+ * @param {{winner?: string, maskDtype?: string, winnerLogit?: number | (() => number), fakeTimers?: boolean, boot?: boolean}} [options]
  */
 export function wordModeApp(options = {}) {
-  const { ort, runs } = fakeOrt(options);
-  const app = loadWebApp({
-    globals: { ort, fetch: fakeFetch, localStorage: fakeStorage(), console: quietConsole },
-  });
+  const { ort, runs, hold, release } = fakeOrt(options);
+  const timers = options.fakeTimers ? fakeTimers() : null;
+  const globals = { ort, localStorage: fakeStorage(), console: quietConsole };
+  if (!options.boot) globals.fetch = fakeFetch;
+  if (timers) {
+    globals.setTimeout = timers.setTimeout;
+    globals.clearTimeout = timers.clearTimeout;
+  }
+  const app = loadWebApp({ boot: options.boot === true, globals });
   app.evaluate(`
     globalThis.__clock = 0;
     globalThis.performance = { now: () => __clock };
-    CONFIG.COUNTDOWN_SECONDS = 0;
+    ${timers ? "" : "CONFIG.COUNTDOWN_SECONDS = 0;"}
     state.mode = "word";
     state.cameraOn = true;
     mpRunning = true;
     poseLandmarker = { close() {} };
     faceLandmarker = { close() {} };
   `);
-  return { app, runs };
+  return { app, runs, timers, hold, release };
 }
 
 /**
@@ -144,18 +221,36 @@ export function mediaPipeFrame(t) {
 }
 
 /**
- * Press record, then feed a full recording through live inference.
- *
- * Resolves once the app has left the recording, normally in RESULT.
+ * Feed `count` MediaPipe frames through live inference, starting at frame
+ * index `from`. Resolves when the last one has been handled, which includes
+ * the model run when the frame completes a recording.
  *
  * @param {ReturnType<typeof loadWebApp>} app
+ * @param {number} from
+ * @param {number} count
  */
-export async function recordWord(app) {
-  await app.get("startWordRecording")();
+export async function feedFrames(app, from, count) {
   const realInference = app.get("realInference");
-  for (let t = 0; t < RECORDING_FRAMES; t++) {
+  for (let t = from; t < from + count; t++) {
     app.evaluate(`__clock += 50;`);
     app.evaluate(`latestMediaPipeResult = ${JSON.stringify(mediaPipeFrame(t))};`);
     await realInference(app.evaluate("__clock"));
   }
+}
+
+/**
+ * Press record, then feed a full recording through live inference.
+ *
+ * Resolves once the app has left the recording, normally in RESULT. With
+ * `timers` (from a `fakeTimers` app) the countdown is run out on that clock
+ * first.
+ *
+ * @param {ReturnType<typeof loadWebApp>} app
+ * @param {{timers?: ReturnType<typeof fakeTimers> | null}} [options]
+ */
+export async function recordWord(app, { timers = null } = {}) {
+  const starting = app.get("startWordRecording")();
+  if (timers) await timers.advance(app.evaluate("CONFIG.COUNTDOWN_SECONDS") * 720);
+  await starting;
+  await feedFrames(app, 0, RECORDING_FRAMES);
 }

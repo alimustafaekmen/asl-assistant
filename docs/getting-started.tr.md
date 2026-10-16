@@ -103,18 +103,36 @@ make setup  PYTHON="$CONDA_PREFIX/bin/python"
 | `make doctor` | Aktif Python ortamını değiştirmeden inceler. |
 | `make setup` | Sabit bağımlılıkları ve editable paketleri kurar. |
 | `make web` | `asl-web/` klasörünü yerelde sunar. |
-| `make js-check` | Tüm JavaScript dosyalarını denetler; Node 24 gerekir. |
-| `make health` | Lint, format, JS, artifact, parity ve hızlı testleri çalıştırır. |
+| `make lint` | Python sözdizimini, adları ve import sırasını Ruff ile denetler. |
+| `make format` / `make format-check` | Python kaynaklarını biçimlendirir ya da yalnız biçimi denetler. |
+| `make js-check` | Tüm JavaScript dosyalarının sözdizimini denetler; Node 24 gerekir. |
+| `make js-test` | Bütün web testlerini (`tests/web/**/*.test.js` ve `.test.mjs`) `node --test` ile çalıştırır. |
+| `make js-typecheck` | JSDoc sözleşmelerini TypeScript ile, çıktı üretmeden denetler; bir kez `npm ci` gerekir. |
+| `make quick` | Lint, format denetimi ve web testleri: en hızlı döngü, bir saniyenin altında. |
+| `make test-web FILE=... NAME=...` | Tek bir web test dosyası; istenirse yalnız adı eşleşen testler. |
+| `make watch-web FILE=...` | Her kayıtta web testlerini yeniden çalıştırır. |
+| `make test-py FILE=... K=...` | Tek bir pytest dosyası; istenirse `-k` ile. |
+| `make health` | Düzenleme sonrası kapı: lint, format, JS sözdizimi ve testleri, git hijyeni, runtime artifact'leri, proje denetimi, feature parity ve hızlı Python testleri. npm kurulumu gerektirmez. |
+| `make check` | Commit öncesi kapı: `make health` ve `make js-typecheck`. |
+| `make parity` | Python ile tarayıcı kodu arasında kelime ve harf feature eşitliği. |
 | `make validate` | JS, runtime artifact, ONNX I/O, hash ve offline fixture kontrolü yapar. |
-| `make validate-full` | Daha geniş kaynak artifact ve yerel veri raporunu ekler. |
+| `make validate-full` | Proje asset denetimini ve yerel veri raporunu ekler. |
+| `make deploy-check` | Her yüklemeden önce: `make validate` ve `asl-web/` içindeki her dosyanın listesi; sitenin yayınlamadığı her dosyada başarısız olur. |
+| `make git-hygiene` | `.gitignore` ile eşleşen tracked dosya varsa başarısız olur. |
 | `make test` | Hızlı unit ve repo sözleşme testlerini çalıştırır. |
-| `make test-full` | Entegrasyonlar dahil tam Python test paketini çalıştırır. |
+| `make test-full` | Masaüstü entegrasyonları dahil bütün Python testlerini çalıştırır; JavaScript, validator ve parity çalışmaz. |
+| `make model-test-fixtures` | İndirilmiş Kaggle alt kümesinden tarayıcı fixture'larını dışa aktarır. |
 | `make desktop` | Legacy masaüstü prototipini başlatır. |
 | `make clean` | Veri, model ve ortamları silmeden cache'leri temizler. |
 
 Node zorunlu bir doğrulama bağımlılığıdır. `make js-check`, `make
 validate` ve `make health`, Node yoksa kontrolleri sessizce atlamak yerine açık
-bir hatayla durur.
+bir hatayla durur; parity komutları Node olmadan 2 ile çıkar.
+
+`make validate` arkasındaki `check_runtime_assets.py`, bütün sözleşmeler
+sağlandığında 0, biri bozulduğunda 1, kontrol edemediğinde 2 ile çıkar: hatalı
+kullanım ya da ONNX Runtime'ın içe aktarılamaması. Model adımını bilerek
+atlamak için `--no-onnx` verin.
 
 ## Masaüstü prototipi
 
@@ -141,12 +159,19 @@ Site elle yayınlanır; bir klasör sitenin Netlify deploy sayfasına sürüklen
 1. `make health` çalıştırın; ardından model hazırlığını, offline fixture'ı,
    kamera başlatma/durdurmayı, harf kabulünü, kelime kaydını ve `#letter`,
    `#word`, `#test` linklerini elle kontrol edin.
-2. Deploy sayfasına bu deponun kendi `asl-web/` klasörünü sürükleyin, bir
-   kopyasını değil; kopya eski kalmış olabilir. Yarışma verisinden kelime
-   örnekleri ürettiyseniz önce `asl-web/data/model-test-samples/local/`
-   klasörünü dışarı taşıyın: yarışma kuralları bunların yayımlanmasını
-   yasaklar ve klasör durdukça runtime asset kontrolü uyarı verir.
-3. Canlı sitenin tam olarak bu dosyaları sunduğunu kontrol edin. `<script>`
+2. `make deploy-check` çalıştırın ve bildirdiklerini düzeltin. Yükleme
+   klasörü diskte olduğu gibi, yok sayılan dosyalarla birlikte alır; bu
+   yüzden komut `asl-web/` altındaki her dosyayı listeler ve sitenin
+   yayınlamadığı her dosyada başarısız olur: yarışma verisinden üretilen
+   kelime örneklerinin `asl-web/data/model-test-samples/local/` klasörü
+   (yarışma kuralları bunların yayımlanmasını yasaklar; klasörü `asl-web/`
+   dışına taşıyın), Git'in yok saydığı dosyalar, `.DS_Store` (`make clean`
+   siler) ya da `.env` gibi gizli dosyalar ve `scripts/validation/contracts.py`
+   içindeki izin listesinin dışında kalan her şey. `make validate` `local/`
+   klasörü için yalnızca uyarır; böylece klasörle yerel test sürer.
+3. Deploy sayfasına bu deponun kendi `asl-web/` klasörünü sürükleyin, bir
+   kopyasını değil; kopya eski kalmış olabilir.
+4. Canlı sitenin tam olarak bu dosyaları sunduğunu kontrol edin. `<script>`
    etiketlerini karşılaştırmak yetmez: `?v=` ekleri nadiren değişir, bu yüzden
    eski bir deploy aynı etiketleri listeleyebilir. İçeriği karşılaştırın:
 

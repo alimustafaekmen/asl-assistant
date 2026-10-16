@@ -136,7 +136,10 @@ Veride yapılan değişiklikler: harf görselleri MediaPipe el landmark'larına,
 ardından 93 özelliğe indirgendi; kelimelerde 250 işaretten 50'si seçildi ve her
 landmark dizisi 168 özellikli 45 kareye yeniden örneklendi. Yayımlanan modeller
 yalnızca öğrenilmiş parametreleri içerir; görselleri, kayıtları veya landmark
-tablolarını içermez.
+tablolarını içermez. 24 Model Test harf örneği, held-out landmark satırlarından
+alınmış tekil 93 özellikli vektörlerdir: 23'ü ASL Alphabet'ten, K örneği
+`ASL_SemCom` alt kümesinden gelir
+([ayrıntılar](docs/models-and-data.md#model-test-fixture-contract)).
 
 Yarışma kuralları verinin yeniden dağıtılmasını yasakladığı için ondan
 üretilen Model Test kelime örnekleri yerelde kalır; yayımlanan kelime örneği

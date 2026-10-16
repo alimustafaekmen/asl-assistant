@@ -115,9 +115,6 @@ async function fetchLetterModelBytes() {
  * @returns {Promise<boolean>} True when the session and labels are ready.
  */
 async function loadLetterModel() {
-  // A fresh session must retry probability output instead of inheriting a
-  // previous session's fallback state.
-  _letterProbsFailed = false;
   try {
     if (typeof ort === "undefined") {
       console.error("ort (onnxruntime-web) yüklenmemiş");
@@ -173,24 +170,24 @@ async function loadLetterModel() {
   }
 }
 
-// Some ORT Web versions cannot materialize ZipMap sequence/map outputs. When
-// that happens, request only the argmax label output. Classification continues,
-// but confidence then represents temporal stability rather than raw probability.
-let _letterProbsFailed = false;
-
 /**
  * Classify one letter frame.
  *
  * Two output paths exist. The probability tensor gives real confidences and a
- * top-three list. Some ONNX Runtime Web versions cannot materialize the older
- * ZipMap sequence output; that failure latches and every later call takes the
- * label-only path, which reports confidence 1.0 as a presence signal. The
- * smoother turns those repeats into a temporal confidence, so the displayed
- * value stays meaningful either way.
+ * top-three list. When a run returns an output the app cannot read as
+ * probabilities (an older ZipMap export, an unexpected runtime shape), that
+ * call asks for the label alone, which reports confidence 1.0 as a presence
+ * signal; the smoother turns those repeats into a temporal confidence.
+ *
+ * The decision is made per call and nothing is remembered. A run that throws
+ * is a failed frame, not a shape problem: it returns null and the next frame
+ * tries the probabilities again. Latching the label-only path on the first
+ * exception, which the warmup could raise too, used to report every later
+ * letter at 100 % for the rest of the visit.
  *
  * @param {LetterFeatures93} features93 Letter features; length must be 93.
- * @returns {Promise<PredictionResult | null>} Null when no model is loaded or
- *   neither output path produced a usable label.
+ * @returns {Promise<PredictionResult | null>} Null when no model is loaded,
+ *   the run failed, or neither output path produced a usable label.
  */
 async function predictLetter(features93) {
   if (!letterSession) return null;
@@ -203,37 +200,30 @@ async function predictLetter(features93) {
   feeds[letterSession.inputNames[0]] = input;
 
   // Try the full probability path first for confidence and top-three output.
-  if (!_letterProbsFailed) {
-    try {
-      const results = await letterSession.run(feeds);
-      const out = results[letterProbOutputName];
-      const probs = _extractLetterProbs(out, letterLabels.length);
-      if (probs) {
-        const t1 = performance.now();
-        if (typeof recordBenchmark === "function") recordBenchmark("onnx", t1 - t0);
+  try {
+    const results = await letterSession.run(feeds);
+    const out = results[letterProbOutputName];
+    const probs = _extractLetterProbs(out, letterLabels.length);
+    if (probs) {
+      const t1 = performance.now();
+      if (typeof recordBenchmark === "function") recordBenchmark("onnx", t1 - t0);
 
-        const indexed = probs.map((p, i) => ({
-          label: letterLabels[i] || `cls_${i}`,
-          confidence: p,
-        }));
-        indexed.sort((a, b) => b.confidence - a.confidence);
-        const topK = typeof CONFIG !== "undefined" ? CONFIG.TOP_K : 3;
-        return {
-          label: indexed[0].label,
-          confidence: indexed[0].confidence,
-          alternatives: indexed.slice(0, topK),
-        };
-      } else {
-        console.warn("[Letter] probs extract null döndü, label-only fallback'e geçiliyor");
-        _letterProbsFailed = true;
-      }
-    } catch (err) {
-      console.warn(
-        "[Letter] full run fail, label-only fallback aktif:",
-        err?.message || err,
-      );
-      _letterProbsFailed = true;
+      const indexed = probs.map((p, i) => ({
+        label: letterLabels[i] || `cls_${i}`,
+        confidence: p,
+      }));
+      indexed.sort((a, b) => b.confidence - a.confidence);
+      const topK = typeof CONFIG !== "undefined" ? CONFIG.TOP_K : 3;
+      return {
+        label: indexed[0].label,
+        confidence: indexed[0].confidence,
+        alternatives: indexed.slice(0, topK),
+      };
     }
+    console.warn("[Letter] probability output unreadable, using the label alone for this frame");
+  } catch (err) {
+    console.warn("[Letter] model run failed, frame dropped:", err?.message || err);
+    return null;
   }
 
   // Compatibility path: request only the label and bypass sequence output.

@@ -425,6 +425,8 @@ inference, or high-stakes decisions.
 | `curriculum.json` | Word learning order | 50 word records |
 | `letter_curriculum.json` | Curated letter guidance | `letter-curriculum-v1` |
 | `letter_confusion.json` | Curated look-alike groups | `letter-confusion-v1` |
+| `word_reference.json` | Card position and Turkish gloss of each word | `word-reference-v1`: page, rectangle (fractions of the page) and gloss for the 50 words; glosses unreviewed |
+| `model-card.json` | Figures the Project page states | `model-card-v1`: accuracy, classes, sizes and licence, each equal to its recorded source |
 | `asl_video_links.json` | Optional tutorial links | Alphabet link and word map |
 | `test_sample.json` | Legacy word smoke fixture | 7560 features and 45 mask values |
 | `letter_test_sample.json` | Letter fixture | `asl-sample-v1`, 93 features |
@@ -456,15 +458,28 @@ with task `word`, 7560 finite feature values (`45 × 168`), and 45 boolean mask
 values. The manifest must reference every bundled fixture exactly once.
 
 The published manifest lists the 24 letter fixtures and one synthetic word
-fixture. Word fixtures exported from the competition recordings fall under
+fixture. Each letter fixture is the 93-feature vector of one row of the local
+8,245-row held-out split (`data/processed/test_landmarks.csv`), and its
+`source_row_index` names that row. Matched against the per-source landmark
+extracts, 23 of the 24 rows come from ASL Alphabet (labelled GPL-2.0 by its
+provider) and the K fixture, `letters/letter-k.json`, comes from the local
+`ASL_SemCom` subset, whose terms are not recorded (see the letter data section
+above). None comes from the competition data. `letter_test_sample.json` is a
+copy of the A fixture. Word fixtures exported from the competition recordings fall under
 section 7.B of its rules, so
 `scripts/evaluation/export_model_test_word_samples.py` writes them to the
 ignored `asl-web/data/model-test-samples/local/` folder with a manifest of its
 own. The panel lists them when that folder exists, and the runtime asset check
-validates them there; in a clone the folder is absent.
+validates them there; in a clone the folder is absent. Because the site is
+uploaded as the `asl-web/` folder on disk, `make deploy-check` fails while the
+folder is present.
 
 The dedicated `test_sample.json` smoke file predates the published schema and
-contains 30 real frames followed by 15 padded frames. Its expected result is
+contains 30 non-padded frames followed by 15 zero-padded frames. The 30 frames
+are synthetic, not a recording:
+`scripts/validation/generate_word_onnx_test_sample.py` draws them from NumPy's
+seeded generator (seed 42, standard normal values scaled by 0.1) and records
+what the deployed model predicts for them. Its expected result is
 `give` at approximately `0.0760` confidence. The browser retains compatibility
 with this file and validates task-specific dimensions and values rather than
 rejecting a file only because a schema string is absent.

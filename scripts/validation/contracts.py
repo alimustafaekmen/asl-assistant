@@ -118,6 +118,23 @@ ARTIFACTS: tuple[ArtifactContract, ...] = (
     ),
 )
 
+# Data the app fetches that is curated in the repository rather than exported,
+# so it has no source to compare with. A missing one is a request that 404s:
+# the tutorial links of the reference panel, and the letter fixture the Model
+# Test falls back to when its manifest cannot be read.
+DATA_ARTIFACTS: tuple[ArtifactContract, ...] = (
+    ArtifactContract(
+        "asl_video_links.json", WEB_DATA_DIR / "asl_video_links.json", None, "json", 0.5
+    ),
+    ArtifactContract(
+        "letter_test_sample.json", WEB_DATA_DIR / "letter_test_sample.json", None, "json", 1
+    ),
+    # Where each word's card sits on the reference pages, measured from them.
+    ArtifactContract("word_reference.json", WEB_DATA_DIR / "word_reference.json", None, "json", 3),
+    # The figures the Project page states about the models.
+    ArtifactContract("model-card.json", WEB_DATA_DIR / "model-card.json", None, "json", 0.5),
+)
+
 # Reference imagery. These have no source outside the repository, so they carry
 # no provenance pair, but a truncated image is still worth catching.
 IMAGE_ARTIFACTS: tuple[ArtifactContract, ...] = (
@@ -150,29 +167,75 @@ GZIP_ARTIFACTS: tuple[ArtifactContract, ...] = (
     ),
 )
 
-ALL_ARTIFACTS: tuple[ArtifactContract, ...] = (*ARTIFACTS, *IMAGE_ARTIFACTS, *GZIP_ARTIFACTS)
+ALL_ARTIFACTS: tuple[ArtifactContract, ...] = (
+    *ARTIFACTS,
+    *DATA_ARTIFACTS,
+    *IMAGE_ARTIFACTS,
+    *GZIP_ARTIFACTS,
+)
+
+# What an upload of asl-web/ may contain. The site is deployed by dragging the
+# folder into the host's UI, which takes it as it is on disk, ignored files and
+# editor metadata included, so the deploy check holds the working tree to this
+# list rather than to what Git tracks.
+#
+# Each directory names the endings its files may have; a file is judged by the
+# deepest listed directory above it. An entry that starts with a dot is a
+# suffix, any other entry an exact file name.
+DEPLOY_ROOT_FILES: frozenset[str] = frozenset({"index.html", "favicon.ico", "_headers"})
+DEPLOY_FILES_ANYWHERE: frozenset[str] = frozenset({"README.md"})
+DEPLOY_ALLOWED_ENDINGS: dict[str, tuple[str, ...]] = {
+    "js": (".js",),
+    "css": (".css",),
+    "data": (".json",),
+    "models": (".onnx", ".onnx.gz"),
+    "assets": (".png", ".webp", ".svg"),
+    "assets/fonts": (".woff2", "OFL.txt"),
+    # JSDoc globals for the type check. Shipped today and harmless to serve.
+    "types": (".d.ts",),
+}
+
+# Present only on the owner's machine and never published: the Model Test word
+# fixtures exported from the competition data, whose rules forbid
+# redistributing it. The folder is ignored by Git, so only a check of the
+# working tree can see it before a drag-and-drop upload.
+DEPLOY_FORBIDDEN_DIRS: tuple[Path, ...] = (WEB_DATA_DIR / "model-test-samples" / "local",)
 
 
-def provenance_pairs() -> list[tuple[str, Path, Path]]:
+def rebased(path: Path, root: Path) -> Path:
+    """The same canonical path in a checkout rooted at `root`.
+
+    The validators default to this repository, but a check that can only read
+    the real tree can only be shown to pass: its failure paths are exercised by
+    pointing it at a copy in which one thing has been broken.
+    """
+    return root / path.relative_to(PROJECT_ROOT)
+
+
+def provenance_pairs(root: Path = PROJECT_ROOT) -> list[tuple[str, Path, Path]]:
     """Every deploy file that must match a source file, byte for byte."""
     return [
-        (artifact.name, artifact.deploy_path, artifact.source_path)
+        (artifact.name, rebased(artifact.deploy_path, root), rebased(artifact.source_path, root))
         for artifact in ALL_ARTIFACTS
         if artifact.source_path is not None
     ]
 
 
-def gzip_pairs() -> list[tuple[str, Path, Path]]:
+def gzip_pairs(root: Path = PROJECT_ROOT) -> list[tuple[str, Path, Path]]:
     """Every gzipped copy and the deploy file it must decompress to."""
     return [
-        (artifact.name, artifact.deploy_path, artifact.deploy_path.with_suffix(""))
+        (
+            artifact.name,
+            rebased(artifact.deploy_path, root),
+            rebased(artifact.deploy_path.with_suffix(""), root),
+        )
         for artifact in GZIP_ARTIFACTS
     ]
 
 
-def relative(path: Path) -> str:
-    """A repository-relative path for reporting, or the absolute one."""
+def relative(path: Path, root: Path = PROJECT_ROOT) -> str:
+    """A path relative to the checkout for reporting, or the absolute one."""
     try:
-        return str(path.relative_to(PROJECT_ROOT))
+        return str(path.relative_to(root))
     except ValueError:
         return str(path)

@@ -5,6 +5,10 @@ the process result a user or a script sees. A package that is installed but
 cannot be imported is the case this covers: the report named it correctly while
 the command still succeeded, so anything checking the exit code read a faulty
 environment as ready.
+
+Each doctor run imports every project package, about a second, so the two runs
+are BACKGROUND_RUNS: they start together when collection finishes (see
+Background in conftest.py).
 """
 
 from __future__ import annotations
@@ -37,23 +41,39 @@ def _run_doctor(extra_pythonpath: Path | None = None) -> subprocess.CompletedPro
     )
 
 
+def _doctor_with_a_broken_import(scratch: Path) -> subprocess.CompletedProcess[str]:
+    shadow = scratch / "shadow"
+    package = shadow / "onnxruntime"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text(
+        'raise ImportError("simulated native library mismatch")\n', encoding="utf-8"
+    )
+    return _run_doctor(extra_pythonpath=shadow)
+
+
+BACKGROUND_RUNS = (
+    {}
+    if shutil.which("make") is None
+    else {"working": lambda _scratch: _run_doctor(), "broken import": _doctor_with_a_broken_import}
+)
+
+
 @pytest.fixture(scope="module")
-def make_available() -> None:
+def doctor_runs(background) -> dict[str, subprocess.CompletedProcess[str]]:
     if shutil.which("make") is None:
         pytest.skip("make is not on PATH, so the doctor command cannot be run")
+    return background.results(__name__, BACKGROUND_RUNS)
 
 
-def test_doctor_succeeds_on_a_working_environment(make_available: None) -> None:
+def test_doctor_succeeds_on_a_working_environment(doctor_runs) -> None:
     """The suite runs in a usable environment, so doctor must agree."""
 
-    result = _run_doctor()
+    result = doctor_runs["working"]
 
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_doctor_fails_when_an_installed_package_cannot_be_imported(
-    make_available: None, tmp_path: Path
-) -> None:
+def test_doctor_fails_when_an_installed_package_cannot_be_imported(doctor_runs) -> None:
     """A broken native library is a fault, not a step the user has yet to take.
 
     The package is found, so it is not missing; importing it raises, which is
@@ -61,14 +81,7 @@ def test_doctor_fails_when_an_installed_package_cannot_be_imported(
     a broken environment pass for a ready one.
     """
 
-    shadow = tmp_path / "shadow"
-    package = shadow / "onnxruntime"
-    package.mkdir(parents=True)
-    (package / "__init__.py").write_text(
-        'raise ImportError("simulated native library mismatch")\n', encoding="utf-8"
-    )
-
-    result = _run_doctor(extra_pythonpath=shadow)
+    result = doctor_runs["broken import"]
 
     assert result.returncode != 0, "a broken import must not report success"
     assert "bozuk" in result.stdout, result.stdout
@@ -112,3 +125,13 @@ def test_setup_guard_refuses_an_interpreter_outside_the_active_environment() -> 
 
     assert result.returncode == 2, result.stdout + result.stderr
     assert "[BLOCK]" in result.stdout
+
+
+def test_doctor_rejects_an_unexpected_argument_as_a_usage_error(capsys) -> None:
+    """Exit 2 is usage; returning 0 would read a typo as a healthy environment."""
+    from scripts.tooling import doctor
+
+    assert doctor.main(["--fix"]) == 2
+    captured = capsys.readouterr()
+    assert "beklenmeyen" in captured.err
+    assert captured.out == "", "nothing is diagnosed after a usage error"

@@ -29,14 +29,15 @@ This script intentionally:
 Usage:
     python3 tests/validation/check_word_feature_parity.py
 
-Requires `node` on PATH (the web runtime is JS).
+Requires `node` on PATH (the web runtime is JS); without it the script exits
+2, because nothing was compared.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
 
@@ -313,7 +314,7 @@ def _check_node_available() -> bool:
         return False
 
 
-def run_js_compact(seq_321d: np.ndarray) -> np.ndarray:
+def run_js_compact(seq_321d: np.ndarray, features_js: Path = WEB_FEATURES) -> np.ndarray:
     """Apply the web JS pipeline (normalizeShoulders → buildCompactFeatures)
     to a (T, 321) sequence and return (T, 168).
 
@@ -323,11 +324,11 @@ def run_js_compact(seq_321d: np.ndarray) -> np.ndarray:
     path doesn't actually depend on them — only the letter feature path
     does (and that path is not exercised here).
     """
-    if not WEB_LANDMARKS.exists() or not WEB_FEATURES.exists():
-        raise FileNotFoundError(f"Web JS missing: {WEB_LANDMARKS}, {WEB_FEATURES}")
+    if not WEB_LANDMARKS.exists() or not features_js.exists():
+        raise FileNotFoundError(f"Web JS missing: {WEB_LANDMARKS}, {features_js}")
 
     landmarks_src = WEB_LANDMARKS.read_text(encoding="utf-8")
-    features_src = WEB_FEATURES.read_text(encoding="utf-8")
+    features_src = features_js.read_text(encoding="utf-8")
 
     payload_obj = seq_321d.astype(np.float32).tolist()
 
@@ -520,7 +521,19 @@ def _segment_breakdown(py_compact: np.ndarray, js_compact: np.ndarray):
     }
 
 
-def main() -> int:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Word 168D feature parity, Python against JS")
+    parser.add_argument(
+        "--features-js",
+        type=Path,
+        default=WEB_FEATURES,
+        help="features.js to compare with Python (default: the deployed one)",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
     if not _check_node_available():
         print("ERROR: `node` not found on PATH. Install Node 16+ and retry.")
         print("(JS runtime parity cannot be measured without Node.)")
@@ -545,7 +558,7 @@ def main() -> int:
         py_norm = np.stack([normalize_shoulders(raw_seq[t]) for t in range(raw_seq.shape[0])])
         py_compact = build_compact_features(py_norm)
         try:
-            js_compact = run_js_compact(raw_seq)
+            js_compact = run_js_compact(raw_seq, args.features_js)
         except Exception as exc:
             print(f"{name},?,?,?,FAIL,JS runner error: {exc}")
             fail_n += 1
@@ -592,4 +605,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

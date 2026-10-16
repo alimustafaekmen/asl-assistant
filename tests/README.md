@@ -8,10 +8,9 @@ tests/
 ├── asl_ml/unit/             93D feature and utility units
 ├── asl_desktop/unit/        pure smoothing logic
 ├── asl_desktop/integration/ MediaPipe/model/camera-dependent checks
-├── project/                 Git hygiene, lightweight schemas, and browser wiring
-├── scripts/                 CLI behaviour: exit codes and command results
-├── smoke/                   end-to-end smoke entry points
-├── validation/              Python/JavaScript feature and model parity tools
+├── project/                 Git hygiene, lightweight schemas, deploy headers, and browser wiring
+├── scripts/                 validators, parity, doctor and make targets, run on broken inputs
+├── validation/              Python/JavaScript feature and model parity commands
 └── web/                     browser unit tests on Node's test runner
 ```
 
@@ -22,11 +21,15 @@ tests/
 make test
 ```
 
-Equivalent command:
+Equivalent command, with the two source packages on `PYTHONPATH`:
 
 ```bash
-python -m pytest tests/asl_ml tests/asl_desktop/unit tests/project
+python -m pytest -rs tests/asl_ml tests/asl_desktop/unit tests/project tests/scripts
 ```
+
+`-rs` prints the reason for every skip. Two skips are expected in a clone:
+the tests that need the local competition-derived word fixtures. A skip that
+names a file the repository tracks means that file is missing.
 
 Project tests verify, among other things:
 
@@ -47,28 +50,70 @@ The portable tests follow three rules:
 - repository/UI checks assert public contracts and parsed HTML structure, not
   line numbers, formatting, or an exact list of every future document.
 
+Some older tests in `tests/project/test_web_ui_contracts.py` still read
+JavaScript or CSS source text. They are being replaced one at a time by tests
+that run the code, and retired only once the replacement is shown to catch the
+same faults. New tests do not follow them: run the code or parse the document
+instead.
+
 Large model/image existence, source-to-deploy hashes, ONNX loading, every
 Model Test fixture file, and the complete notebook export manifest are checked
 by `make validate`, not duplicated in the fast pytest suite. This keeps
 `make test` useful in a source-only checkout while `make health` still combines
 both layers before deployment.
 
+## The inner loop
+
+| Command | Runs |
+|---|---|
+| `make quick` | lint, format check and every web test; under a second |
+| `make test-web FILE=tests/web/word-consent.test.js NAME=once` | one web test file, only the tests whose names match |
+| `make watch-web FILE=...` | the same with `node --test --watch`, rerunning on every save |
+| `make test-py FILE=tests/scripts/test_gzip_copies.py K=truncated` | one pytest file with `-k` |
+| `npm test` | every web test, by the same two patterns as `make js-test` |
+
+Without `FILE`, `NAME` or `K` they run what `make js-test` and `make test` run.
+
+## What each gate runs
+
+| Command | Runs | Does not run |
+|---|---|---|
+| `make health` | lint, format check, JS syntax, web tests, git hygiene, the runtime asset check, the project asset audit without the dataset report, the notebook and script presence checks, word and letter feature parity, the fast pytest suite | the type check (it needs `npm ci`), the desktop integration tests, letter model parity |
+| `make check` | `make health`, then `make js-typecheck`; the gate before a commit | the desktop integration tests |
+| `make test-full` | every Python test, the desktop integration tests included | anything outside pytest: the web tests, validators, parity and the type check |
+| `make validate` | JS syntax and the runtime asset check | the project audit |
+| `make validate-full` | `make validate` and the project asset audit with its dataset report | pytest |
+| `make deploy-check` | JS syntax and the runtime asset check with the upload inventory | pytest |
+| `make parity` | word and letter feature parity | letter model parity |
+
+`tests/scripts/test_make_targets.py` runs these targets with recording
+stand-ins for Python, Node, Git and the TypeScript checker: it checks the steps
+each target runs, and that one failing step fails the target.
+
 ## Parity diagnostics
 
 ```bash
+make parity                                          # the two feature checks
 python tests/validation/check_letter_feature_parity.py
 python tests/validation/check_letter_model_parity.py
 python tests/validation/check_word_feature_parity.py
 ```
 
 The JavaScript parity checks require Node. Word feature parity is expected to
-report `PASS=6, KNOWN_GAP=0, FAIL=0`.
+report `PASS=6, KNOWN_GAP=0, FAIL=0`. Each command exits 0 when every
+comparison held, 1 on a mismatch (browser code that does not load counts as
+one), and 2 when a required tool is missing, Node for the feature checks or
+ONNX Runtime for model parity, so nothing was compared. The feature checks
+take `--features-js PATH` to compare another copy of `features.js`.
 
 ## Full suite
 
 ```bash
 make test-full
 ```
+
+This is every Python test and nothing else; `make check` is the gate that
+also runs the web tests, the validators, parity and the type check.
 
 Desktop integration tests may skip when MediaPipe, model dependencies, or a
 camera are unavailable. A skip does not validate the missing integration; it
@@ -109,6 +154,6 @@ behaviour attached to it is.
 Static tests catch many browser-wiring errors, but they do not
 drive a real camera or validate browser permissions. Layout, focus, canvas
 geometry and media behaviour are outside the Node context by design: it stubs
-the DOM rather than laying it out. After browser changes, run `make health`,
+the DOM rather than laying it out. After browser changes, run `make check`,
 serve the app, and complete the manual checklist in
 [Architecture](../docs/architecture.md).

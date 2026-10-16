@@ -12,6 +12,32 @@
 //
 // Recording stays disabled until hand, pose, and face models are all ready: a
 // word needs all three, unlike a letter.
+//
+// A finished recording always ends in RESULT, also when the model produced
+// nothing: that RESULT shows no word and offers nothing to accept, so the
+// state machine stays IDLE -> COUNTDOWN -> RECORDING -> PROCESSING -> RESULT
+// and the user sees that this recording, not the one before, failed.
+
+/**
+ * Which recording is current, and which recording the result on screen came
+ * from (0: no result on screen).
+ *
+ * Each start takes the next number. A model run publishes its result only if
+ * no newer recording has started meanwhile, and accepting a word requires the
+ * result to be the current recording's. Without this the previous word stayed
+ * acceptable through the next recording, and was appended a second time when
+ * that recording failed.
+ */
+let wordRecordingSerial = 0;
+let wordResultSerial = 0;
+
+/**
+ * @returns {boolean} True when the result on screen belongs to the latest
+ *   recording.
+ */
+function wordResultIsCurrent() {
+  return wordResultSerial !== 0 && wordResultSerial === wordRecordingSerial;
+}
 
 /**
  * Start a word recording: check readiness, clear the buffers, count down, then
@@ -64,11 +90,15 @@ async function startWordRecording() {
   // Reset per-recording landmark visibility statistics.
   if (typeof resetWordRecordingStats === "function") resetWordRecordingStats();
 
+  wordRecordingSerial += 1;
+  wordResultSerial = 0;
+  wordResultAccepted = false;
   state.wordState = "COUNTDOWN";
   state.wordFrames = 0;
   state.wordQualityWarnings = [];
   state.wordResultAssessment = null;
-  wordResultAccepted = false;
+  // The previous word leaves the screen with its recording.
+  updatePrediction({ label: "?", confidence: 0, alternatives: [] });
   updateWordState();
   clearFeedback();
 
@@ -148,7 +178,7 @@ function updateWordState() {
   if (state.wordState === "RESULT") {
     els.wordStateHint.textContent = state.top3.length
       ? `Modelin gördükleri: ${formatTopPredictions(state.top3)}. Doğruysa Metne Ekle, farklıysa Tekrar Dene.`
-      : "Sonuç üretildi. Doğru değilse Tekrar Dene ile yeni kayıt al.";
+      : "Bu kayıttan sonuç çıkmadı. Tekrar Dene ile yeni bir kayıt alın.";
   }
   if (state.wordState === "IDLE") {
     els.wordStateHint.textContent = "Başlat'a bas, geri sayımdan sonra işareti 2-4 saniye yap. 45 frame dolunca sistem otomatik sonucu gösterir.";
@@ -156,6 +186,9 @@ function updateWordState() {
   }
   updateWordFlowSteps();
   renderWordResultGuide();
+  // The record button is busy from the countdown to the result, so it is
+  // redrawn with every step rather than only on mode and camera changes.
+  syncRecordButton();
   syncActionBar();
 }
 
@@ -330,6 +363,7 @@ function syncActionBar() {
       state.wordState !== "RESULT" ||
       !assessment ||
       !assessment.canAppend ||
+      !wordResultIsCurrent() ||
       wordResultAccepted;
     els.appendWordResult.title = wordResultAccepted
       ? "Bu sonuç metne eklendi."

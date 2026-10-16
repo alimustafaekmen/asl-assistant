@@ -36,6 +36,9 @@ function appWithFakeCamera() {
     stop() {
       this.stops += 1;
     },
+    // A real track is an event target; these tracks are never ended.
+    addEventListener() {},
+    removeEventListener() {},
   }));
   const tasks = { detections: 0, closed: [] };
   const frames = { nextId: 1, pending: new Map(), cancelled: [] };

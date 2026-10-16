@@ -1,0 +1,30 @@
+{
+  "schema_version": "model-card-v1",
+  "note_en": "The figures the Project page states about the two models, each copied from where it is recorded (see tests/project/test_web_contracts.py for the sources). signer_independent is documented in docs/models-and-data.md. No top-k figure for the word model is recorded, so none is given.",
+  "letter": {
+    "model_type": "LightGBM",
+    "classes": 24,
+    "input_features": 93,
+    "accuracy_held_out": 0.9935,
+    "held_out_samples": 8245,
+    "signer_independent": false,
+    "size_bytes": 13195070,
+    "size_bytes_gzip": 2161191
+  },
+  "word": {
+    "model_type": "SignTransformer",
+    "classes": 50,
+    "input": [45, 168],
+    "accuracy": 0.7192,
+    "macro_f1": 0.714,
+    "test_samples": 3918,
+    "test_signers": 4,
+    "signer_independent": true,
+    "parameters": 446195,
+    "size_bytes": 1852835
+  },
+  "licence": {
+    "name": "PolyForm Noncommercial License 1.0.0",
+    "applies_to": ["source code", "model files"]
+  }
+}

@@ -318,9 +318,10 @@ change requiring size, license, cache, and browser compatibility review.
 ## Validation boundary
 
 `make health` checks repository hygiene, runtime assets, provenance, model I/O,
-available parity checks, and fast Python tests. It cannot validate lighting,
-camera permissions, handedness metadata, device performance, or live signing.
-Those require a real browser and camera.
+word and letter feature parity, and fast Python tests; `make check` adds the
+JSDoc type check. Neither can validate lighting, camera permissions,
+handedness metadata, device performance, or live signing. Those require a real
+browser and camera.
 
 ## Related documents
 

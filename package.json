@@ -5,6 +5,7 @@
   "description": "Development-only tooling for the ASL Assistant browser app. The app itself needs no package install.",
   "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
+    "test": "node --test \"tests/web/**/*.test.js\" \"tests/web/**/*.test.mjs\"",
     "typecheck": "tsc --project tsconfig.web.json"
   },
   "devDependencies": {

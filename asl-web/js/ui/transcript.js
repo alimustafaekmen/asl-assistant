@@ -51,7 +51,11 @@ let wordResultAccepted = false;
  * @returns {void}
  */
 function appendWordResultToTranscript() {
-  if (wordResultAccepted) return;
+  // The same rule as the accept button, checked here as well, because a
+  // handler reached another way must not append what the button refuses: a
+  // word from word mode, from a finished recording, and from the latest one.
+  if (state.mode !== "word" || state.wordState !== "RESULT") return;
+  if (!wordResultIsCurrent() || wordResultAccepted) return;
   if (!state.prediction || state.prediction === "?" || state.prediction.length <= 1) return;
   if (state.confidence < CONFIG.WORD_ACCEPT_THRESHOLD) return;
   appendTranscriptToken(`${state.prediction} `, { debounceKey: `word:${state.prediction}` });
