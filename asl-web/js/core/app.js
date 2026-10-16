@@ -61,8 +61,10 @@ async function init() {
 /**
  * Which models a live camera mode runs.
  *
- * Coach needs both, because its target can move between a letter and a word
- * while the camera stays on. The informational screens run none.
+ * The coach runs the letter model, and the word model only while it is on
+ * words: a letter session never runs the word model, which is 1.8 MB of
+ * hosting credit. Turning the coach to words with the camera on asks for it
+ * then. The informational screens run none.
  *
  * @param {AppMode} mode
  * @returns {{letter: boolean, word: boolean}}
@@ -70,7 +72,7 @@ async function init() {
 function liveModelNeeds(mode) {
   return {
     letter: mode === "letter" || mode === "coach",
-    word: mode === "word" || mode === "coach",
+    word: mode === "word" || (mode === "coach" && state.coachTargetType === "word"),
   };
 }
 
@@ -286,6 +288,12 @@ function bindEvents() {
   els.insertSpace?.addEventListener("click", insertSpaceInTranscript);
   document.querySelector('[data-trigger="space"]')?.addEventListener("click", insertSpaceInTranscript);
   els.removeLastChar?.addEventListener("click", removeLastTranscriptChar);
+  // After a coach success the next target comes up on its own; reaching for
+  // the coach's buttons or leaving the page stays on the target instead.
+  els.controlBar.addEventListener("focusin", () => stayOnCoachTarget());
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") stayOnCoachTarget();
+  });
   els.coachLettersOnly?.addEventListener("click", () => setCoachTargetType("letter"));
   els.coachWordsOnly?.addEventListener("click", () => setCoachTargetType("word"));
   queryElements("[data-coach-flow]").forEach((button) => {
@@ -316,13 +324,7 @@ function bindEvents() {
 
   els.coachTarget.addEventListener("change", (event) => {
     // The listener is bound to the coach select, so the change event targets it.
-    state.coachTarget = /** @type {HTMLSelectElement} */ (event.target).value;
-    state.coachStep = 0;
-    state.coachFeedback = "";
-    if (typeof resetSmoother === "function") resetSmoother();
-    if (typeof resetLetterLandmarkSmoother === "function") resetLetterLandmarkSmoother();
-    updateCoachPanel();
-    updateReferenceForMode();
+    chooseCoachTarget(/** @type {HTMLSelectElement} */ (event.target).value);
   });
 
   window.addEventListener("keydown", (event) => {
@@ -343,9 +345,22 @@ function bindEvents() {
     // Any other modified key belongs to the browser: Cmd+Backspace and
     // Alt+Enter are editing and system keys, not transcript commands.
     if (event.ctrlKey || event.metaKey || event.altKey) return;
+    // In the coach, Escape only ever keeps the current target, which no
+    // focused control would miss, so it works wherever focus is.
+    if (state.mode === "coach" && event.key === "Escape") {
+      stayOnCoachTarget();
+      return;
+    }
     // Everything below is an unmodified key, which belongs to the focused
     // control whenever there is one that consumes typing.
     if (isEditableTarget(event.target)) return;
+    // In the coach, Space takes what the coach offers next, as it takes the
+    // letter on the letter screen; with nothing on offer it keeps its default
+    // action. The coach has no other key.
+    if (state.mode === "coach") {
+      if (event.code === "Space" && coachPrimaryAction()) event.preventDefault();
+      return;
+    }
     // The transcript keys act in letter mode only, where the transcript is
     // what the user is building. The on-screen buttons call the same
     // functions instead of simulating a key event. There are deliberately no
@@ -571,6 +586,7 @@ function setMode(mode, options = {}) {
   // Clear temporal state so predictions cannot leak across mode changes.
   if (typeof resetSmoother === "function") resetSmoother();
   resetLetterLandmarkSmoother();
+  resetCoachAttempt();
   frameBuffer = [];
   normalizedFrameBuffer = [];
   previousFrame = null;
@@ -631,13 +647,17 @@ function setMode(mode, options = {}) {
   clearFeedback();
 
   if (mode === "coach") {
+    // Progress and the teaching data are read on the first visit; the coach
+    // does not wait for the data.
+    loadCoachProgress();
+    loadCoachLetterData();
     updateCoachModeButtons();
     updateCoachFlowButtons();
     updateCoachPanel();
-    updatePrediction({ label: state.coachTarget, confidence: 0, alternatives: [] });
-  } else {
-    updatePrediction({ label: "?", confidence: 0, alternatives: [] });
   }
+  // Nothing has been seen on the new screen yet. The coach's target is shown
+  // in the coach card, never on the plate, where it would read as detected.
+  updatePrediction({ label: "?", confidence: 0, alternatives: [] });
 
   updateWordState();
   updateReferenceForMode();
@@ -1017,6 +1037,7 @@ function stopCamera() {
   els.cameraStage.dataset.state = "idle";
   if (typeof resetSmoother === "function") resetSmoother();
   resetLetterLandmarkSmoother();
+  resetCoachAttempt();
   updateWordState();
   syncRecordButton();
 
@@ -1029,11 +1050,23 @@ function stopCamera() {
 }
 
 /**
- * Drive one animation frame: FPS, overlay, inference, status, debug.
+ * Whether the render loop runs inference on this frame.
  *
- * Letter inference is throttled to roughly every sixth frame, because the
- * letter model is fast enough to run far more often than the result changes.
- * Word contexts run every frame, since frames are what a recording collects.
+ * Letter contexts, letter mode and a coach target letter alike, run at most
+ * once every 120 ms: the letter model is fast enough to run far more often
+ * than the result changes, and the five-frame smoothing window is meant to
+ * span about 600 ms of signing wherever a letter is read. Word contexts run
+ * every frame, since frames are what a recording collects.
+ *
+ * @param {number} now Animation frame timestamp in milliseconds.
+ * @returns {boolean}
+ */
+function isInferenceDue(now) {
+  return !isLetterContext() || now - state.lastTick > 120;
+}
+
+/**
+ * Drive one animation frame: FPS, overlay, inference, status, debug.
  *
  * @param {number} now Animation frame timestamp in milliseconds.
  * @returns {void}
@@ -1041,19 +1074,16 @@ function stopCamera() {
 function renderLoop(now) {
   updateFps(now);
   drawOverlay();
+  // On a laptop, the result plate steps aside from a hand under it.
+  if (typeof updatePlateSide === "function") updatePlateSide(now);
 
   // live-inference.js reads the frame camera.js published; it no-ops until
   // MediaPipe has produced landmark data.
-  if (state.cameraOn && typeof realInference === "function") {
-    // Letter inference is intentionally throttled to roughly every sixth frame.
-    if (state.mode === "letter") {
-      if (now - state.lastTick > 120) {
-        state.lastTick = now;
-        realInference(now);
-      }
-    } else {
-      realInference(now);
-    }
+  if (state.cameraOn && typeof realInference === "function" && isInferenceDue(now)) {
+    // Only a letter tick moves the throttle, so the first letter frame after a
+    // word context runs at once, as it always has.
+    if (isLetterContext()) state.lastTick = now;
+    realInference(now);
   }
 
   // Refresh the waiting/latency status at most once per second.

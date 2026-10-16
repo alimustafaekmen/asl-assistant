@@ -232,10 +232,12 @@ def test_a_broken_model_test_fixture_set_fails(checkout, fault: str) -> None:
         "asl-web/data/letter_test_sample.json",
         "asl-web/data/word_reference.json",
         "asl-web/data/model-card.json",
+        "asl-web/data/letter_curriculum.json",
+        "asl-web/data/letter_confusion.json",
     ],
 )
 def test_a_missing_data_file_the_app_fetches_fails(checkout, fetched: str) -> None:
-    """The reference panel, the Model Test fallback, the word cards and the Project page request these.
+    """The reference panel, the Model Test fallback, the word cards, the Project page and the coach request these.
 
     None has a source pair or a schema check, so deleting one passed every
     gate and shipped a request that 404s.

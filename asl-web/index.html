@@ -2,7 +2,7 @@
 <html lang="tr">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <!-- One toolbar colour per scheme, each the page colour of that theme
          (tokens.css --color-page). js/core/theme-boot.js points both at the
          chosen one when the visitor has picked a theme. -->
@@ -20,7 +20,7 @@
     <meta property="og:image" content="https://asl-assistant.netlify.app/assets/social-preview.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="ASL Assistant Proje ekranı: 24 statik harf ve 50 kelime sınıfı, kelime modelinin test skoru." />
+    <meta property="og:image:alt" content="ASL Assistant harf ekranı: kamera alanında “Kameraya bir ASL harfi gösterin; tanınan harf metne yazılır.” başlığı, Kamerayı aç ve Kamerasız dene düğmeleri." />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preload" href="assets/fonts/atkinson-hyperlegible-next.woff2" as="font" type="font/woff2" crossorigin />
     <!-- Before the stylesheets, so the first frame is already in the visitor's
@@ -140,27 +140,30 @@
 
               <div class="feedback-bar" id="feedbackBar" hidden></div>
 
-              <div class="plate">
-                <div class="plate__visual">
-                  <div class="confidence-ring" id="confidenceRing" style="--score: 0" aria-hidden="true"></div>
-                  <strong class="plate__glyph" id="primaryPrediction">?</strong>
-                </div>
-                <div class="plate__body">
-                  <p class="plate__level">
-                    <span class="visually-hidden" id="resultKind">Harf</span>
-                    <strong class="plate__decision" id="decisionLabel">Bekleniyor</strong>
-                    <span class="signal" aria-hidden="true"><i></i><i></i><i></i></span>
-                    <span class="plate__pct num" id="confidenceText">--</span>
-                  </p>
-                  <p class="plate__message" id="confidenceMessage">Kamerayı açtığınızda sonuç burada görünür.</p>
-                </div>
-              </div>
-
               <div class="stage__countdown" id="countdown" hidden>3</div>
 
               <div class="toast" id="toast" hidden>
                 <span id="toastText"></span>
                 <button class="btn btn--quiet toast__action" type="button" id="toastAction" data-icon="undo" hidden>Geri al</button>
+              </div>
+            </div>
+
+            <!-- The result: a sibling of the stage, not part of it, so the layout
+                 can lay it over the stage (portrait, laptop) or beside it (phone
+                 landscape). The stage's data attributes still style it. -->
+            <div class="plate" id="resultPlate">
+              <div class="plate__visual">
+                <div class="confidence-ring" id="confidenceRing" style="--score: 0" aria-hidden="true"></div>
+                <strong class="plate__glyph" id="primaryPrediction">?</strong>
+              </div>
+              <div class="plate__body">
+                <p class="plate__level">
+                  <span class="visually-hidden" id="resultKind">Harf</span>
+                  <strong class="plate__decision" id="decisionLabel">Bekleniyor</strong>
+                  <span class="signal" aria-hidden="true"><i></i><i></i><i></i></span>
+                  <span class="plate__pct num" id="confidenceText">--</span>
+                </p>
+                <p class="plate__message" id="confidenceMessage">Kamerayı açtığınızda sonuç burada görünür.</p>
               </div>
             </div>
 
@@ -175,7 +178,7 @@
 
               <div class="dock" id="controlBar" role="group" aria-label="İşlemler">
                 <button class="btn mode-only letter-only" type="button" id="removeLastChar" data-icon="delete" aria-keyshortcuts="Backspace"><span class="btn__label--phone-hidden">Sil</span></button>
-                <button class="btn mode-only letter-only" type="button" id="insertSpace" data-icon="space" aria-keyshortcuts="Enter">Boşluk <span class="kbd" aria-hidden="true">Enter</span></button>
+                <button class="btn mode-only letter-only" type="button" id="insertSpace" data-icon="space" aria-keyshortcuts="Enter"><span class="btn__label">Boşluk</span> <span class="kbd" aria-hidden="true">Enter</span></button>
                 <button class="btn btn--primary btn--grow mode-only letter-only" type="button" id="manualAddLetter" data-icon="plus" aria-keyshortcuts="Space">Ekle <span class="kbd" aria-hidden="true">Space</span></button>
 
                 <button class="btn btn--primary btn--grow mode-only word-only" type="button" id="recordWord">Kelime Kaydı Başlat</button>
@@ -702,12 +705,14 @@
     <script src="js/ml/features.js?v=10"></script>
     <script src="js/services/benchmark.js?v=10"></script>
     <script src="js/ml/gating.js?v=10"></script>
+    <script src="js/ml/hold.js?v=10"></script>
     <script src="js/ml/letter-model.js?v=10"></script>
     <script src="js/ml/word-model.js?v=10"></script>
     <script src="js/media/overlay.js?v=10"></script>
     <script src="js/media/camera.js?v=10"></script>
     <script src="js/ml/live-inference.js?v=10"></script>
     <script src="js/ui/prediction.js?v=10"></script>
+    <script src="js/ui/plate-side.js?v=10"></script>
     <script src="js/ui/toast.js?v=10"></script>
     <script src="js/ui/transcript.js?v=10"></script>
     <script src="js/ui/word-flow.js?v=10"></script>

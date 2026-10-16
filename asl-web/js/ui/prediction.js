@@ -58,14 +58,26 @@ function updatePrediction(prediction) {
 
   const pct = Math.round(state.confidence * 100);
   els.primaryPrediction.textContent = prediction.label;
+  // A word needs a smaller face and a wider plate than a single letter.
+  els.cameraStage.dataset.kind = prediction.label.length > 1 && prediction.label !== "?" ? "word" : "letter";
+
+  // The coach judges a target letter by its hold, not by how sure the model
+  // is of whatever letter it sees: a confident wrong letter must not paint
+  // the stage, and with it the landmark overlay, as a success.
+  if (state.mode === "coach" && isLetterContext()) {
+    renderCoachPlate();
+    renderTop3();
+    renderWordResultGuide();
+    syncActionBar();
+    return;
+  }
+
   els.confidenceText.textContent = pct ? `%${pct}` : "--";
   els.confidenceRing.style.setProperty("--score", String(pct));
 
   const level = getConfidenceLevel(state.confidence);
   els.confidenceRing.className = `confidence-ring ${level}`;
   els.cameraStage.dataset.state = state.wordState === "RECORDING" ? "recording" : level;
-  // A word needs a smaller face and a wider plate than a single letter.
-  els.cameraStage.dataset.kind = prediction.label.length > 1 && prediction.label !== "?" ? "word" : "letter";
 
   const th = _thresholdsForMode();
   // Uncertainty comes before a close call: a word too weak to accept is not

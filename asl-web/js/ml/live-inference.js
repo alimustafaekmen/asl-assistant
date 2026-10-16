@@ -237,13 +237,11 @@ async function realInference(now) {
   }
   if (!latestMediaPipeResult) return;
 
-  const isLetterContext =
-    state.mode === "letter" ||
-    (state.mode === "coach" && state.coachTarget?.length === 1);
+  const letterContext = isLetterContext();
 
   // The framing readout is read before a frame is dropped for having no hand,
   // so it can say the hand is what is missing. It only reads the result.
-  if (!isLetterContext && typeof noteWordFraming === "function") {
+  if (!letterContext && typeof noteWordFraming === "function") {
     noteWordFraming(latestMediaPipeResult);
   }
   if (_inferenceInFlight) return;
@@ -253,9 +251,12 @@ async function realInference(now) {
   // across a hand-loss gap. This frame never reaches computeLetterFeatures(),
   // so its own all-zero reset of the landmark average does not happen here.
   if (!latestMediaPipeResult.rightHandLandmarks && !latestMediaPipeResult.leftHandLandmarks) {
-    if (isLetterContext) {
+    if (letterContext) {
       resetSmoother();
       resetLetterLandmarkSmoother();
+      // The coach counts what it sees, so it is told the hand has gone. Letter
+      // mode keeps showing its last letter, as the owner decided.
+      if (state.mode === "coach") noteCoachHandLost();
     }
     return;
   }
@@ -274,12 +275,14 @@ async function realInference(now) {
     // asks: after a failure it would start a download every 120 ms. Until the
     // model has loaded and warmed up, frames are dropped here, the same as any
     // frame that arrives while inference is in flight.
-    if (isLetterContext && (!letterSession || !(await ensureLetterModel()))) return;
+    if (letterContext && (!letterSession || !(await ensureLetterModel()))) return;
 
     const raw = landmarksTo321D(latestMediaPipeResult);
     const normalized = normalizeShoulders(raw);
 
-    if (state.mode === "letter") {
+    // A coach target letter takes the same path as letter mode: the same
+    // features, motion gate, smoothing and diagnostics.
+    if (letterContext) {
       const f93 = computeLetterFeatures(raw);
 
       // Publish a read-only letter snapshot for window.aslDebug.
@@ -400,6 +403,9 @@ async function realInference(now) {
             confidence: smoothed.confidence,
           };
         }
+        // The coach scores a target letter by its hold, so the hold sees the
+        // result before the plate shows it.
+        if (state.mode === "coach") noteCoachLetter(smoothed, now);
         updatePrediction(smoothed);
       } else {
         console.warn("[INF] predictLetter null döndü — model yüklü mü?");
@@ -492,20 +498,6 @@ async function realInference(now) {
           await _finishWordRecordingReal();
         }
       }
-    } else if (state.mode === "coach") {
-      const isLetterTarget = state.coachTarget.length === 1;
-      if (isLetterTarget) {
-        // Coach letter mode displays live predictions but scores only after the
-        // user explicitly checks the target.
-        const f93 = computeLetterFeatures(raw);
-        const result = await predictLetter(f93);
-        if (result) {
-          const smoothed = typeof smoothLetterPrediction === "function"
-            ? smoothLetterPrediction(result)
-            : result;
-          updatePrediction(smoothed);
-        }
-      }
     }
 
     if (typeof recordBenchmark === "function") {
@@ -516,6 +508,14 @@ async function realInference(now) {
   } finally {
     _inferenceInFlight = false;
   }
+}
+
+/**
+ * @returns {boolean} True in letter mode and for a single-letter coach
+ *   target: the contexts that classify one frame at a time.
+ */
+function isLetterContext() {
+  return state.mode === "letter" || (state.mode === "coach" && state.coachTarget?.length === 1);
 }
 
 /**

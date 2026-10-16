@@ -401,7 +401,7 @@
   /* While a problem shows, the plate's message line repeats it under the
      block; the block is the one place it is read. With the plate gone the
      stage needs no room kept for it at the bottom. */
-  .stage:has(.stage__problem:not([hidden])) .plate { display: none; }
+  .stage:has(.stage__problem:not([hidden])) + .plate { display: none; }
   .stage__empty:has(> .stage__problem:not([hidden])) { padding-block: var(--sp-12) var(--sp-6); }
   /* Short phones: the icon goes first, as the illustration does. */
   @media (max-height: 40rem) {
@@ -415,10 +415,10 @@
 
   /* ── Caption plate ───────────────────────────────────────────────────
      The one place the current result lives. With the camera off only its
-     message line shows, so loading and errors are never off screen. */
+     message line shows, so loading and errors are never off screen. It is
+     the stage's next sibling, so it reads the stage's state through "+";
+     layout.css places it over the stage or beside it. */
   .plate {
-    position: absolute;
-    inset: auto var(--sp-3) var(--sp-3);
     z-index: var(--z-stage-plate);
     display: flex;
     align-items: center;
@@ -429,7 +429,7 @@
     background: var(--stage-plate);
     color: var(--stage-text);
   }
-  .stage[data-state="good"] .plate { border-color: var(--stage-lock); }
+  .stage[data-state="good"] + .plate { border-color: var(--stage-lock); }
 
   .plate__visual {
     position: relative;
@@ -457,15 +457,15 @@
     mask: radial-gradient(farthest-side, transparent calc(100% - 4px), black calc(100% - 4px));
   }
   /* A word: no ring around it, the word face, and room to be read. */
-  .stage[data-kind="word"] .plate__visual { width: auto; height: auto; min-width: 0; place-items: start; }
-  .stage[data-kind="word"] .confidence-ring { display: none; }
-  .stage[data-kind="word"] .plate__glyph {
+  .stage[data-kind="word"] + .plate .plate__visual { width: auto; height: auto; min-width: 0; place-items: start; }
+  .stage[data-kind="word"] + .plate .confidence-ring { display: none; }
+  .stage[data-kind="word"] + .plate .plate__glyph {
     font-size: var(--fs-word);
     line-height: 1.05;
     letter-spacing: -0.01em;
     overflow-wrap: anywhere;
   }
-  .stage[data-kind="word"] .plate { flex-wrap: wrap; }
+  .stage[data-kind="word"] + .plate { flex-wrap: wrap; }
   .confidence-ring.maybe { --ring: var(--stage-text); }
   .confidence-ring.good { --ring: var(--stage-lock); }
 
@@ -494,20 +494,20 @@
   .signal i:nth-child(1) { height: 9px; }
   .signal i:nth-child(2) { height: 13px; }
   .signal i:nth-child(3) { height: 17px; }
-  .stage[data-state="low"] .signal i:nth-child(1) { background: var(--stage-text-2); }
-  .stage[data-state="maybe"] .signal i:nth-child(-n + 2) { background: var(--stage-text); }
-  .stage[data-state="good"] .signal i { background: var(--stage-lock); }
+  .stage[data-state="low"] + .plate .signal i:nth-child(1) { background: var(--stage-text-2); }
+  .stage[data-state="maybe"] + .plate .signal i:nth-child(-n + 2) { background: var(--stage-text); }
+  .stage[data-state="good"] + .plate .signal i { background: var(--stage-lock); }
 
   /* Camera off: keep only the message, as a quiet line under the empty state. */
-  .stage:has(> .stage__empty:not([hidden])) .plate {
+  .stage:has(> .stage__empty:not([hidden])) + .plate {
     justify-content: center;
     padding-block: var(--sp-2);
     background: transparent;
     border-color: transparent;
   }
-  .stage:has(> .stage__empty:not([hidden])) .plate__visual,
-  .stage:has(> .stage__empty:not([hidden])) .plate__level { display: none; }
-  .stage:has(> .stage__empty:not([hidden])) .plate__message { text-align: center; }
+  .stage:has(> .stage__empty:not([hidden])) + .plate .plate__visual,
+  .stage:has(> .stage__empty:not([hidden])) + .plate .plate__level { display: none; }
+  .stage:has(> .stage__empty:not([hidden])) + .plate .plate__message { text-align: center; }
 
   .stage__countdown {
     position: absolute;
@@ -608,8 +608,18 @@
     line-height: var(--lh-snug);
     letter-spacing: 0.04em;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* Scrolled to its end by the app, so the newest letter shows; an ellipsis
+       at the end hid exactly that letter. The scrollbar would only take
+       height from a 56 px strip. */
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+  .strip__text::-webkit-scrollbar { display: none; }
+  /* Text scrolled off at the start fades out instead of being cut hard. */
+  .strip__text[data-overflow="start"] {
+    -webkit-mask-image: linear-gradient(to right, transparent, black var(--sp-6));
+    mask-image: linear-gradient(to right, transparent, black var(--sp-6));
   }
   .strip__text .cursor {
     display: inline-block;
@@ -629,6 +639,9 @@
     font-weight: var(--fw-regular);
     letter-spacing: 0;
     color: var(--color-text-3);
+    /* The hint reads from its start, cut with an ellipsis where it must be. */
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .strip__text[data-empty="true"] .cursor { display: none; }
   .strip .btn--icon { width: var(--size-target); min-height: var(--size-target); }

@@ -12,31 +12,47 @@ python3 -m http.server 8080
 ```
 
 Open <http://localhost:8080>. Do not use `file://`, because models and JSON are
-loaded with `fetch`. Camera access requires `localhost` or HTTPS.
+loaded with `fetch`. Camera access requires `localhost` or HTTPS. From the
+repository root, `node tests/browser/serve.mjs 8080` serves the folder the way
+the host does, with the response headers from `_headers` (the Content
+Security Policy included).
 
 No model downloads when the page opens. Each one loads the first time it is
-needed: starting the camera loads the models the current mode runs, and
-**Offline test** loads the word model. The status line reports the download and
-then which models are ready.
+needed: starting the camera loads the models the current mode runs, and a
+word test under **Kamerasız dene** loads the word model. The message line on
+the stage reports the download and then which models are ready.
 
-Use **Offline test** before camera testing. The bundled fixture should predict
-`give` at approximately `0.0760` confidence. It proves that the word ONNX,
-temperature, mask, labels, and browser inference path agree; it is not an
-official evaluation result.
+Use **Kamerasız dene** (`#test`) before camera testing. The bundled word
+fixture should predict `give` at approximately `0.0760` confidence. It proves
+that the word ONNX, temperature, mask, labels, and browser inference path
+agree; it is not an official evaluation result.
 
 ## Modes
 
-| Mode | Behavior |
-|---|---|
-| Letter Translation | Continuous 24-class static-letter inference and explicit transcript entry |
-| Learning Coach | Target-based letter or word practice with local progress |
-| Word Practice | Recorded 45-frame isolated-sign inference with top-3 review |
-| Model Test | Camera-free inference from versioned JSON fixtures |
-| QR Demo | Deep links to the hosted letter, word, or test view |
-| Project | Concise implementation and limitation summary |
+The interface is in Turkish. The three camera modes are the tabs of the top
+bar; the other screens are in its "Diğer" menu on a phone and are links in
+the bar on a laptop.
 
-Letter Translation is the primary experience. Word Practice is experimental
-and requires manual result acceptance.
+| Screen (route) | Behaviour |
+|---|---|
+| Harf (`#letter`) | Continuous 24-class static-letter inference; the user adds each letter to the transcript |
+| Koç (`#coach`) | Target-based letter or word practice with local progress |
+| Kelime, deneysel (`#word`) | Recorded 45-frame isolated-sign inference with top-3 review; a result is added only when the user accepts it |
+| Kamerasız dene (`#test`) | Camera-free inference from versioned JSON fixtures (Model Test) |
+| Telefonda aç (`#qr`) | QR code and deep links to the hosted letter, word or test view |
+| Nasıl çalışır (`#project`) | Concise implementation and limitation summary |
+
+Letter mode is the primary experience and opens for an empty or unknown hash.
+Leaving the camera screens for `#test`, `#qr` or `#project` stops the camera.
+When the camera cannot open (permission refused, no camera, camera busy, an
+insecure page) the stage says why, with a retry and the steps for the
+visitor's browser.
+
+The layout follows the device: a phone held upright puts the stage over the
+transcript and the actions; sideways, the stage fills the height and the
+rest stands in a column beside it; a laptop adds a side column of supporting
+cards, and its result plate moves to the other bottom corner when a hand
+stays under it. The theme follows the system until the visitor picks one.
 
 ## Runtime dependencies
 
@@ -62,12 +78,14 @@ js/ml/landmarks.js
 js/ml/features.js
 js/services/benchmark.js
 js/ml/gating.js
+js/ml/hold.js
 js/ml/letter-model.js
 js/ml/word-model.js
 js/media/overlay.js
 js/media/camera.js
 js/ml/live-inference.js
 js/ui/prediction.js
+js/ui/plate-side.js
 js/ui/toast.js
 js/ui/transcript.js
 js/ui/word-flow.js
@@ -99,6 +117,13 @@ Runtime settings live in `js/core/config.js` under `CONFIG`. Important defaults:
 | `WORD_FIRST_FRAME_TIMEOUT_MS` | 6000 | A recording with no usable frame this long ends |
 | `WORD_NO_HAND_TIMEOUT_MS` | 4000 | A recording whose usable frames stop this long ends |
 | `WORD_MAX_RECORDING_MS` | 15000 | A recording still not full after this long ends |
+| `COACH_HOLD_MS` | 1000 | How long a coach target letter must be held to count |
+| `COACH_HOLD_CONFIDENCE` | 0.65 | Smoothed confidence that counts as holding; equal to the confident threshold |
+| `COACH_HOLD_GRACE_MS` | 240 | Longest dip that only pauses a hold |
+| `COACH_RELEASE_MS` | 400 | Another letter this long before the same target counts again |
+| `COACH_MISS_MS` | 1500 | Another letter this long before the coach names it |
+| `COACH_ADVANCE_MS` | 2500 | Wait after a success before the next target |
+| `COACH_SESSION_SIZE` | 10 | Targets in one practice session or quiz |
 | `TOP_K` | 3 | Number of alternatives shown |
 | `SELFIE_HANDEDNESS_SWAP` | `false` | Camera-specific handedness correction |
 
@@ -140,16 +165,20 @@ Python evaluation script first.
 
 ## Keyboard shortcuts
 
-| Shortcut | Action |
-|---|---|
-| `Space` | Accept current letter when allowed |
-| `S` | Speak the transcript |
-| `C` | Clear the transcript |
-| `M` | Cycle application modes |
-| `Ctrl+D` | Toggle debug panel |
+In letter mode:
 
-Shortcuts are secondary to visible controls and should not fire while typing in
-an input.
+| Key | Action | Same as |
+|---|---|---|
+| `Space` | Add the current letter, when it is confident enough | **Ekle** |
+| `Enter` | Add a space | **Boşluk** |
+| `Backspace` | Delete the last character | **Sil** |
+
+`Ctrl+D` toggles the debug panel in every mode, and `Escape` closes the phone
+menu. There are deliberately no single-letter shortcuts: one that clears the
+text or leaves the screen, with no way to turn it off, fails WCAG 2.1.4. A key
+pressed while a button, a link or a form field has focus goes to that control,
+and any key with `Ctrl`, `Cmd` or `Alt` is left to the browser. Clearing the
+transcript (**Temizle**) can be undone from its toast (**Geri al**).
 
 ## Deployment
 
@@ -181,13 +210,20 @@ From the repository root:
 
 ```bash
 # Run from any configured Python environment.
-make health
+make health          # lint, format, JS syntax and node tests, validation, Python tests
+make check           # health plus the JSDoc type check (needs `npm ci` once)
+make browser-check   # headless Chrome: cascade, layout, camera stop (OFFLINE=1 skips the CDN)
 make web
 ```
 
-After automated checks, manually verify model readiness, offline inference,
-camera start/stop, letter acceptance, word recording/retry, Model Test, and QR
-deep links.
+`make browser-check` runs the checks in `tests/browser/` against this folder
+as it is: computed style and layout boxes in a real Chrome with a fake camera,
+including the phone, landscape and laptop geometry. It needs a Chrome and is
+not part of `make health`; see `tests/browser/README.md`.
+
+After automated checks, manually verify model readiness, camera-free
+inference, camera start/stop, letter acceptance, word recording/retry, Model
+Test, and QR deep links, on a real phone as well as a laptop.
 
 ## Known limitations
 
@@ -213,7 +249,15 @@ asl-web/
 │   ├── base.css           fonts, document defaults, focus ring
 │   ├── components.css     buttons, mode switch, stage, caption plate, panels
 │   └── layout.css         shell and workspace for phone, landscape and laptop
-├── js/{core,media,ml,services,ui}/
+├── js/
+│   ├── core/              theme-boot.js (theme before first paint), config.js,
+│   │                      runtime.js (state, element registry), app.js (start-up, routes, camera)
+│   ├── media/             camera.js (MediaPipe tasks), overlay.js (landmark drawing)
+│   ├── ml/                landmarks, features, gating, letter and word models, live inference
+│   ├── services/          benchmark.js
+│   └── ui/                prediction.js, plate-side.js, toast.js, transcript.js,
+│                          word-flow.js, coach.js, reference.js, qr.js, model-test.js
+├── types/                 browser-globals.d.ts: the CDN globals, for the type check
 ├── models/
 │   ├── letter_model.onnx.gz   what the browser downloads
 │   ├── letter_model.onnx      same model uncompressed: fallback and validation

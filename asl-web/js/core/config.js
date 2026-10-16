@@ -29,6 +29,13 @@
  * @property {number} WORD_FIRST_FRAME_TIMEOUT_MS A recording with no usable frame this long after it starts ends.
  * @property {number} WORD_NO_HAND_TIMEOUT_MS A recording whose usable frames stop for this long ends.
  * @property {number} WORD_MAX_RECORDING_MS A recording still not full after this long ends.
+ * @property {number} COACH_HOLD_MS How long a coach target letter must be held to count.
+ * @property {number} COACH_HOLD_CONFIDENCE Smoothed confidence at which the target counts as held.
+ * @property {number} COACH_HOLD_GRACE_MS Longest dip below that confidence that only pauses a hold.
+ * @property {number} COACH_RELEASE_MS How long another letter must show before the same target counts again.
+ * @property {number} COACH_MISS_MS How long another letter must show before the coach names it.
+ * @property {number} COACH_ADVANCE_MS Wait after a success before the next target comes up.
+ * @property {number} COACH_SESSION_SIZE Targets in one practice session or quiz.
  * @property {boolean} SELFIE_HANDEDNESS_SWAP Swap left/right on devices that report the opposite convention.
  * @property {number} HAND_DETECTION_CONFIDENCE MediaPipe hand detection threshold.
  * @property {number} HAND_PRESENCE_CONFIDENCE MediaPipe hand presence threshold.
@@ -95,6 +102,23 @@ const CONFIG = {
   WORD_FIRST_FRAME_TIMEOUT_MS: 6000,
   WORD_NO_HAND_TIMEOUT_MS: 4000,
   WORD_MAX_RECORDING_MS: 15000,
+  // Coach letter scoring is a hold, not a button press. One second is a
+  // deliberate, still handshape: about nine 120 ms inference ticks, which is
+  // what "en az 1 saniye sabit" has always asked of the learner. Success
+  // means the plate would say "Emin", so the confidence stays equal to
+  // CONFIDENT_THRESHOLD. The grace is two ticks, so a single noisy frame does
+  // not punish the learner; the release separates two repetitions. The miss
+  // hint waits long enough not to nag while the hand is still forming, and
+  // the advance long enough to see the success and choose to stay. Sessions
+  // of ten match the prototype. All are starting values for the real-device
+  // test to tune.
+  COACH_HOLD_MS: 1000,
+  COACH_HOLD_CONFIDENCE: 0.65,
+  COACH_HOLD_GRACE_MS: 240,
+  COACH_RELEASE_MS: 400,
+  COACH_MISS_MS: 1500,
+  COACH_ADVANCE_MS: 2500,
+  COACH_SESSION_SIZE: 10,
   // MediaPipe normally reports handedness from the user's perspective. Enable
   // this only on devices where left and right labels are consistently swapped.
   SELFIE_HANDEDNESS_SWAP: false,

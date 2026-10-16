@@ -120,8 +120,9 @@ ARTIFACTS: tuple[ArtifactContract, ...] = (
 
 # Data the app fetches that is curated in the repository rather than exported,
 # so it has no source to compare with. A missing one is a request that 404s:
-# the tutorial links of the reference panel, and the letter fixture the Model
-# Test falls back to when its manifest cannot be read.
+# the tutorial links of the reference panel, the letter fixture the Model
+# Test falls back to when its manifest cannot be read, and the coach's letter
+# teaching data, without which it teaches the alphabet with no cues.
 DATA_ARTIFACTS: tuple[ArtifactContract, ...] = (
     ArtifactContract(
         "asl_video_links.json", WEB_DATA_DIR / "asl_video_links.json", None, "json", 0.5
@@ -133,6 +134,13 @@ DATA_ARTIFACTS: tuple[ArtifactContract, ...] = (
     ArtifactContract("word_reference.json", WEB_DATA_DIR / "word_reference.json", None, "json", 3),
     # The figures the Project page states about the models.
     ArtifactContract("model-card.json", WEB_DATA_DIR / "model-card.json", None, "json", 0.5),
+    # The coach's teaching order and cues, and its look-alike letter groups.
+    ArtifactContract(
+        "letter_curriculum.json", WEB_DATA_DIR / "letter_curriculum.json", None, "json", 2
+    ),
+    ArtifactContract(
+        "letter_confusion.json", WEB_DATA_DIR / "letter_confusion.json", None, "json", 1
+    ),
 )
 
 # Reference imagery. These have no source outside the repository, so they carry

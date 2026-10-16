@@ -125,6 +125,12 @@ function renderTranscript() {
   // caret is decoration, not a character to read out.
   els.transcriptText.lang = text ? "en" : "tr";
   els.transcriptText.innerHTML = `${escapeHtml(text || "Metin burada görünür")}<span class="cursor" aria-hidden="true">|</span>`;
+  // One line that scrolls: the end, where the newest letter and the caret
+  // are, stays in view, and the start fades out once it is scrolled off.
+  // A screen reader still gets the whole text.
+  const strip = els.transcriptText;
+  strip.scrollLeft = text ? strip.scrollWidth || 0 : 0;
+  strip.dataset.overflow = text && strip.scrollLeft > 0 ? "start" : "none";
 }
 
 /**

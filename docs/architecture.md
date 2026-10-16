@@ -77,12 +77,14 @@ ml/landmarks.js
 ml/features.js
 services/benchmark.js
 ml/gating.js
+ml/hold.js
 ml/letter-model.js
 ml/word-model.js
 media/overlay.js
 media/camera.js
 ml/live-inference.js
 ui/prediction.js
+ui/plate-side.js
 ui/toast.js
 ui/transcript.js
 ui/word-flow.js
@@ -113,8 +115,10 @@ core/app.js
 | `js/ml/letter-model.js` | Letter ONNX session and prediction parsing |
 | `js/ml/word-model.js` | Word ONNX session, mask compatibility, calibration, top-3 |
 | `js/ml/gating.js` | Temporal smoothing and difficulty/confusion feedback |
+| `js/ml/hold.js` | Hold detection for the coach: a target held steadily counts once |
 | `js/services/benchmark.js` | Browser latency measurements |
 | `js/ui/prediction.js` | Prediction, top-3, status message, feedback, word result guide |
+| `js/ui/plate-side.js` | Laptop result plate: moves to the other bottom corner when a hand stays under it (time-based hysteresis) |
 | `js/ui/toast.js` | Toast confirmations with one optional action, and the screen-reader live region |
 | `js/ui/transcript.js` | Transcript editing, persistence, clipboard, speech output |
 | `js/ui/word-flow.js` | Word countdown, recording progress, quality readout, action buttons |
@@ -221,7 +225,7 @@ The exported ONNX graph performs the attention-mask inversion internally.
 
 | Mode | Behavior |
 |---|---|
-| Learning Coach | Shows a target and local progress. Letter scoring occurs only after the explicit check action; word scoring occurs after a completed recording. |
+| Learning Coach | Shows a target and local progress. A target letter is scored by holding it: a steady hold for the hold time counts once, and the same pose counts again only after it is released. A button press never scores a letter. Word scoring occurs after a completed recording. |
 | Model Test | Runs versioned JSON features directly through the browser ONNX sessions without using the camera. |
 | QR Demo | Creates deep links for letter, word, and Model Test views. |
 | Project | Shows a concise technical summary inside the application. |

@@ -12,12 +12,14 @@ ml/landmarks.js
 ml/features.js
 services/benchmark.js
 ml/gating.js
+ml/hold.js
 ml/letter-model.js
 ml/word-model.js
 media/overlay.js
 media/camera.js
 ml/live-inference.js
 ui/prediction.js
+ui/plate-side.js
 ui/toast.js
 ui/transcript.js
 ui/word-flow.js
@@ -65,8 +67,10 @@ automatically.
 | `ml/letter-model.js` | Letter ONNX loading, probability parsing, and backward fallback |
 | `ml/word-model.js` | Word ONNX loading, mask handling, calibration, softmax, and top-3 output |
 | `ml/gating.js` | Letter smoothing and difficulty/confusion feedback data |
+| `ml/hold.js` | Hold detection: a target held steadily for a time counts once |
 | `services/benchmark.js` | Bounded client-side latency measurements |
 | `ui/prediction.js` | Prediction, top-3, status message, feedback, word result guide |
+| `ui/plate-side.js` | Laptop result plate: moves to the other bottom corner when a hand stays under it (time-based hysteresis) |
 | `ui/toast.js` | Toast confirmations with one optional action, and the screen-reader live region |
 | `ui/transcript.js` | Transcript editing, persistence, clipboard, speech output |
 | `ui/word-flow.js` | Word countdown, recording progress, quality readout, action buttons |
@@ -181,11 +185,13 @@ truth rather than a convenience.
 | `Hand63`, `LetterFeatures93`, `WordFeatures168`, letter motion and smoothing | `ml/features.js` |
 | `BenchmarkStage`, `BenchmarkSummary` | `services/benchmark.js` |
 | `ConfusionPairRaw`, `ConfusionPair`, `PerWordStat`, `WordDifficulty` | `ml/gating.js` |
+| `HoldPhase`, `HoldObservation`, `HoldStatus`, `HoldTimings`, `HoldTracker` | `ml/hold.js` |
 | `WordFeatures45x168`, `WordMask45`, `WordMaskDtype` | `ml/word-model.js` |
 | `OnnxSessionLike`, `OnnxTensorLike`, `ProbabilityVector` | `ml/letter-model.js` |
 | MediaPipe landmark and task shapes | `media/camera.js` |
 | Recording diagnostics, `DominantSide` | `ml/live-inference.js` |
 | `ConfidenceLevel`, `FeedbackKind` | `ui/prediction.js` |
+| `CoachLetterData`, `CoachConfusionGroup`, `CoachProgress`, `CoachLetterRecord` | `ui/coach.js` |
 | Fixture and manifest shapes | `ui/model-test.js` |
 
 Three rules keep the annotations honest:

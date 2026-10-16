@@ -69,6 +69,35 @@
 
 /** @typedef {"learn" | "practice" | "quiz"} CoachFlow */
 
+/**
+ * Where the coach is with the current target letter.
+ *
+ * "camera-off": nothing is watched. "no-hand": the camera is on and no hand is
+ * in view. "watching": a hand is in view and the target is not being held.
+ * "holding": the target is being held and the hold is filling. "miss":
+ * another letter, or an unreadable hand, has been seen for a while, and the
+ * coach says what tells it from the target; a hold may still start. "success":
+ * the hold completed and was counted. "staying": after a success, the learner
+ * chose to stay on the target instead of moving on.
+ *
+ * @typedef {"camera-off" | "no-hand" | "watching" | "holding" | "miss" | "success" | "staying"} CoachPhase
+ */
+
+/**
+ * The coach's attempt at the current target letter.
+ *
+ * @typedef {Object} CoachAttempt
+ * @property {CoachPhase} phase
+ * @property {number} holdProgress How full the hold is, in [0, 1].
+ * @property {boolean} targetCounted Whether a hold of this target has been
+ *   counted; a quiz question scores once however often it is held.
+ * @property {string | null} missLetter The letter a miss names, "?" for a hand
+ *   the model cannot read, or null while there is no miss.
+ * @property {boolean} advancing Whether the next target is about to come up
+ *   on its own after a success.
+ * @property {boolean} hintOpen Whether the hint for this target has been opened.
+ */
+
 /** Which published model a Model Test fixture runs against. @typedef {"letter" | "word"} ModelTask */
 
 /** Modes the QR demo link can deep-link into. @typedef {"letter" | "word" | "test"} QrTarget */
@@ -141,7 +170,8 @@
  * @property {number} coachGoal
  * @property {number} quizTotal
  * @property {number} quizScore
- * @property {number} lastTick Letter inference throttle timestamp.
+ * @property {CoachAttempt} coach The attempt at the current coach target letter.
+ * @property {number} lastTick When a letter context last ran inference; the render loop's throttle.
  * @property {number} fpsFrames
  * @property {number} fps
  * @property {boolean} debug
@@ -312,6 +342,7 @@ const state = {
   coachGoal: 5,
   quizTotal: 5,
   quizScore: 0,
+  coach: { phase: "camera-off", holdProgress: 0, targetCounted: false, missLetter: null, advancing: false, hintOpen: false },
   lastTick: performance.now(),
   fpsFrames: 0,
   fps: 0,
@@ -327,6 +358,9 @@ const els = {
   video: requireElement("cameraVideo", HTMLVideoElement),
   canvas: requireElement("overlayCanvas", HTMLCanvasElement),
   cameraStage: requireElement("cameraStage"),
+  // The result plate as a whole, for the laptop's corner switching
+  // (plate-side.js); without it the plate simply stays put.
+  resultPlate: document.getElementById("resultPlate"),
   cameraEmpty: requireElement("cameraEmpty"),
   // The empty stage's two faces: the first-visit content, and the problem
   // that takes its place when the camera cannot open.

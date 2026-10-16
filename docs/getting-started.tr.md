@@ -195,7 +195,8 @@ yalnızca Git bağlantılı veya CLI ile yapılan yayınlarda publish klasörün
 Sayfa açıldığında hiçbir model istenmez; Network panelinde model isteği ancak
 bir modele ihtiyaç duyulduğunda görünür: kamera başlatıldığında, kelime
 kaydında, **Offline test** ile veya bir Model Test çalıştırmasında. Harf modu
-harf modelini, kelime modu kelime modelini, Öğrenme Koçu ikisini de yükler.
+harf modelini, kelime modu kelime modelini, Öğrenme Koçu harf modelini yükler;
+kelime modelini yalnızca kelimelere geçildiğinde ekler.
 
 `make validate` çalıştırın, bunlardan birini tetikleyin ve tarayıcının
 Network/Console panellerini inceleyin. Harf modeli `models/letter_model.onnx.gz`,

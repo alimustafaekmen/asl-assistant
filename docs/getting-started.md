@@ -233,7 +233,8 @@ selects the publish directory for Git-linked or CLI deploys.
 No model is requested when the page opens, so the Network panel shows none
 until something needs one: starting the camera, a word recording, **Offline
 test**, or a Model Test run. Letter mode loads the letter model, word mode the
-word model, and the Learning Coach both.
+word model, and the Learning Coach the letter model, adding the word model
+only when it is switched to words.
 
 Run `make validate`, trigger one of those, then inspect the browser Network and
 Console panels. The letter model arrives as `models/letter_model.onnx.gz` and

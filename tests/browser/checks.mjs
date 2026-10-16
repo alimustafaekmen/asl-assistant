@@ -47,6 +47,13 @@ const IN_PAGE = String.raw`
     const box = el.getBoundingClientRect();
     return box.width > 0 && box.height > 0;
   };
+  // Layout boxes. Half a pixel of slack absorbs subpixel rounding.
+  const all = (selector) => [...document.querySelectorAll(selector)].filter(rendered);
+  const box = (el) => el.getBoundingClientRect();
+  const meets = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5
+    && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5;
+  const inside = (inner, outer) => inner.left >= outer.left - 0.5 && inner.right <= outer.right + 0.5
+    && inner.top >= outer.top - 0.5 && inner.bottom <= outer.bottom + 0.5;
   const removeLegacyLayer = () => {
     const sheet = document.styleSheets[0];
     const rules = sheet ? [...sheet.cssRules] : [];
@@ -426,6 +433,189 @@ export const CHECKS = [
           if (result) {
             problems.push(`${viewport.width}x${viewport.height} ${mode}: scrolls ${result.overflow}px sideways; widest: ${result.wide.join(", ")}`);
           }
+        }
+        await page.close();
+      }
+      return problems;
+    },
+  },
+
+  {
+    name: "landscape",
+    summary: "phone landscape: the stage fills the height at the left, the result sits beside it, and nothing overlaps or is cut off",
+    async run(ctx) {
+      const viewports = [
+        { width: 844, height: 390, mobile: true },
+        { width: 740, height: 360, mobile: true },
+        { width: 667, height: 375, mobile: true },
+        { width: 568, height: 320, mobile: true },
+        { width: 932, height: 430, mobile: true },
+      ];
+      // Each state through the app's own functions: the first visit, a live
+      // result (the camera itself is the boundary, so its effect on the stage
+      // is what stands in for it), and a refused camera.
+      const states = {
+        idle: `stopCamera()`,
+        live: `(() => {
+          stopCamera();
+          els.cameraEmpty.hidden = true;
+          state.transcript = "HELLO WOR";
+          renderTranscript();
+          updatePrediction({ label: "L", confidence: 0.93, alternatives: [{ label: "L", confidence: 0.93 }, { label: "D", confidence: 0.03 }] });
+        })()`,
+        denied: `(() => { stopCamera(); showCameraProblem(cameraProblemKind({ name: "NotAllowedError", message: "" })); })()`,
+      };
+      const measure = (label) => `(() => {
+        ${IN_PAGE}
+        const label = ${JSON.stringify(label)};
+        const problems = [];
+        const near = (a, b) => Math.abs(a - b) <= 0.5;
+        const view = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+
+        const stage = document.getElementById("cameraStage");
+        const s = box(stage);
+        if (!near(s.top, 0) || !near(s.left, 0) || !near(s.bottom, innerHeight)) {
+          problems.push(label + ": the stage is at [" + [s.left, s.top, s.width, s.height].map(Math.round) + "], not the full height at the left edge");
+        }
+
+        // The side column: what sits beside the stage, never on it.
+        const column = [
+          ...all(".topbar__modes"), ...all(".topbar__more"), ...all(".camera-column > .plate"),
+          ...all(".compose > .strip"), ...all(".dock > *"),
+        ];
+        // What the stage shows: each of these must be readable whole.
+        const onStage = [
+          ...all("#latencyBadge"), ...all("#cameraToggle"), ...all(".stage__headline"), ...all(".stage__lead"),
+          ...all(".stage__cta > *"), ...all(".stage__facts"), ...all(".stage__problem-text"), ...all(".stage__help > summary"),
+        ];
+        if (!all(".dock > *").length) problems.push(label + ": no action is rendered");
+        for (const el of column) {
+          if (meets(box(el), s)) problems.push(label + ": " + describe(el) + " lies on the stage");
+          if (!inside(box(el), view)) problems.push(label + ": " + describe(el) + " is cut off by the window");
+        }
+        for (const el of onStage) {
+          if (!inside(box(el), s)) problems.push(label + ": " + describe(el) + " is cut off by the stage");
+        }
+        const parts = [...column, ...onStage];
+        for (let i = 0; i < parts.length; i += 1) {
+          for (let j = i + 1; j < parts.length; j += 1) {
+            if (parts[i].contains(parts[j]) || parts[j].contains(parts[i])) continue;
+            if (meets(box(parts[i]), box(parts[j]))) problems.push(label + ": " + describe(parts[i]) + " overlaps " + describe(parts[j]));
+          }
+        }
+        for (const el of all(".dock > *")) {
+          if (box(el).height < 44 - 0.5) problems.push(label + ": " + describe(el) + " is " + Math.round(box(el).height) + " px high, below 44");
+        }
+        const overflow = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+        if (overflow > 0) problems.push(label + ": the page scrolls " + overflow + " px sideways");
+        return problems;
+      })()`;
+      const problems = [];
+      for (const viewport of viewports) {
+        const page = await openApp(ctx, { route: "letter", viewport });
+        await page.eval("document.fonts.ready.then(() => true)");
+        for (const mode of CAMERA_MODES) {
+          await switchMode(page, mode);
+          for (const [name, setup] of Object.entries(states)) {
+            await page.eval(setup);
+            problems.push(...(await page.eval(measure(`${viewport.width}x${viewport.height} ${mode} ${name}`))));
+          }
+        }
+        await page.close();
+      }
+      return problems;
+    },
+  },
+
+  {
+    name: "stage-fit",
+    summary: "portrait, tablet and laptop: the first visit and the camera problem fit the stage whole, clear of the chip and the message line",
+    async run(ctx) {
+      const viewports = [
+        { width: 320, height: 568, mobile: true },
+        { width: 360, height: 640, mobile: true },
+        { width: 375, height: 667, mobile: true },
+        { width: 360, height: 780, mobile: true },
+        { width: 375, height: 812, mobile: true },
+        { width: 390, height: 844, mobile: true },
+        { width: 768, height: 1024, mobile: true },
+        { width: 1366, height: 768, mobile: false },
+        { width: 1440, height: 900, mobile: false },
+      ];
+      // At rest and with a refused camera, through the app's own functions.
+      const states = {
+        idle: `stopCamera()`,
+        denied: `(() => { stopCamera(); showCameraProblem(cameraProblemKind({ name: "NotAllowedError", message: "" })); })()`,
+      };
+      const measure = (label) => `(() => {
+        ${IN_PAGE}
+        const label = ${JSON.stringify(label)};
+        const problems = [];
+        const stage = box(document.getElementById("cameraStage"));
+        // What the stage shows before the camera runs. Each is read whole:
+        // a part that runs past the stage or into a scrolled-away area, or
+        // that lies on another part, is a part the visitor cannot read.
+        const parts = [
+          ...all("#latencyBadge"), ...all(".stage__illustration"), ...all(".stage__headline"), ...all(".stage__lead"),
+          ...all(".stage__cta > *"), ...all(".stage__facts > li"), ...all(".stage__problem-icon"),
+          ...all(".stage__problem-text"), ...all(".stage__help > summary"),
+          // The message line under the first visit, when it shows.
+          ...all(".camera-column > .plate"),
+        ];
+        if (parts.length < 4) problems.push(label + ": only " + parts.length + " parts rendered on the stage");
+        for (const el of parts) {
+          if (!inside(box(el), stage)) problems.push(label + ": " + describe(el) + " is cut off by the stage");
+        }
+        for (let i = 0; i < parts.length; i += 1) {
+          for (let j = i + 1; j < parts.length; j += 1) {
+            if (parts[i].contains(parts[j]) || parts[j].contains(parts[i])) continue;
+            if (meets(box(parts[i]), box(parts[j]))) problems.push(label + ": " + describe(parts[i]) + " overlaps " + describe(parts[j]));
+          }
+        }
+        return problems;
+      })()`;
+      const problems = [];
+      for (const viewport of viewports) {
+        const page = await openApp(ctx, { route: "letter", viewport });
+        await page.eval("document.fonts.ready.then(() => true)");
+        for (const mode of CAMERA_MODES) {
+          await switchMode(page, mode);
+          for (const [name, setup] of Object.entries(states)) {
+            await page.eval(setup);
+            problems.push(...(await page.eval(measure(`${viewport.width}x${viewport.height} ${mode} ${name}`))));
+          }
+        }
+        await page.close();
+      }
+      return problems;
+    },
+  },
+
+  {
+    name: "strip-tail",
+    summary: "a transcript longer than the strip shows its newest letters and the caret",
+    async run(ctx) {
+      const viewports = [
+        { width: 844, height: 390, mobile: true },
+        { width: 390, height: 844, mobile: true },
+        { width: 1366, height: 768, mobile: false },
+      ];
+      const problems = [];
+      for (const viewport of viewports) {
+        const page = await openApp(ctx, { route: "letter", viewport });
+        await page.eval("document.fonts.ready.then(() => true)");
+        for (const text of ["AB", "THE QUICK BROWN FOX JUMPS OVER THE LAZY"]) {
+          // Typed through the app's own render, then one frame for layout.
+          await page.eval(`(() => { state.transcript = ${JSON.stringify(text)}; renderTranscript(); })()`);
+          await page.eval("new Promise((resolve) => requestAnimationFrame(() => resolve(true)))");
+          const seen = await page.eval(`(() => {
+            ${IN_PAGE}
+            const strip = document.getElementById("transcriptText");
+            const caret = strip.querySelector(".cursor");
+            return { inside: Boolean(caret) && inside(box(caret), box(strip)), clipped: strip.scrollWidth > strip.clientWidth };
+          })()`);
+          if (!seen.inside) problems.push(`${viewport.width}x${viewport.height} "${text}": the caret after the newest letter is outside the strip`);
+          if (text.length > 30 && !seen.clipped) problems.push(`${viewport.width}x${viewport.height}: a ${text.length}-letter text fits the strip, so this proves nothing`);
         }
         await page.close();
       }

@@ -102,6 +102,12 @@
     --size-topbar: 60px;
     --size-ring: 104px;
     --size-side: 360px;
+    /* Stage content starting this far down clears the chip: its 12 px
+       inset, 32 px height and a gap. */
+    --size-stage-clear: 3.25rem;
+    /* What the message line takes at the stage's bottom edge: two lines,
+       its padding and its margin. */
+    --size-stage-message: 4.5rem;
 
     /* Elevation: floating things only; cards use a hairline, never both. */
     --elev-float: 0 8px 24px rgb(0 0 0 / 0.18);
@@ -151,6 +157,33 @@
     :root { --fs-2xl: 1.5rem; }
   }
 
+  /* Phone landscape: the stage on the left, a column of fixed parts on the
+     right. The ring steps down with the height, so the column fits 390,
+     360 and 320 px (Tel-Yatay; SPEC Rev. 2 rings 88, 76 and 64). */
+  @media (orientation: landscape) and (max-height: 32rem) and (max-width: 63.99rem) {
+    :root {
+      --size-land-side: clamp(16.5rem, 36vw, 19rem);
+      --size-land-switch: 3.25rem; /* 44 px tabs in the switch's 4 px padding */
+      --size-land-strip: 52px;
+      --size-control: 44px;
+      --size-ring: 88px;
+      --fs-glyph: 4rem;     /* 64 */
+      --fs-word: 2rem;      /* 32 */
+    }
+  }
+  @media (orientation: landscape) and (max-height: 23rem) and (max-width: 63.99rem) {
+    :root { --size-ring: 76px; --fs-glyph: 3.25rem; --size-land-strip: 48px; }
+  }
+  /* The shortest (568x320, 640x320): the switch drops its padding. */
+  @media (orientation: landscape) and (max-height: 21.25rem) and (max-width: 63.99rem) {
+    :root {
+      --size-land-switch: 3rem;
+      --size-ring: 64px;
+      --fs-glyph: 2.75rem;  /* 44 */
+      --fs-word: 1.75rem;   /* 28 */
+    }
+  }
+
   /* Laptop and up: a denser control size and a larger display scale. */
   @media (min-width: 64rem) {
     :root {
@@ -159,12 +192,12 @@
       --fs-2xl: 2.375rem; /* 38 */
       --fs-level: 1.375rem; /* 22 */
       --fs-word: 3.25rem; /* 52 */
-      --fs-glyph: 7rem;   /* 112 */
+      --fs-glyph: 5.25rem; /* 84: the ring is 112 so a raised hand clears the plate (see layout.css) */
       --r-stage: 20px;
       --size-control: 44px;
       --size-icon: 20px;
       --size-topbar: 64px;
-      --size-ring: 148px;
+      --size-ring: 112px;
     }
   }
 }
