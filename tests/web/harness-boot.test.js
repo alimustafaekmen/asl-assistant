@@ -9,10 +9,12 @@
 // address bar opens its mode, and the render loop is scheduled.
 
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 
 import { deferred, flush } from "./helpers/fake-camera.mjs";
-import { loadWebApp } from "./helpers/web-app-context.mjs";
+import { PROJECT_ROOT, loadWebApp } from "./helpers/web-app-context.mjs";
 
 const quietConsole = { ...console, log() {}, warn() {}, info() {} };
 
@@ -120,8 +122,14 @@ test("the default fetch serves the deployed folder and nothing outside it", asyn
   assert.ok(Object.keys(await labels.json()).length >= 24);
 
   assert.equal((await fetch("./data/no-such-file.json")).status, 404);
-  assert.equal((await fetch("../../outside.md")).status, 404, "a path cannot climb out of asl-web");
-  assert.equal((await fetch("./data/..%2f..%2foutside.md")).status, 404, "nor through an encoded slash");
+
+  // A plain "../" is resolved away by the URL parser before the fetch sees
+  // it; an encoded slash or dot is not, and only decodes to ".." inside the
+  // fetch, which must refuse it. The target is one every clone has, so the
+  // refusal is the folder guard's and not a missing file.
+  assert.ok(existsSync(join(PROJECT_ROOT, "README.md")), "precondition: README.md at the repository root");
+  assert.equal((await fetch("./data/..%2f..%2fREADME.md")).status, 404, "a path cannot climb out of asl-web");
+  assert.equal((await fetch("./data/%2e%2e%2f%2e%2e%2fREADME.md")).status, 404, "nor through encoded dots");
   await assert.rejects(fetch("https://cdn.jsdelivr.net/npm/x.js"), TypeError, "other origins are offline");
 });
 

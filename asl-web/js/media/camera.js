@@ -124,6 +124,18 @@ let mpRunning = false;
 let mpVideoEl = null;
 /** Last timestamp handed to MediaPipe; it rejects a repeated timestamp. */
 let lastHandTs = 0;
+// Camera frames the browser has presented, counted through
+// requestVideoFrameCallback where it exists, and the count at the last
+// detection. Without that API every animation frame is detected, as before.
+let _videoFramesPresented = 0;
+let _videoFramesDetected = -1;
+/** @type {number | null} */
+let _videoFrameCallbackId = null;
+/** @type {HTMLVideoElement | null} */
+let _watchedVideo = null;
+// Longest wait for a new camera frame before detecting anyway: a video that
+// stops reporting frames must slow tracking, never stop it.
+const STALLED_VIDEO_DETECT_MS = 200;
 /** @type {MediaPipeFrameResult | null} */
 let latestMediaPipeResult = null;
 /** @type {HandednessDebugEntry[]} */
@@ -313,10 +325,12 @@ async function startMediaPipe(videoEl) {
     // may continue loading in the background without blocking letter mode.
     mpRunning = true;
     lastHandTs = 0;
+    _watchVideoFrames(mpVideoEl);
     _firstFrameLogged = false;
     _firstHandLogged = false;
     _noHandWarnLogged = false;
     _frameStats = { processed: 0, handsDetected: 0, lastSummary: 0 };
+    _failedFrames = 0;
     console.log("[MP] started: hand task ready (1/3)");
     if (typeof state !== "undefined" && typeof els !== "undefined" && els.latencyBadge) {
       els.latencyBadge.textContent = "El izleme hazır";
@@ -330,6 +344,34 @@ async function startMediaPipe(videoEl) {
     // a newer start may hold it now.
     if (!cancelled()) mpStarting = false;
   }
+}
+
+/**
+ * Count the camera frames `video` presents, where the browser can say so.
+ *
+ * @param {HTMLVideoElement | null} video
+ * @returns {void}
+ */
+function _watchVideoFrames(video) {
+  _unwatchVideoFrames();
+  _videoFramesPresented = 0;
+  _videoFramesDetected = -1;
+  if (!video || typeof video.requestVideoFrameCallback !== "function") return;
+  _watchedVideo = video;
+  const onFrame = () => {
+    _videoFramesPresented++;
+    _videoFrameCallbackId = video.requestVideoFrameCallback(onFrame);
+  };
+  _videoFrameCallbackId = video.requestVideoFrameCallback(onFrame);
+}
+
+/** Stop counting presented frames; the stop releases this loop as well. */
+function _unwatchVideoFrames() {
+  if (_videoFrameCallbackId !== null && typeof _watchedVideo?.cancelVideoFrameCallback === "function") {
+    _watchedVideo.cancelVideoFrameCallback(_videoFrameCallbackId);
+  }
+  _videoFrameCallbackId = null;
+  _watchedVideo = null;
 }
 
 /**
@@ -349,6 +391,7 @@ function stopMediaPipe() {
     cancelAnimationFrame(_rafId);
     _rafId = null;
   }
+  _unwatchVideoFrames();
   mpOptionalLoading = false;
   try { handLandmarker?.close(); } catch (e) { /* noop */ }
   try { poseLandmarker?.close(); } catch (e) { /* noop */ }
@@ -449,6 +492,10 @@ let _handStartTs = 0;
 let _noHandWarnLogged = false;
 /** @type {{processed: number, handsDetected: number, lastSummary: number}} */
 let _frameStats = { processed: 0, handsDetected: 0, lastSummary: 0 };
+/** Frames in a row in which a task threw; 0 once a frame detects cleanly. */
+let _failedFrames = 0;
+/** How many failed frames in a row pass between two reminders in the console. */
+const MP_FAILURE_REPORT_EVERY = 300;
 
 /**
  * Detect one frame and publish the combined result.
@@ -474,31 +521,43 @@ function _processFrame() {
       `[MP] first frame: video ${mpVideoEl.videoWidth}x${mpVideoEl.videoHeight}, readyState=${mpVideoEl.readyState}`,
     );
   }
+  const ts = performance.now();
+  // A webcam presents 20 to 30 frames a second while a screen runs 60 to 120
+  // animation frames, so without this the same picture is detected two to six
+  // times over. The stall limit keeps tracking alive if frames stop arriving.
+  if (
+    _videoFrameCallbackId !== null &&
+    _videoFramesPresented === _videoFramesDetected &&
+    ts - lastHandTs < STALLED_VIDEO_DETECT_MS
+  ) {
+    _rafId = requestAnimationFrame(_processFrame);
+    return;
+  }
   _frameStats.processed++;
 
-  const ts = performance.now();
   const t0 = ts;
   if (ts <= lastHandTs) {
     _rafId = requestAnimationFrame(_processFrame);
     return;
   }
   lastHandTs = ts;
+  _videoFramesDetected = _videoFramesPresented;
 
-  let handRes = null;
+  // A task that throws contributes nothing to this frame, and the frame is
+  // still published. Keeping the last good result instead would freeze it: a
+  // broken runtime (a lost GPU context) throws on every frame, and the app
+  // would go on scoring that one still hand.
+  /** @type {unknown[]} */
+  const failures = [];
+  const handRes = _detectOrNull(handLandmarker, mpVideoEl, ts, failures);
   let poseRes = null;
   let faceRes = null;
-  try {
-    if (handLandmarker) handRes = handLandmarker.detectForVideo(mpVideoEl, ts);
-    if (_needsHolisticLandmarks()) {
-      _ensureOptionalHolisticLandmarkers();
-      if (poseLandmarker) poseRes = poseLandmarker.detectForVideo(mpVideoEl, ts);
-      if (faceLandmarker) faceRes = faceLandmarker.detectForVideo(mpVideoEl, ts);
-    }
-  } catch (err) {
-    console.warn("[MP] detection failed:", err);
-    _rafId = requestAnimationFrame(_processFrame);
-    return;
+  if (_needsHolisticLandmarks()) {
+    _ensureOptionalHolisticLandmarkers();
+    poseRes = _detectOrNull(poseLandmarker, mpVideoEl, ts, failures);
+    faceRes = _detectOrNull(faceLandmarker, mpVideoEl, ts, failures);
   }
+  _noteDetectionFailures(failures);
 
   // The video is mirrored only by CSS. MediaPipe and model features use the
   // original frame coordinates; the overlay handles visual mirroring separately.
@@ -610,6 +669,51 @@ function _processFrame() {
   }
 
   _rafId = requestAnimationFrame(_processFrame);
+}
+
+/**
+ * Run one task on the frame.
+ *
+ * @template TResult
+ * @param {VideoLandmarkerTask<TResult> | null} task Null while it is absent or loading.
+ * @param {HTMLVideoElement} video
+ * @param {number} ts
+ * @param {unknown[]} failures Receives the error when the task throws.
+ * @returns {TResult | null} The result, or null when the task is absent or threw.
+ */
+function _detectOrNull(task, video, ts, failures) {
+  if (!task) return null;
+  try {
+    return task.detectForVideo(video, ts);
+  } catch (err) {
+    failures.push(err);
+    return null;
+  }
+}
+
+/**
+ * Report detection failures without writing a line per frame.
+ *
+ * A broken runtime fails on every frame, about 60 times a second, so the first
+ * failure is logged with its error and later ones only as a running count,
+ * every MP_FAILURE_REPORT_EVERY frames. A clean frame ends the run, so the
+ * next failure is reported in full again.
+ *
+ * @param {unknown[]} failures This frame's errors; empty for a clean frame.
+ * @returns {void}
+ */
+function _noteDetectionFailures(failures) {
+  if (failures.length === 0) {
+    if (_failedFrames > 0) console.log(`[MP] detection recovered after ${_failedFrames} failed frames`);
+    _failedFrames = 0;
+    return;
+  }
+  _failedFrames++;
+  if (_failedFrames === 1) {
+    console.warn("[MP] detection failed; frames are published without landmarks until it recovers:", failures[0]);
+  } else if (_failedFrames % MP_FAILURE_REPORT_EVERY === 0) {
+    console.warn(`[MP] detection still failing: ${_failedFrames} frames in a row`);
+  }
 }
 
 /**

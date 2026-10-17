@@ -52,10 +52,35 @@ let confusionPairs = [];
 let perWordStats = {};
 
 /**
+ * Parse a data file's response, or reject naming its status.
+ *
+ * @param {Response} res
+ * @returns {ReturnType<Response["json"]>} Fetched JSON, unchecked: each reader
+ *   guards the shape it uses.
+ * @throws {Error} When the response is not ok, so an error page or a JSON
+ *   error body is never read as data.
+ */
+function _jsonIfOk(res) {
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+/**
+ * Say which guidance file the word screen goes without, and why.
+ *
+ * @param {string} file
+ * @param {unknown} err The rejection, whatever was thrown.
+ * @returns {void}
+ */
+function _warnGuidanceUnreadable(file, err) {
+  console.warn(`${file} unreadable, word guidance goes on without it:`, err instanceof Error ? err.message : err);
+}
+
+/**
  * Load the published confusion pairs and per-word statistics.
  *
  * Both files are optional guidance, so each falls back to empty rather than
- * failing the app.
+ * failing the app, and the console names a file that did not load.
  *
  * @returns {Promise<boolean>} False only when reading the results throws; a
  *   missing or unreadable file loads as empty and still returns true.
@@ -66,11 +91,17 @@ async function loadGatingData() {
     // any[], and the guards below would check nothing.
     const tasks = [
       fetch("./data/confusion_pairs.json")
-        .then((r) => r.json())
-        .catch(() => /** @type {ConfusionPairRaw[]} */ ([])),
+        .then(_jsonIfOk)
+        .catch((err) => {
+          _warnGuidanceUnreadable("confusion_pairs.json", err);
+          return /** @type {ConfusionPairRaw[]} */ ([]);
+        }),
       fetch("./data/per_word_stats.json")
-        .then((r) => r.json())
-        .catch(() => /** @type {Record<string, PerWordStat>} */ ({})),
+        .then(_jsonIfOk)
+        .catch((err) => {
+          _warnGuidanceUnreadable("per_word_stats.json", err);
+          return /** @type {Record<string, PerWordStat>} */ ({});
+        }),
     ];
     const [conf, stats] = await Promise.all(tasks);
     confusionPairs = Array.isArray(conf) ? conf : [];

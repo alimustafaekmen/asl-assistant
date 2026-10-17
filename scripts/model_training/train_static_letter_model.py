@@ -850,7 +850,7 @@ def _save_tsne(X_test, y_test, target_names):
     y_sub = y_test[indices]
 
     print(f"  t-SNE hesaplanıyor ({n_samples} örnek)...")
-    tsne = TSNE(n_components=2, random_state=42, perplexity=30, n_iter=1000)
+    tsne = TSNE(n_components=2, random_state=42, perplexity=30, max_iter=1000)
     X_2d = tsne.fit_transform(X_sub)
 
     fig, ax = plt.subplots(figsize=(14, 12))
@@ -910,6 +910,15 @@ def _save_comparison_csv(results: dict):
     df.to_csv(path, index=False)
     print(f"  Karşılaştırma CSV → {path}")
     print(f"\n{df.to_string(index=False)}")
+
+
+def next_step_hint() -> str:
+    """The text printed after training, naming the follow-up command."""
+    return (
+        "\n  Sonraki adım (isteğe bağlı): J ve Z hareketli harflerdir, bu modelde yoktur."
+        "\n  Kamera ile veri toplayıp eğitmek için:"
+        "\n    python scripts/model_training/train_dynamic_jz_model.py all"
+    )
 
 
 def main():
@@ -1116,8 +1125,7 @@ def main():
     print(f"  Süre:        {t_total / 60:.1f} dakika")
     print(f"  Model:       {LETTER_MODEL_PATH}")
     print(f"{'═' * 60}")
-    print("\n  Sonraki adım:")
-    print("    python scripts/model_training/train_dynamic_jz_model.py")
+    print(next_step_hint())
 
 
 if __name__ == "__main__":

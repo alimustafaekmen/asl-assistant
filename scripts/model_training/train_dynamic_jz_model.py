@@ -705,7 +705,8 @@ def train_jz_model(
     print("\n  Not: Final 50 kelime modeli notebooks/word_50_training.ipynb kaydından üretilir.")
 
 
-def main():
+def build_parser() -> argparse.ArgumentParser:
+    """The command line, separate from main() so other scripts can check commands against it."""
     parser = argparse.ArgumentParser(
         description="J/Z dinamik harf: veri toplama ve LSTM eğitimi",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -720,7 +721,11 @@ def main():
     )
     parser.add_argument("--epochs", type=int, default=TRAIN_EPOCHS, help="Eğitim epoch sayısı")
     parser.add_argument("--lr", type=float, default=TRAIN_LR)
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+    args = build_parser().parse_args()
 
     if args.action in ("collect", "all"):
         collect_dynamic_data(sequences_per_sign=args.sequences)

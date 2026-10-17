@@ -802,7 +802,7 @@ export const CHECKS = [
 
   {
     name: "camera",
-    summary: "the stage close button shows only while the camera is live, and stopping leaves no live track",
+    summary: "each camera mode loads its model through ONNX Runtime, the stage close button shows only while the camera is live, and stopping leaves no live track",
     network: true,
     timeoutMs: 120_000,
     async run(ctx) {
@@ -838,6 +838,27 @@ export const CHECKS = [
           what: `the ${mode} camera start to finish loading hand tracking`,
           timeoutMs: 90_000,
         });
+        // The model this mode runs loads beside the camera start, through
+        // the real ONNX Runtime build and its WASM files on the CDN. A failed
+        // load is only logged, so a wrong wasmPaths or a 404 on the .wasm
+        // would pass every other assertion here. Loaded is read from the
+        // app's debug API; a load promise forgotten without a session means
+        // the load failed (or never started), which ends the wait early.
+        const [session, labels, load, classes] = {
+          letter: ["letterSession", "letterLabels", "_letterModelLoad", 24],
+          word: ["wordSession", "wordLabels", "_wordModelLoad", 50],
+        }[mode];
+        try {
+          const outcome = await page.waitFor(`(() => {
+            const models = window.aslDebug.models;
+            if (models.${session} === true && models.${labels} === ${classes}) return "loaded";
+            return ${load} === null && !models.${session} ? "failed" : false;
+          })()`, { what: `the ${mode} model to load through ONNX Runtime`, timeoutMs: 60_000 });
+          if (outcome !== "loaded") problems.push(`${mode}: the ${mode} model did not load through ONNX Runtime`);
+        } catch (error) {
+          problems.push(`${mode}: ${error.message}`);
+        }
+
         const live = await page.eval(look);
         if (!live.closeRendered) problems.push(`${mode}: the close button is not rendered while the camera is live`);
         if (!live.closeLabel) problems.push(`${mode}: the close button has no label`);

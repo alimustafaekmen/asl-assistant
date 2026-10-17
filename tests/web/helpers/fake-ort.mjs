@@ -10,9 +10,13 @@
 //
 // Everything the test can steer or read hangs off `__ort`:
 //   answer(input, n)  class index for the n-th real run (warm-ups are not counted)
+//   letterProbabilities(index)
+//                     the letter session's probability output for that class;
+//                     by default a tensor whose Float32Array(24) favours it
 //   runs              real runs so far
 //   created           sessions created so far
 //   feeds             every run's feeds, warm-ups included
+//   wasmPaths         ort.env.wasm.wasmPaths as each session creation saw it
 //   fail              creating a session throws
 //   failRun(n)        the n-th real run throws
 //   createMs, runMs   how far the fake clock moves per creation and per run
@@ -31,11 +35,17 @@ export const FAKE_ORT_SOURCE = `
   globalThis.__ort = {
     chosen: 0,
     answer: (input, n) => __ort.chosen,
+    letterProbabilities: (index) => {
+      const probabilities = new Float32Array(24).fill(0.1 / 23);
+      probabilities[index] = 0.9;
+      return { data: probabilities };
+    },
     runs: 0,
     created: 0,
     fail: false,
     failRun: () => false,
     feeds: [],
+    wasmPaths: [],
     createMs: 0,
     runMs: 0,
     gate: null,
@@ -66,6 +76,8 @@ export const FAKE_ORT_SOURCE = `
     Tensor: class { constructor(type, data, dims) { this.type = type; this.data = data; this.dims = dims; } },
     InferenceSession: {
       create: async (model) => {
+        // ORT reads where its WASM files live when it creates a session.
+        __ort.wasmPaths.push(globalThis.ort.env.wasm.wasmPaths);
         if (__ort.gate) await __ort.gate;
         if (__ort.fail) throw new Error("no model in the test");
         __ort.created += 1;
@@ -79,9 +91,7 @@ export const FAKE_ORT_SOURCE = `
     outputNames: ["label", "probabilities"],
     run: async (feeds) => {
       const { index } = await __classAndWarmup(feeds);
-      const probabilities = new Float32Array(24).fill(0.1 / 23);
-      probabilities[index] = 0.9;
-      return { label: { data: new BigInt64Array([BigInt(index)]) }, probabilities: { data: probabilities } };
+      return { label: { data: new BigInt64Array([BigInt(index)]) }, probabilities: __ort.letterProbabilities(index) };
     },
   };
   globalThis.__wordSession = {

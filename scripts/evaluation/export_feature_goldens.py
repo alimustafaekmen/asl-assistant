@@ -200,6 +200,27 @@ def build_letter_cases():
             "left": _place(FIST, (0.7, 0.82), 0.16, mirror=True),
         },
         {
+            "name": "both_visible_left_raised",
+            "note": "with both hands in full view, the clearly raised hand is the one signing",
+            "source": "left_mirrored",
+            "right": _place(OPEN_PALM, (0.3, 0.95), 0.12),
+            "left": _place(FIST, (0.68, 0.6), 0.17, mirror=True),
+        },
+        {
+            "name": "both_visible_right_raised",
+            "note": "the raised right hand signs over a resting left hand",
+            "source": "right",
+            "right": _place(FIST, (0.35, 0.6), 0.17),
+            "left": _place(OPEN_PALM, (0.7, 0.95), 0.12, mirror=True),
+        },
+        {
+            "name": "both_visible_nearly_level",
+            "note": "a left wrist only a little higher does not take the letter from the right hand",
+            "source": "right",
+            "right": _place(OPEN_PALM, (0.35, 0.85), 0.15),
+            "left": _place(FIST, (0.68, 0.8), 0.15, mirror=True),
+        },
+        {
             "name": "right_with_hidden_pinky",
             "note": "missing landmarks inside a visible hand stay as they are",
             "source": "right",

@@ -534,6 +534,12 @@ function computeLetterFeatures(frame321d, aspect = 1) {
  * landmark stays at zero instead of being mirrored to x = 1. This mirroring is
  * a web-runtime policy and differs from the desktop prototype.
  *
+ * The more visible hand wins. MediaPipe reports all 21 landmarks of any hand
+ * it finds, so with both hands in view that is a tie, and the clearly raised
+ * hand wins it: a fingerspelling hand is held up while the other rests, and a
+ * left-handed signer's resting right hand must not be read instead. Wrists
+ * at about one height keep the old tie rule, the right hand.
+ *
  * @param {Frame321D} frame321d
  * @returns {Hand63} The primary hand, or 63 zeros when neither hand is visible.
  */
@@ -545,7 +551,8 @@ function selectPrimaryHandForLetter(frame321d) {
   const leftVisible = _nonZeroTriplets(left);
 
   if (rightVisible === 0 && leftVisible === 0) return new Float32Array(63);
-  if (rightVisible >= leftVisible) return new Float32Array(right);
+  if (rightVisible > leftVisible) return new Float32Array(right);
+  if (rightVisible === leftVisible && !_wristClearlyHigher(left, right)) return new Float32Array(right);
 
   const mirrored = new Float32Array(63);
   for (let i = 0; i < 21; i++) {
@@ -558,6 +565,25 @@ function selectPrimaryHandForLetter(frame321d) {
     mirrored[i * 3 + 2] = z;
   }
   return mirrored;
+}
+
+// How much higher one wrist must be, as a fraction of the frame's height,
+// before the raised hand is taken over the right one.
+const LETTER_RAISED_HAND_MARGIN = 0.1;
+
+/**
+ * Whether hand `a`'s wrist is clearly above hand `b`'s (smaller y), with both
+ * wrists present.
+ *
+ * @param {Hand63} a
+ * @param {Hand63} b
+ * @returns {boolean}
+ */
+function _wristClearlyHigher(a, b) {
+  /** @param {Hand63} h */
+  const present = (h) => Math.abs(h[0]) > 1e-8 || Math.abs(h[1]) > 1e-8 || Math.abs(h[2]) > 1e-8;
+  if (!present(a) || !present(b)) return false;
+  return b[1] - a[1] > LETTER_RAISED_HAND_MARGIN;
 }
 
 /**

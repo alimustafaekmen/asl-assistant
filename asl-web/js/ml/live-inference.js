@@ -51,7 +51,6 @@
  * @property {number} handVisibleCount
  * @property {number} poseVisibleCount
  * @property {number} faceVisibleCount
- * @property {number} dominantHandPresentCount
  * @property {number} dominantHandSwitchCount Hand changes, ignoring frames with no hand.
  * @property {DominantSide[]} dominantHandTimeline Capped at the recording length.
  * @property {DominantSide | null} prevDominantSide Internal comparison state.
@@ -65,7 +64,6 @@
  * @property {number} handVisibleRatio
  * @property {number} poseVisibleRatio
  * @property {number} faceVisibleRatio
- * @property {number} dominantHandPresentRatio
  * @property {number} totalObservedFrames
  * @property {number} acceptedFrames
  * @property {number} skippedFrames
@@ -115,6 +113,14 @@ let _firstInferenceLogged = false;
 let _firstPredictionLogged = false;
 let _wordWaitMessageShown = false;
 /**
+ * Letter frames predictLetter() returned nothing for. Created on first use
+ * rather than at load, so this script still loads when letter-model.js,
+ * which defines createFrameWarning(), did not.
+ *
+ * @type {FrameWarning | null}
+ */
+let _noLetterResultWarning = null;
+/**
  * Timestamp of the last MediaPipe result a word recording took, or null at
  * the start of one. The render loop runs word inference on every frame, but
  * MediaPipe publishes from its own loop, so a frame can read a result that
@@ -133,7 +139,6 @@ let _wordRecordingStats = {
   handVisibleCount: 0,
   poseVisibleCount: 0,
   faceVisibleCount: 0,
-  dominantHandPresentCount: 0,
   dominantHandSwitchCount: 0,
   dominantHandTimeline: [],
   prevDominantSide: null,
@@ -159,7 +164,6 @@ function resetWordRecordingStats() {
     handVisibleCount: 0,
     poseVisibleCount: 0,
     faceVisibleCount: 0,
-    dominantHandPresentCount: 0,
     dominantHandSwitchCount: 0,
     dominantHandTimeline: [],
     prevDominantSide: null,
@@ -233,7 +237,9 @@ async function realInference(now) {
   if (state.wordState === "RECORDING" && typeof checkWordRecordingClock === "function") {
     checkWordRecordingClock(now);
   }
-  if (!latestMediaPipeResult) return;
+  // camera.js publishes the frame. If it never loaded, the name does not
+  // exist, and a bare read here would reject before the handling below.
+  if (typeof latestMediaPipeResult === "undefined" || !latestMediaPipeResult) return;
 
   const letterContext = isLetterContext();
 
@@ -283,10 +289,25 @@ async function realInference(now) {
     if (letterContext) {
       const f93 = computeLetterFeatures(raw, _videoAspect());
 
-      // Publish a read-only letter snapshot for window.aslDebug. The motion
-      // gate is decided inside this block too, so it applies only where
-      // window exists.
-      let motionGated = false;
+      // The motion gate is off unless CONFIG.LETTER_MOTION_GATE_ENABLED. When
+      // on, it skips a frame whose hand moved more than the threshold since
+      // the last one.
+      const motionData =
+        typeof getLastLetterMotion === "function"
+          ? getLastLetterMotion()
+          : null;
+      const motionGateEnabled =
+        typeof CONFIG !== "undefined" && CONFIG.LETTER_MOTION_GATE_ENABLED === true;
+      const motionGateThreshold =
+        typeof CONFIG !== "undefined" && CONFIG.LETTER_MOTION_GATE_THRESHOLD != null
+          ? CONFIG.LETTER_MOTION_GATE_THRESHOLD
+          : 0.08;
+      const motionGated =
+        motionGateEnabled &&
+        motionData &&
+        motionData.meanAbsDelta > motionGateThreshold;
+
+      // Publish a read-only letter snapshot for window.aslDebug.
       if (typeof window !== "undefined") {
         let rhCount = 0;
         let lhCount = 0;
@@ -317,20 +338,6 @@ async function realInference(now) {
           typeof getLetterSmoothingState === "function"
             ? getLetterSmoothingState()
             : { enabled: false, alpha: null, prevSet: false };
-        const motionData =
-          typeof getLastLetterMotion === "function"
-            ? getLastLetterMotion()
-            : null;
-        const motionGateEnabled =
-          typeof CONFIG !== "undefined" && CONFIG.LETTER_MOTION_GATE_ENABLED === true;
-        const motionGateThreshold =
-          typeof CONFIG !== "undefined" && CONFIG.LETTER_MOTION_GATE_THRESHOLD != null
-            ? CONFIG.LETTER_MOTION_GATE_THRESHOLD
-            : 0.08;
-        motionGated =
-          motionGateEnabled &&
-          motionData &&
-          motionData.meanAbsDelta > motionGateThreshold;
 
         window._lastLetterDebug = {
           rightSlotPresent: rhCount > 0,
@@ -358,7 +365,6 @@ async function realInference(now) {
         };
       }
 
-      // The motion gate is off unless CONFIG.LETTER_MOTION_GATE_ENABLED.
       if (motionGated) {
         if (typeof window !== "undefined") {
           window._lastRawLetterPrediction = {
@@ -375,6 +381,7 @@ async function realInference(now) {
 
       const result = await predictLetter(f93);
       if (result) {
+        _noLetterResultWarning?.clear();
         if (!_firstPredictionLogged) {
           _firstPredictionLogged = true;
           console.log(
@@ -407,7 +414,8 @@ async function realInference(now) {
         if (state.mode === "coach") noteCoachLetter(smoothed, now);
         updatePrediction(smoothed);
       } else {
-        console.warn("[INF] predictLetter returned no result; frame dropped");
+        _noLetterResultWarning ??= createFrameWarning();
+        _noLetterResultWarning.note("warn", "[INF] predictLetter returned no result; frame dropped");
       }
     } else if (state.mode === "word" || _isCoachWordTarget()) {
       if (state.wordState === "RECORDING") {
@@ -430,7 +438,6 @@ async function realInference(now) {
         if (handVisibleNow) _wordRecordingStats.handVisibleCount++;
         if (poseVisibleNow) _wordRecordingStats.poseVisibleCount++;
         if (faceVisibleNow) _wordRecordingStats.faceVisibleCount++;
-        if (handVisibleNow) _wordRecordingStats.dominantHandPresentCount++;
         // For the debug API (window.aslDebug).
         if (typeof window !== "undefined") {
           window._lastWordCurrentFrame = {
@@ -569,8 +576,6 @@ async function _finishWordRecordingReal() {
     handVisibleRatio: _wordRecordingStats.handVisibleCount / total,
     poseVisibleRatio: _wordRecordingStats.poseVisibleCount / total,
     faceVisibleRatio: _wordRecordingStats.faceVisibleCount / total,
-    dominantHandPresentRatio:
-      _wordRecordingStats.dominantHandPresentCount / total,
     totalObservedFrames: _wordRecordingStats.totalObservedFrames,
     acceptedFrames: _wordRecordingStats.acceptedFrames,
     skippedFrames: _wordRecordingStats.skippedFrames,
@@ -725,60 +730,57 @@ async function _finishWordRecordingReal() {
     // never from here.
   }
 
-  // Publish quality warnings and the final recording snapshot for diagnostics.
-  // The state gets codes, which prediction.js words for the user; the debug
-  // snapshot keeps the technical reason with its numbers.
+  // Recording quality. The state gets codes, which prediction.js words for
+  // the user; the debug snapshot keeps the technical reason with its numbers.
+  /** @type {WordQualityCode[]} */
+  const codes = [];
+  /** @type {string[]} */
+  const warnings = [];
+  if (visibility.poseVisibleRatio < 0.5) {
+    codes.push("pose");
+    warnings.push("pose visibility < 0.5: yüz/omuzlar net görünmüyor");
+  }
+  if (visibility.faceVisibleRatio < 0.5) {
+    codes.push("face");
+    warnings.push("face visibility < 0.5: yüz net görünmüyor");
+  }
+  if (visibility.handVisibleRatio < 0.7) {
+    codes.push("hand");
+    warnings.push("hand visibility < 0.7: el aralıklarla kaybolmuş");
+  }
+  if (visibility.acceptedFrames < 30) {
+    codes.push("few-frames");
+    warnings.push(
+      `kabul edilen frame az (${visibility.acceptedFrames} < 30): kayıt kalitesi düşük`,
+    );
+  }
+  if (recordingDurationMs > 6000) {
+    codes.push("slow");
+    warnings.push(
+      `kayıt süresi uzun (${(recordingDurationMs / 1000).toFixed(1)} sn): yavaş frame doluşu`,
+    );
+  }
+  if (motionStats.mean < 0.001) {
+    codes.push("still");
+    warnings.push("motion ortalaması çok düşük: gesture yapılmamış olabilir");
+  }
+
+  state.wordQualityWarnings = codes;
+
+  if (
+    result &&
+    codes.length > 0 &&
+    !wordFeedbackShown &&
+    typeof showFeedback === "function"
+  ) {
+    showFeedback(WORD_QUALITY_COPY[codes[0]], "low");
+    wordFeedbackShown = true;
+  }
+
+  // The final recording snapshot, for window.aslDebug.
   if (typeof window !== "undefined") {
-    /** @type {WordQualityCode[]} */
-    const codes = [];
-    /** @type {string[]} */
-    const warnings = [];
-    if (visibility.poseVisibleRatio < 0.5) {
-      codes.push("pose");
-      warnings.push("pose visibility < 0.5: yüz/omuzlar net görünmüyor");
-    }
-    if (visibility.faceVisibleRatio < 0.5) {
-      codes.push("face");
-      warnings.push("face visibility < 0.5: yüz net görünmüyor");
-    }
-    if (visibility.handVisibleRatio < 0.7) {
-      codes.push("hand");
-      warnings.push("hand visibility < 0.7: el aralıklarla kaybolmuş");
-    }
-    if (visibility.acceptedFrames < 30) {
-      codes.push("few-frames");
-      warnings.push(
-        `kabul edilen frame az (${visibility.acceptedFrames} < 30): kayıt kalitesi düşük`,
-      );
-    }
-    if (recordingDurationMs > 6000) {
-      codes.push("slow");
-      warnings.push(
-        `kayıt süresi uzun (${(recordingDurationMs / 1000).toFixed(1)} sn): yavaş frame doluşu`,
-      );
-    }
-    if (motionStats.mean < 0.001) {
-      codes.push("still");
-      warnings.push("motion ortalaması çok düşük: gesture yapılmamış olabilir");
-    }
-
-    state.wordQualityWarnings = codes;
-
-    if (
-      result &&
-      codes.length > 0 &&
-      !wordFeedbackShown &&
-      typeof showFeedback === "function"
-    ) {
-      showFeedback(WORD_QUALITY_COPY[codes[0]], "low");
-      wordFeedbackShown = true;
-    }
-
-    let temperatureVal = null;
-    try {
-      temperatureVal =
-        typeof temperature !== "undefined" ? temperature : null;
-    } catch (e) { /* noop */ }
+    // word-model.js owns the calibration temperature.
+    const temperatureVal = typeof temperature !== "undefined" ? temperature : null;
 
     // Derive parity metrics only when inference produced a result.
     let top1Top2Margin = null;

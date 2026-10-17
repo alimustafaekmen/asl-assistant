@@ -22,13 +22,6 @@ import sys
 
 import numpy as np
 
-try:
-    import onnxruntime as ort
-except ImportError:
-    print("onnxruntime kurulu değil. Kurulum sonrası tekrar çalıştır:")
-    print(f"  {sys.executable} -m pip install onnxruntime")
-    sys.exit(1)
-
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Prefer the deploy copy; source artifacts require explicit opt-in.
@@ -98,6 +91,14 @@ def main():
     labels_path = find_file(label_paths, "word_labels.json")
     temp_path = find_file(temp_paths, "temperature.json")
     print()
+
+    # Imported here, not at the top, so --help works without ONNX Runtime.
+    try:
+        import onnxruntime as ort
+    except ImportError:
+        print("onnxruntime kurulu değil. Kurulum sonrası tekrar çalıştır:")
+        print(f"  {sys.executable} -m pip install onnxruntime")
+        sys.exit(1)
 
     print("ONNX model yükleniyor...")
     session = ort.InferenceSession(model_path)

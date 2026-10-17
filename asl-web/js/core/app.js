@@ -55,6 +55,13 @@ async function init() {
 
   requestAnimationFrame(renderLoop);
 
+  // Nothing calls camera.js before the camera starts, so a page that could not
+  // fetch it would start in silence and open a camera nothing tracks. It is
+  // reported here rather than thrown, so the screens without a camera still work.
+  if (typeof startMediaPipe !== "function") {
+    reportStartupFailure(new Error("js/media/camera.js did not load"));
+  }
+
   // The word lists wait for the card data too, so a word's gloss, once shown,
   // is there when they are built.
   await Promise.all([loadPublishedModelTestManifest(), loadGatingData(), wordReferenceLoad]);
@@ -778,7 +785,12 @@ const CAMERA_PROBLEMS = {
   },
   insecure: {
     title: "Bu adreste kamera açılamıyor",
-    text: "Tarayıcılar kameraya yalnızca güvenli (https) adreslerde izin verir. Siteyi https://asl-assistant.netlify.app adresinden açın.",
+    // Built when shown, from the one place the published address is kept,
+    // and written as a visitor would type it, without the trailing slash.
+    get text() {
+      const address = CONFIG.DEMO_PUBLIC_URL.replace(/\/+$/, "");
+      return `Tarayıcılar kameraya yalnızca güvenli (https) adreslerde izin verir. Siteyi ${address} adresinden açın.`;
+    },
   },
   unsupported: {
     title: "Bu tarayıcı kameraya erişemiyor",

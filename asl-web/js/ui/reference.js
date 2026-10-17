@@ -8,6 +8,22 @@
 //
 // Video links use the same JSON shape as the desktop prototype.
 
+// Both data files are optional, so a failed read is no error for the visitor,
+// but it is reported, naming the file: a deploy that broke one would otherwise
+// lose the published links or the word cards without a trace. Only the fetch
+// and the parse are guarded; what is built from the data, and the render that
+// follows, are not, so a bug there is not mistaken for a missing file.
+
+/**
+ * @param {string} path
+ * @param {string} fallback What the visitor gets instead.
+ * @param {unknown} reason
+ * @returns {void}
+ */
+function warnReferenceData(path, fallback, reason) {
+  console.warn(`${path} could not be read; ${fallback}:`, reason);
+}
+
 /**
  * Load the optional reference video links. A missing or unreadable file
  * leaves the generated search URL in place, so the video action always leads
@@ -16,18 +32,26 @@
  * @returns {Promise<void>} Resolves whether or not the links were loaded.
  */
 async function loadReferenceVideoLinks() {
+  const path = "./data/asl_video_links.json";
+  const fallback = "the video button searches instead";
+  let data;
   try {
-    const res = await fetch("./data/asl_video_links.json", { cache: "no-store" });
-    if (!res.ok) return;
-    const data = await res.json();
-    referenceVideoLinks = {
-      alphabet_video: data.alphabet_video || "",
-      words: data.words || {},
-    };
-    updateReferenceForMode();
+    const res = await fetch(path, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    data = await res.json();
   } catch (err) {
-    // Optional: the generated search URL stays in place.
+    warnReferenceData(path, fallback, err);
+    return;
   }
+  if (!data || typeof data !== "object") {
+    warnReferenceData(path, fallback, "not a JSON object");
+    return;
+  }
+  referenceVideoLinks = {
+    alphabet_video: data.alphabet_video || "",
+    words: data.words || {},
+  };
+  updateReferenceForMode();
 }
 
 /**
@@ -37,41 +61,48 @@ async function loadReferenceVideoLinks() {
  * @returns {Promise<void>} Resolves whether or not the file was loaded.
  */
 async function loadWordReference() {
+  const path = "./data/word_reference.json";
+  const fallback = "the word reference shows whole pages only";
+  let data;
   try {
-    const res = await fetch("./data/word_reference.json", { cache: "no-store" });
-    if (!res.ok) return;
-    const data = await res.json();
-    if (!data || typeof data.words !== "object" || data.words === null) return;
-    /** @type {WordCard[]} */
-    const cards = [];
-    for (const [label, entry] of Object.entries(data.words)) {
-      const rect = entry && entry.rect;
-      const valid =
-        Array.isArray(rect) && rect.length === 4 && rect.every((n) => Number.isFinite(n) && n >= 0);
-      if (!valid || !Number.isInteger(entry.page) || entry.page < 1 || entry.page > REFERENCE_ASSETS.wordPages.length) {
-        continue;
-      }
-      cards.push({
-        label,
-        card: Number(entry.card) || 0,
-        page: entry.page,
-        rect: [rect[0], rect[1], rect[2], rect[3]],
-        title: typeof entry.title === "string" && entry.title ? entry.title : label,
-        gloss: typeof entry.gloss_tr === "string" ? entry.gloss_tr : "",
-      });
-    }
-    cards.sort((a, b) => a.card - b.card);
-    const size = Array.isArray(data.page_size) && data.page_size.length === 2 ? data.page_size : [1024, 1536];
-    wordReference = {
-      pageSize: [Number(size[0]) || 1024, Number(size[1]) || 1536],
-      // Glosses are shown only after a signer has reviewed them.
-      glossReviewed: data.gloss_reviewed === true,
-      cards,
-    };
-    updateReferenceForMode();
+    const res = await fetch(path, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    data = await res.json();
   } catch (err) {
-    // Optional: the whole-page view stays in place.
+    warnReferenceData(path, fallback, err);
+    return;
   }
+  if (!data || typeof data.words !== "object" || data.words === null) {
+    warnReferenceData(path, fallback, "no words object");
+    return;
+  }
+  /** @type {WordCard[]} */
+  const cards = [];
+  for (const [label, entry] of Object.entries(data.words)) {
+    const rect = entry && entry.rect;
+    const valid =
+      Array.isArray(rect) && rect.length === 4 && rect.every((n) => Number.isFinite(n) && n >= 0);
+    if (!valid || !Number.isInteger(entry.page) || entry.page < 1 || entry.page > REFERENCE_ASSETS.wordPages.length) {
+      continue;
+    }
+    cards.push({
+      label,
+      card: Number(entry.card) || 0,
+      page: entry.page,
+      rect: [rect[0], rect[1], rect[2], rect[3]],
+      title: typeof entry.title === "string" && entry.title ? entry.title : label,
+      gloss: typeof entry.gloss_tr === "string" ? entry.gloss_tr : "",
+    });
+  }
+  cards.sort((a, b) => a.card - b.card);
+  const size = Array.isArray(data.page_size) && data.page_size.length === 2 ? data.page_size : [1024, 1536];
+  wordReference = {
+    pageSize: [Number(size[0]) || 1024, Number(size[1]) || 1536],
+    // Glosses are shown only after a signer has reviewed them.
+    glossReviewed: data.gloss_reviewed === true,
+    cards,
+  };
+  updateReferenceForMode();
 }
 
 /**

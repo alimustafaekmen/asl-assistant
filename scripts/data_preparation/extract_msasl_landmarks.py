@@ -701,7 +701,6 @@ def extract_all(
 
 def generate_csv(
     output_dir: Path,
-    msasl_dir: Path,
     state_file: Path,
     logger: logging.Logger,
 ) -> Path:
@@ -712,7 +711,6 @@ def generate_csv(
         0_hello/train_0.parquet,hello,1000114
     """
     state = load_state(state_file)
-    _entry_metadata = load_msasl_entries_for_extraction(msasl_dir)
 
     rows = []
     for entry_id, info in state.get("completed", {}).items():
@@ -929,7 +927,7 @@ def main() -> int:
     )
 
     # Build the notebook-compatible index.
-    generate_csv(args.output_dir, MSASL_DIR, args.state_file, logger)
+    generate_csv(args.output_dir, args.state_file, logger)
 
     # Persist a reusable coverage report.
     generate_metadata(args.output_dir, args.state_file, logger)

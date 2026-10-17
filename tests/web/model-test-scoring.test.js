@@ -17,61 +17,13 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import { flush } from "./helpers/fake-camera.mjs";
-import { WEB_DIR, loadWebApp } from "./helpers/web-app-context.mjs";
+import { LETTER_LABELS, appWithFakeOrt } from "./helpers/fake-ort.mjs";
+import { WEB_DIR } from "./helpers/web-app-context.mjs";
 
-const quietConsole = { ...console, log() {}, warn() {}, info() {}, error() {} };
 const readJson = (path) => JSON.parse(readFileSync(join(WEB_DIR, path), "utf8"));
 
-const LETTER_LABELS = Object.entries(readJson("data/letter_labels.json"))
-  .sort(([, a], [, b]) => a - b)
-  .map(([letter]) => letter);
-
-/**
- * The ORT sessions as the browser build would hand them out. They are
- * defined inside the app's own realm, so the arrays they return are the
- * app's own types, as in a browser.
- */
-const FAKE_ORT = `
-  globalThis.__ort = { chosen: 0, created: 0, fail: false, feeds: [] };
-  globalThis.ort = {
-    env: { wasm: {} },
-    Tensor: class { constructor(type, data, dims) { this.type = type; this.data = data; this.dims = dims; } },
-    InferenceSession: {
-      create: async (model) => {
-        if (__ort.fail) throw new Error("no model in the test");
-        __ort.created += 1;
-        return String(model).includes("word") ? __wordSession : __letterSession;
-      },
-    },
-  };
-  globalThis.__letterSession = {
-    inputNames: ["input"],
-    outputNames: ["label", "probabilities"],
-    run: async (feeds) => {
-      __ort.feeds.push(feeds);
-      const probabilities = new Float32Array(24).fill(0.1 / 23);
-      probabilities[__ort.chosen] = 0.9;
-      return { label: { data: new BigInt64Array([BigInt(__ort.chosen)]) }, probabilities: { data: probabilities } };
-    },
-  };
-  globalThis.__wordSession = {
-    inputNames: ["input", "mask"],
-    outputNames: ["logits"],
-    run: async (feeds) => {
-      __ort.feeds.push(feeds);
-      const logits = new Float32Array(50);
-      logits[__ort.chosen] = 12;
-      return { logits: { data: logits } };
-    },
-  };
-`;
-
-async function bootedApp() {
-  const app = loadWebApp({ boot: true, globals: { console: quietConsole } });
-  await app.ready;
-  app.evaluate(FAKE_ORT);
-  return app;
-}
+/** The app booted, then given the shared ORT fake (helpers/fake-ort.mjs). */
+const bootedApp = () => appWithFakeOrt({ boot: true });
 
 /** Make the fake model answer with class `index` from now on. */
 const modelAnswers = (app, index) => app.evaluate(`__ort.chosen = ${index}`);

@@ -490,19 +490,24 @@ function readLetterConfusion(data) {
 
 /**
  * Fetch and read one teaching data file. Any failure gives null: the coach
- * goes without that file.
+ * goes without that file. The failure is still reported, naming the file, or
+ * a broken deploy would lose the cues without a trace.
  *
  * @template T
  * @param {string} path
  * @param {(data: unknown) => T | null} read
+ * @param {string} fallback What the coach does without the file, for the warning.
  * @returns {Promise<T | null>}
  */
-async function _readCoachFile(path, read) {
+async function _readCoachFile(path, read, fallback) {
   try {
     const response = await fetch(path);
-    if (!response.ok) return null;
-    return read(await response.json());
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const result = read(await response.json());
+    if (result === null) throw new Error("not in the expected format");
+    return result;
   } catch (err) {
+    console.warn(`${path} could not be read; ${fallback}:`, err);
     return null;
   }
 }
@@ -520,8 +525,8 @@ function loadCoachLetterData() {
   if (_coachLetterDataLoad) return _coachLetterDataLoad;
   coachLetterDataStatus = "loading";
   _coachLetterDataLoad = Promise.all([
-    _readCoachFile("./data/letter_curriculum.json", readLetterCurriculum),
-    _readCoachFile("./data/letter_confusion.json", readLetterConfusion),
+    _readCoachFile("./data/letter_curriculum.json", readLetterCurriculum, "using alphabetical order without cues"),
+    _readCoachFile("./data/letter_confusion.json", readLetterConfusion, "look-alike letters go unexplained"),
   ]).then(([curriculum, groups]) => {
     if (curriculum) {
       coachLetterData = { ...curriculum, groups: groups ?? [] };
@@ -529,7 +534,6 @@ function loadCoachLetterData() {
     } else {
       coachLetterData = { ...coachLetterData, groups: groups ?? [] };
       coachLetterDataStatus = "failed";
-      console.warn("Coach letter data could not be read; using alphabetical order without cues.");
     }
     if (!_coachTargetTouched && state.coachTargetType === "letter") {
       _showCoachTarget(_firstCoachLetterToLearn());
@@ -1168,9 +1172,7 @@ function countCoachLetterHold() {
  */
 function updateCoachFromPrediction() {
   if (!_isCoachWordTarget()) return;
-  const isWord = state.coachTarget.length > 1;
-  const threshold = isWord ? CONFIG.WORD_ACCEPT_THRESHOLD : CONFIG.CONFIDENT_THRESHOLD;
-  const matched = state.prediction === state.coachTarget && state.confidence >= threshold;
+  const matched = state.prediction === state.coachTarget && state.confidence >= CONFIG.WORD_ACCEPT_THRESHOLD;
 
   if (matched) {
     if (state.coachFlow === "quiz") {
@@ -1179,13 +1181,9 @@ function updateCoachFromPrediction() {
     if (state.coachFlow !== "learn") {
       state.coachStep = Math.min(state.coachGoal, state.coachStep + 1);
     }
-    state.coachFeedback = isWord
-      ? "Doğru eşleşme. Hareket akışı ve kadraj koşulları yeterli görünüyor."
-      : "Doğru eşleşme. El şekli sabit ve hedefle uyumlu görünüyor.";
+    state.coachFeedback = "Doğru eşleşme. Hareket akışı ve kadraj koşulları yeterli görünüyor.";
   } else {
-    state.coachFeedback = isWord
-      ? "Hedefle eşleşmedi. Hareket daha yavaş tamamlanmalı; yüz ve omuzlar görünür kalmalı."
-      : "Hedefle eşleşmedi. El kadrajın ortasında olmalı ve parmak ayrımları net görünmeli.";
+    state.coachFeedback = "Hedefle eşleşmedi. Hareket daha yavaş tamamlanmalı; yüz ve omuzlar görünür kalmalı.";
   }
   updateCoachPanel();
 }

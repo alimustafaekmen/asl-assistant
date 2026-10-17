@@ -27,11 +27,31 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 
 import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+# The feature code is shared with training, the desktop app and the parity
+# checks. A private copy here would drift without any test noticing.
+_ASL_FEATURES_SRC = str(PROJECT_ROOT / "asl-features" / "src")
+if _ASL_FEATURES_SRC not in sys.path:
+    sys.path.insert(0, _ASL_FEATURES_SRC)
+
+from asl_features.word import (  # noqa: E402
+    FACE_INDICES,
+    NUM_FACE,
+    NUM_LEFT,
+    NUM_POSE,
+    NUM_RIGHT,
+    NUM_TOTAL,
+    POSE_INDICES,
+    build_compact_features,
+    normalize_shoulders,
+)
+
 WEB_DATA_DIR = PROJECT_ROOT / "asl-web" / "data"
 WEB_MODEL_PATH = PROJECT_ROOT / "asl-web" / "models" / "word_model.onnx"
 WORD_LABELS_PATH = WEB_DATA_DIR / "word_labels.json"
@@ -44,61 +64,6 @@ SEED = 42
 TARGET_LEN = 45
 FEATURE_DIM = 168
 
-FACE_INDICES = [
-    61,
-    146,
-    91,
-    181,
-    84,
-    17,
-    314,
-    405,
-    321,
-    375,
-    78,
-    191,
-    80,
-    13,
-    312,
-    308,
-    33,
-    133,
-    159,
-    145,
-    263,
-    362,
-    386,
-    374,
-    70,
-    63,
-    105,
-    66,
-    300,
-    293,
-    334,
-    296,
-    1,
-    2,
-    98,
-    327,
-    168,
-    197,
-    195,
-    5,
-]
-POSE_INDICES = list(range(17)) + list(range(23, 31))
-NUM_RIGHT = 21
-NUM_LEFT = 21
-NUM_FACE = 40
-NUM_POSE = 25
-NUM_TOTAL = (NUM_RIGHT + NUM_LEFT + NUM_FACE + NUM_POSE) * 3
-
-WRIST = 0
-FINGER_TIPS = [4, 8, 12, 16, 20]
-FINGER_MCPS = [1, 5, 9, 13, 17]
-FINGER_PIPS = [2, 6, 10, 14, 18]
-FINGER_DIPS = [3, 7, 11, 15, 19]
-
 
 def _slug(value: str) -> str:
     value = value.strip().lower()
@@ -107,43 +72,6 @@ def _slug(value: str) -> str:
 
 def _load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _safe_norm(v: np.ndarray, axis: int = -1) -> np.ndarray:
-    return np.maximum(np.linalg.norm(v, axis=axis), 1e-8)
-
-
-def _angle_between_vectors(a: np.ndarray, b: np.ndarray) -> float:
-    cos = np.sum(a * b) / (_safe_norm(a) * _safe_norm(b))
-    return float(np.arccos(np.clip(cos, -1.0, 1.0)))
-
-
-def normalize_shoulders(frame_data: np.ndarray) -> np.ndarray:
-    normalized_frame = frame_data.copy()
-    pose_start_index = (NUM_RIGHT + NUM_LEFT + NUM_FACE) * 3
-    left_shoulder_position = POSE_INDICES.index(11)
-    right_shoulder_position = POSE_INDICES.index(12)
-    ls_start = pose_start_index + left_shoulder_position * 3
-    rs_start = pose_start_index + right_shoulder_position * 3
-    ls = normalized_frame[ls_start : ls_start + 3]
-    rs = normalized_frame[rs_start : rs_start + 3]
-
-    if np.any(ls != 0) and np.any(rs != 0):
-        shoulder_center = (ls + rs) / 2.0
-        shoulder_width = np.linalg.norm(ls - rs)
-        if shoulder_width > 1e-6:
-            lm3 = normalized_frame.reshape(-1, 3)
-            visible = np.any(lm3 != 0, axis=1)
-            lm3[visible] = (lm3[visible] - shoulder_center) / shoulder_width
-            return lm3.flatten().astype(np.float32)
-
-    nonzero_values = normalized_frame[normalized_frame != 0]
-    if len(nonzero_values) > 0:
-        mn, mx = nonzero_values.min(), nonzero_values.max()
-        rng = mx - mn
-        if rng > 1e-6:
-            normalized_frame = np.where(normalized_frame == 0, 0.0, (normalized_frame - mn) / rng)
-    return normalized_frame.astype(np.float32)
 
 
 def _target_columns() -> list[str]:
@@ -243,90 +171,6 @@ def load_single_parquet(parquet_path: Path):
         if np.any(landmark_sequence[frame_index] != 0):
             normalized[frame_index] = normalize_shoulders(landmark_sequence[frame_index])
     return normalized
-
-
-def compute_per_frame_shape_features(hand_21x3: np.ndarray) -> np.ndarray:
-    feats: list[float] = []
-    wrist = hand_21x3[WRIST]
-    palm_size = _safe_norm(hand_21x3[9] - wrist)
-    norm = (hand_21x3 - wrist) / palm_size
-
-    for tip in FINGER_TIPS:
-        feats.append(float(_safe_norm(norm[tip])))
-    for i in range(len(FINGER_TIPS) - 1):
-        feats.append(float(_safe_norm(norm[FINGER_TIPS[i]] - norm[FINGER_TIPS[i + 1]])))
-    for i in range(len(FINGER_TIPS)):
-        for j in range(i + 1, len(FINGER_TIPS)):
-            feats.append(float(_safe_norm(norm[FINGER_TIPS[i]] - norm[FINGER_TIPS[j]])))
-    for tip, mcp in zip(FINGER_TIPS, FINGER_MCPS):
-        feats.append(1.0 if _safe_norm(norm[tip]) > _safe_norm(norm[mcp]) else 0.0)
-    for fp in (1, 2, 3):
-        v1 = norm[FINGER_MCPS[fp]] - norm[FINGER_PIPS[fp]]
-        v2 = norm[FINGER_DIPS[fp]] - norm[FINGER_PIPS[fp]]
-        feats.append(_angle_between_vectors(v1, v2))
-
-    visible = norm[np.any(norm != 0, axis=1)]
-    if len(visible) > 2:
-        wh = visible.max(axis=0)[:2] - visible.min(axis=0)[:2]
-        feats.append(float(wh[0] / max(wh[1], 1e-8)))
-        feats.append(float(wh[0] * wh[1]))
-    else:
-        feats.extend([0.0, 0.0])
-    feats.append(float(np.mean([_safe_norm(norm[t]) for t in FINGER_TIPS])))
-    return np.array(feats, dtype=np.float32)
-
-
-def compute_dominant_hand_features(seq_321d: np.ndarray) -> np.ndarray:
-    right_hand = seq_321d[:, :63]
-    left_hand = seq_321d[:, 63:126]
-    right_zero = (right_hand == 0).mean()
-    left_zero = (left_hand == 0).mean()
-    if right_zero <= left_zero:
-        return right_hand
-    mirrored = left_hand.copy()
-    mirrored[:, 0::3] = -mirrored[:, 0::3]
-    return mirrored
-
-
-def compute_hand_body_relations(seq_321d: np.ndarray) -> np.ndarray:
-    t_count = seq_321d.shape[0]
-    out = np.zeros((t_count, 12), dtype=np.float32)
-    face_start = 126
-    nose_idx = FACE_INDICES.index(1)
-    mouth_idx = FACE_INDICES.index(13)
-    forehead_idx = FACE_INDICES.index(168)
-    for t in range(t_count):
-        for hand_index in range(2):
-            hs = hand_index * 63
-            wrist = seq_321d[t, hs : hs + 3]
-            tip = seq_321d[t, hs + 8 * 3 : hs + 8 * 3 + 3]
-            nose = seq_321d[t, face_start + nose_idx * 3 : face_start + nose_idx * 3 + 3]
-            mouth = seq_321d[t, face_start + mouth_idx * 3 : face_start + mouth_idx * 3 + 3]
-            forehead = seq_321d[
-                t, face_start + forehead_idx * 3 : face_start + forehead_idx * 3 + 3
-            ]
-            fs = hand_index * 6
-            out[t, fs + 0] = _safe_norm(tip - nose)
-            out[t, fs + 1] = _safe_norm(tip - mouth)
-            out[t, fs + 2] = _safe_norm(tip - forehead)
-            out[t, fs + 3] = _safe_norm(wrist - nose)
-            out[t, fs + 4] = tip[1] - nose[1] if len(tip) >= 2 else 0.0
-            out[t, fs + 5] = _safe_norm(tip - wrist)
-    return out
-
-
-def build_compact_features(seq_321d: np.ndarray) -> np.ndarray:
-    t_count = seq_321d.shape[0]
-    dom = compute_dominant_hand_features(seq_321d)
-    dom3 = dom.reshape(t_count, 21, 3)
-    shape = np.array([compute_per_frame_shape_features(dom3[t]) for t in range(t_count)])
-    rel = compute_hand_body_relations(seq_321d)
-    motion = np.zeros_like(dom)
-    motion[1:] = dom[1:] - dom[:-1]
-    out = np.hstack([dom, shape, rel, motion])
-    if out.shape[1] != FEATURE_DIM:
-        raise ValueError(f"compact dim {FEATURE_DIM} expected, got {out.shape[1]}")
-    return out.astype(np.float32)
 
 
 def pad_or_truncate(

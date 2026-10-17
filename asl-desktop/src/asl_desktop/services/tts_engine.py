@@ -27,10 +27,12 @@ class TTSEngine:
         self._queue: queue.Queue = queue.Queue()
         self._thread: threading.Thread | None = None
         self._running = False
+        # Set when the speech driver cannot start, so speak() stops retrying.
+        self._unavailable = False
 
     def start(self) -> None:
         """Start the speech worker if it is not already running."""
-        if self._running:
+        if self._running or self._unavailable:
             return
         self._running = True
         self._thread = threading.Thread(target=self._worker, daemon=True)
@@ -40,8 +42,10 @@ class TTSEngine:
         """Create the speech engine and process queued text."""
         try:
             engine = pyttsx3.init()
-        except (RuntimeError, OSError) as e:
-            _logger.error("TTS motoru baslatilamadi: %s", e)
+        except Exception as e:
+            # A missing driver raises ImportError, not only RuntimeError or OSError.
+            _logger.warning("TTS motoru baslatilamadi, ses kapali: %s", e)
+            self._unavailable = True
             self._running = False
             return
 

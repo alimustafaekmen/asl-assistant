@@ -13,7 +13,6 @@ older J/Z artifacts remain loadable.
 import json
 import logging
 import os
-import re
 from collections import deque
 
 import numpy as np
@@ -278,12 +277,10 @@ class SequenceClassifier:
         meta = self._load_meta()
         self.model = self._create_model(num_classes, meta)
 
-        # Restrict deserialization to weights on PyTorch versions that support it.
-        load_kwargs = {"map_location": DEVICE}
-        _ver_match = re.match(r"(\d+)\.(\d+)", torch.__version__)
-        if _ver_match and (int(_ver_match.group(1)), int(_ver_match.group(2))) >= (2, 6):
-            load_kwargs["weights_only"] = True
-        state_dict = torch.load(self._model_path, **load_kwargs)
+        # A .pt file is a pickle: weights_only=True restricts it to tensors and
+        # plain containers, so a tampered checkpoint cannot run code. The flag
+        # exists since torch 1.13; the pinned 2.2.2 does not enable it by default.
+        state_dict = torch.load(self._model_path, map_location=DEVICE, weights_only=True)
         self.model.load_state_dict(state_dict)
         self.model.to(DEVICE)
         self.model.eval()

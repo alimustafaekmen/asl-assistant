@@ -415,12 +415,20 @@ async function loadModelTestSampleFromUrl(url, displayName) {
  * @param {string} url Fixture path relative to asl-web/.
  * @param {string} [displayName] Name for the message when the fetch fails.
  * @returns {Promise<unknown>}
- * @throws {Error} When the request fails, or with code "bad-json" when the
- *   body is not JSON.
+ * @throws {Error} A ModelTestVisitorError when the request fails or is
+ *   refused, or a fixture error with code "bad-json" when the body is not JSON.
  */
 async function fetchModelTestJson(url, displayName) {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`${displayName || url} alınamadı (HTTP ${res.status})`);
+  let res;
+  try {
+    res = await fetch(url, { cache: "no-store" });
+  } catch (cause) {
+    // fetch rejects only when no response arrived at all: offline, a dropped
+    // connection, a blocked request. Its own text ("Failed to fetch") is for
+    // the console.
+    throw modelTestVisitorError(MODEL_TEST_CONNECTION_TEXT, `${url}: ${errorMessage(cause)}`);
+  }
+  if (!res.ok) throw modelTestVisitorError(`${displayName || url} alınamadı (HTTP ${res.status})`);
   try {
     return await res.json();
   } catch (cause) {
@@ -527,16 +535,49 @@ const MODEL_TEST_ERROR_CODES = new Set([
 ]);
 
 /**
- * Say what is wrong with a fixture in words a visitor can act on.
+ * An error the panel raised itself, carrying a plain Turkish sentence for the
+ * visitor: a model that did not load, a sample that could not be fetched. Its
+ * message may stay technical, for the console.
  *
- * Errors that are not fixture errors (a failed download, a model that did not
- * load) already carry a plain Turkish sentence and pass through as they are.
+ * @typedef {Error & {visitorText: string}} ModelTestVisitorError
+ */
+
+/** Shown when a sample could not be downloaded at all. */
+const MODEL_TEST_CONNECTION_TEXT = "Örnek indirilemedi. İnternet bağlantınızı kontrol edip yeniden deneyin.";
+/** Shown for any failure the panel did not raise itself, such as a runtime error. */
+const MODEL_TEST_FAILURE_TEXT = "Model çalıştırılamadı. Sayfayı yenileyip yeniden deneyin.";
+
+/**
+ * @param {string} visitorText What the panel shows.
+ * @param {string} [message] What the console shows; defaults to the same text.
+ * @returns {ModelTestVisitorError}
+ */
+function modelTestVisitorError(visitorText, message = visitorText) {
+  return Object.assign(new Error(message), { visitorText });
+}
+
+/**
+ * @param {unknown} err
+ * @returns {err is ModelTestVisitorError}
+ */
+function isModelTestVisitorError(err) {
+  return err instanceof Error && "visitorText" in err && typeof err.visitorText === "string";
+}
+
+/**
+ * Say what went wrong in words a visitor can act on.
+ *
+ * A fixture error is explained from its code, and an error the panel raised
+ * carries its own sentence. Anything else (a runtime error, a bug) is never
+ * shown as it is: its text is English and technical, so the visitor gets a
+ * plain message and the caller logs the error itself.
  *
  * @param {unknown} err
  * @returns {string}
  */
 function describeModelTestError(err) {
-  if (!isModelTestFixtureError(err)) return errorMessage(err);
+  if (isModelTestVisitorError(err)) return err.visitorText;
+  if (!isModelTestFixtureError(err)) return MODEL_TEST_FAILURE_TEXT;
   const found = err.count ?? 0;
   switch (err.code) {
     case "unreadable":
@@ -806,7 +847,7 @@ async function executeModelTestRun(epoch) {
     const loaded = await (isWord ? ensureWordModel() : ensureLetterModel());
     if (stale()) return;
     if (!loaded) {
-      throw new Error(isWord ? "Kelime modeli yüklenemedi" : "Harf modeli yüklenemedi");
+      throw modelTestVisitorError(isWord ? "Kelime modeli yüklenemedi" : "Harf modeli yüklenemedi");
     }
     if (els.modelTestSampleStatus) els.modelTestSampleStatus.textContent = "Model çalışıyor";
 
@@ -821,7 +862,7 @@ async function executeModelTestRun(epoch) {
     }
     const elapsed = performance.now() - t0;
     if (stale()) return;
-    if (!result) throw new Error("Model tahmin döndürmedi");
+    if (!result) throw modelTestVisitorError("Model tahmin döndürmedi");
 
     renderModelTestResult(sample, result, elapsed);
   } catch (err) {
@@ -1123,10 +1164,10 @@ async function runModelTestBatchItem(item, kind) {
     synthetic: item.kind === MODEL_TEST_SYNTHETIC_KIND,
   };
   try {
-    if (!item.path) throw new Error(`${title} için dosya yolu yok`);
+    if (!item.path) throw modelTestVisitorError(`${title} için dosya yolu yok`);
     const sample = normalizeModelTestSample(await fetchModelTestJson(item.path, title), title);
     row.expected = sample.expectedLabel;
-    if (sample.task !== kind) throw new Error(`${title} bu modele uygun değil`);
+    if (sample.task !== kind) throw modelTestVisitorError(`${title} bu modele uygun değil`);
 
     // Only the inference is timed: fetching and validating the sample is not it.
     const t0 = performance.now();
@@ -1134,7 +1175,7 @@ async function runModelTestBatchItem(item, kind) {
       ? await predictWord(sample.features, sample.mask)
       : await predictLetter(sample.features);
     const elapsed = performance.now() - t0;
-    if (!result) throw new Error("Model tahmin döndürmedi");
+    if (!result) throw modelTestVisitorError("Model tahmin döndürmedi");
 
     row.predicted = result.label;
     row.confidence = result.confidence;

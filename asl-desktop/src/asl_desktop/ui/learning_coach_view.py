@@ -41,12 +41,15 @@ from asl_desktop.config import (
     TEXT_PRIMARY,
     TEXT_SECONDARY,
     TEXT_TERTIARY,
+    WEB_DATA_DIR,
     WORD_COACH_SUCCESS_THRESHOLD,
 )
 from asl_desktop.detection.hand_detector import HandDetector
 from asl_desktop.detection.holistic_detector import HolisticDetector
 from asl_desktop.models.letter_classifier import LetterClassifier
 from asl_desktop.models.sequence_classifier import SequenceClassifier
+from asl_desktop.services.external_links import open_web_link
+from asl_desktop.services.reference_links import load_video_links
 
 _logger = logging.getLogger("ASL.Coach")
 
@@ -100,17 +103,12 @@ class LearningCoachView(ctk.CTkFrame):
                 _logger.warning("Harf ipuclari yuklenemedi: %s", e)
 
         # Optional external reference videos.
-        self._video_links: dict[str, str] = {}
-        self._alphabet_video_url = ""
-        _video_path = os.path.join(REFERENCE_DIR, "asl_video_links.json")
-        if os.path.exists(_video_path):
-            try:
-                with open(_video_path, encoding="utf-8") as f:
-                    vdata = json.load(f)
-                self._video_links = vdata.get("words", {})
-                self._alphabet_video_url = vdata.get("alphabet_video", "")
-            except (FileNotFoundError, json.JSONDecodeError) as e:
-                _logger.warning("Video linkleri yuklenemedi: %s", e)
+        self._video_links, self._alphabet_video_url = load_video_links(
+            [
+                os.path.join(REFERENCE_DIR, "asl_video_links.json"),
+                os.path.join(WEB_DATA_DIR, "asl_video_links.json"),
+            ]
+        )
 
         # Hold image references so Tk does not garbage-collect them.
         self._ref_ctk_img = None
@@ -784,14 +782,11 @@ class LearningCoachView(ctk.CTkFrame):
 
     def _open_video_link(self) -> None:
         """Open the external reference video for the selected target."""
-        import webbrowser
-
         if self._mode == "letter":
             url = self._alphabet_video_url
         else:
             url = self._video_links.get(self._selected_word, self._alphabet_video_url)
-        if url:
-            webbrowser.open(url)
+        open_web_link(url)
 
     def _select_next(self) -> None:
         items = self._words if self._mode == "word" else self._letters

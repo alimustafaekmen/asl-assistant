@@ -233,7 +233,8 @@ def check_json_schemas(root: Path) -> bool:
             ok = False
             continue
         try:
-            data = json.load(open(path, encoding="utf-8"))
+            with open(path, encoding="utf-8") as handle:
+                data = json.load(handle)
         except json.JSONDecodeError as exc:
             _fail(f"{filename}: parse hatasi {exc}")
             ok = False
@@ -582,6 +583,13 @@ def check_export_manifest(root: Path) -> bool:
     return ok
 
 
+def _print_model_io(label: str, session) -> None:
+    """List a model's inputs and outputs with their shapes and element types."""
+    for kind, tensors in (("input", session.get_inputs()), ("output", session.get_outputs())):
+        for tensor in tensors:
+            print(f"      {label} {kind}: {tensor.name} {tensor.type} {tensor.shape}")
+
+
 def check_onnx_contracts(root: Path, verbose: bool = False) -> bool:
     """Validate the ONNX input/output contracts with ONNX Runtime.
 
@@ -606,6 +614,8 @@ def check_onnx_contracts(root: Path, verbose: bool = False) -> bool:
         _fail("word_model.onnx yok")
         return False
     sess = ort.InferenceSession(word_path)
+    if verbose:
+        _print_model_io("word_model", sess)
     in_names = [i.name for i in sess.get_inputs()]
     out_names = [o.name for o in sess.get_outputs()]
     in_shapes = [i.shape for i in sess.get_inputs()]
@@ -641,6 +651,8 @@ def check_onnx_contracts(root: Path, verbose: bool = False) -> bool:
         _fail("letter_model.onnx yok")
         return False
     sess2 = ort.InferenceSession(letter_path)
+    if verbose:
+        _print_model_io("letter_model", sess2)
     in_names2 = [i.name for i in sess2.get_inputs()]
     outputs2 = sess2.get_outputs()
     out_names2 = [o.name for o in outputs2]
@@ -838,7 +850,9 @@ def check_deploy_inventory(root: Path) -> bool:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse the explicit runtime-validation switches."""
     parser = argparse.ArgumentParser(description="asl-web/ runtime sağlik kontrolu")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Daha detayli cikti")
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="ONNX girdi/cikti ayrintilarini da yaz"
+    )
     parser.add_argument(
         "--no-onnx", action="store_true", help="ONNX kontrolunu atla (sadece dosya/json/hash)"
     )

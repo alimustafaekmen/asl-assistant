@@ -59,7 +59,7 @@ does, so a duplicated global or a file that `index.html` forgets fails a test.
 | Module | Responsibility |
 |---|---|
 | `core/theme-boot.js` | Theme resolution before the first paint: saved choice, else the system scheme; the theme-color metas |
-| `core/config.js` | Runtime configuration, letter/word label lists, difficulty sets, reference assets |
+| `core/config.js` | Runtime configuration, letter/word label lists, difficulty sets, reference assets, and `ORT_WASM_PATHS`, the ONNX Runtime directory both model adapters use (it must match the `ort.min.js` in `index.html`) |
 | `core/runtime.js` | Shared mutable state, DOM registry, canvas context, word recording buffers |
 | `core/app.js` | Bootstrap, event wiring, hash routing, camera start/stop, render loop, debug API |
 | `media/camera.js` | MediaPipe task lifecycle, GPU/CPU fallback, frame detection loop |
@@ -193,7 +193,7 @@ truth.
 | `ConfusionPairRaw`, `ConfusionPair`, `PerWordStat`, `WordDifficulty` | `ml/gating.js` |
 | `HoldPhase`, `HoldObservation`, `HoldStatus`, `HoldTimings`, `HoldTracker` | `ml/hold.js` |
 | `WordFeatures45x168`, `WordMask45`, `WordMaskDtype` | `ml/word-model.js` |
-| `OnnxSessionLike`, `OnnxTensorLike`, `ProbabilityVector` | `ml/letter-model.js` |
+| `OnnxSessionLike`, `OnnxTensorLike`, `ProbabilityVector`, `FrameWarning` | `ml/letter-model.js` |
 | MediaPipe landmark and task shapes | `media/camera.js` |
 | Recording diagnostics, `DominantSide` | `ml/live-inference.js` |
 | `ConfidenceLevel`, `FeedbackKind` | `ui/prediction.js` |

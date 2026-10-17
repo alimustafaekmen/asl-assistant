@@ -270,14 +270,17 @@ async function startWordRecording() {
     reportWordEnd("download-failed");
     return;
   }
-  if (typeof mpRunning !== "undefined" && !mpRunning) {
+  // camera.js declares these; a page that could not fetch it has no tracking
+  // at all, so undeclared counts as not ready, never as ready.
+  if (typeof mpRunning === "undefined" || !mpRunning) {
     setMessage("Kelime kaydı için el izlemenin hazır olmasını bekleyin.", "maybe");
     return;
   }
   if (
-    typeof poseLandmarker !== "undefined" &&
-    typeof faceLandmarker !== "undefined" &&
-    (!poseLandmarker || !faceLandmarker)
+    typeof poseLandmarker === "undefined" ||
+    typeof faceLandmarker === "undefined" ||
+    !poseLandmarker ||
+    !faceLandmarker
   ) {
     setMessage("Kelime kaydı için yüz ve omuz izleme gerekiyor, ama henüz hazır değil.", "low");
     return;
@@ -544,9 +547,10 @@ function syncRecordButton() {
   const wordCapableMode =
     state.mode === "word" || (state.mode === "coach" && state.coachTarget.length > 1);
 
-  const mpReady = typeof mpRunning !== "undefined" ? mpRunning : true;
-  const poseReady = typeof poseLandmarker === "undefined" || !!poseLandmarker;
-  const faceReady = typeof faceLandmarker === "undefined" || !!faceLandmarker;
+  // Undeclared means camera.js never loaded: nothing will track, so not ready.
+  const mpReady = typeof mpRunning !== "undefined" && mpRunning;
+  const poseReady = typeof poseLandmarker !== "undefined" && !!poseLandmarker;
+  const faceReady = typeof faceLandmarker !== "undefined" && !!faceLandmarker;
   const wordPipelineReady = mpReady && poseReady && faceReady;
   const wordFlowBusy =
     state.wordState === "COUNTDOWN" ||

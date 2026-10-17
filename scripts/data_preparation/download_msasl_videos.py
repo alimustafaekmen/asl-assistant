@@ -228,7 +228,6 @@ def build_download_command(entry: dict, output_path: Path) -> list[str]:
         "30",
         "--retries",
         "2",
-        "--no-check-certificates",
         entry["url"],
     ]
 
@@ -297,7 +296,10 @@ def download_clip(
             ):
                 return {"status": "unavailable", "path": "", "reason": "video_unavailable"}
 
-            if "sign in to confirm" in stderr or "age" in stderr:
+            # Match the age wall by its own wording. A bare "age" also appears in
+            # "webpage", "message" and "usage", and "sign in to confirm" opens
+            # YouTube's temporary bot check, which a later retry can pass.
+            if any(kw in stderr for kw in ("confirm your age", "age-restricted", "age restricted")):
                 return {"status": "age_restricted", "path": "", "reason": "age_restricted"}
 
             # Retry transient downloader failures with a short backoff.

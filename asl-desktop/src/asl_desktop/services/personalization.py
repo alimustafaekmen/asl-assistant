@@ -33,9 +33,15 @@ class PersonalizedKNN:
         """Load persisted templates into memory."""
         path = self._get_path()
         if os.path.exists(path):
-            data = np.load(path, allow_pickle=True)
-            for letter in data.files:
-                self.templates[letter] = data[letter]
+            # The app writes plain float arrays, so pickled objects are never
+            # needed; refusing them keeps a tampered profile file from running code.
+            try:
+                with np.load(path, allow_pickle=False) as data:
+                    templates = {letter: data[letter] for letter in data.files}
+            except (ValueError, OSError) as e:
+                _logger.warning("KNN profilleri okunamadi, sablon yok sayildi: %s", e)
+                return
+            self.templates.update(templates)
             _logger.info("KNN profilleri yuklendi: %d harf", len(self.templates))
 
     def save_templates(self) -> None:

@@ -95,7 +95,7 @@ Each check was shown to fail on deliberate faults planted in a scratch copy of
 | `feedback-kinds` | the stage feedback bar, filled through the app's `showFeedback()`, renders every kind; `low` and `good` each look different from a kind no CSS names, and from each other |
 | `confidence-levels` | the word result guide, rendered by the app's own assessment of a weak, a close and a clear result, takes the levels `low`, `maybe` and `good`, and each looks different from the others and from no level |
 | `guided-actions` | on `#test` the short copy and both quick-test buttons are rendered, the long brief is not, and the advanced section starts closed with the model choice inside it; on `#coach` the reference panel sits above the coach card; on `#word` the demo card starts closed |
-| `camera` | the stage close button is rendered only while the camera is live, has a label and a 24 px target; after a stop no track handed out by `getUserMedia` is live; no CSP violation while MediaPipe and ONNX Runtime load |
+| `camera` | the model each mode runs (letter, then word) loads through the real ONNX Runtime and its WASM files from the CDN, as `window.aslDebug.models` reports it, so a wrong `wasmPaths` or a 404 on the `.wasm` fails; the stage close button is rendered only while the camera is live, has a label and a 24 px target; after a stop no track handed out by `getUserMedia` is live; no CSP violation while MediaPipe and ONNX Runtime load |
 
 `hidden` and `reduced-motion` run a second time with the `legacy` layer (the
 older stylesheet in `css/style.css`) deleted through the CSSOM. That layer

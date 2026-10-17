@@ -24,6 +24,9 @@ LETTER_MODEL_DIR = os.path.join(MODELS_DIR, "letter")
 JZ_MODEL_DIR = os.path.join(LETTER_MODEL_DIR, "dynamic_jz")
 DESKTOP_WORD_MODEL_DIR = os.path.join(MODELS_DIR, "word", "desktop-25")
 REFERENCE_DIR = os.path.join(DATA_DIR, "reference")
+# Tracked reference data shared with the web app; the desktop falls back to it
+# when the local, ignored data/reference folder is absent.
+WEB_DATA_DIR = os.path.join(PROJECT_ROOT, "asl-web", "data")
 ASSET_SIGNS_DIR = os.path.join(PROJECT_ROOT, "asl-web", "assets", "signs")
 
 LETTER_MODEL_PATH = os.path.join(LETTER_MODEL_DIR, "letter_model.pkl")

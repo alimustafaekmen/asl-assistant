@@ -136,6 +136,21 @@ test("a page that is not a secure context shows the address problem without aski
   assert.equal(camera.asked(), 0);
 });
 
+test("the address problem sends the visitor to the published address the config names", async () => {
+  // The address lives in CONFIG once; a second copy typed into the help text
+  // would keep sending visitors to the old site after a move.
+  const { app } = cameraRefusing([], { navigator: { mediaDevices: undefined }, globals: { isSecureContext: false } });
+  app.evaluate(`CONFIG.DEMO_PUBLIC_URL = "https://moved.example.org/asl/"`);
+
+  await app.get("toggleCamera")();
+  await flush();
+
+  const stage = stageOf(app);
+  assert.equal(stage.camera, "insecure", "precondition: the address problem is shown");
+  assert.match(stage.text, /https:\/\/moved\.example\.org\/asl adresinden açın\./);
+  assert.doesNotMatch(stage.text, /asl-assistant\.netlify\.app/, "the old address is still in the copy");
+});
+
 test("a secure page whose browser has no camera API says the browser cannot", async () => {
   const { app } = cameraRefusing([], { navigator: { mediaDevices: undefined }, globals: { isSecureContext: true } });
 

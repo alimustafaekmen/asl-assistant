@@ -284,7 +284,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     if not _check_node_available():
-        print("ERROR: `node` not found on PATH. Install Node 16+ and retry.")
+        print("ERROR: `node` not found on PATH. Install Node 24 (see .node-version) and retry.")
         print("(JS runtime parity cannot be measured without Node.)")
         return 2
 

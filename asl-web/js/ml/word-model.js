@@ -71,12 +71,7 @@ async function loadWordModel() {
       return false;
     }
 
-    // Point ORT's worker and WASM files at the pinned CDN version, which must
-    // match the ort.min.js version that index.html loads.
-    if (ort.env && ort.env.wasm) {
-      ort.env.wasm.wasmPaths =
-        "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/";
-    }
+    if (ort.env && ort.env.wasm) ort.env.wasm.wasmPaths = ORT_WASM_PATHS;
 
     wordSession = await ort.InferenceSession.create("./models/word_model.onnx", {
       executionProviders: ["wasm"],
