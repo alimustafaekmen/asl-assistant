@@ -5,18 +5,14 @@
 // -> RESULT. Frames are collected by live inference; this file owns what the
 // user sees and which controls are available at each step.
 //
-// Starting a recording and retrying both clear the motion buffers, because a
-// previous sign left in them would be fed into the next 45-frame window. Mode
-// changes, stopping the camera, and finishing inference clear them too, from
+// Every way into a new recording clears the motion buffers, because a
+// previous sign left in them would be fed into the next 45-frame window.
+// Mode changes, stopping the camera, and finishing inference clear them from
 // their own call sites.
-//
-// Recording stays disabled until hand, pose, and face models are all ready: a
-// word needs all three, unlike a letter.
 //
 // A finished recording always ends in RESULT, also when the model produced
 // nothing: that RESULT shows no word and offers nothing to accept, so the
-// state machine stays IDLE -> COUNTDOWN -> RECORDING -> PROCESSING -> RESULT
-// and the user sees that this recording, not the one before, failed.
+// user sees that this recording, not the one before, failed.
 
 /**
  * Which recording is current, and which recording the result on screen came
@@ -24,8 +20,8 @@
  *
  * Each start takes the next number. A model run publishes its result only if
  * no newer recording has started meanwhile, and accepting a word requires the
- * result to be the current recording's. Without this the previous word stayed
- * acceptable through the next recording, and was appended a second time when
+ * result to be the current recording's. Without this, the previous word would
+ * stay acceptable through the next recording and could be appended again if
  * that recording failed.
  */
 let wordRecordingSerial = 0;
@@ -60,10 +56,10 @@ const WORD_END_COPY = {
 let _wordModelWait = false;
 
 /**
- * How many record presses have waited on the word model. A model status report
- * compares it before and after its own wait, to learn whether a press took
- * the outcome over: the press tells the user in words that fit what it was
- * doing, and a second report would talk over it.
+ * How many record presses have waited on the word model. A model status
+ * report compares it across its own wait: if a press waited too, the press
+ * reports the outcome in its own words, and a second report would talk over
+ * it.
  */
 let wordModelPresses = 0;
 
@@ -83,12 +79,10 @@ function reportWordEnd(reason) {
  * the render-loop time of its first tick, and the time of its last usable
  * frame (null until one arrives).
  *
- * It is keyed by the recording serial and starts on the recording's first
- * tick, so a recording abandoned by a mode change or a stop can never lend its
- * elapsed time to the next one. No timer is involved: the render loop calls
- * live inference on every animation frame, whether or not MediaPipe saw
- * anyone, so it is the recording's clock already, and it stops with the
- * camera.
+ * Keyed by the recording serial, so a recording abandoned by a mode change or
+ * a stop cannot lend its elapsed time to the next one. There is no timer: the
+ * render loop calls live inference on every animation frame, whether or not
+ * MediaPipe saw anyone, and it stops with the camera.
  *
  * @type {{recording: number, startedAt: number, lastUsableAt: number | null}}
  */
@@ -136,11 +130,8 @@ let _wordPageWatched = false;
  *
  * A hidden page gets no animation frames, so the recording would freeze
  * half-filled and resume later with a gap the model never saw. Only the
- * recording ends; the camera is left as it is.
- *
- * The listener is added by the first recording, which is the first moment it
- * has anything to do, and it ignores every state but a countdown or a
- * recording.
+ * recording ends; the camera is left as it is. The first recording adds the
+ * listener, which ignores every other state.
  *
  * @returns {void}
  */
@@ -155,11 +146,10 @@ function watchPageVisibilityForWordRecording() {
 /**
  * Abandon a countdown or recording before it finished, and say why.
  *
- * The recording returns to IDLE, which is where every way out of a recording
- * already leads, and its frames are discarded: a half-filled window must not
- * reach the model or the next recording. Its countdown and its clock stand
- * down on their own: both check the state, and both belong to this
- * recording's serial, which the next start replaces.
+ * The state returns to IDLE and the frames are discarded: a half-filled
+ * window must not reach the model or the next recording. The countdown and
+ * the clock stop on their own, since both check the state and the recording
+ * serial.
  *
  * @param {WordEnd} reason
  * @returns {void}
@@ -184,12 +174,11 @@ function endWordRecordingEarly(reason) {
 }
 
 /**
- * Cancel a countdown or a recording at the user's request.
+ * Cancel a countdown or a recording at the user's request, from the Vazgeç
+ * button or Escape.
  *
- * This is the one way the user leaves a recording, from the Vazgeç button and
- * from Escape. A recording already in PROCESSING cannot be cancelled: it is
- * one model call, and its result is discarded by the same checks that guard
- * a mode change.
+ * PROCESSING cannot be cancelled: it is one model call, and its result is
+ * discarded by the same checks that guard a mode change.
  *
  * @returns {void}
  */
@@ -218,8 +207,7 @@ function handleWordKey(event, fromControl) {
     return true;
   }
   if (fromControl) return false;
-  // A key is taken from the browser only when it does something here, so with
-  // no result or no camera it stays the browser's.
+  // A key is taken from the browser only when it does something here.
   if (event.code === "Space") {
     if (state.wordState !== "RESULT") return false;
     event.preventDefault();
@@ -242,9 +230,6 @@ function handleWordKey(event, fromControl) {
  * Start a word recording: check readiness, clear the buffers, count down, then
  * hand over to live inference.
  *
- * The motion buffers are cleared here because a previous sign left in them
- * would be fed into the next 45-frame window.
- *
  * The countdown is asynchronous, so the mode, the camera, and the recording
  * state are rechecked at every step and again at the end. Aborting leaves the
  * state where the user put it rather than forcing RECORDING.
@@ -263,11 +248,10 @@ async function startWordRecording() {
     return;
   }
   if (!canCaptureWordInCurrentMode()) setMode("word");
-  // A recording is useless without the word model, so it loads before the
-  // countdown. Everything below reads state after this wait, so a camera
-  // stopped or a second click made meanwhile is still seen. The load is
-  // shared and forgets a failure, so after a failed download the next press
-  // simply downloads again: the user is asked to try again, never to reload.
+  // The word model loads before the countdown. Everything below reads state
+  // after this wait, so a camera stopped or a second click made meanwhile is
+  // still seen. The load is shared and forgets a failure, so the next press
+  // downloads again: the user is asked to try again, never to reload.
   if (_wordModelWait) return;
   const cameraSession = state.stream;
   if (!wordSession) setMessage("Kelime tanıma indiriliyor…", "maybe");
@@ -279,9 +263,8 @@ async function startWordRecording() {
   } finally {
     _wordModelWait = false;
   }
-  // A camera stopped or restarted meanwhile has already put the screen at
-  // rest, and a user who left word mode has moved on: the outcome of this
-  // download is news for neither.
+  // A camera stopped or restarted meanwhile has already reset the screen, and
+  // a user who left word mode has moved on: neither needs this outcome.
   if (!state.cameraOn || state.stream !== cameraSession || !canCaptureWordInCurrentMode()) return;
   if (!modelReady) {
     reportWordEnd("download-failed");
@@ -301,18 +284,16 @@ async function startWordRecording() {
   }
   if (state.wordState !== "IDLE" && state.wordState !== "RESULT") return;
 
-  // Reset motion history so a previous sign cannot affect the next recording.
   frameBuffer = [];
   normalizedFrameBuffer = [];
   previousFrame = null;
-  // Reset per-recording landmark visibility statistics.
   if (typeof resetWordRecordingStats === "function") resetWordRecordingStats();
 
   watchPageVisibilityForWordRecording();
   wordRecordingSerial += 1;
-  // The countdown below belongs to this recording. A recording abandoned and
-  // followed by a new one within one step would otherwise find the state
-  // back in COUNTDOWN and carry on counting into the new one.
+  // The countdown below belongs to this recording. Without the serial, a
+  // recording abandoned and replaced within one step would find the state
+  // back in COUNTDOWN and keep counting into the new one.
   const recording = wordRecordingSerial;
   wordResultSerial = 0;
   wordResultAccepted = false;
@@ -327,9 +308,8 @@ async function startWordRecording() {
   updateWordState();
   clearFeedback();
 
-  // Whether this countdown should go on. A newer recording owns the count on
-  // screen, so a superseded countdown leaves it alone; one that was stopped,
-  // left or abandoned takes it down.
+  // A superseded countdown leaves the count on screen to the newer
+  // recording; one that was stopped, left or abandoned takes it down.
   /** @returns {boolean} */
   const countdownGoesOn = () => {
     if (recording !== wordRecordingSerial) return false;
@@ -339,15 +319,12 @@ async function startWordRecording() {
   };
 
   for (let i = CONFIG.COUNTDOWN_SECONDS; i > 0; i -= 1) {
-    // The user may change mode or stop the camera during countdown. Abort
-    // without retaining a stale recording state.
     if (!countdownGoesOn()) return;
     els.countdown.hidden = false;
     els.countdown.textContent = String(i);
     await wait(720);
   }
 
-  // Recheck state after the asynchronous countdown completes.
   if (!countdownGoesOn()) return;
 
   els.countdown.hidden = true;
@@ -398,8 +375,8 @@ function updateWordState() {
   };
   els.wordStateLabel.textContent = labels[state.wordState] || state.wordState;
   // The stylesheet shows and hides the plate, the readout and the dock's
-  // buttons from this one attribute; it is separate from data-state, which
-  // the letter screen's confidence colours own.
+  // buttons from this attribute; data-state belongs to the letter screen's
+  // confidence colours.
   const step = state.wordState.toLowerCase();
   els.cameraStage.dataset.wordStep = step;
   els.controlBar.dataset.wordStep = step;
@@ -407,8 +384,8 @@ function updateWordState() {
   els.frameProgress.style.width = `${percent}%`;
   if (els.wordHudPercent) els.wordHudPercent.textContent = `%${percent}`;
   if (els.wordHudStep) els.wordHudStep.textContent = state.wordState === "COUNTDOWN" ? "Hazırlanın" : "Kayıt";
-  // Read by assistive technology without a live region: a bar that speaks
-  // with every frame would drown everything else.
+  // Exposed as a value, not a live region: a bar that spoke every frame would
+  // drown everything else.
   els.wordProgress?.setAttribute("aria-valuenow", String(percent));
   updateWordRecordingHud();
   if (state.wordState === "PROCESSING")
@@ -425,7 +402,7 @@ function updateWordState() {
   updateWordFlowSteps();
   renderWordResultGuide();
   // The record button is busy from the countdown to the result, so it is
-  // redrawn with every step rather than only on mode and camera changes.
+  // redrawn with every step, not only on mode and camera changes.
   syncRecordButton();
   syncActionBar();
 }
@@ -468,9 +445,9 @@ const WORD_FRAMING_GROUPS = ["hand", "face", "pose"];
  * Record what the latest MediaPipe result showed, and redraw the readout.
  *
  * Live inference calls this for every frame of a countdown or a recording,
- * before it drops a frame for having no hand: a frame without a hand is the
- * one whose readout matters most. It reads three booleans and never touches
- * the recording buffers, so what reaches the model is unchanged.
+ * before it drops a frame for having no hand, since that is the frame whose
+ * readout matters most. It never touches the recording buffers, so what
+ * reaches the model is unchanged.
  *
  * @param {MediaPipeFrameResult} result
  * @returns {void}
@@ -488,9 +465,9 @@ function noteWordFraming(result) {
 /**
  * Show the countdown or recording hint and the three quality pills.
  *
- * Reads, for example, "Kayıt %40. Omuzlarınız görünmüyor; biraz geri
- * çekilin.", so a user whose frames are being rejected can see which part to
- * fix. Progress is a percentage of the window, not a count of frames.
+ * The hint names the missing landmark group, so a user whose frames are being
+ * rejected can see which part to fix. Progress is a percentage of the window,
+ * not a count of frames.
  *
  * @returns {void}
  */
@@ -530,12 +507,9 @@ function updateWordRecordingHud() {
  */
 function updateWordQualityPills(handVisible, poseVisible, faceVisible) {
   if (!els.wordQualityPills) return;
-  // Use a neutral state before the camera starts; showing three failures on
-  // initial load would incorrectly suggest a capture problem.
   const pending = state.wordState === "IDLE" && !state.cameraOn;
-  // One entry per WordQualityPill. A pill whose data-quality is not one of
-  // these is left untouched rather than labelled as a shoulder, which is what
-  // the previous chained fallback did for any unrecognised key.
+  // One entry per WordQualityPill; a pill with any other data-quality is left
+  // untouched.
   /** @type {Record<string, {label: string, ok: boolean}>} */
   const pills = {
     hand: { label: "El", ok: handVisible },
@@ -547,7 +521,7 @@ function updateWordQualityPills(handVisible, poseVisible, faceVisible) {
     if (!entry) return;
     if (pending) {
       pill.textContent = `${entry.label} ·`;
-      delete pill.dataset.ok; // Disable the CSS true/false state selectors.
+      delete pill.dataset.ok; // Neither the ok nor the missing style applies.
     } else {
       pill.textContent = `${entry.label} ${entry.ok ? "✓" : "✗"}`;
       pill.dataset.ok = entry.ok ? "true" : "false";
@@ -570,8 +544,6 @@ function syncRecordButton() {
   const wordCapableMode =
     state.mode === "word" || (state.mode === "coach" && state.coachTarget.length > 1);
 
-  // Word inference requires hand, pose, and face models. Keep recording
-  // disabled while the optional MediaPipe components are still loading.
   const mpReady = typeof mpRunning !== "undefined" ? mpRunning : true;
   const poseReady = typeof poseLandmarker === "undefined" || !!poseLandmarker;
   const faceReady = typeof faceLandmarker === "undefined" || !!faceLandmarker;
@@ -588,7 +560,7 @@ function syncRecordButton() {
     (wordCapableMode && (!state.cameraOn || !wordPipelineReady));
 
   // The pose and face tasks start with the camera, so before it nothing is
-  // loading: ask for the camera instead of claiming progress.
+  // loading: ask for the camera rather than claim progress.
   if (wordCapableMode && !state.cameraOn) {
     els.recordWord.title = "Kelime kaydı için önce kamerayı açın.";
     setButtonLabel(els.recordWord, "Kamera kapalı");

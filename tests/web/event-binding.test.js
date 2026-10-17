@@ -223,7 +223,8 @@ test("transcript keys leave links, summaries and button-like elements alone", ()
 
 test("starting and stopping the camera by keyboard keeps focus on a visible control", async () => {
   // The start button sits in the empty stage, which hides when the camera is
-  // on, and the stop button hides when it is off: focus fell to the page.
+  // on, and the stop button hides when it is off, so focus would fall to the
+  // page.
   const app = loadWebApp();
   app.evaluate(`
     globalThis.__focused = [];

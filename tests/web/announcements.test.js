@@ -1,11 +1,11 @@
 // What a screen reader hears.
 //
-// Camera and download errors went only to the visible message line, which is
-// not a live region, so they were silent. The transcript's caret was read as a
-// character and its English letters in a Turkish voice. And a live region
-// whose text does not change is not announced again, so a second "A eklendi"
-// was lost. getUserMedia is faked at the camera boundary; the rest is the
-// app's own code.
+// An error shown only on the visible message line is silent, because that line
+// is not a live region. The transcript's caret is read as a character unless
+// it is hidden, and its English letters in a Turkish voice unless they are
+// marked as English. A live region whose text does not change is not
+// announced again, so a second "A eklendi" would be lost. getUserMedia is
+// faked at the camera boundary; the rest is the app's own code.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

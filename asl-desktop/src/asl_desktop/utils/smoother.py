@@ -14,7 +14,7 @@ class PredictionSmoother:
 
     Example:
         smoother = PredictionSmoother()
-        result = smoother.update("A", 0.92)  # -> "A" veya None
+        result = smoother.update("A", 0.92)  # -> "A" or None
     """
 
     def __init__(
@@ -50,7 +50,6 @@ class PredictionSmoother:
         self._history.append(label)
         self._confidence_history.append(confidence)
 
-        # Vote only across accepted labels.
         valid = [h for h in self._history if h is not None]
         if not valid:
             return None

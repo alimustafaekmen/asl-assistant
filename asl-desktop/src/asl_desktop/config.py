@@ -1,7 +1,7 @@
 """Configuration for the legacy Python desktop application.
 
 Only desktop runtime, UI, and desktop-specific training values belong here.
-Shared landmark and label contracts live in :mod:`asl_ml.config`; browser
+Shared landmark and letter-class constants live in :mod:`asl_features.config`; browser
 runtime values remain in ``asl-web/js/core/config.js``.
 """
 
@@ -14,9 +14,7 @@ except ImportError:  # Lightweight tooling may import this module without torch.
     torch = None
 
 
-# ---------------------------------------------------------------------------
 # Repository and desktop artifact paths
-# ---------------------------------------------------------------------------
 
 PROJECT_ROOT = str(Path(__file__).resolve().parents[3])
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
@@ -36,9 +34,7 @@ WORD_MODEL_PATH = os.path.join(DESKTOP_WORD_MODEL_DIR, "word_model.pt")
 WORD_LABEL_MAP_PATH = os.path.join(DESKTOP_WORD_MODEL_DIR, "word_labels.json")
 
 
-# ---------------------------------------------------------------------------
 # Compute device
-# ---------------------------------------------------------------------------
 
 
 def get_torch_device():
@@ -55,9 +51,7 @@ def get_torch_device():
 DEVICE = get_torch_device()
 
 
-# ---------------------------------------------------------------------------
 # Camera, MediaPipe, and recording
-# ---------------------------------------------------------------------------
 
 CAMERA_INDEX = 0
 CAMERA_WIDTH = 1280
@@ -69,9 +63,7 @@ LANDMARK_QUALITY_THRESHOLD = 0.75
 HOLISTIC_MODEL_COMPLEXITY = 1
 
 
-# ---------------------------------------------------------------------------
 # Desktop prediction and sequence behavior
-# ---------------------------------------------------------------------------
 
 PREDICTION_SMOOTHING_WINDOW = 5
 CONFIDENCE_THRESHOLD = 0.78
@@ -90,9 +82,7 @@ KNN_THRESHOLD = 0.94
 KNN_MAX_TEMPLATES = 50
 
 
-# ---------------------------------------------------------------------------
 # Text-to-speech and coach behavior
-# ---------------------------------------------------------------------------
 
 TTS_RATE = 150
 TTS_VOLUME = 0.9
@@ -104,9 +94,7 @@ WORD_COACH_SUCCESS_THRESHOLD = 0.50
 COACH_SUCCESS_FRAMES = 60
 
 
-# ---------------------------------------------------------------------------
 # Desktop sequence models and reserved J/Z training
-# ---------------------------------------------------------------------------
 
 SEQUENCE_LENGTH = 30
 LSTM_HIDDEN_SIZE = 128
@@ -119,9 +107,7 @@ TRAIN_LR = 0.001
 EARLY_STOPPING_PATIENCE = 10
 
 
-# ---------------------------------------------------------------------------
 # Desktop interface
-# ---------------------------------------------------------------------------
 
 WINDOW_WIDTH = 1360
 WINDOW_HEIGHT = 900

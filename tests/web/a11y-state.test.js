@@ -1,8 +1,8 @@
 // State that assistive technology must be told, not only shown.
 //
-// The selected mode, an open panel and a pressed toggle were carried by a CSS
-// class or a label alone, which a screen reader does not announce. These tests
-// read the ARIA attributes the scripts write.
+// A CSS class or a label alone shows the selected mode, an open panel or a
+// pressed toggle to the eye, but a screen reader does not announce it. These
+// tests read the ARIA attributes the scripts write.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

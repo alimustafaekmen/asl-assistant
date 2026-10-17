@@ -5,8 +5,8 @@ application is retained as a runnable reference for the earlier 24-letter and
 25-word workflows. See ``asl-desktop/README.md`` for setup instructions.
 
 The local ``src`` directory is added below so this entry point can resolve the
-``asl_desktop`` package when launched directly. The shared ``asl_ml`` package
-must still be installed (normally with ``pip install -e ./asl-ml``).
+``asl_desktop`` package when launched directly. The shared ``asl_features``
+package must still be installed (normally with ``pip install -e ./asl-features``).
 """
 
 import logging
@@ -18,9 +18,8 @@ import time
 os.environ["GLOG_minloglevel"] = "2"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-# Resolve the desktop package when this file is launched directly. Editable
-# installs remain the recommended setup; ``asl-ml`` is still a declared package
-# dependency and is not injected through repository-root path tricks.
+# Lets `python asl-desktop/main.py` find the desktop package without an
+# editable install. asl-features is a declared dependency and is not added here.
 DESKTOP_DIR = os.path.dirname(os.path.abspath(__file__))
 DESKTOP_SRC = os.path.join(DESKTOP_DIR, "src")
 
@@ -67,7 +66,7 @@ def warmup_camera():
         ret, _ = cap.read()
         cap.release()
         if ret:
-            logger.info("Kamera erisilebilir ✓")
+            logger.info("Kamera erisilebilir.")
             return True
         else:
             logger.warning("Kamera acildi ama frame alinamadi; izin var, birazdan duzelebilir.")
@@ -95,15 +94,14 @@ def main():
     except Exception as e:
         logger.warning(f"PyTorch cihaz tespiti basarisiz: {e}")
 
-    # Trigger camera permission handling before creating the UI.
     if not warmup_camera():
         logger.error("Kamera erisilemedi. Uygulama kapatiliyor.")
-        print("\n  ❌ Kamera erisilemedi!")
+        print("\n  HATA: Kamera erisilemedi!")
         print("  macOS: Sistem Ayarlari → Gizlilik ve Guvenlik → Kamera")
         print("  Terminal uygulamaniza (veya IDE) kamera izni verin.\n")
         sys.exit(1)
 
-    # Import the UI only after camera initialization succeeds.
+    # The UI is imported only once the camera has opened; see warmup_camera.
     try:
         from asl_desktop.app.asl_app import ASLApp
 

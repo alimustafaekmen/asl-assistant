@@ -49,10 +49,11 @@ from asl_desktop.utils.smoother import PredictionSmoother
 
 
 class TranslationView(ctk.CTkFrame):
-    """Display live predictions and build text through explicit confirmation.
+    """Show live predictions and build a transcript from them.
 
-    Predictions remain provisional until the user accepts them, preventing a
-    transient camera result from being appended automatically.
+    A letter is appended once the smoothed prediction holds for the dwell
+    interval, and a word as soon as the model is confident. Unlike the web
+    app, nothing asks the user first.
     """
 
     def __init__(self, master, on_back=None, **kwargs):
@@ -72,7 +73,7 @@ class TranslationView(ctk.CTkFrame):
 
         # Temporal state for stable letter results and word-mode cooldowns.
         self._dwell_counter = 0
-        self._dwell_threshold = DWELL_THRESHOLD  # About 0.6 seconds at 30 FPS.
+        self._dwell_threshold = DWELL_THRESHOLD  # About 0.7 seconds at 30 FPS.
         self._word_idle_frames = 0
         self._cooldown_frames = 0
 
@@ -115,7 +116,7 @@ class TranslationView(ctk.CTkFrame):
         """Build the camera and control-panel columns."""
         F = ctk.CTkFont
 
-        # Header and mode switcher.
+        # Header.
         top = ctk.CTkFrame(self, height=52, corner_radius=0, fg_color=BG_BASE)
         top.pack(fill="x")
         top.pack_propagate(False)
@@ -197,10 +198,10 @@ class TranslationView(ctk.CTkFrame):
         right = ctk.CTkFrame(body, fg_color="transparent")
         right.grid(row=0, column=1, sticky="nsew")
         right.columnconfigure(0, weight=1)
-        right.rowconfigure(0, weight=0)  # tahmin (kompakt)
-        right.rowconfigure(1, weight=1)  # rehber gorseli: buyuk, tum alan
+        right.rowconfigure(0, weight=0)  # prediction (compact)
+        right.rowconfigure(1, weight=1)  # reference image: takes the free space
         right.rowconfigure(2, weight=0)  # feedback
-        right.rowconfigure(3, weight=0)  # metin + butonlar
+        right.rowconfigure(3, weight=0)  # transcript and buttons
         right.rowconfigure(4, weight=0)  # status
 
         # Row 0: current prediction and confidence.
@@ -208,8 +209,8 @@ class TranslationView(ctk.CTkFrame):
             right, fg_color=BG_CARD, corner_radius=10, border_width=1, border_color=BORDER
         )
         pred.grid(row=0, column=0, sticky="ew", pady=(0, 4))
-        pred.columnconfigure(0, weight=0)  # buyuk harf
-        pred.columnconfigure(1, weight=1)  # guven detaylari
+        pred.columnconfigure(0, weight=0)  # large letter
+        pred.columnconfigure(1, weight=1)  # confidence details
 
         self._prediction_label = ctk.CTkLabel(
             pred,
@@ -280,7 +281,7 @@ class TranslationView(ctk.CTkFrame):
         self._word_ref_frame = ctk.CTkFrame(
             right, corner_radius=12, fg_color=BG_CARD, border_width=1, border_color=BORDER
         )
-        # Calibration controls start hidden.
+        # Word mode swaps this in for the alphabet guide; it starts hidden.
         ctk.CTkLabel(
             self._word_ref_frame,
             text="KELİME REHBERİ",
@@ -492,7 +493,7 @@ class TranslationView(ctk.CTkFrame):
         self._current_confidence = 0.0
         self._word_idle_frames = 0
         self._smoother.reset()
-        self._motion_tracker.reset()  # Shape uyumsuzlugunu onle (63D↔321D)
+        self._motion_tracker.reset()  # Letter frames are 63D, word frames 321D.
         if self._jz_loaded:
             self._jz_classifier.reset_buffer()
         if self._word_loaded:
@@ -567,7 +568,7 @@ class TranslationView(ctk.CTkFrame):
                 self._calib_frames += 1
                 self._dwell_progress.set(self._calib_frames / 30.0)
 
-                if self._calib_frames >= 30:  # 1 saniyelik veri
+                if self._calib_frames >= 30:  # One second at 30 FPS.
                     self._is_calibrating = False
                     self._classifier.save_calibration()
                     self._feedback_label.configure(
@@ -655,7 +656,6 @@ class TranslationView(ctk.CTkFrame):
                 self._dwell_counter += 1
                 progress = min(1.0, self._dwell_counter / self._dwell_threshold)
                 self._dwell_progress.set(progress)
-                # Transition the progress bar toward success color.
                 dwell_color = (
                     COLOR_SUCCESS
                     if progress >= 1.0
@@ -747,7 +747,6 @@ class TranslationView(ctk.CTkFrame):
         # Active signing resets the idle counter.
         self._word_idle_frames = 0
 
-        # Add the active frame to the model-specific sequence buffer.
         word_result = self._word_classifier.add_frame(keypoints)
         progress = self._word_classifier.buffer_progress
         self._logger.debug(
@@ -756,7 +755,6 @@ class TranslationView(ctk.CTkFrame):
             self._word_classifier._frames_since_predict,
         )
 
-        # Update collection progress.
         _p = min(1.0, progress)
         self._buffer_progress_label.configure(
             text=f"Kelime: {'█' * int(_p * 10)}{'░' * (10 - int(_p * 10))} {int(_p * 100)}%"

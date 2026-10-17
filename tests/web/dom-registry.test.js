@@ -23,9 +23,8 @@ test("a missing required element fails while the scripts load", () => {
 
 test("a required element of the wrong type fails while the scripts load", () => {
   // Retagging #cameraVideo to something that is not a <video> would otherwise
-  // surface as a null dereference once the camera starts. The message is
-  // asserted on rather than the type name, because this context registers one
-  // stub class under every element constructor.
+  // surface as a null dereference once the camera starts. The message must
+  // name the element and say that its type is wrong ("turde degil").
   assert.throws(
     () => loadWebApp({ wrongTypeIds: ["cameraVideo"] }),
     /cameraVideo.*turde degil/,

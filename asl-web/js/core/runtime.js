@@ -8,13 +8,10 @@
 // The DOM registry is resolved at load time, which is safe because index.html
 // declares its scripts at the end of <body>.
 
-// ---------------------------------------------------------------------------
-// Shared application types
-//
-// The app runs as classic scripts in one global scope, so these typedefs are
-// visible to every module. They live here because runtime state is where their
-// meaning is fixed; other files reference them instead of redefining them.
-// ---------------------------------------------------------------------------
+// Shared application types. The scripts share one global scope, so these
+// typedefs are visible to every module. They live here because runtime state
+// is where their meaning is fixed; other files reference them instead of
+// redefining them.
 
 /**
  * A screen the app can route to. The value is also the URL hash.
@@ -163,9 +160,8 @@
 /**
  * Mutable application state shared by every module.
  *
- * fpsStart and the transcript debounce fields are absent until first written;
- * they are declared optional so this typedef matches the real object rather
- * than an idealised one.
+ * fpsStart and the transcript debounce fields are absent until first written,
+ * so they are optional here: the typedef matches the real object.
  *
  * @typedef {Object} AppState
  * @property {AppMode} mode
@@ -234,7 +230,7 @@ function queryElement(selector, root) {
  * Find the HTML elements matching a selector.
  *
  * querySelectorAll resolves to Element, which carries neither dataset nor
- * hidden -- the two properties nearly every caller here reads. Every selector
+ * hidden, the two properties nearly every caller here reads. Every selector
  * the app uses targets HTML elements, so anything else is dropped rather than
  * handed to a caller that would read properties it does not have.
  *
@@ -253,9 +249,9 @@ function queryElements(selector, root) {
  * Whether a key event belongs to the focused element rather than to the page.
  *
  * The app's shortcuts would otherwise fight the user. Typing into a <select>
- * performs type-ahead; Space over a focused button was cancelled before it
- * could activate it; Enter must follow a focused link, open a focused
- * <summary>, and reach an element that acts as a button (the reference image).
+ * performs type-ahead; Space must press a focused button, not be cancelled
+ * before it can; Enter must follow a focused link, open a focused <summary>,
+ * and reach an element that acts as a button (the reference image).
  *
  * @param {EventTarget | null} target The event's target.
  * @returns {boolean} True when the focused element handles these keys itself.
@@ -379,7 +375,7 @@ const els = {
   canvas: requireElement("overlayCanvas", HTMLCanvasElement),
   cameraStage: requireElement("cameraStage"),
   // The result plate as a whole, for the laptop's corner switching
-  // (plate-side.js); without it the plate simply stays put.
+  // (plate-side.js); without it the plate stays put.
   resultPlate: document.getElementById("resultPlate"),
   cameraEmpty: requireElement("cameraEmpty"),
   // The empty stage's two faces: the first-visit content, and the problem
@@ -537,7 +533,7 @@ const els = {
 
 const ctx = els.canvas.getContext("2d");
 if (!ctx) {
-  throw new Error("Overlay canvas 2D context alinamadi.");
+  throw new Error("Could not get the overlay canvas 2D context.");
 }
 
 // Word recording buffers consumed by realInference(). frameBuffer holds the
@@ -550,8 +546,7 @@ let frameBuffer = [];
 /** @type {Frame321D[]} */
 let normalizedFrameBuffer = [];
 
-// Optional reference links use the same JSON shape as the desktop prototype.
-// If the web copy is absent, the UI falls back to a target-specific search URL.
+// Empty until data/asl_video_links.json has loaded; see ReferenceVideoLinks.
 /** @type {ReferenceVideoLinks} */
 let referenceVideoLinks = { alphabet_video: "", words: {} };
 

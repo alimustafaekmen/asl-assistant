@@ -2,11 +2,11 @@
 //
 // The six routes are #letter, #word, #coach, #test, #project and #qr, and an
 // unknown hash opens letter mode. What a route must leave on the page is the
-// contract the redesign's stylesheet relies on: the shell's data-mode (the
-// mode-only controls are hidden from it), exactly one information screen (or
-// none), and the camera workspace out of the way on the three information
-// screens. Switching mode also has to start the letter smoother from nothing,
-// so a letter held up before the switch cannot show after it.
+// contract the stylesheet relies on: the shell's data-mode (the mode-only
+// controls are hidden from it), exactly one information screen (or none), and
+// the camera workspace out of the way on the three information screens.
+// Switching mode also has to start the letter smoother from nothing, so a
+// letter held up before the switch cannot show after it.
 //
 // The page is the real index.html booted through init(). The address bar is a
 // URL object with a recording history; the clicks are the tabs' own.

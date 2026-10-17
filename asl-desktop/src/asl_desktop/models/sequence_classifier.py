@@ -20,8 +20,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from asl_ml.config import HAND_LANDMARK_DIM
-from asl_ml.utils import invert_label_map, load_label_map
+from asl_features.config import HAND_LANDMARK_DIM
 
 from asl_desktop.config import (
     DEVICE,
@@ -195,9 +194,8 @@ class SequenceClassifier:
         self.inv_label_map: dict = {}
         self._loaded = False
 
-        # Word mode uses overlapping windows; J/Z uses discrete windows.
         self._sliding = model_type == "word"
-        self._stride = WORD_STRIDE  # Desktop sliding-window step.
+        self._stride = WORD_STRIDE
         self._frames_since_predict = 0
         self._last_top3: list[tuple[str, float]] = []
 
@@ -206,7 +204,6 @@ class SequenceClassifier:
         else:
             self._frame_buffer: list[np.ndarray] = []
 
-        # Select the artifact pair for the requested desktop mode.
         if model_type == "jz":
             self._model_path = JZ_MODEL_PATH
             self._label_map_path = JZ_LABEL_MAP_PATH
@@ -271,8 +268,10 @@ class SequenceClassifier:
             return False
 
         # The label count determines the classifier output width.
-        self.label_map = load_label_map(self._label_map_path)
-        self.inv_label_map = invert_label_map(self.label_map)
+        with open(self._label_map_path, encoding="utf-8") as f:
+            self.label_map = json.load(f)
+        # Older exports wrote the class index as a string.
+        self.inv_label_map = {int(index): label for label, index in self.label_map.items()}
         num_classes = len(self.label_map)
 
         # Build the exact architecture before loading its state dictionary.

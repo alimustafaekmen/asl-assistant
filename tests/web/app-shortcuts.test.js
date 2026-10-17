@@ -1,10 +1,9 @@
 // Keyboard shortcuts and modifier keys.
 //
-// The shortcut map (owner decision 2026-10-16, with the approved redesign):
-// Space adds the current letter, Enter adds a space, Backspace removes the
-// last character. The old single-letter keys S, C and M are gone: a single
-// key that clears the text or leaves the screen with no way to turn it off
-// fails WCAG 2.1.4, and C had no undo.
+// The shortcut map: Space adds the current letter, Enter adds a space,
+// Backspace removes the last character. Plain letter keys do nothing, S, C and
+// M included: a single printable key that speaks, clears the text or leaves
+// the screen, with no way to turn it off, fails WCAG 2.1.4.
 //
 // A key pressed with Ctrl, Meta, or Alt belongs to the browser: Cmd+Backspace
 // and Alt+Enter are editing and system keys, not transcript commands. These
@@ -87,7 +86,7 @@ test("Space adds the current letter in letter mode", () => {
   assert.equal(app.evaluate("state.transcript"), "MERHABA");
 });
 
-test("the old single-letter keys no longer act", () => {
+test("single-letter keys such as S, C and M do nothing", () => {
   const { app, press } = loadWithShortcuts();
   app.evaluate(`
     state.transcript = "MERHABA"; state.mode = "letter";

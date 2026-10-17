@@ -16,9 +16,8 @@ line-ending = "lf"
 quote-style = "double"
 
 [lint]
-# Keep the first repository-wide lint gate focused on high-signal correctness
-# and import hygiene. Broader style rules can be adopted incrementally without
-# forcing behavior changes in the legacy desktop and training workflows.
+# Correctness errors and import order only. Style rules would churn the
+# desktop and training code without changing what it does.
 select = ["E4", "E7", "E9", "F", "I"]
 
 [lint.per-file-ignores]

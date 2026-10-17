@@ -2,11 +2,11 @@
 
 The site is deployed by dragging asl-web/ into the host's UI, which uploads the
 folder as it is on disk. The Model Test word fixtures exported from the
-competition data live in an ignored folder inside it, and the plain run only
-warned about them and still said DEPLOY GUVENLI; a stray `.env`, a private
-folder or a note in `data/` passed too. `--deploy` lists every file in the
-working tree and fails on each of them, while the plain run keeps the warning
-so local testing with the fixtures still works.
+competition data live in an ignored folder inside it, and a stray `.env`, a
+private folder or a note in `data/` would be uploaded with the rest.
+`--deploy` lists every file in the working tree and fails on each of them,
+while the plain run only warns about the fixture folder, so local testing
+with the fixtures still works.
 """
 
 from __future__ import annotations

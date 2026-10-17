@@ -6,8 +6,8 @@
 // same download and reports the outcome in words of its own: a refusal such as
 // "wait for hand tracking", or "try again" when the download fails. The two
 // must not talk over each other: the status report must not overwrite the
-// press's refusal with "Hazır", and must not report the same failure again
-// (once, besides, in words that say to reload the page).
+// press's refusal with "Hazır", must not report the same failure again, and
+// must not ask for a reload, which is never needed.
 //
 // Only the boundaries are faked: ONNX Runtime's session creation, which is
 // what fetches the model file, MediaPipe's results and the clock.

@@ -2,7 +2,9 @@
 
 Drag-and-drop deploys upload asl-web/ only, never the root netlify.toml, so the
 headers live in asl-web/_headers, which Netlify reads on every deploy method.
-They cannot be read back locally: `make web` is a plain file server.
+`make web` is a plain file server that ignores the file, so these tests read
+it directly; the browser checks' own server (tests/browser/serve.mjs) applies
+it.
 """
 
 from __future__ import annotations
@@ -59,8 +61,8 @@ def _content_security_policy(site: dict[str, str]) -> dict[str, list[str]]:
     """The policy's directives, whether it is enforced or only reported.
 
     It is Report-Only until it has been read on the deployed site in a real
-    browser (backlog #6). Promoting it must not need this test changed, and
-    renaming or dropping the line must fail it.
+    browser. Promoting it must not need this test changed, and renaming or
+    dropping the line must fail it.
     """
     policies = [
         site[name]

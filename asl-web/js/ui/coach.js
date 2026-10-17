@@ -1,32 +1,32 @@
-// Learning coach: target selection, study flows, scoring, and word guidance.
+// Learning coach: target selection, study flows, scoring, and the word
+// screen's guidance cards.
 //
-// A coach target is either a single letter or a word, and that distinction
-// drives everything else. A letter target is scored by holding it: live
-// inference feeds every smoothed result to the hold detector (ml/hold.js),
-// and a hold that completes counts once. A button press never scores a
-// letter, because a press reads whatever happens to be on the plate: one
-// pose pressed five times, or a letter that has already left the camera.
-// Word targets are scored from the result of a completed 45-frame recording.
+// A coach target is a single letter or a word. A letter is scored by holding
+// it: live inference feeds every smoothed result to the hold detector
+// (ml/hold.js), and a completed hold counts once. A button press never scores
+// a letter, because it reads whatever happens to be on the plate: one pose
+// pressed five times, or a letter that has already left the camera. A word is
+// scored from the result of a completed 45-frame recording.
 //
 // Learn shows guidance without scoring, practice counts five correct
 // repetitions, and quiz counts answers over a fixed question total.
 //
-// Progress is kept on this device under one localStorage key, as a
-// convenience: per letter, how often it was shown correctly, with a hint and
-// skipped, and the flow last used. Nothing personal, no time. Storage that
-// is missing, corrupt or refused gives a fresh start in memory.
+// Progress is kept on this device under one localStorage key: per letter, how
+// often it was shown correctly, with a hint, and skipped, plus the flow last
+// used. Nothing personal and no timestamps. Storage that is missing, corrupt
+// or refused gives a fresh start in memory.
 //
-// The letter teaching data, the teaching order and a written cue for each
-// letter, and the groups of look-alike letters, is read on the first visit
-// to the coach. The coach never waits for it: until it arrives, or when it
-// cannot be read, letters come in alphabetical order without cues.
+// The teaching data (the teaching order, a written cue per letter, and groups
+// of look-alike letters) is read on the first visit to the coach. The coach
+// never waits for it: until it arrives, or if it cannot be read, letters come
+// in alphabetical order without cues.
 //
-// The word guidance panel is rendered from the published evaluation data, so
-// per-word F1 values and confusion pairs are read, never recomputed.
+// The word guidance cards read the published evaluation data and never
+// recompute it.
 
 /**
- * The hold detector for the current target letter. Created once, from the
- * coach timings in CONFIG; it holds no DOM and starts nothing.
+ * The hold detector for the current target letter. It holds no DOM and
+ * starts nothing.
  */
 const _coachHold = createHoldTracker({
   holdMs: CONFIG.COACH_HOLD_MS,
@@ -56,7 +56,7 @@ const _coachHold = createHoldTracker({
 
 /**
  * The teaching data in use: the alphabet without cues until the files have
- * been read, and for good when they cannot be.
+ * been read, and for the visit if they cannot be.
  *
  * @type {CoachLetterData}
  */
@@ -112,9 +112,9 @@ let _coachProgressRead = false;
 /**
  * Read stored progress, keeping only what can be trusted.
  *
- * A letter outside LETTERS or a count that is not a whole number of zero or
- * more is dropped, and an unknown flow becomes "learn", so nothing stored
- * can make the coach throw or teach a letter the model does not know.
+ * A letter outside LETTERS or a count that is not a non-negative integer is
+ * dropped, and an unknown flow becomes "learn", so nothing stored can make
+ * the coach throw or teach a letter the model does not know.
  *
  * @param {string | null} raw The stored text.
  * @returns {CoachProgress | null} Null when there is nothing usable.
@@ -140,8 +140,7 @@ function readCoachProgress(raw) {
     const { ok, hint, skip } = record;
     if (isCount(ok) && isCount(hint) && isCount(skip)) letters[letter] = { ok, hint, skip };
   }
-  // The membership test is the validation; Array.includes cannot narrow a
-  // string to the union, so the result is stated here.
+  // includes() validates the value but cannot narrow its type, hence the cast.
   const flow = /** @type {CoachFlow} */ (
     typeof data.flow === "string" && ["learn", "practice", "quiz"].includes(data.flow) ? data.flow : "learn"
   );
@@ -149,8 +148,8 @@ function readCoachProgress(raw) {
 }
 
 /**
- * Read the stored progress, the first time the coach opens, and go back to
- * the flow it was last used in.
+ * Read the stored progress the first time the coach opens, and return to the
+ * flow last used.
  *
  * @returns {void}
  */
@@ -171,7 +170,7 @@ function loadCoachProgress() {
 }
 
 /**
- * Store the progress; when storage refuses, it stays in memory and the coach
+ * Store the progress. When storage refuses, it stays in memory and the coach
  * says so.
  *
  * @returns {void}
@@ -237,8 +236,8 @@ function _firstCoachLetterToLearn() {
  * Start the attempt at the target over.
  *
  * Called when the target, the flow or the screen changes and when the camera
- * stops: a hold in progress belongs to the target and the camera session it
- * started in. Only a new target forgets that it was counted.
+ * stops, because a hold in progress belongs to the target and the camera
+ * session it started in. Only a new target forgets that it was counted.
  *
  * @param {{newTarget?: boolean}} [options]
  * @returns {void}
@@ -260,8 +259,8 @@ function resetCoachAttempt(options = {}) {
  * Open the hint for the target letter: its cue and look-alikes in the coach
  * card, and the reference image.
  *
- * In practice an opened hint is remembered for the letter, once per target.
- * Learning shows the cue anyway, and the quiz has no hints.
+ * In practice an opened hint is recorded for the letter, once per target.
+ * Learn shows the cue anyway, and the quiz has no hints.
  *
  * @returns {void}
  */
@@ -288,7 +287,7 @@ function coachHintLine(target) {
 
 /**
  * Do what the coach offers next, as Space does: move on after a success, or
- * open the hint during a miss in learning or practice.
+ * open the hint during a miss in learn or practice.
  *
  * @returns {boolean} Whether anything was on offer.
  */
@@ -309,11 +308,7 @@ function coachPrimaryAction() {
 /** The pending advance to the next target after a success, or 0. */
 let _coachAdvanceTimer = 0;
 
-/**
- * Drop a pending advance to the next target.
- *
- * @returns {void}
- */
+/** @returns {void} */
 function _cancelCoachAdvance() {
   clearTimeout(_coachAdvanceTimer);
   _coachAdvanceTimer = 0;
@@ -338,9 +333,9 @@ function _scheduleCoachAdvance() {
 /**
  * Stay on the target: stop the next one from coming up on its own.
  *
- * Escape, focus moving into the coach's buttons and the page going to the
- * background all stay, so the wait never decides for a learner who is
- * reading, reaching for a button or away (WCAG 2.2.1).
+ * Escape, focus moving into the coach's buttons, and the page going to the
+ * background all call this, so the timer never decides for a learner who is
+ * reading, reaching for a button, or away (WCAG 2.2.1).
  *
  * @returns {boolean} Whether an advance was pending.
  */
@@ -374,13 +369,12 @@ let _coachMissCandidate = null;
 
 /**
  * Follow what the camera shows instead of the target, and call a miss once
- * it has lasted long enough.
+ * it has lasted COACH_MISS_MS.
  *
- * Another letter counts once it is at least as sure as the unknown
- * threshold; anything less sure is an unreadable hand. The target itself,
- * even below the hold confidence, is not a miss: the learner is close. A
- * miss is named once per letter, so it is not repeated on every frame, and a
- * new letter has to last the miss time of its own.
+ * Another letter counts once it reaches the unknown threshold; anything less
+ * sure is an unreadable hand. The target itself, even below the hold
+ * confidence, is not a miss: the learner is close. Each new letter starts its
+ * own miss timer.
  *
  * @param {PredictionResult} prediction The smoothed result.
  * @param {number} now Render loop timestamp in milliseconds.
@@ -407,10 +401,10 @@ function _followCoachMiss(prediction, now) {
  * The plate's line for a miss: what the camera sees, and what tells it from
  * the target.
  *
- * A look-alike group that holds both letters gives its reason and its cue for
- * the target, so a target in two groups is described by the group that is
- * being confused. Otherwise the target's cue from the curriculum follows.
- * The data may be missing, and then only the letter is named.
+ * A look-alike group holding both letters gives its reason and its cue for
+ * the target, so a target in two groups is explained by the pair actually
+ * confused. Otherwise the target's curriculum cue follows; without data only
+ * the letter is named.
  *
  * @param {string | null} seen The attempt's missLetter.
  * @param {string} target
@@ -433,7 +427,7 @@ function coachMissText(seen, target) {
  *
  * Only letters of LETTERS are kept, each once, and any the file leaves out
  * are appended in alphabetical order, so a file that drifts from the model's
- * domain can drop no letter from the coach and add none.
+ * labels can neither drop a letter from the coach nor add one.
  *
  * @param {unknown} data Parsed letter_curriculum.json.
  * @returns {Pick<CoachLetterData, "order" | "cues" | "confusable"> | null} Null for another schema.
@@ -495,10 +489,8 @@ function readLetterConfusion(data) {
 }
 
 /**
- * Fetch one teaching data file and read it, or give null.
- *
- * A file that cannot be fetched, parsed or read is a file the coach goes
- * without, so every failure ends here.
+ * Fetch and read one teaching data file. Any failure gives null: the coach
+ * goes without that file.
  *
  * @template T
  * @param {string} path
@@ -516,12 +508,11 @@ async function _readCoachFile(path, read) {
 }
 
 /**
- * Read the letter teaching data, the first time the coach opens.
+ * Read the letter teaching data the first time the coach opens.
  *
- * Both files are read once per visit, never at startup, since most visitors
- * never open the coach. Nothing waits for this: the coach is usable on the
- * alphabet from the start. When the data arrives, a target the learner has
- * not moved yet goes to the first letter of the teaching order.
+ * Not at startup, since most visitors never open the coach. Nothing waits for
+ * it. When the data arrives, a target the learner has not moved yet goes to
+ * the first letter of the teaching order.
  *
  * @returns {Promise<void>} Never rejects.
  */
@@ -538,7 +529,7 @@ function loadCoachLetterData() {
     } else {
       coachLetterData = { ...coachLetterData, groups: groups ?? [] };
       coachLetterDataStatus = "failed";
-      console.warn("Koç ipuçları yüklenemedi; alfabetik sıra kullanılıyor.");
+      console.warn("Coach letter data could not be read; using alphabetical order without cues.");
     }
     if (!_coachTargetTouched && state.coachTargetType === "letter") {
       _showCoachTarget(_firstCoachLetterToLearn());
@@ -550,8 +541,8 @@ function loadCoachLetterData() {
 }
 
 /**
- * The written line under a target letter in learning: its handshape cue, or
- * why there is none.
+ * The line under a target letter in learn: its handshape cue, or why there
+ * is none.
  *
  * @param {string} target
  * @returns {string}
@@ -563,7 +554,7 @@ function coachCueLine(target) {
 }
 
 /**
- * Show a new target: nothing has been seen for it yet.
+ * Show a new target, with nothing seen for it yet.
  *
  * @param {string} target
  * @returns {void}
@@ -583,9 +574,7 @@ function _showCoachTarget(target) {
 }
 
 /**
- * Choose a target from the target list.
- *
- * @param {string} target The list's value.
+ * @param {string} target The value chosen in the target list or grid.
  * @returns {void}
  */
 function chooseCoachTarget(target) {
@@ -646,12 +635,9 @@ function buildCoachProgress() {
 }
 
 /**
- * Rebuild the letter grid: one button per letter, in the alphabet's order, so
- * a letter is always where the learner last saw it.
- *
- * Every build starts from an empty grid, so it never keeps a button from an
- * earlier one. A quiz asks the letters itself, and its grid does not take a
- * pick.
+ * Rebuild the letter grid: one button per letter, in alphabetical order
+ * rather than teaching order, so a letter stays where the learner last saw
+ * it. In a quiz the grid takes no pick, because the quiz chooses the letters.
  *
  * @returns {void}
  */
@@ -699,7 +685,7 @@ function renderCoachGrid() {
 }
 
 /**
- * Switch between letter and word practice, resetting progress.
+ * Switch between letter and word targets, resetting the session count.
  *
  * @param {string} type Anything other than "word" selects letters.
  * @returns {void}
@@ -722,7 +708,7 @@ function setCoachTargetType(type) {
 }
 
 /**
- * Switch the study flow and reset progress for it.
+ * Switch the study flow and reset the session count for it.
  *
  * Quiz counts answers over a fixed question total; the other flows count five
  * correct repetitions.
@@ -731,8 +717,7 @@ function setCoachTargetType(type) {
  * @returns {void}
  */
 function setCoachFlow(flow) {
-  // The membership test is the validation; Array.includes cannot narrow a
-  // string to the union, so the result is stated here.
+  // includes() validates the value but cannot narrow its type, hence the cast.
   state.coachFlow = /** @type {CoachFlow} */ (
     ["learn", "practice", "quiz"].includes(flow) ? flow : "learn"
   );
@@ -790,9 +775,8 @@ function updateCoachFlowButtons() {
 }
 
 /**
- * Move the choice of a radio group with the arrow keys, as a radio group
- * does: the next or previous radio is checked and takes focus, and the ends
- * wrap round.
+ * Arrow keys in a radio group check and focus the next or previous radio,
+ * wrapping at the ends, as a native radio group does.
  *
  * @param {KeyboardEvent} event A keydown inside the group.
  * @returns {void}
@@ -810,19 +794,15 @@ function moveCoachRadio(event) {
   next.click();
 }
 
-/**
- * Whether the phone's study sheet is open.
- *
- * @returns {boolean}
- */
+/** @returns {boolean} Whether the phone's study sheet is open. */
 function isCoachSheetOpen() {
   return els.coachStudy.dataset.open === "true";
 }
 
 /**
  * Open or close the study controls as a sheet over the screen, on a phone.
- * Beside the stage, on a laptop, they are always there and this changes
- * nothing the learner can see.
+ * On a laptop they always sit beside the stage, and this changes nothing
+ * visible.
  *
  * @param {boolean} open
  * @returns {void}
@@ -845,9 +825,8 @@ function setCoachSheet(open) {
 }
 
 /**
- * The name of the study flow with its measure, as the session button says it.
- *
- * @returns {string}
+ * @returns {string} The study flow and its measure, as the session button
+ *   shows them.
  */
 function coachSessionLabel() {
   if (state.coachFlow === "practice") return `Pratik: ${state.coachGoal} tekrar`;
@@ -856,13 +835,12 @@ function coachSessionLabel() {
 }
 
 /**
- * Show the dock buttons and the plate's extras that fit where the attempt is.
+ * Show the dock buttons and the plate's extras that fit the attempt's phase.
  *
  * After a success the dock offers Tekrar and Sonraki, and the wait for the
  * next target shows its bar and Burada kal. Before one it offers Atla and
- * İpucu; the quiz has no hint, and a word has no hint and a button check
- * instead. Hiding a button is only for the eye: every one of them is still
- * a real control that does its own work.
+ * İpucu; the quiz has no hint, and a word has a check button instead. Hiding
+ * is not a guard: each handler checks the state it needs.
  *
  * @returns {void}
  */
@@ -884,8 +862,8 @@ function syncCoachControls() {
   }
   if (els.coachAdvance) els.coachAdvance.hidden = !state.coach.advancing;
   els.coachAdvanceBar?.style.setProperty("--advance-ms", `${CONFIG.COACH_ADVANCE_MS}ms`);
-  // The cue stays out of the way while the plate says what happened; it is
-  // there while the learner studies a letter, and always once asked for.
+  // The cue gives way while the plate reports a miss or a success; it shows
+  // while a letter is studied in learn, and always once asked for.
   const attempting = state.coach.phase === "miss" || done;
   els.coachHint.hidden = !isWord && !state.coach.hintOpen && (state.coachFlow !== "learn" || attempting);
 }
@@ -918,14 +896,13 @@ function updateCoachPanel() {
   if (els.coachSession) els.coachSession.dataset.flow = state.coachFlow;
   if (els.coachSessionLabel) els.coachSessionLabel.textContent = coachSessionLabel();
   if (els.coachSessionFlow) els.coachSessionFlow.textContent = coachSessionLabel();
-  // Where the progress is kept, or that it is not.
   if (els.coachStorageNote) {
     els.coachStorageNote.textContent = coachProgressSaved
       ? "İlerlemeniz yalnızca bu cihazda saklanır, kimseyle paylaşılmaz."
       : "İlerleme bu tarayıcıda saklanamıyor; sayfayı kapatınca sıfırlanır.";
   }
-  // data-state is what the stylesheet selects: "hit" for a done target and
-  // "active" for the current one.
+  // The stylesheet selects "hit" for a done target and "active" for the
+  // current one.
   [...els.coachProgress.children].forEach((cell, index) => {
     if (!(cell instanceof HTMLElement)) return;
     if (index < state.coachStep) cell.dataset.state = "hit";
@@ -941,9 +918,7 @@ function updateCoachPanel() {
 
 /**
  * Check a word target: start a recording, which is scored from its result.
- *
- * A letter target has no button check: holding it is the check, so a press
- * here does nothing for a letter.
+ * Does nothing for a letter, whose check is the hold.
  *
  * @returns {void}
  */
@@ -961,7 +936,7 @@ function checkCoachTarget() {
  * teaching order.
  *
  * Temporal state is reset so the previous target cannot be scored against the
- * new one. Quiz progress is kept, because the quiz counts questions rather than
+ * new one. Quiz progress is kept, because the quiz counts questions, not
  * repetitions.
  *
  * @returns {void}
@@ -979,11 +954,11 @@ function nextCoachTarget() {
 }
 
 /**
- * Show the target again: the attempt starts over on the same letter.
+ * Start the attempt over on the same letter.
  *
- * Nothing already counted is taken back, and a letter that was counted stays
- * counted, so a quiz question still scores once. The wait for the next target
- * ends, since the learner chose this one.
+ * Nothing already counted is taken back, and the letter stays counted, so a
+ * quiz question still scores once. The wait for the next target ends, since
+ * the learner chose this one.
  *
  * @returns {void}
  */
@@ -998,18 +973,18 @@ function repeatCoachTarget() {
 }
 
 /**
- * Take note that the hand has left the camera, in a coach letter context.
+ * Note that the hand has left the camera, in a coach letter context.
  *
  * Live inference calls this on every frame without a hand; only the first one
- * after a hand changes anything. The last letter goes from the plate and the
- * prediction state, because nobody is holding it any more: left there, it
- * would read as current and could be counted for the target.
+ * after a hand changes anything. The last letter is cleared from the plate
+ * and the prediction state: left there, it would read as current and could
+ * be counted for the target.
  *
  * @returns {void}
  */
 function noteCoachHandLost() {
-  // A lost hand ends a hold at once, and any miss with it; after a success
-  // it is the release.
+  // A lost hand ends a hold and any miss at once; after a success it counts
+  // as the release.
   _coachHold.reset();
   _coachMissCandidate = null;
   state.coach.holdProgress = 0;
@@ -1085,8 +1060,8 @@ const COACH_PLATE = {
  * Paint the plate and the stage from the attempt at the target letter.
  *
  * Only the glyph is left to updatePrediction(): it shows the letter the
- * camera sees, while the target stays in the coach card. Nothing else here
- * reads the model's confidence.
+ * camera sees, while the target stays in the coach card. Nothing here reads
+ * the model's confidence.
  *
  * @returns {void}
  */
@@ -1101,8 +1076,8 @@ function renderCoachPlate() {
   els.decisionLabel.textContent = plate.decision(target);
   const message = plate.message(target, state.coach);
   setMessage(message, plate.level);
-  // A screen reader hears the verdict when the phase changes: written only
-  // when it differs, so a hold that goes on says nothing more.
+  // Written only when it differs, so a screen reader hears each verdict once
+  // and a continuing hold says nothing more.
   const verdict = _coachVerdictText(plate.decision(target), message);
   if (els.coachVerdict.textContent !== verdict) els.coachVerdict.textContent = verdict;
   syncCoachControls();
@@ -1177,9 +1152,8 @@ function countCoachLetterHold() {
     state.coachStep = Math.min(state.coachGoal, state.coachStep + 1);
   }
   state.coachFeedback = `Doğru! ${state.coachTarget} harfini net gösterdiniz.`;
-  // The next target comes up on its own once the target is done with: at
-  // its first success in learning and in the quiz, at the last repetition
-  // in practice.
+  // The next target comes up on its own once this one is done: at its first
+  // success in learn and quiz, at the last repetition in practice.
   const done = state.coachFlow === "practice" ? state.coachStep >= state.coachGoal : firstForTarget;
   if (done && state.coach.phase === "success" && !state.coach.advancing) _scheduleCoachAdvance();
   updateCoachPanel();
@@ -1187,10 +1161,8 @@ function countCoachLetterHold() {
 
 /**
  * Compare a finished word recording against the word target and record the
- * outcome.
- *
- * Only a word reaches this, from its recording's result: a letter is counted
- * by its hold, never from what the plate shows.
+ * outcome. A letter never reaches this: it is counted by its hold, not from
+ * what the plate shows.
  *
  * @returns {void}
  */
@@ -1218,19 +1190,18 @@ function updateCoachFromPrediction() {
   updateCoachPanel();
 }
 
-// ── The word screen's side cards ─────────────────────────────────────────
-// "Önce bunları deneyin" lists the words the published evaluation found
-// easiest and the pairs it confused most; "50 kelime" lists every word by
-// group with how well it was recognised. Both are built from
-// per_word_stats.json and confusion_pairs.json, never typed into the markup,
-// so they cannot disagree with the report. Every word is a button that opens
-// its card in the reference viewer.
+// The word screen's side cards. "Önce bunları deneyin" lists the words the
+// published evaluation found easiest and the pairs it confused most; "50
+// kelime" lists every word by group with how well it was recognised. Both are
+// built from per_word_stats.json and confusion_pairs.json rather than typed
+// into the markup, so they cannot disagree with the report. Every word is a
+// button that opens its card in the reference viewer.
 
 /** How many easy words the first card offers, and how many confused pairs. */
 const WORD_GUIDE_EASY_COUNT = 10;
 const WORD_GUIDE_PAIR_COUNT = 5;
 
-/** The words a difficulty is shown with. @type {Record<string, string>} */
+/** Display names of the published difficulty levels. @type {Record<string, string>} */
 const WORD_DIFFICULTY_LABELS = { easy: "kolay", medium: "orta", hard: "zor" };
 
 /**
@@ -1244,6 +1215,7 @@ function _statNumber(value) {
 /**
  * The easiest words by the published evaluation: those it marked easy, best
  * recognised first. Without difficulty labels every word is a candidate.
+ * Ranked by accuracy, or by F1 where accuracy is missing.
  *
  * @param {Record<string, PerWordStat>} stats
  * @param {number} limit
@@ -1267,9 +1239,8 @@ function easiestWords(stats, limit) {
 }
 
 /**
- * The most confused pairs, each named once whichever way it was confused:
- * "can" read as "yes" and "yes" read as "can" are one pair, and their counts
- * add up.
+ * The most confused pairs, each named once in either direction: "can" read as
+ * "yes" and "yes" read as "can" are one pair, and their counts add up.
  *
  * @param {ConfusionPairRaw[]} pairs
  * @param {number} limit
@@ -1349,9 +1320,9 @@ function _wordChipItem(word) {
 /**
  * Fill the word screen's two side cards from the published evaluation data.
  *
- * A list the data cannot fill is left as it is, so a failed fetch never
- * blanks it; the first card stays hidden until it has words to offer. This
- * runs once, after the data has settled.
+ * Runs once, after the data has settled. A list the data cannot fill is left
+ * as it is, so a failed fetch never blanks it; the first card stays hidden
+ * until it has words to offer.
  *
  * @returns {void}
  */
@@ -1450,9 +1421,8 @@ function _wordLibraryItem(word, stat) {
 /**
  * Show only the words that match the search field, and say so when none do.
  *
- * The labels are English and are matched as English. A Turkish gloss, shown
- * only once a signer has reviewed them, is matched with Turkish case rules,
- * so "İ" finds "i" and "I" finds "ı".
+ * English labels are matched with English case rules. A Turkish gloss is
+ * matched with Turkish ones, so "İ" finds "i" and "I" finds "ı".
  *
  * @returns {void}
  */

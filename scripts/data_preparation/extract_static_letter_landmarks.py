@@ -33,18 +33,18 @@ import numpy as np
 
 # Resolve the local Python ML package when the script is run from a fresh clone.
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-ASL_ML_SRC = os.path.join(PROJECT_ROOT, "asl-ml", "src")
-if ASL_ML_SRC not in sys.path:
-    sys.path.insert(0, ASL_ML_SRC)
+ASL_FEATURES_SRC = os.path.join(PROJECT_ROOT, "asl-features", "src")
+if ASL_FEATURES_SRC not in sys.path:
+    sys.path.insert(0, ASL_FEATURES_SRC)
 
 import mediapipe as mp
-from asl_ml.config import (
+from asl_features.config import (
     MIN_DETECTION_CONFIDENCE,
     NUM_HANDS,
     NUM_LANDMARKS,
     STATIC_LETTERS,
 )
-from asl_ml.utils import ensure_dir, normalize_landmarks
+from asl_features.landmarks import normalize_landmarks
 
 
 def extract_landmarks(
@@ -73,7 +73,7 @@ def extract_landmarks(
         min_detection_confidence=MIN_DETECTION_CONFIDENCE,
     )
 
-    ensure_dir(os.path.dirname(output_csv))
+    os.makedirs(os.path.dirname(output_csv), exist_ok=True)
 
     stats = {}
     overall_start = time.time()
@@ -98,7 +98,7 @@ def extract_landmarks(
                     break
 
             if letter_dir is None:
-                print(f"  [{letter}] ✗ Klasör bulunamadı")
+                print(f"  [{letter}] Klasör bulunamadı")
                 stats[letter] = {"found": 0, "missed": 0, "total_images": 0}
                 continue
 
@@ -135,7 +135,7 @@ def extract_landmarks(
                     raw = np.array(lms, dtype=np.float32)
                     kp = normalize_landmarks(raw)
 
-                    # Reject non-finite vectors before they reach the dataset.
+                    # A NaN coordinate would otherwise reach the dataset.
                     if np.any(np.isnan(kp)):
                         missed += 1
                         continue
@@ -156,7 +156,7 @@ def extract_landmarks(
             elapsed = time.time() - letter_start
             hit_rate = found / (found + missed) * 100 if (found + missed) > 0 else 0
             print(
-                f"  [{letter}] ✓ {found} landmark, "
+                f"  [{letter}] {found} landmark, "
                 f"{missed} el bulunamadı ({hit_rate:.0f}% başarı)  "
                 f"[{elapsed:.0f}s]"
             )
@@ -207,13 +207,13 @@ def main():
     args = parser.parse_args()
 
     if not os.path.isdir(args.input):
-        print(f"❌ HATA: Girdi klasörü bulunamadı: {args.input}")
+        print(f"HATA: Girdi klasörü bulunamadı: {args.input}")
         sys.exit(1)
 
     letters = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ") if args.include_jz else STATIC_LETTERS
 
     print("=" * 60)
-    print("  📸 Landmark Çıkarma")
+    print("  Landmark Çıkarma")
     print("=" * 60)
     print(f"  Girdi:     {args.input}")
     print(f"  Çıktı:     {args.output}")
@@ -228,15 +228,14 @@ def main():
         letters=letters,
     )
 
-    # Print per-class extraction coverage.
     print(f"\n{'─' * 50}")
     print(f"  {'Harf':>5}  {'Bulunan':>8}  {'Kaçan':>6}  {'Başarı':>7}")
     print(f"{'─' * 50}")
     for letter, s in sorted(stats.items()):
         total = s["found"] + s["missed"]
         rate = s["found"] / total * 100 if total > 0 else 0
-        flag = "⚠" if rate < 80 else "✓"
-        print(f"  {flag} {letter:>3}  {s['found']:>8}  {s['missed']:>6}  {rate:>6.1f}%")
+        flag = "  düşük" if rate < 80 else ""
+        print(f"  {letter:>5}  {s['found']:>8}  {s['missed']:>6}  {rate:>6.1f}%{flag}")
     print(f"{'─' * 50}")
 
 

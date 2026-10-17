@@ -1,10 +1,10 @@
 // How the landmark skeleton is painted.
 //
-// Single-colour strokes vanished on light skin, white walls and plants (under
-// 3:1). Every bone and joint is now drawn twice, a dark halo under a light
-// core, in the colours of the design tokens, and the core turns to the lock
-// colour when the stage is locked. The canvas context is faked at its API;
-// the drawing code is the app's own.
+// A single-colour stroke vanishes on light skin, white walls and plants
+// (contrast under 3:1), so every bone and joint is drawn twice, a dark halo
+// under a light core, in the colours of the design tokens, and the core turns
+// to the lock colour when the stage is locked. The canvas context is faked at
+// its API; the drawing code is the app's own.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

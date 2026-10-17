@@ -2,9 +2,9 @@
 //
 // index.html loads this file in <head>, before its stylesheets: a classic
 // script the parser meets there runs before the page can be painted, so the
-// first frame is already in the visitor's theme. Resolved later (in init(),
-// after the CDN runtime has downloaded), a dark-preference visitor saw the
-// light page first. It is an external same-origin file because the CSP
+// first frame is already in the visitor's theme. Resolved later, in init()
+// after the CDN runtime has downloaded, a visitor who prefers dark would see
+// the light page first. It is an external same-origin file because the CSP
 // allows script-src 'self' and no inline script; a hash would have to be
 // kept in step with the code by hand.
 //
@@ -82,5 +82,5 @@ try {
   const saved = savedTheme();
   paintTheme(saved ?? systemTheme(), saved ? "user" : "system");
 } catch (err) {
-  console.warn("Tema erken uygulanamadı:", err);
+  console.warn("Could not apply the theme before first paint:", err);
 }

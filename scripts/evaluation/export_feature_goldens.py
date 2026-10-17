@@ -5,13 +5,13 @@ Builds a small set of deterministic synthetic hands and holistic frames, runs
 them through the Python feature code, and writes the inputs together with the
 outputs to ``tests/web/fixtures/feature-golden.json``:
 
-* letter: ``normalize_landmarks`` -> ``extract_features`` from ``asl-ml``, the
+* letter: ``normalize_landmarks`` -> ``extract_features`` from ``asl-features``, the
   source of truth for the 93-D vector;
-* word: the notebook port in ``tests/validation/check_word_feature_parity.py``
-  (``normalize_shoulders`` -> ``build_compact_features``), which is the only
-  Python copy of the 168-D contract, applied to short sequences.
+* word: ``normalize_shoulders`` -> ``build_compact_features`` from
+  ``asl_features.word``, the trained notebook's feature code,
+  applied to short sequences.
 
-Two tests read the file. ``tests/asl_ml/unit/test_feature_golden.py`` rebuilds
+Two tests read the file. ``tests/asl_features/unit/test_feature_golden.py`` rebuilds
 it and fails if the committed copy differs from what the Python code computes
 now, so the golden cannot drift from Python. ``tests/web/feature-golden.test.js``
 runs ``asl-web/js/ml/features.js`` on the same inputs and expects the same
@@ -37,14 +37,13 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 GOLDEN_PATH = PROJECT_ROOT / "tests" / "web" / "fixtures" / "feature-golden.json"
 
-for _root in (PROJECT_ROOT / "asl-ml" / "src", PROJECT_ROOT):
-    if str(_root) not in sys.path:
-        sys.path.insert(0, str(_root))
+_ASL_FEATURES_SRC = str(PROJECT_ROOT / "asl-features" / "src")
+if _ASL_FEATURES_SRC not in sys.path:
+    sys.path.insert(0, _ASL_FEATURES_SRC)
 
-from asl_ml.features.letter_features import extract_features  # noqa: E402
-from asl_ml.utils.landmarks import normalize_landmarks  # noqa: E402
-
-from tests.validation.check_word_feature_parity import (  # noqa: E402
+from asl_features.landmarks import normalize_landmarks  # noqa: E402
+from asl_features.letter import extract_features  # noqa: E402
+from asl_features.word import (  # noqa: E402
     build_compact_features,
     normalize_shoulders,
 )
@@ -127,9 +126,7 @@ def _hide(hand, landmarks):
     return out
 
 
-# ---------------------------------------------------------------------------
 # Letter
-# ---------------------------------------------------------------------------
 
 
 def _letter_primary(case) -> np.ndarray:
@@ -229,9 +226,7 @@ def build_letter_cases():
     return cases
 
 
-# ---------------------------------------------------------------------------
 # Word
-# ---------------------------------------------------------------------------
 
 FRAMES_PER_SEQUENCE = 5
 
@@ -347,9 +342,6 @@ def build_word_sequences():
             }
         )
     return sequences
-
-
-# ---------------------------------------------------------------------------
 
 
 def build_golden() -> dict:

@@ -127,9 +127,9 @@ def test_a_deploy_file_that_drifted_from_its_source_fails(checkout) -> None:
 def test_a_deleted_provenance_source_fails(checkout) -> None:
     """Every source is tracked, so a missing one is a lost file, not a partial setup.
 
-    The check warned that the development environment was incomplete and
-    passed, so deleting the letter model's source left nothing able to show
-    that the deployed model is the exported one.
+    A check that only warned of an incomplete development environment, and
+    passed, would leave nothing able to show that the deployed model is the
+    exported one.
     """
     checkout.remove("models/letter/letter_label_map.json")
 
@@ -239,8 +239,8 @@ def test_a_broken_model_test_fixture_set_fails(checkout, fault: str) -> None:
 def test_a_missing_data_file_the_app_fetches_fails(checkout, fetched: str) -> None:
     """The reference panel, the Model Test fallback, the word cards, the Project page and the coach request these.
 
-    None has a source pair or a schema check, so deleting one passed every
-    gate and shipped a request that 404s.
+    None has a source pair or a schema check, so only the presence check stops
+    a deploy that would ship a request that 404s.
     """
     checkout.remove(fetched)
 
@@ -311,8 +311,8 @@ def test_a_word_model_that_breaks_its_interface_is_reported_alone(
 ) -> None:
     """A model with the wrong interface is one fault, reported once.
 
-    Running the smoke inference on it anyway crashed with a traceback, or
-    added a second failure that hid which contract broke. A float mask is the
+    Running the smoke inference on it anyway would crash with a traceback, or
+    add a second failure that hides which contract broke. A float mask is the
     mask polarity contract's neighbour: the browser sends booleans.
     """
     install(checkout, "word_model.onnx", word_model_bytes(**interface))
@@ -350,7 +350,7 @@ def test_a_missing_smoke_fixture_fails_the_offline_inference(checkout) -> None:
 
 
 def test_a_smoke_fixture_that_cannot_be_fed_to_the_model_fails(checkout) -> None:
-    """An error while preparing the inference was a warning, and the run passed it."""
+    """An error while preparing the inference fails the run; it is not a warning."""
     sample = _sample(checkout)
     install(
         checkout, "test_sample.json", json.dumps({**sample, "features": sample["features"][:-1]})

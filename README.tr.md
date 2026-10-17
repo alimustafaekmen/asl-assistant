@@ -1,5 +1,7 @@
 # ASL Assistant
 
+[Canlı demo](https://asl-assistant.netlify.app/) · [Başlangıç rehberi](docs/getting-started.tr.md) · [Dokümantasyon](docs/README.md) · [Teknik rapor](TECHNICAL_REPORT.tr.md) · [English](README.md)
+
 ASL Assistant, tarayıcıda çalışan bir işaret dili asistanıdır. Amerikan İşaret
 Dili (ASL) harflerini kameradan canlı olarak tanır ve metne dönüştürür; 50
 izole ASL kelimesi için de deneysel bir modu vardır. El, yüz ve gövde
@@ -7,25 +9,23 @@ landmark'ları MediaPipe ile bulunur ve ONNX modelleriyle sınıflandırılır. 
 tamamı sayfanın içinde olur: uygulama sunucusu yoktur ve kamera görüntüsü
 cihazdan çıkmaz. Arayüz Türkçedir.
 
-[Canlı demo](https://asl-assistant.netlify.app/) · [Başlangıç rehberi](docs/getting-started.tr.md) · [Dokümantasyon](docs/README.md) · [English](README.md)
+> Canlı demo bu depodan daha eski bir sürümü çalıştırıyor; aşağıdaki arayüz
+> henüz yayında değil.
 
-> Canlı demo hâlâ uygulamanın eski bir sürümünü çalıştırıyor. Aşağıdaki arayüz
-> dahil bu depoyla aynı hâle, bir sonraki yayında gelecek.
-
-![The letter screen on a laptop, light theme. A dark camera stage asks the visitor to show an ASL letter and offers buttons to open the camera or to try without one; side cards hold the most likely results, the letter reference and the keyboard shortcuts; the text strip and the Delete, Space and Add buttons sit below.](docs/assets/screenshots/letter-laptop.png)
+![Dizüstü bilgisayarda harf ekranı, açık tema. Koyu kamera alanı ziyaretçiden bir ASL harfi göstermesini istiyor ve Kamerayı aç ile Kamerasız dene düğmelerini sunuyor; yan kartlarda en olası sonuçlar, harf referansı ve klavye kısayolları var; altta metin şeridi ile Sil, Boşluk ve Ekle düğmeleri duruyor.](docs/assets/screenshots/letter-laptop.png)
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone.png" width="240" alt="The letter screen on a phone, light theme: the camera stage with the open-camera button, then the text strip and the Delete, Space and Add buttons."><br><sub>Telefonda harf ekranı</sub></td>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone-dark.png" width="240" alt="The same letter screen on a phone in the dark theme."><br><sub>Koyu tema</sub></td>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/camera-help-phone.png" width="240" alt="The camera stage after the camera permission was refused: the title says camera permission was not given, with Retry and Try without camera buttons and expanded step-by-step help for iPhone Safari and Chrome."><br><sub>Kamera izni reddedildiğinde yardım</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone.png" width="240" alt="Telefonda harf ekranı, açık tema: Kamerayı aç düğmesiyle kamera alanı, altında metin şeridi ile Sil, Boşluk ve Ekle düğmeleri."><br><sub>Telefonda harf ekranı</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone-dark.png" width="240" alt="Aynı harf ekranı, telefonda koyu temada."><br><sub>Koyu tema</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/camera-help-phone.png" width="240" alt="Kamera izni reddedildikten sonra kamera alanı: “Kamera izni verilmedi” başlığı, Yeniden dene ve Kamerasız dene düğmeleri, iPhone Safari ve Chrome için açılmış adım adım yardım."><br><sub>Kamera izni reddedildiğinde yardım</sub></td>
   </tr>
 </table>
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="docs/assets/screenshots/word-laptop.png" width="100%" alt="The word screen on a laptop: the camera stage invites the visitor to record an ASL word that is added only after they accept it; side cards hold the results, the 50-word reference and the model card; the dock holds the record, retry and add buttons."><br><sub>Kelime ekranı (deneysel)</sub></td>
-    <td align="center" width="50%"><img src="docs/assets/screenshots/model-test-laptop.png" width="100%" alt="Model Test after running every letter sample: a summary saying 24 of 24 samples were correct with a median time of 0.5 ms, a note that these samples come from the training data's held-out split, and a table of sample, expected label, prediction, confidence, time and result."><br><sub>Harf örnekleri gerçekten çalıştırıldıktan sonra Model Test</sub></td>
+    <td align="center" width="50%"><img src="docs/assets/screenshots/word-laptop.png" width="100%" alt="Dizüstü bilgisayarda kelime ekranı: kamera alanı ziyaretçiyi, ancak onayladıktan sonra metne eklenecek bir ASL kelimesi kaydetmeye çağırıyor; yan kartlarda sonuçlar, kelime referansı, önce denenecek kelimeler ve aranabilir 50 kelimelik liste var; alt çubukta kaydetme, yeniden kaydetme ve metne ekleme düğmeleri duruyor."><br><sub>Kelime ekranı (deneysel)</sub></td>
+    <td align="center" width="50%"><img src="docs/assets/screenshots/model-test-laptop.png" width="100%" alt="Bütün harf örnekleri çalıştırıldıktan sonra Model Test: 24 örnekten 24'ünün doğru olduğunu ve medyan sürenin 0,5 ms olduğunu söyleyen bir özet, örneklerin eğitim verisinin ayrılmış kümesinden geldiğini belirten bir not ve örnek, beklenen etiket, tahmin, güven, süre ve sonuç sütunlarından oluşan bir tablo."><br><sub>Harf örnekleri gerçekten çalıştırıldıktan sonra Model Test</sub></td>
   </tr>
 </table>
 
@@ -98,20 +98,20 @@ tam kapsamı [Models and data](docs/models-and-data.md) belgesindedir.
 | Test | Gerçek tarayıcı script'lerini yükleyen bir `node:vm` düzeneğiyle `node:test`, pytest, npm bağımlılığı olmadan DevTools Protocol üzerinden headless Chrome kontrolleri, Ruff |
 | Barındırma | Netlify, elle yüklenen statik site; yanıt başlıkları `asl-web/_headers` içinde |
 
-## Öne çıkan yöntemler
+## Mühendislik uygulamaları
 
 - **Başarısız olduğu gösterilmiş testler.** En önemli kuralların her birinin,
   bilerek bozulmuş bir kopyaya karşı çalıştırılıp başarısız olduğu görülmüş
   bir davranış testi vardır: kullanıcı onaylamadan kelime eklenmez, kelime
   maskesi ters çevrilmez, kareler modele sırasıyla gider ve kamera ekranından
-  çıkınca kamera serbest bırakılır. Headless Chrome kontrolleri de aynı yolla,
-  her biri [tests/browser](tests/browser/README.md) belgesinde listelenen
-  hatalara karşı kanıtlandı. Yeni testler kaynak metni değil davranışı denetler
+  çıkınca kamera serbest bırakılır. [Headless Chrome
+  kontrollerinin](tests/browser/README.md) de bilinçli hatalarda başarısız
+  olduğu aynı yolla gösterildi. Yeni testler kaynak metni değil davranışı denetler
   ve yalnızca sistem sınırlarını taklit eder: kamera, ağ, saat, MediaPipe ve
-  ONNX Runtime. Kaynak metni eşleyen eski testler, yerine geçen test aynı
-  hataları yakaladığı gösterildikçe tek tek kaldırılıyor.
+  ONNX Runtime. Bazı eski testler hâlâ kaynak metni eşler; her biri, yerine
+  gelen testin aynı hataları yakaladığı gösterildiğinde kaldırılır.
 - **Python ve tarayıcı aynı özellikleri hesaplar.** Özellik mühendisliği eğitim
-  için Python'da (`asl-ml/`), uygulama için JavaScript'te yaşar. Yanlış sıradaki
+  için Python'da (`asl-features/`), uygulama için JavaScript'te yaşar. Yanlış sıradaki
   bir vektör de çalışır ve sessizce anlamsız tahminler üretir; bu yüzden
   `make parity` aynı deterministik girdileri ikisine de verir ve harfler ile
   kelimeler için 1e-4 içinde uyuşmalarını ister. Yayımlanan her model ayrıca
@@ -122,7 +122,7 @@ tam kapsamı [Models and data](docs/models-and-data.md) belgesindedir.
   yüklemenin taşıyacağı her dosyayı listeler; Git'in yok saydığı ya da gizli
   dosyalarda, bilinmeyen dosya türlerinde ve yeniden dağıtılamayan veriden
   türetilmiş yerel örneklerde başarısız olur.
-- **Tasarımdan gelen gizlilik.** Sunucu, hesap ya da analiz aracı yoktur.
+- **Gizlilik.** Sunucu, hesap ya da analiz aracı yoktur.
   Görüntü sayfada işlenir; kaydedilmez ve hiçbir yere gönderilmez. Tarayıcı
   `localStorage` içinde üç şey tutar: tema, metin ve koç ilerlemesi. CDN
   script'leri tam sürüme ve bütünlük hash'lerine sabitlenmiştir.
@@ -159,7 +159,7 @@ make deploy-check      # asl-web/ her yüklenmeden önce
 
 ```text
 asl-web/       uygulama: index.html, css/, js/ (core, media, ml, services, ui), models/, data/
-asl-ml/        Python özellik mühendisliği; iki pipeline için de doğruluk kaynağı
+asl-features/  harf ve kelime için Python özellik mühendisliği; iki pipeline için de doğruluk kaynağı
 asl-desktop/   Python ile yazılmış eski masaüstü prototipi, çalışır durumda tutuluyor
 scripts/       veri hazırlama, eğitim, örnek dışa aktarma, doğrulama
 tests/         tarayıcı birim testleri (tests/web), headless Chrome kontrolleri, Python ve depo testleri
@@ -181,25 +181,25 @@ geçmişine kadar hangi sorunun hangi belgede yanıtlandığını gösterir.
 - Harf modelinde 24 statik harf vardır; J, Z ve "işaret yok" sınıfı yoktur.
   %99,35'lik sonuç, eğitimle aynı kişileri paylaşan bir ayırmadan gelir;
   modelin hiç görmediği ellerde %69 ölçüldü, en zayıfı yumruk harfleri (M, N,
-  T, S, E, A). Ayrıntı: [Modeller ve veri](docs/models-and-data.md).
+  T, S, E, A). Ayrıntı: [Models and data](docs/models-and-data.md).
 - Uygulamadaki kelime referans görselleri yeniden çiziliyor; o zamana kadar
   bir el şeklini standart bir ASL sözlüğüyle karşılaştırın.
 - İçerik Güvenliği Politikası (CSP) yalnızca raporlama modunda. Yayındaki
   sitede gerçek bir tarayıcıda okunduktan sonra zorunlu hâle getirilecek.
-- İlk ziyaret ağ bağlantısı ister: ONNX Runtime ve MediaPipe public CDN'lerden
-  gelir; ilk harf oturumunda yaklaşık 17 MB.
+- İlk ziyaret ağ bağlantısı ister: ONNX Runtime ve MediaPipe herkese açık
+  CDN'lerden gelir; ilk harf oturumunda yaklaşık 17 MB.
 - Harf modelini ONNX'e dönüştüren komut depoda yok.
 
 ## Gelecek çalışmalar
 
-- Gerçek cihazlarda deneme: gerçek eller ve ışıkla iOS Safari ve Android
-  Chrome.
+- Gerçek cihazlarda, gerçek eller ve ışıkla iOS Safari ve Android Chrome
+  üzerinde denemek.
 - Harf modelini hiç görmediği kişilerle değerlendirmek.
 - Daha çok kelime eklemek ve izole işaretlerden sürekli işaretleşmeye geçmek.
-- Kelime kelime değil, cümle düzeyinde çeviri.
+- Kelime kelime değil, cümle düzeyinde çeviri yapmak.
 - Modelleri siteyi yeniden yayımlamadan cihazda güncellemek.
 - CSP'yi zorunlu hâle getirmek.
-- İnternetsiz çalışan bir progressive web app.
+- Progressive web app (PWA) olarak internetsiz çalışmak.
 - Erişilebilirliği ve faydayı Sağır kullanıcılarla birlikte gözden geçirmek.
 
 ## Lisans

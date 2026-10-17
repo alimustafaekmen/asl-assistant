@@ -32,8 +32,8 @@ test("unknown or empty input falls back to letter mode", () => {
 });
 
 test("the brand link opens the letter screen with the camera released", async () => {
-  // The redesign has no separate home view: the letter screen's empty camera
-  // stage is where the app explains itself, so "home" means that screen.
+  // The app has no separate home view: the letter screen's empty camera stage
+  // is where the app explains itself, so "home" means that screen.
   const { loadWebApp } = await import("./helpers/web-app-context.mjs");
   const app = loadWebApp();
   app.evaluate(`

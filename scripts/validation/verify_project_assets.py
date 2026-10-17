@@ -25,13 +25,13 @@ import sys
 from pathlib import Path
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-ASL_ML_SRC = os.path.join(PROJECT_ROOT, "asl-ml", "src")
-if ASL_ML_SRC not in sys.path:
-    sys.path.insert(0, ASL_ML_SRC)
+ASL_FEATURES_SRC = os.path.join(PROJECT_ROOT, "asl-features", "src")
+if ASL_FEATURES_SRC not in sys.path:
+    sys.path.insert(0, ASL_FEATURES_SRC)
 if PROJECT_ROOT not in sys.path:  # Allow running this file directly.
     sys.path.insert(0, PROJECT_ROOT)
 
-from asl_ml.config import DYNAMIC_LETTERS, STATIC_LETTERS  # noqa: E402
+from asl_features.config import DYNAMIC_LETTERS, STATIC_LETTERS  # noqa: E402
 
 from scripts.validation.check_runtime_assets import compare_provenance  # noqa: E402
 from scripts.validation.contracts import (  # noqa: E402
@@ -139,9 +139,8 @@ def check_web_runtime(root: Path) -> bool:
     for label, path in required_files:
         ok = _check_file(label, path) and ok
 
-    # Listing eight of the browser modules by hand meant the list went stale
-    # every time the layout changed, and said nothing about the rest. Check
-    # what the directory holds instead.
+    # Every module under js/ is checked, rather than a hand-kept list that
+    # would go stale whenever the layout changes.
     modules = sorted(web_js_dir.rglob("*.js"))
     if not modules:
         print("  ✗ asl-web/js: JavaScript modulu bulunamadi")
@@ -215,7 +214,7 @@ def count_images(directory: str) -> int:
 
 def check_dataset(name: str, path: str, letter_subdir: bool = True):
     """Inspect a static-letter image dataset and report class coverage."""
-    print(f"\n  📂 {name}")
+    print(f"\n  {name}")
 
     if not os.path.isdir(path):
         print(f"     ✗ BULUNAMADI: {path}")
@@ -263,7 +262,6 @@ def check_dataset(name: str, path: str, letter_subdir: bool = True):
             if letters_missing:
                 print(f"     Eksik:   {', '.join(letters_missing)}")
 
-            # Show per-class counts when detailed inspection is useful.
             print(f"\n     {'Harf':>6} {'Sayı':>6}  {'Durum'}")
             print(f"     {'─' * 25}")
             for letter, count in letters_found:
@@ -281,7 +279,7 @@ def check_dynamic_data(raw_dir: str):
     """Inspect optional local J/Z recordings used by the desktop experiment."""
     dynamic_dir = os.path.join(raw_dir, "dynamic")
 
-    print("\n  📂 Dinamik Veriler (J/Z, opsiyonel legacy)")
+    print("\n  Dinamik Veriler (J/Z, opsiyonel legacy)")
 
     if not os.path.isdir(dynamic_dir):
         print("     ○ Henüz veri toplanmadı; aktif web runtime için zorunlu değil")
@@ -301,7 +299,7 @@ def check_dynamic_data(raw_dir: str):
 
 def check_models(root: str):
     """Public Python model source/provenance records."""
-    print("\n  📂 Python model kaynaklari")
+    print("\n  Python model kaynaklari")
 
     model_files = [
         ("Harf modeli", os.path.join(root, "models", "letter", "letter_model.pkl")),
@@ -360,7 +358,7 @@ def report_local_data(raw_dir: str) -> None:
     print(f"\n{'─' * 60}")
     print("  KELİME VERİ KAYNAĞI")
     print(f"{'─' * 60}")
-    print("\n  📂 Google Isolated Sign Language Recognition competition")
+    print("\n  Google Isolated Sign Language Recognition competition")
     print("     25 ve 50 kelimelik modellerin tek kelime egitim kaynagidir.")
     print("     Egitim Kaggle notebook ortaminda yapildi; tam parquet verisi repoda yoktur.")
     sample_subset = os.path.join(raw_dir, "asl-signs-sample-subset")
@@ -369,7 +367,6 @@ def report_local_data(raw_dir: str) -> None:
     else:
         print("     ○ Lokal fixture subset'i yok (runtime icin zorunlu degil)")
 
-    # Optional dynamic-letter recordings.
     print(f"\n{'─' * 60}")
     print("  DİNAMİK VERİLER (J/Z)")
     print(f"{'─' * 60}")
@@ -399,7 +396,7 @@ def main(argv: list[str] | None = None) -> int:
     raw_dir = str(rebased(RAW_DIR, root_path))
 
     print("=" * 60)
-    print("  📊 ASL Assistant dataset kontrol raporu")
+    print("  ASL Assistant dataset kontrol raporu")
     print("=" * 60)
 
     web_ok = check_web_runtime(root_path)
@@ -413,40 +410,38 @@ def main(argv: list[str] | None = None) -> int:
     else:
         report_local_data(raw_dir)
 
-    # Published and optional model artifacts.
     print(f"\n{'─' * 60}")
     print("  EĞİTİLMİŞ MODELLER")
     print(f"{'─' * 60}")
     check_models(root)
 
-    # Final readiness summary.
     print(f"\n{'═' * 60}")
-    print("  📋 SONRAKİ ADIMLAR")
+    print("  SONRAKİ ADIMLAR")
     print(f"{'═' * 60}")
 
     letter_model = os.path.join(root, "models", "letter", "letter_model.pkl")
     jz_model = os.path.join(root, "models", "letter", "dynamic_jz", "jz_model.pt")
 
     if not os.path.exists(letter_model):
-        print("\n  1️⃣  Harf modeli eğitin:")
+        print("\n  1. Harf modeli eğitin:")
         print("     python scripts/model_training/train_static_letter_model.py")
         print(
             "     python scripts/model_training/train_static_letter_model.py --max-images 500  # hızlı test"
         )
 
     if not os.path.exists(jz_model):
-        print("\n  2️⃣  Opsiyonel legacy J/Z modeli için:")
+        print("\n  2. Opsiyonel legacy J/Z modeli için:")
         print("     python scripts/model_training/train_dynamic_jz_model.py collect")
         print("     python scripts/model_training/train_dynamic_jz_model.py train")
 
     if web_ok:
-        print("\n  3️⃣  Aktif web demosunu çalıştırın:")
+        print("\n  3. Aktif web demosunu çalıştırın:")
         print("     cd asl-web")
         print("     python3 -m http.server 8080")
         print("     # Tarayıcı: http://localhost:8080")
 
     if all(os.path.exists(p) for p in [letter_model]):
-        print("\n  4️⃣  Legacy Python masaüstü uygulama:")
+        print("\n  4. Legacy Python masaüstü uygulama:")
         print("     python3 asl-desktop/main.py")
 
     print()

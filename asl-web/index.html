@@ -178,8 +178,8 @@
                  can lay it over the stage (portrait, laptop) or beside it (phone
                  landscape). The stage's data attributes still style it. -->
             <div class="plate" id="resultPlate">
-              <!-- Word mode only: where the recording is, and that the model
-                   is still experimental. -->
+              <!-- Shown in word mode only (css/screens-word.css): the recording
+                   step, and that the model is experimental. -->
               <div class="plate__head">
                 <div class="plate__steps" aria-label="Kelime kayıt akışı">
                   <span data-ui="word-step">Hazırlık</span>
@@ -208,7 +208,7 @@
                 </div>
                 <!-- The coach's cue and hint for the target. -->
                 <p class="plate__cue mode-only coach-only" id="coachHint"></p>
-                <!-- Wait for the next target, which the learner can stop. -->
+                <!-- The wait before the next target, which the learner can stop. -->
                 <div class="plate__advance mode-only coach-only" id="coachAdvance" hidden>
                   <span class="plate__bar" id="coachAdvanceBar" role="progressbar" aria-label="Sıradaki harfe geçiş"><i></i></span>
                   <button class="btn btn--stage plate__stay" type="button" id="coachStay">Burada kal</button>
@@ -336,7 +336,7 @@
               </div>
             </section>
 
-            <!-- Both cards are filled from per_word_stats.json and confusion_pairs.json. -->
+            <!-- Both word cards are built from data/per_word_stats.json and data/confusion_pairs.json. -->
             <details class="panel word-guide word-demo-card mode-only word-only" id="wordDemoCard" hidden>
               <summary class="word-guide__summary">
                 <h2 class="panel__title">Önce bunları deneyin</h2>
@@ -411,7 +411,7 @@
                   </p>
                 </section>
 
-                <!-- Rakamlar model-card.json'dan gelir; dosya okunana kadar blok gizli kalır. -->
+                <!-- The figures come from data/model-card.json; the block stays hidden until it has been read. -->
                 <section class="panel pj__numbers" id="projectNumbers" hidden aria-labelledby="pjNumbersTitle">
                   <h2 class="panel__title" id="pjNumbersTitle">Ne kadar iyi tanır?</h2>
                   <ul class="pj__list">
@@ -484,7 +484,7 @@
                       <dd><span lang="en">ASL-Fingerspelling</span> ile ilişkili · koşulları kayıtlı değil; görseller paylaşılmıyor</dd>
                     </div>
                     <div>
-                      <dt><a href="https://www.kaggle.com/competitions/asl-signs" target="_blank" rel="noreferrer"><span lang="en">Google – Isolated Sign Language Recognition</span> (Kaggle, 2023)<span class="visually-hidden"> (yeni sekmede açılır)</span></a></dt>
+                      <dt><a href="https://www.kaggle.com/competitions/asl-signs" target="_blank" rel="noreferrer"><span lang="en">Google - Isolated Sign Language Recognition</span> (Kaggle, 2023)<span class="visually-hidden"> (yeni sekmede açılır)</span></a></dt>
                       <dd>
                         <span lang="en">Deaf Professional Arts Network</span> ve
                         <span lang="en">Georgia Institute of Technology</span> tarafından sağlandı ·
@@ -624,7 +624,7 @@
               </div>
             </div>
 
-            <!-- Toplu çalıştırmanın sonucu. Bir çalıştırma başlayana kadar gizli kalır. -->
+            <!-- The run-all result, hidden until a run starts. -->
             <section class="panel mt__batch" id="modelTestBatch" hidden aria-labelledby="mtBatchTitle">
               <h2 class="panel__title" id="mtBatchTitle">Tüm örneklerin sonucu</h2>
               <p class="mt__summary" id="modelTestSummary"></p>
@@ -743,13 +743,13 @@
       </section>
     </div>
 
-    <!-- ONNX Runtime Web -->
+    <!-- ONNX Runtime Web and the kjua QR encoder, pinned: a version change needs a new integrity hash. -->
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js" integrity="sha384-viYmIzsXdPb1ErOTdWrs+j0B4FjltSSGeHvt08cedBpoO5xvp3qMRSo05NZTuuzh" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/kjua@0.9.0/dist/kjua.min.js" integrity="sha384-ayVM0To8wzK2eG/sCNqF3XW4aHfJBsYEneUeObYWVZCnBZbscaz45eTQaxEowih9" crossorigin="anonymous"></script>
 
-    <!-- MediaPipe Tasks Vision ESM loader is lazily imported in media/camera.js -->
+    <!-- MediaPipe Tasks Vision is not loaded here: js/media/camera.js imports its ES module bundle on the first camera start. -->
 
-    <!-- Uygulama modülleri (sırayla, bağımlılık sırası) -->
+    <!-- Classic scripts in dependency order: each uses globals from those above it, and app.js starts the app. -->
     <script src="js/core/config.js?v=12"></script>
     <script src="js/core/runtime.js?v=12"></script>
     <script src="js/ml/landmarks.js?v=12"></script>

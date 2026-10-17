@@ -130,7 +130,7 @@ def _web_js_corpus() -> str:
 
     The app runs as classic scripts in one global scope, so behaviour contracts
     hold across the whole directory rather than inside a single file. Using the
-    corpus keeps these tests meaningful while modules are split apart.
+    corpus keeps these tests independent of which file holds a function.
     """
     return "\n".join(_web_js_sources().values())
 
@@ -299,12 +299,12 @@ UI_HOOKS_GROUP = ("workspace-pane", "mode-tab", "word-step")
 # index.html by definition, so they are checked against the assignment instead.
 UI_HOOKS_RUNTIME = ("reference-thumb",)
 
-# Presentation class names the browser scripts still use to *find* elements.
+# Presentation class names the browser scripts may use to *find* elements.
 #
-# These are the fragile couplings: renaming one of these classes in the CSS
-# silently detaches behaviour, because nothing in the markup says the class is
-# load-bearing. The list is frozen so it can only shrink. Each entry moves to a
-# data-ui or data-action hook and leaves this list; nothing new may join it.
+# Such a coupling is fragile: renaming the class in the CSS silently detaches
+# behaviour, because nothing in the markup says the class is load-bearing. The
+# list is empty and frozen; a script that needs to find an element uses a
+# data-ui or data-action hook instead.
 BEHAVIOUR_CLASS_ALLOW_LIST = frozenset()
 
 # Element lookups in the browser scripts, including the project's own helpers.
@@ -320,8 +320,8 @@ def _js_selectors() -> set[str]:
     for rel_path, source in _web_js_sources().items():
         for match in _SELECTOR_CALL.finditer(source):
             selector = match.group("selector")
-            # runtime.js holds the helpers themselves; its own parameter
-            # forwarding is not a selector.
+            # runtime.js's own helpers pass a template, [data-ui="${name}"];
+            # it names no class, so the class check below lets it through.
             if selector:
                 found.add(selector)
     return found
@@ -387,9 +387,8 @@ def test_dom_id_bindings_exist_in_index_html() -> None:
 def test_registry_element_types_match_their_html_tags() -> None:
     """A required subtype that the markup does not satisfy is a startup crash.
 
-    The Node harness stubs every element constructor with one class, so it
-    cannot tell HTMLVideoElement from HTMLButtonElement. This check runs against
-    the real markup instead, and is the only place the pairing is verified.
+    This check reads each typed requireElement()/optionalElement() call and the
+    tag the markup gives that id, so it fails without running the app.
     """
 
     html = HtmlSnapshot(_read(INDEX_HTML))
@@ -499,9 +498,8 @@ def test_scripts_do_not_bind_through_presentation_classes() -> None:
     """A class that both styles and binds is a trap.
 
     Renaming it in the CSS detaches behaviour with nothing to show for it. The
-    allow-list held the couplings that existed before the hooks were introduced
-    and is now empty; it stays as the mechanism, so a new coupling fails here
-    rather than being discovered in a browser.
+    allow-list is empty and stays as the mechanism, so a new coupling fails
+    here rather than being discovered in a browser.
     """
 
     assert _js_selectors(), "no selectors found; the scan is probably broken"
@@ -787,7 +785,12 @@ def test_guided_ux_keeps_primary_reference_and_test_actions_visible() -> None:
 
 
 def test_word_live_pipeline_uses_notebook_parity_paths() -> None:
-    """Protect the two fixed live-word parity hazards from silent regression."""
+    """The live word path keeps the two choices that match the training notebook.
+
+    Features are built over the whole normalised recording, not frame by frame,
+    and a frame without shoulders falls back to min-max scaling rather than
+    reaching the model unnormalised.
+    """
 
     corpus = _web_js_corpus()
     features = _read(FEATURES_JS)
@@ -897,7 +900,7 @@ PUBLISHED_DEMO_URL = "https://asl-assistant.netlify.app/"
 
 
 def test_qr_demo_fallback_links_point_at_the_published_site() -> None:
-    """The site was renamed once and the old name 404s; all three copies move together."""
+    """The fallback link appears in three places, and all three name the live site."""
 
     source = _read(INDEX_HTML)
     html = HtmlSnapshot(source)

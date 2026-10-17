@@ -1,5 +1,5 @@
-// Lightweight client-side latency measurements.
-// Each stage keeps a bounded window and reports the mean of its latest samples.
+// Client-side latency measurements. Each stage keeps a bounded window and
+// reports the mean of its latest samples.
 
 /**
  * The stages this module measures.
@@ -76,8 +76,7 @@ function getAvgBenchmark(stage) {
 }
 
 /**
- * @returns {BenchmarkSummary} Stage means formatted for display. This reports a
- *   subset of the recorded stages.
+ * @returns {BenchmarkSummary} Stage means formatted for display.
  */
 function getBenchmarkSummary() {
   return {
@@ -91,8 +90,8 @@ function getBenchmarkSummary() {
 /**
  * Clear every sample window.
  *
- * Iterating the buckets keeps this correct when a stage is added; the previous
- * hand-written list was one more place a new stage could be forgotten.
+ * It walks the buckets rather than naming them, so a new stage cannot be left
+ * out.
  *
  * @returns {void}
  */

@@ -40,7 +40,7 @@ export function withTimeout(promise, ms, message) {
 /**
  * Start a headless Chrome with its own profile on a port the OS picks.
  *
- * The profile is a fresh temporary directory, so the owner's own browser, its
+ * The profile is a fresh temporary directory, so the user's own browser, its
  * cookies and its cache are never touched, and two runs never share state.
  * `--remote-debugging-port=0` lets Chrome choose a free port and write it to
  * DevToolsActivePort in the profile, which avoids both a fixed port and the
@@ -48,8 +48,8 @@ export function withTimeout(promise, ms, message) {
  *
  * Chrome gets no pipe back to this process. Its crash handler, and the
  * system updater branded Chrome wakes about 20 s after start, leave Chrome's
- * process group and outlive it; holding an inherited pipe, they kept the run
- * from exiting for minutes after every check had finished. Chrome's stderr
+ * process group and outlive it; holding an inherited pipe, they would keep the
+ * run from exiting for minutes after every check has finished. Chrome's stderr
  * goes to a file in the profile instead, read only when the start fails.
  *
  * @param {{ executable: string, args?: string[], startTimeoutMs?: number }} options

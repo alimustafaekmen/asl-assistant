@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "asl-ml"
+name = "asl-features"
 version = "0.1.0"
-description = "Shared Python ML/data utilities for ASL Assistant (letter feature engineering, landmark normalization, label-map I/O)"
+description = "Shared Python feature code for ASL Assistant: landmark normalization and the letter and word model features"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 authors = [
@@ -24,7 +24,4 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["asl_ml*"]
-
-[tool.setuptools.package-data]
-"asl_ml" = ["py.typed"]
+include = ["asl_features*"]

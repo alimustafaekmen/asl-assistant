@@ -1,8 +1,7 @@
 """Environment states the setup and doctor commands distinguish.
 
 Each state is built as plain facts rather than by arranging a real interpreter
-to be in it, which is what made these paths untestable while the logic lived in
-the Makefile as a Python source string.
+to be in it, so every path can be tested on any machine.
 """
 
 from __future__ import annotations
@@ -23,7 +22,7 @@ from scripts.tooling.environment import (
 from scripts.tooling.setup_guard import block_message
 
 OK = [ImportCheck("pytest", "ok", "8.0"), ImportCheck("numpy", "ok", "1.26")]
-PROJECT_OK = [ImportCheck("asl_ml", "ok", "0.1.0"), ImportCheck("asl_desktop", "ok")]
+PROJECT_OK = [ImportCheck("asl_features", "ok", "0.1.0"), ImportCheck("asl_desktop", "ok")]
 
 
 def facts(**overrides: str) -> EnvironmentFacts:
@@ -91,14 +90,14 @@ class TestResolveState:
         assert resolve_state(facts(), OK, PROJECT_OK) == "ready"
 
     def test_a_missing_project_package_asks_for_setup(self) -> None:
-        project = [ImportCheck("asl_ml", "missing"), ImportCheck("asl_desktop", "ok")]
+        project = [ImportCheck("asl_features", "missing"), ImportCheck("asl_desktop", "ok")]
         assert resolve_state(facts(), OK, project) == "needs_setup"
 
     def test_a_broken_package_is_separate_from_a_missing_one(self) -> None:
         broken = [ImportCheck("onnxruntime", "broken", error="ImportError")]
         assert resolve_state(facts(), broken, PROJECT_OK) == "basic_broken"
 
-        project_broken = [ImportCheck("asl_ml", "broken", error="OSError")]
+        project_broken = [ImportCheck("asl_features", "broken", error="OSError")]
         assert resolve_state(facts(), OK, project_broken) == "project_broken"
 
     def test_a_wrong_interpreter_outranks_any_package_result(self) -> None:
@@ -163,11 +162,14 @@ class TestFaultReporting:
             ),
             (
                 OK,
-                [ImportCheck("asl_ml", "missing"), ImportCheck("asl_desktop", "broken", error="E")],
+                [
+                    ImportCheck("asl_features", "missing"),
+                    ImportCheck("asl_desktop", "broken", error="E"),
+                ],
             ),
             (
                 [ImportCheck("pytest", "missing")],
-                [ImportCheck("asl_ml", "broken", error="E")],
+                [ImportCheck("asl_features", "broken", error="E")],
             ),
         ],
     )

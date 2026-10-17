@@ -4,7 +4,7 @@ The parity scripts are the only check that the browser computes the letter
 and word features the models were trained on: the feature order, a mirrored
 hand, the shoulder normalisation. A fault there still produces a vector of
 the right length, so nothing else notices. make health trusts their exit
-codes, and forcing either to 0 passed every gate even with a perturbed
+codes, so a script forced to exit 0 would pass every gate with a perturbed
 feature in the browser code.
 
 Each test runs a script on a copy of features.js. The faulty copy is the real

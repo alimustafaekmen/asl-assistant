@@ -18,8 +18,8 @@
 // frames rather than queueing them. A result that arrives after the user
 // changed mode or stopped the camera is discarded.
 //
-// The diagnostics here -- visibility ratios, dominant-hand timeline, shoulder
-// fallback counts, feature summaries -- are read-only and never change model
+// The diagnostics here (visibility ratios, dominant-hand timeline, shoulder
+// fallback counts, feature summaries) are read-only and never change model
 // output.
 
 /**
@@ -124,9 +124,6 @@ let _wordWaitMessageShown = false;
  */
 let _lastWordFrameTimestamp = null;
 
-// Per-recording visibility and parity diagnostics. These counters do not alter
-// inference; they expose dominant-hand changes and shoulder-normalization
-// fallback usage for troubleshooting feature-pipeline drift.
 /** @type {WordRecordingStats} */
 let _wordRecordingStats = {
   startTs: 0,
@@ -138,8 +135,8 @@ let _wordRecordingStats = {
   faceVisibleCount: 0,
   dominantHandPresentCount: 0,
   dominantHandSwitchCount: 0,
-  dominantHandTimeline: [],   // ["right"|"left"|"none"], capped at 45 frames
-  prevDominantSide: null,     // Internal comparison state
+  dominantHandTimeline: [],
+  prevDominantSide: null,
   shoulderFallbackUsedCount: 0,
 };
 
@@ -171,11 +168,11 @@ function resetWordRecordingStats() {
 }
 
 /**
- * Report the dominant side for one raw frame, using the same rule as the
- * feature pipeline.
+ * Report the dominant side for one raw frame, by the per-frame rule of
+ * computeDominantHand().
  *
- * Read-only: it runs no inference and does not influence the model input. It
- * exists to make a hand switch mid-recording visible in diagnostics.
+ * Read-only. The model input chooses one side for the whole recording; this
+ * makes a hand switch mid-recording visible in diagnostics.
  *
  * @param {Frame321D} raw321d
  * @returns {DominantSide}
@@ -195,7 +192,8 @@ function _observeDominantSide(raw321d) {
  * Detect when shoulder normalization had to use its min-max fallback.
  *
  * Offsets 279 and 282 are pose landmarks 11 and 12 in the flattened layout.
- * Read-only; normalization itself makes the same decision independently.
+ * Read-only, and it counts only a missing shoulder: normalizeShoulders() also
+ * falls back when the two shoulders coincide, which this does not see.
  *
  * @param {Frame321D} raw321d
  * @returns {boolean} True when either shoulder is missing.
@@ -255,7 +253,7 @@ async function realInference(now) {
       resetSmoother();
       resetLetterLandmarkSmoother();
       // The coach counts what it sees, so it is told the hand has gone. Letter
-      // mode keeps showing its last letter, as the owner decided.
+      // mode keeps showing its last letter on purpose.
       if (state.mode === "coach") noteCoachHandLost();
     }
     return;
@@ -263,7 +261,7 @@ async function realInference(now) {
 
   if (!_firstInferenceLogged) {
     _firstInferenceLogged = true;
-    console.log(`[INF] ilk realInference fired: mode=${state.mode}`);
+    console.log(`[INF] first realInference: mode=${state.mode}`);
   }
 
   _inferenceInFlight = true;
@@ -285,7 +283,9 @@ async function realInference(now) {
     if (letterContext) {
       const f93 = computeLetterFeatures(raw, _videoAspect());
 
-      // Publish a read-only letter snapshot for window.aslDebug.
+      // Publish a read-only letter snapshot for window.aslDebug. The motion
+      // gate is decided inside this block too, so it applies only where
+      // window exists.
       let motionGated = false;
       if (typeof window !== "undefined") {
         let rhCount = 0;
@@ -313,7 +313,6 @@ async function realInference(now) {
           if (v > fmax) fmax = v;
           fsum += v;
         }
-        // Capture smoothing and motion diagnostics.
         const smoothingState =
           typeof getLetterSmoothingState === "function"
             ? getLetterSmoothingState()
@@ -359,7 +358,7 @@ async function realInference(now) {
         };
       }
 
-      // Skip unstable frames only when the optional motion gate is enabled.
+      // The motion gate is off unless CONFIG.LETTER_MOTION_GATE_ENABLED.
       if (motionGated) {
         if (typeof window !== "undefined") {
           window._lastRawLetterPrediction = {
@@ -379,7 +378,7 @@ async function realInference(now) {
         if (!_firstPredictionLogged) {
           _firstPredictionLogged = true;
           console.log(
-            `[INF] ilk harf tahmini: ${result.label} (%${(result.confidence * 100).toFixed(1)})`,
+            `[INF] first letter prediction: ${result.label} (${(result.confidence * 100).toFixed(1)}%)`,
           );
         }
         // Distinguish probability-tensor output from the label-only fallback in
@@ -408,7 +407,7 @@ async function realInference(now) {
         if (state.mode === "coach") noteCoachLetter(smoothed, now);
         updatePrediction(smoothed);
       } else {
-        console.warn("[INF] predictLetter null döndü; model yüklü mü?");
+        console.warn("[INF] predictLetter returned no result; frame dropped");
       }
     } else if (state.mode === "word" || _isCoachWordTarget()) {
       if (state.wordState === "RECORDING") {
@@ -417,7 +416,7 @@ async function realInference(now) {
         // still and shorten the recording in time.
         if (latestMediaPipeResult.timestamp === _lastWordFrameTimestamp) return;
         _lastWordFrameTimestamp = latestMediaPipeResult.timestamp;
-        // Track landmark visibility for every captured recording frame.
+        // Visibility counters, for the quality warnings and the debug API.
         if (_wordRecordingStats.startTs === 0) {
           _wordRecordingStats.startTs = now;
         }
@@ -431,9 +430,8 @@ async function realInference(now) {
         if (handVisibleNow) _wordRecordingStats.handVisibleCount++;
         if (poseVisibleNow) _wordRecordingStats.poseVisibleCount++;
         if (faceVisibleNow) _wordRecordingStats.faceVisibleCount++;
-        // Choose the side with at least as many visible hand coordinates.
         if (handVisibleNow) _wordRecordingStats.dominantHandPresentCount++;
-        // Expose the current frame status to the UI and debug panel.
+        // For the debug API (window.aslDebug).
         if (typeof window !== "undefined") {
           window._lastWordCurrentFrame = {
             handVisible: handVisibleNow,
@@ -459,7 +457,6 @@ async function realInference(now) {
           if (typeof updateWordState === "function") updateWordState();
           return;
         }
-        // Re-arm the hint after all required landmark groups recover.
         _wordWaitMessageShown = false;
         _wordRecordingStats.acceptedFrames++;
         if (typeof noteUsableWordFrame === "function") noteUsableWordFrame(now);
@@ -467,7 +464,7 @@ async function realInference(now) {
           window._lastWordCurrentFrame.acceptedForRecording = true;
         }
 
-        // Record feature-parity observations without affecting inference.
+        // Diagnostics only; they do not touch the model input.
         const dominantSide = _observeDominantSide(raw);
         _wordRecordingStats.dominantHandTimeline.push(dominantSide);
         if (_wordRecordingStats.dominantHandTimeline.length > 45) {
@@ -504,7 +501,7 @@ async function realInference(now) {
       recordBenchmark("total", performance.now() - tStart);
     }
   } catch (err) {
-    console.error("[INF] realInference HATASI:", err);
+    console.error("[INF] realInference failed:", err);
   } finally {
     _inferenceInFlight = false;
   }
@@ -547,9 +544,10 @@ function _isCoachWordTarget() {
  * is used and the snapshot records which path ran.
  *
  * A result that arrives after the user changed mode or stopped the camera is
- * discarded rather than displayed, even if the user is back by then. Either way the motion buffers and the
- * per-recording counters are cleared before returning, so the next recording
- * starts clean. A result that arrives after a newer recording started touches
+ * discarded rather than displayed, even if the user is back by then. Either
+ * way the frame buffers are cleared before returning; the per-recording
+ * counters are reset here when the run ends in RESULT, and by the next start
+ * otherwise. A result that arrives after a newer recording started touches
  * nothing, because the state and the buffers belong to that recording. A run
  * that produced no result still ends in RESULT, with no word on offer.
  *
@@ -560,7 +558,8 @@ async function _finishWordRecordingReal() {
   state.wordState = "PROCESSING";
   updateWordState();
 
-  // Finalize read-only visibility and feature/motion statistics.
+  // Visibility over the recording, for the quality warnings and the debug
+  // snapshot.
   const recordingDurationMs =
     _wordRecordingStats.startTs > 0
       ? performance.now() - _wordRecordingStats.startTs
@@ -594,6 +593,8 @@ async function _finishWordRecordingReal() {
     inferenceFeatureSource = "frame-level-fallback";
   }
 
+  // Frames fill from slot 0 in recording order, padding after them. true
+  // marks a real frame, and predictWord() passes the mask on uninverted.
   const flat = new Float32Array(45 * 168);
   const mask = new Array(45).fill(false);
   for (let i = 0; i < Math.min(inferenceBuffer.length, 45); i++) {
@@ -621,7 +622,6 @@ async function _finishWordRecordingReal() {
       f168Sum += v;
       f168Count++;
     }
-    // Motion segment: indices 105..167.
     for (let j = 105; j < 168; j++) {
       const v = Math.abs(f[j]);
       if (v < motionMin) motionMin = v;
@@ -646,7 +646,7 @@ async function _finishWordRecordingReal() {
   try {
     result = await predictWord(flat, mask);
   } catch (err) {
-    console.error("Word inference hatası:", err);
+    console.error("[WORD] word inference failed:", err);
   }
 
   // A newer recording started while the model ran: the state and the
@@ -721,8 +721,8 @@ async function _finishWordRecordingReal() {
       }
     }
 
-    // Word predictions require explicit user acceptance; they are never appended
-    // to the transcript automatically.
+    // Consent: a word reaches the transcript only when the user accepts it,
+    // never from here.
   }
 
   // Publish quality warnings and the final recording snapshot for diagnostics.
@@ -788,7 +788,6 @@ async function _finishWordRecordingReal() {
       const top2 = result.alternatives[1];
       top1Top2Margin = (top1.confidence ?? 0) - (top2.confidence ?? 0);
       if (typeof getConfusionFeedback === "function") {
-        // Store confusion feedback as a boolean flag in the debug snapshot.
         confusionPairMatched = Boolean(getConfusionFeedback(top1, top2));
       }
     }
@@ -805,7 +804,6 @@ async function _finishWordRecordingReal() {
         maskTrueCount: mask.filter(Boolean).length,
         feature168Stats,
         motionStats,
-        // These values are diagnostic and do not influence model output.
         dominantHandSwitchCount: _wordRecordingStats.dominantHandSwitchCount,
         dominantHandTimeline: _wordRecordingStats.dominantHandTimeline.slice(),
         shoulderFallbackUsedCount: _wordRecordingStats.shoulderFallbackUsedCount,
@@ -826,10 +824,10 @@ async function _finishWordRecordingReal() {
       ts: performance.now(),
     };
     console.log(
-      `[WORD] kayıt bitti: frame=${frameBuffer.length}/${CONFIG.WORD_FRAME_COUNT}, ` +
-        `vis hand=${(visibility.handVisibleRatio * 100).toFixed(0)}% pose=${(visibility.poseVisibleRatio * 100).toFixed(0)}% face=${(visibility.faceVisibleRatio * 100).toFixed(0)}%, ` +
-        `süre=${(recordingDurationMs / 1000).toFixed(1)}sn` +
-        (warnings.length ? ` ⚠ ${warnings.length} uyarı` : ""),
+      `[WORD] recording done: frames=${frameBuffer.length}/${CONFIG.WORD_FRAME_COUNT}, ` +
+        `visible hand=${(visibility.handVisibleRatio * 100).toFixed(0)}% pose=${(visibility.poseVisibleRatio * 100).toFixed(0)}% face=${(visibility.faceVisibleRatio * 100).toFixed(0)}%, ` +
+        `duration=${(recordingDurationMs / 1000).toFixed(1)}s` +
+        (warnings.length ? `, ${warnings.length} warnings` : ""),
     );
   }
 

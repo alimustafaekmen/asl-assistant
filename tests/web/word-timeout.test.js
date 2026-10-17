@@ -1,9 +1,9 @@
 // A word recording the camera cannot fill ends on its own, and says why.
 //
 // A frame counts toward a recording only when hand, face and shoulders are
-// all in view. Before this, a recording that never got such a frame waited at
-// 0/45 for as long as the page stayed open: no timeout, no message, and the
-// record button stayed busy, so the only way out was to stop the camera.
+// all in view. Without a timeout, a recording that never gets such a frame
+// would wait at 0/45 for as long as the page stays open, with no message and a
+// busy record button, so the only way out would be to stop the camera.
 //
 // The recording's clock is the render loop: every animation frame calls
 // realInference() with its timestamp, whether or not MediaPipe saw anyone, so

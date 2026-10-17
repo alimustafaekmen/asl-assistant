@@ -10,7 +10,7 @@ web application's 50-word model.
 import cv2
 import mediapipe as mp
 import numpy as np
-from asl_ml.config import MIN_DETECTION_CONFIDENCE, MIN_TRACKING_CONFIDENCE
+from asl_features.config import MIN_DETECTION_CONFIDENCE, MIN_TRACKING_CONFIDENCE
 
 from asl_desktop.config import HOLISTIC_MODEL_COMPLEXITY
 from asl_desktop.utils.landmark_smoother import LandmarkSmoother
@@ -213,7 +213,6 @@ class HolisticDetector:
                 connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_contours_style(),
             )
 
-        # Pose.
         if self._last_results.pose_landmarks:
             self.mp_draw.draw_landmarks(
                 frame,
@@ -222,7 +221,6 @@ class HolisticDetector:
                 landmark_drawing_spec=self.mp_drawing_styles.get_default_pose_landmarks_style(),
             )
 
-        # Left hand.
         if self._last_results.left_hand_landmarks:
             self.mp_draw.draw_landmarks(
                 frame,
@@ -232,7 +230,6 @@ class HolisticDetector:
                 self.mp_draw.DrawingSpec(color=(255, 255, 255), thickness=1),
             )
 
-        # Right hand.
         if self._last_results.right_hand_landmarks:
             self.mp_draw.draw_landmarks(
                 frame,

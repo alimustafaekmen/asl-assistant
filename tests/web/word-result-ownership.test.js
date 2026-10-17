@@ -7,9 +7,9 @@
 // takes the old word off offer as it starts; and a model run that finishes
 // after a newer recording began is not shown at all.
 //
-// The fault each one kills is a word appended without the user accepting it
-// (the consent invariant): before this, a failed second recording
-// left "book" acceptable and the transcript became "book book ".
+// The fault each one kills is a word appended without the user accepting it,
+// which breaks the app's consent rule: a failed second recording that left
+// "book" acceptable would turn the transcript into "book book ".
 //
 // The app boots through its own init(); only the ONNX session, MediaPipe's
 // results and the countdown clock are faked (helpers/word-recording.mjs).

@@ -28,6 +28,10 @@ pyttsx3==2.99
 
 # Diagnostics
 matplotlib==3.10.0
+# matplotlib 3.10.0 still calls the pyparsing names that pyparsing 3.3
+# deprecated, one warning per call; 3.2.5 is the last release without them,
+# and a later major release may remove those names altogether.
+pyparsing==3.2.5
 seaborn==0.13.2
 
 # ONNX contract and offline inference checks

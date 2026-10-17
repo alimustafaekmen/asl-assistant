@@ -110,8 +110,9 @@ test("a letter that has left the camera cannot be counted for the target", async
 });
 
 test("on the letter screen the last letter stays when the hand leaves", async () => {
-  // Owner decision: letter mode keeps its behaviour on hand loss (backlog
-  // #29 is open); only the coach handles it.
+  // Letter mode keeps the last letter when the hand leaves; only the coach
+  // clears it. This pins the difference, so changing letter mode is a
+  // visible decision rather than a side effect.
   const coach = await coachApp({ hash: "#letter" });
   await coach.startCamera();
   coach.show("L", 0.9);

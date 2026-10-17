@@ -7,12 +7,12 @@ the dataset, and train one model or compare five model families: Random Forest,
 XGBoost, LightGBM (SVM fallback), MLP, and a small 1D CNN.
 
 Examples (activate any compatible Python environment first):
-  python scripts/model_training/train_static_letter_model.py                         # Varsayılan
-  python scripts/model_training/train_static_letter_model.py --max-images 500        # Hızlı test
-  python scripts/model_training/train_static_letter_model.py --full-comparison        # 4 model + tüm görseller
-  python scripts/model_training/train_static_letter_model.py --no-features            # Feature engineering olmadan
-  python scripts/model_training/train_static_letter_model.py --no-augment             # Augmentation olmadan
-  python scripts/model_training/train_static_letter_model.py --model xgboost          # Sadece XGBoost
+  python scripts/model_training/train_static_letter_model.py                         # defaults
+  python scripts/model_training/train_static_letter_model.py --max-images 500        # quick run
+  python scripts/model_training/train_static_letter_model.py --full-comparison       # five models, all figures
+  python scripts/model_training/train_static_letter_model.py --no-features           # raw 63D input
+  python scripts/model_training/train_static_letter_model.py --no-augment            # no augmentation
+  python scripts/model_training/train_static_letter_model.py --model xgboost         # XGBoost only
 
 Outputs include the trained pickle, label map, metadata, evaluation table, and
 optional documentation figures under ``models/letter/`` and ``docs/assets/``.
@@ -62,7 +62,7 @@ try:
     LGBM_AVAILABLE = True
 except ImportError:
     LGBM_AVAILABLE = False
-    print("⚠ LightGBM bulunamadı, SVM kullanılacak")
+    print("UYARI: LightGBM bulunamadı, SVM kullanılacak")
     from sklearn.svm import SVC
 
 
@@ -117,7 +117,7 @@ class Conv1DClassifier(BaseEstimator, ClassifierMixin):
         optimizer = torch.optim.Adam(self.model_.parameters(), lr=self.lr)
         criterion = nn.CrossEntropyLoss()
 
-        # Mini-batch training with validation-based early stopping.
+        # Stops once the training loss stops improving; no data is held out here.
         best_loss = float("inf")
         patience_counter = 0
         dataset = torch.utils.data.TensorDataset(X_t, y_t)
@@ -167,11 +167,11 @@ class Conv1DClassifier(BaseEstimator, ClassifierMixin):
 
 # Resolve the local Python ML package when the script is run from a fresh clone.
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-ASL_ML_SRC = os.path.join(PROJECT_ROOT, "asl-ml", "src")
-if ASL_ML_SRC not in sys.path:
-    sys.path.insert(0, ASL_ML_SRC)
+ASL_FEATURES_SRC = os.path.join(PROJECT_ROOT, "asl-features", "src")
+if ASL_FEATURES_SRC not in sys.path:
+    sys.path.insert(0, ASL_FEATURES_SRC)
 
-from asl_ml.config import (
+from asl_features.config import (
     AUGMENTATION_MULTIPLIER,
     AUGMENTATION_NOISE_STD,
     AUGMENTATION_ROTATION_RANGE,
@@ -181,8 +181,8 @@ from asl_ml.config import (
     NUM_LANDMARKS,
     STATIC_LETTERS,
 )
-from asl_ml.features.letter_features import extract_features
-from asl_ml.utils import normalize_landmarks
+from asl_features.landmarks import normalize_landmarks
+from asl_features.letter import extract_features
 
 PROCESSED_DATA_DIR = os.path.join(PROJECT_ROOT, "data", "processed")
 LETTER_MODELS_DIR = os.path.join(PROJECT_ROOT, "models", "letter")
@@ -246,7 +246,7 @@ def extract_all_keypoints(dataset_dir: str, max_per_class: int = 0) -> tuple:
                 break
 
         if letter_dir is None:
-            print(f"  [{letter}] ✗ Klasör bulunamadı")
+            print(f"  [{letter}] Klasör bulunamadı")
             stats[letter] = {"found": 0, "missed": 0}
             continue
 
@@ -286,7 +286,7 @@ def extract_all_keypoints(dataset_dir: str, max_per_class: int = 0) -> tuple:
 
         stats[letter] = {"found": found, "missed": missed}
         elapsed = time.time() - t_start
-        print(f"  [{letter}] ✓ {found} keypoint, {missed} el bulunamadı  ({elapsed:.0f}s)")
+        print(f"  [{letter}] {found} keypoint, {missed} el bulunamadı  ({elapsed:.0f}s)")
 
     hands.close()
 
@@ -313,7 +313,6 @@ def augment_data(
     for sample, label in zip(X, y):
         for _ in range(multiplier):
             aug = sample.copy()
-            # Add coordinate noise.
             aug += np.random.normal(0, AUGMENTATION_NOISE_STD, aug.shape).astype(np.float32)
 
             # Rotate x/y coordinates around the z axis.
@@ -384,11 +383,9 @@ def train_single_model(
     print(f"  Özellik boyutu: {X.shape[1]}")
     print(f"  Train: {len(y_train)}, Test: {len(y_test)} ({evaluation_source})")
 
-    # Build the requested estimator.
     model = _create_model(model_type)
     model_name = _model_display_name(model_type)
 
-    # Fit and time the estimator.
     print(f"\n  {model_name} eğitiliyor...")
     t0 = time.time()
     if model_type == "xgboost":
@@ -401,7 +398,7 @@ def train_single_model(
     y_pred = model.predict(X_test)
     acc = accuracy_score(y_test, y_pred)
 
-    # Measure single-sample latency over a short repeated run.
+    # Per-sample time of one batched predict call, not single-request latency.
     t0 = time.time()
     model.predict(X_test[: min(1000, len(X_test))])
     inference_ms = (time.time() - t0) / min(1000, len(X_test)) * 1000
@@ -506,7 +503,6 @@ def train_full_comparison(
         print(f"\n  ── {model_name} ──")
         model = _create_model(model_key)
 
-        # Fit time.
         t0 = time.time()
         if model_key == "xgboost":
             model.fit(X_train, y_train, verbose=False)
@@ -514,11 +510,10 @@ def train_full_comparison(
             model.fit(X_train, y_train)
         train_time = time.time() - t0
 
-        # Held-out accuracy.
         y_pred = model.predict(X_test)
         acc = accuracy_score(y_test, y_pred)
 
-        # Single-sample latency.
+        # Per-sample time of one batched predict call.
         n_test = min(1000, len(X_test))
         t0 = time.time()
         model.predict(X_test[:n_test])
@@ -552,14 +547,14 @@ def train_full_comparison(
         print(f"    Inference: {inference_ms:.3f}ms/tahmin")
         print(f"    En zayıf:  {min_f1_class} (F1={min_f1:.3f})")
 
-    # Select by held-out accuracy, matching the existing project policy.
+    # The winner is chosen by held-out accuracy, not by the CV mean.
     best_name = max(results, key=lambda k: results[k]["accuracy"])
     best_model = all_models[best_name]
     best_acc = results[best_name]["accuracy"]
     best_pred = results[best_name]["y_pred"]
 
     print(f"\n{'=' * 60}")
-    print(f"  ★ KAZANAN: {best_name} (Accuracy: {best_acc:.4f})")
+    print(f"  KAZANAN: {best_name} (Accuracy: {best_acc:.4f})")
     print(f"{'=' * 60}")
     print(
         classification_report(
@@ -954,7 +949,7 @@ def main():
     parser.add_argument(
         "--from-csv",
         action="store_true",
-        help="Önceden hazırlanmış CSV'den yükle (extract_landmarks + merge_datasets)",
+        help="Önceden hazırlanmış CSV'den yükle (extract_static_letter_landmarks + merge_static_letter_datasets)",
     )
     parser.add_argument(
         "--train-csv", type=str, default=None, help="Eğitim CSV dosyası (--from-csv ile)"
@@ -964,9 +959,8 @@ def main():
     )
     args = parser.parse_args()
 
-    # Print the selected pipeline configuration.
     print("=" * 60)
-    print("  🔤 ASL Harf Modeli Eğitimi")
+    print("  ASL Harf Modeli Eğitimi")
     print("=" * 60)
 
     use_features = not args.no_features
@@ -981,7 +975,7 @@ def main():
         test_csv = args.test_csv
 
         if not os.path.exists(train_csv):
-            print(f"\n❌ HATA: CSV bulunamadı: {train_csv}")
+            print(f"\nHATA: CSV bulunamadı: {train_csv}")
             print("  Önce dataset hazırlığını yapın:")
             print(
                 '  python scripts/data_preparation/extract_static_letter_landmarks.py --input "data/raw/ASL Alphabet/asl_alphabet_train/asl_alphabet_train" --output "data/processed/asl_alphabet_landmarks.csv"'
@@ -993,10 +987,8 @@ def main():
         print(f"  Train CSV:     {train_csv}")
         if test_csv:
             print(f"  Test CSV:      {test_csv}")
-        print(f"  Feature Eng.:  {'✓ Açık' if use_features else '✗ Kapalı'}")
-        print(
-            f"  Augmentation:  {'✗ Kapalı' if args.no_augment else f'✓ {AUGMENTATION_MULTIPLIER}x'}"
-        )
+        print(f"  Feature Eng.:  {'Açık' if use_features else 'Kapalı'}")
+        print(f"  Augmentation:  {'Kapalı' if args.no_augment else f'{AUGMENTATION_MULTIPLIER}x'}")
         print(
             f"  Mod:           {'Tam Karşılaştırma (5 model)' if args.full_comparison else args.model.upper()}"
         )
@@ -1009,7 +1001,7 @@ def main():
         print(f"\n  Yüklendi: {len(X)} örnek, {len(set(y_str))} sınıf, {X.shape[1]}D")
 
         if test_csv and not os.path.exists(test_csv):
-            print(f"\n❌ HATA: Test CSV bulunamadı: {test_csv}")
+            print(f"\nHATA: Test CSV bulunamadı: {test_csv}")
             sys.exit(1)
 
         if test_csv:
@@ -1021,7 +1013,7 @@ def main():
         # Augment only the raw landmark rows.
         if use_augment:
             print(f"\n{'─' * 60}")
-            print("  🔄 Augmentation")
+            print("  Augmentation")
             print(f"{'─' * 60}")
             X, y_str = augment_data(X, y_str)
         else:
@@ -1036,10 +1028,10 @@ def main():
             ds_name, ds_path, ds_size = find_dataset()
 
         if not ds_path or not os.path.isdir(ds_path):
-            print("\n❌ HATA: Dataset bulunamadı!")
+            print("\nHATA: Dataset bulunamadı!")
             print("  Beklenen konumlar:")
             for name, path, _ in DATASET_CANDIDATES:
-                exists = "✓" if os.path.isdir(path) else "✗"
+                exists = "[var]" if os.path.isdir(path) else "[yok]"
                 print(f"    {exists} {name}: {path}")
             print("\n  Dataset'i data/raw/ altına indirin.")
             print("\n  Alternatif: Önceden hazırlanmış CSV ile:")
@@ -1049,31 +1041,30 @@ def main():
         print(f"\n  Dataset:          {ds_name}")
         print(f"  Yol:              {ds_path}")
         print(f"  Max görsel:       {'sınırsız' if args.max_images == 0 else args.max_images}")
-        print(f"  Feature Eng.:     {'✓ Açık' if use_features else '✗ Kapalı'}")
+        print(f"  Feature Eng.:     {'Açık' if use_features else 'Kapalı'}")
         print(
-            f"  Augmentation:     {'✗ Kapalı' if args.no_augment else f'✓ {AUGMENTATION_MULTIPLIER}x'}"
+            f"  Augmentation:     {'Kapalı' if args.no_augment else f'{AUGMENTATION_MULTIPLIER}x'}"
         )
         print(
             f"  Mod:              {'Tam Karşılaştırma (5 model)' if args.full_comparison else args.model.upper()}"
         )
 
-        # Extract normalized 63D keypoints.
         print(f"\n{'─' * 60}")
-        print("  📸 Adım 1/4: Görsellerden keypoint çıkarımı")
+        print("  Adım 1/4: Görsellerden keypoint çıkarımı")
         print(f"{'─' * 60}")
 
         t0 = time.time()
         X, y_str, stats = extract_all_keypoints(ds_path, args.max_images)
         t1 = time.time()
-        print(f"\n  ⏱ Süre: {t1 - t0:.0f} saniye")
+        print(f"\n  Süre: {t1 - t0:.0f} saniye")
 
         if len(X) == 0:
-            print("\n❌ HATA: Hiç keypoint çıkarılamadı!")
+            print("\nHATA: Hiç keypoint çıkarılamadı!")
             sys.exit(1)
 
         # Augment raw landmarks before feature engineering.
         print(f"\n{'─' * 60}")
-        print("  🔄 Adım 2/4: Augmentation")
+        print("  Adım 2/4: Augmentation")
         print(f"{'─' * 60}")
 
         if use_augment:
@@ -1081,9 +1072,8 @@ def main():
         else:
             print("  Augmentation atlandı.")
 
-    # Build the selected model input representation.
     print(f"\n{'─' * 60}")
-    print("  🧬 Adım 3/4: Feature Engineering")
+    print("  Adım 3/4: Feature Engineering")
     print(f"{'─' * 60}")
 
     if use_features:
@@ -1093,9 +1083,8 @@ def main():
     else:
         print("  Feature engineering atlandı (63D ham koordinatlar kullanılacak).")
 
-    # Train either one estimator or the full comparison set.
     print(f"\n{'─' * 60}")
-    print("  🎯 Adım 4/4: Model eğitimi ve değerlendirme")
+    print("  Adım 4/4: Model eğitimi ve değerlendirme")
     print(f"{'─' * 60}")
 
     if args.full_comparison:
@@ -1120,9 +1109,8 @@ def main():
 
     t_total = time.time() - t0
 
-    # Print output locations and final metrics.
     print(f"\n{'═' * 60}")
-    print("  ✅ TAMAMLANDI!")
+    print("  TAMAMLANDI!")
     print(f"  Doğruluk:    {acc:.1%}")
     print(f"  Özellikler:  {X.shape[1]}D ({'feature engineering' if use_features else 'ham'})")
     print(f"  Süre:        {t_total / 60:.1f} dakika")

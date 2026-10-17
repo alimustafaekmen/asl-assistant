@@ -1,5 +1,9 @@
 # Word fixtures
 
+<sub>Location: [`asl-assistant`](../../../../README.md) / [`asl-web`](../../../README.md) / [`data`](../../) / [`model-test-samples`](../) / `words`</sub>
+
+<sub>Related: [`docs/models-and-data.md` › Model Test fixture contract](../../../../docs/models-and-data.md#model-test-fixture-contract) · [`scripts/evaluation/`](../../../../scripts/evaluation/README.md) · [`docs/getting-started.md` › Static deployment](../../../../docs/getting-started.md#static-deployment)</sub>
+
 This folder holds one fixture, `word-give-smoke.json`, and it is synthetic. Its
 30 frames (padded to 45 with a mask) are drawn from a seeded random generator
 rather than recorded, and the file exists to show that the word model runs end

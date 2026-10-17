@@ -4,9 +4,9 @@
 // The address decides the screen, and the render loop drives live inference,
 // so neither may wait for the Model Test fixture list: on a slow connection a
 // deep link to #word would show the letter screen, and a camera started then
-// would never be read. The local fixture manifest exists only on the owner's
-// machine; every other visitor gets a 404 for it, so it is asked for only
-// when the Model Test screen opens, where it is used.
+// would never be read. The local fixture manifest exists only in an ignored
+// local folder, so every visitor to the published site gets a 404 for it; it
+// is asked for only when the Model Test screen opens, where it is used.
 //
 // The faults these kill: init() awaiting the manifest before it applies the
 // route or starts the render loop, and a local manifest fetched on every page

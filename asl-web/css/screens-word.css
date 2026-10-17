@@ -7,17 +7,17 @@
  */
 
 @layer screens {
-  /* ── Icons this screen adds ──────────────────────────────────────── */
+  /* Icons this screen adds */
   [data-icon="chevron-left"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 18-6-6 6-6'/%3E%3C/svg%3E"); }
   [data-icon="chevron-right"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E"); }
   [data-icon="zoom-in"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3M11 8v6M8 11h6'/%3E%3C/svg%3E"); }
   [data-icon="zoom-out"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3M8 11h6'/%3E%3C/svg%3E"); }
   [data-icon="check"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E"); }
 
-  /* ── A word's card: the page image cropped to one rectangle ──────────
-     The script gives the frame the card's rectangle as fractions of the page
-     (--ref-x, --ref-y, --ref-w, --ref-h) and its aspect ratio (--ref-aspect).
-     The page image is scaled so the card fills the frame, then shifted. */
+  /* A word's card: the page image cropped to one rectangle. The script gives
+     the frame the card's rectangle as fractions of the page (--ref-x,
+     --ref-y, --ref-w, --ref-h) and its aspect ratio (--ref-aspect). The page
+     image is scaled so the card fills the frame, then shifted. */
   .ref-card {
     position: relative;
     width: 100%;
@@ -44,7 +44,7 @@
   .reference__body .ref-card { cursor: zoom-in; }
   .reference__body #referenceImage { cursor: zoom-in; }
 
-  /* ── The reference viewer ────────────────────────────────────────── */
+  /* The reference viewer */
   .viewer {
     padding: 0;
     border: 1px solid var(--color-line);
@@ -172,10 +172,9 @@
     .viewer__note { display: none; }
   }
 
-  /* ══ The word screen ═════════════════════════════════════════════════
-     The scripts write data-word-step (idle, countdown, recording,
-     processing, result) on the stage and on the dock, and everything below
-     is chosen from it. */
+  /* The word screen: the scripts write data-word-step (idle, countdown,
+     recording, processing, result) on the stage and on the dock, and
+     everything below is chosen from it. */
 
   [data-icon="record"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Ccircle cx='12' cy='12' r='7'/%3E%3C/svg%3E"); }
 
@@ -189,9 +188,9 @@
   .btn--accent:not(:disabled):hover { background: color-mix(in srgb, var(--color-primary) 86%, var(--color-surface)); }
   .btn--accent:not(:disabled) .kbd { border-color: transparent; padding-inline: 0; opacity: 0.9; }
 
-  /* ── Recording readout, at the top of the stage ─────────────────────
-     The head and shoulders are in frame at the top, and no sign is made
-     there; the bottom is where the torso and two-handed signs are. */
+  /* Recording readout, at the top of the stage: the head and shoulders are
+     in frame there and no sign is made there; the bottom is where the torso
+     and two-handed signs are. */
   .app-shell[data-mode="word"] .stage__top { flex-wrap: wrap; }
   .stage-hud { display: none; }
   .app-shell[data-mode="word"] .stage[data-word-step="countdown"] .stage-hud,
@@ -247,9 +246,8 @@
   }
   .stage-hud__hint { margin: 0; color: var(--stage-text-2); font-size: var(--fs-sm); line-height: var(--lh-snug); }
 
-  /* ── The plate, per step ─────────────────────────────────────────────
-     While the user signs the plate gives way to the readout above, so their
-     hands are never hidden behind it. */
+  /* The plate, per step: while the user signs, the plate gives way to the
+     readout above, so their hands are never hidden behind it. */
   .app-shell[data-mode="word"] .stage[data-word-step="countdown"] + .plate,
   .app-shell[data-mode="word"] .stage[data-word-step="recording"] + .plate { display: none; }
 
@@ -314,8 +312,8 @@
      line carries for the other modes. */
   .app-shell[data-mode="word"] .stage[data-word-step="result"] + .plate .plate__message { display: none; }
 
-  /* The legacy "Kelime akışı" card: its steps, readout and guide now live on
-     the stage and the plate. */
+  /* The "Kelime akışı" card is hidden: the stage and the plate show its
+     steps, readout and guide. */
   .app-shell[data-mode="word"] .word-state-card { display: none; }
 
   /* Landscape phones: the word face leaves room for the longest word. */
@@ -323,10 +321,10 @@
     .stage[data-kind="word"] + .plate { --fs-word: 2rem; }
   }
 
-  /* ── The dock, per step ──────────────────────────────────────────────
-     Rest and processing: record, with the two result actions kept in place
-     but disabled. Countdown and recording: only Vazgeç. Result: record again
-     and accept. Accepted: a new recording first, the accept spent. */
+  /* The dock, per step. Rest and processing: record, with the two result
+     actions kept in place but disabled. Countdown and recording: only
+     Vazgeç. Result: record again and accept. Accepted: a new recording
+     first, the accept spent. */
   .app-shell[data-mode="word"] #controlBar[data-word-step="countdown"] :is(#recordWord, #retryWord, #appendWordResult),
   .app-shell[data-mode="word"] #controlBar[data-word-step="recording"] :is(#recordWord, #retryWord, #appendWordResult) { display: none; }
   .app-shell[data-mode="word"] #controlBar[data-word-step="result"] #recordWord { display: none; }
@@ -346,9 +344,9 @@
     .app-shell[data-mode="word"] #cancelWord { flex: 1 1 100%; grid-column: 1 / -1; }
   }
 
-  /* ── Side cards: words to try first, and the 50 words ─────────────────
-     Both are collapsible panels. The legacy layer still gives these classes
-     an accent edge and a fade, so the panel look is restored here. */
+  /* Side cards: words to try first, and the 50 words. Both are collapsible
+     panels. The legacy layer gives these classes an accent edge and a fade,
+     so the panel look is restored here. */
   .word-guide {
     display: block;
     /* The laptop side panel is a scrolling column: an open card keeps its

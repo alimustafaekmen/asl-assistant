@@ -1,8 +1,8 @@
 """`make help` lists the targets the Makefile really has, each exactly once.
 
-The list is the first thing a newcomer reads. It drifted both ways: a target
-was added without a line, and a line was kept after its target went away, and
-nothing noticed because nobody runs every target. These tests ask make itself
+The list is the first thing a newcomer reads. It can drift both ways, a target
+added without a line or a line kept after its target went away, and nothing
+notices, because nobody runs every target. These tests ask make itself
 for the target list and for proof that each listed target exists, so renaming a
 variable or reordering the file does not break them.
 """

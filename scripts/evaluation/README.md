@@ -1,5 +1,9 @@
 # Evaluation and fixture export
 
+<sub>Location: [`asl-assistant`](../../README.md) / [`scripts`](../README.md) / `evaluation`</sub>
+
+<sub>Related: [`asl-web/data/model-test-samples/words/`](../../asl-web/data/model-test-samples/words/README.md) · [`docs/models-and-data.md` › Model Test fixture contract](../../docs/models-and-data.md#model-test-fixture-contract) · [`tests/`](../../tests/README.md)</sub>
+
 Scripts that produce small, reviewable inputs for tests and for the browser's
 Model Test panel. They do not train or replace a model, and none of their output
 is an accuracy measurement.
@@ -16,21 +20,22 @@ is an accuracy measurement.
 python scripts/evaluation/export_feature_goldens.py
 ```
 
-The goldens are what keeps the Python and JavaScript feature code in step.
-`tests/asl_ml/unit/test_feature_golden.py` rebuilds the file and fails if the
-committed copy differs from what the Python code computes now;
+The goldens keep the Python and JavaScript feature code in step.
+`tests/asl_features/unit/test_feature_golden.py` rebuilds the file and fails if
+the committed copy differs from what the Python code computes;
 `tests/web/feature-golden.test.js` runs `asl-web/js/ml/features.js` on the same
-inputs and expects the same numbers. The inputs come from closed-form geometry,
-not a random generator, so a library upgrade cannot change them. Regenerate the
-file after an intended change to the feature contract, and review the diff.
+inputs and expects the same numbers. The inputs are built from closed-form
+geometry with no random generator, so a library upgrade cannot change them.
+Regenerate the file after an intended change to the feature contract, and
+review the diff.
 
 ## Word fixtures for the Model Test panel
 
 The download needs the Kaggle command-line client (`pip install kaggle`, which
-is not in `requirements.txt`), your API credentials, and a prior acceptance of
-the competition rules on Kaggle's website. It selects rows from the
+is not in `requirements.txt`), your API credentials, and acceptance of the
+competition rules on Kaggle's website. It selects rows from the
 signer-independent test split the word notebook used (a seeded 70/15/15 split by
-signer), so a fixture is a recording by a signer the model did not train on.
+signer), so each fixture is a recording by a signer the model did not train on.
 
 ```bash
 python scripts/evaluation/download_kaggle_sample_subset.py \
@@ -48,12 +53,13 @@ python scripts/evaluation/export_model_test_word_samples.py \
 
 The raw files stay under the ignored `data/raw/`. The fixtures are written to
 `asl-web/data/model-test-samples/local/`, also ignored, because the competition
-rules forbid redistributing the data; delete that folder before you upload
-`asl-web/`. [The word fixtures README](../../asl-web/data/model-test-samples/words/README.md)
-explains why, and the
+rules forbid redistributing the data. Delete that folder before you upload
+`asl-web/`; `make deploy-check` fails while it is there.
+[The word fixtures README](../../asl-web/data/model-test-samples/words/README.md)
+explains the rules, and the
 [fixture contract](../../docs/models-and-data.md#model-test-fixture-contract)
 gives the schema.
 
-The generated fixtures are regression and demonstration samples. They are not
-the complete signer-independent test partition and must not be reported as the
+The fixtures are regression and demonstration samples. They are not the
+complete signer-independent test partition and must not be reported as the
 notebook's accuracy or macro-F1.

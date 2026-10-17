@@ -9,8 +9,8 @@ import logging
 import cv2
 import mediapipe as mp
 import numpy as np
-from asl_ml.config import MIN_DETECTION_CONFIDENCE, MIN_TRACKING_CONFIDENCE, NUM_HANDS
-from asl_ml.utils import normalize_landmarks
+from asl_features.config import MIN_DETECTION_CONFIDENCE, MIN_TRACKING_CONFIDENCE, NUM_HANDS
+from asl_features.landmarks import normalize_landmarks, to_square_units
 
 from asl_desktop.config import LANDMARK_QUALITY_THRESHOLD
 from asl_desktop.utils.landmark_smoother import LandmarkSmoother
@@ -19,7 +19,7 @@ _logger = logging.getLogger("ASL.HandDetector")
 
 
 class HandDetector:
-    """Small lifecycle-safe wrapper around MediaPipe Hands.
+    """MediaPipe Hands with smoothing and an idempotent ``close``.
 
     Example:
         with HandDetector() as det:
@@ -55,7 +55,11 @@ class HandDetector:
             lms = []
             for lm in self._last_results.multi_hand_landmarks[0].landmark:
                 lms.extend([lm.x, lm.y, lm.z])
-            normalized = normalize_landmarks(np.array(lms, dtype=np.float32))
+            # The letter model was trained on square photographs; a webcam
+            # frame is not square, so the hand is put back into square units.
+            height, width = frame.shape[:2]
+            square = to_square_units(np.array(lms, dtype=np.float32), width, height)
+            normalized = normalize_landmarks(square)
             if normalized is not None and not np.all(normalized == 0):
                 return self._smoother.smooth(normalized)
             return normalized
@@ -94,7 +98,7 @@ class HandDetector:
             except Exception as exc:
                 # Closing is idempotent from the caller's perspective; MediaPipe
                 # may already have released its native resources.
-                _logger.debug("HandDetector.close() swallow: %s", exc)
+                _logger.debug("HandDetector.close() ignored: %s", exc)
             self.hands = None
 
     def __enter__(self):

@@ -3,10 +3,10 @@
 //
 // The word model downloads the first time something needs it. When that
 // download fails, the next press must download again and record, and the
-// user must be told once, in words that say what to do: try again. Before
-// this, the message said to reload the page, which is never needed (the
-// shared load forgets a failure), and a second press while the failing
-// download was still under way reported the same failure a second time.
+// user must be told once, in words that say what to do: try again. The
+// message must not ask for a reload, which is never needed (the shared load
+// forgets a failure), and a second press while the failing download is still
+// under way must not report the same failure a second time.
 //
 // Only the boundaries are faked: ONNX Runtime's session creation (which is
 // what fetches the model file), MediaPipe's results and the countdown clock.

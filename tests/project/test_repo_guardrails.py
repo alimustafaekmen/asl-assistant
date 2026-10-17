@@ -60,12 +60,12 @@ def _is_checkout_root(git: str, root: Path) -> bool:
 def _git_listing(root: Path, *args: str) -> list[str]:
     """`git ls-files` for `root`, whether or not it has Git metadata.
 
-    A ZIP download or a copied tree has no .git, and the guards that read
-    this list used to skip there, silently: six of them, with a planted home
-    directory path in a public doc. Without metadata the listing runs against
-    a temporary empty repository with `root` as its work tree, so .gitignore
-    still decides what is public and nothing counts as tracked; every file is
-    then "other", which is what a download of the tracked files holds.
+    A ZIP download or a copied tree has no .git, and a guard that skipped
+    there would miss a home directory path planted in a public doc. Without
+    metadata the listing runs against a temporary empty repository with `root`
+    as its work tree, so .gitignore still decides what is public and nothing
+    counts as tracked; every file is then "other", which is what a download of
+    the tracked files holds.
     """
     git = shutil.which("git")
     if git is None:
@@ -143,9 +143,9 @@ def _resolved_recipe(target: str) -> str:
 def test_quality_gate_covers_test_sources(target: str) -> None:
     """Test code is read and maintained like product code, so it is linted too.
 
-    The gate covered only the three product trees for a long time, which let
-    unsorted imports, unused imports and an ambiguous variable name accumulate
-    in tests/ without anything reporting them.
+    A gate over the three product trees alone lets unsorted imports, unused
+    imports and ambiguous names accumulate in tests/ with nothing reporting
+    them.
     """
     if shutil.which("make") is None:
         pytest.skip("make is not on PATH")
@@ -153,7 +153,7 @@ def test_quality_gate_covers_test_sources(target: str) -> None:
     recipe = _resolved_recipe(target)
 
     assert "tests" in recipe.split(), f"{target} does not cover tests/: {recipe.strip()}"
-    for tree in ("asl-desktop", "asl-ml", "scripts"):
+    for tree in ("asl-desktop", "asl-features", "scripts"):
         assert tree in recipe.split(), f"{target} stopped covering {tree}"
 
 
@@ -162,7 +162,7 @@ def test_public_environment_matches_dependency_contract() -> None:
     requirements = (PROJECT_ROOT / "requirements.txt").read_text(encoding="utf-8")
     dev_requirements = (PROJECT_ROOT / "requirements-dev.txt").read_text(encoding="utf-8")
     desktop_metadata = (PROJECT_ROOT / "asl-desktop/pyproject.toml").read_text(encoding="utf-8")
-    ml_metadata = (PROJECT_ROOT / "asl-ml/pyproject.toml").read_text(encoding="utf-8")
+    features_metadata = (PROJECT_ROOT / "asl-features/pyproject.toml").read_text(encoding="utf-8")
 
     assert (PROJECT_ROOT / ".node-version").read_text(encoding="utf-8") == "24\n"
     assert "name: asl-assistant" in environment
@@ -176,7 +176,42 @@ def test_public_environment_matches_dependency_contract() -> None:
     assert "ruff==0.16.8" in dev_requirements
     assert "opencv-contrib-python>=4.5,<5" in desktop_metadata
     assert '"opencv-python' not in desktop_metadata
-    assert "pytest-cov" not in requirements + desktop_metadata + ml_metadata
+    assert "pytest-cov" not in requirements + desktop_metadata + features_metadata
+
+
+def test_the_conda_environment_installs_every_local_package() -> None:
+    """environment.yml must install each package in the repository, from its folder.
+
+    A package renamed or removed from the list leaves an environment in which
+    the desktop app or the scripts cannot import it, and pip cannot fetch a
+    package that exists only in this repository.
+    """
+    import tomllib
+
+    def name(folder: Path) -> str:
+        return tomllib.loads((folder / "pyproject.toml").read_text(encoding="utf-8"))["project"][
+            "name"
+        ]
+
+    environment = (PROJECT_ROOT / "environment.yml").read_text(encoding="utf-8")
+    installed = {}
+    for line in environment.splitlines():
+        entry = line.strip()
+        if entry.startswith("- -e "):
+            folder = PROJECT_ROOT / entry.removeprefix("- -e ").strip()
+            assert (folder / "pyproject.toml").is_file(), (
+                f"environment.yml installs {folder.name}, which is not a package"
+            )
+            installed[name(folder)] = folder
+
+    local = {
+        name(folder): folder
+        for folder in PROJECT_ROOT.glob("*/")
+        if (folder / "pyproject.toml").is_file()
+    }
+    assert set(installed) == set(local), (
+        f"environment.yml installs {sorted(installed)}, the repository has {sorted(local)}"
+    )
 
 
 def test_web_typecheck_is_a_developer_tool_only() -> None:
@@ -286,8 +321,8 @@ def _machine_specific_text(root: Path, rel_paths: list[str]) -> list[str]:
 def test_the_machine_marker_scan_finds_a_planted_path(tmp_path: Path) -> None:
     """The guard below has only ever seen a clean tree; this shows it can see a fault.
 
-    A home directory and the old environment name each count, in any text
-    file, and a binary suffix is left alone.
+    A home-directory path and a machine-specific environment name each
+    count, in any text file, and a binary suffix is left alone.
     """
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "setup.md").write_text(

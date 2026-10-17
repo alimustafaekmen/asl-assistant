@@ -1,13 +1,9 @@
 """Canonical paths and source-to-deploy pairs for the published artifacts.
 
-Both validators used to carry their own copy of these directories and of the
-nine provenance pairs. The copies were identical, which is the problem: moving
-an artifact meant remembering to edit two files, and nothing would have
-reported it if only one had been changed.
-
-This module owns them. It holds paths and the relationship between a deploy
-file and the source it came from, and nothing else: no dataset discovery, no UI
-text, no fixture data.
+Both validators read them from here, so moving an artifact is one edit and the
+two cannot disagree about where it lives. The module holds paths and the
+relationship between a deploy file and the source it came from, and nothing
+else: no dataset discovery, no UI text, no fixture data.
 """
 
 from __future__ import annotations
@@ -201,11 +197,11 @@ DEPLOY_ALLOWED_ENDINGS: dict[str, tuple[str, ...]] = {
     "models": (".onnx", ".onnx.gz"),
     "assets": (".png", ".webp", ".svg"),
     "assets/fonts": (".woff2", "OFL.txt"),
-    # JSDoc globals for the type check. Shipped today and harmless to serve.
+    # JSDoc globals for the type check; harmless to serve.
     "types": (".d.ts",),
 }
 
-# Present only on the owner's machine and never published: the Model Test word
+# Present only in a local checkout and never published: the Model Test word
 # fixtures exported from the competition data, whose rules forbid
 # redistributing it. The folder is ignored by Git, so only a check of the
 # working tree can see it before a drag-and-drop upload.

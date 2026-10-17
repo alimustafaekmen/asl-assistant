@@ -1,6 +1,6 @@
-"""Desktop word-buffer and no-hands regression tests.
+"""The desktop word buffer, and what happens to a frame without hands.
 
-The important regression is tested at the orchestration boundary: forwarded
+The fault that matters is tested at the orchestration boundary: forwarded
 face/body landmarks must not reach ``SequenceClassifier.add_frame`` when no
 hand was detected.
 """
@@ -18,11 +18,11 @@ from asl_desktop.config import WORD_IDLE_RESET_FRAMES
 from asl_desktop.models.sequence_classifier import SequenceClassifier
 from asl_desktop.ui.translation_view import TranslationView
 
-WORD_FEATURE_DIM = 321  # Holistic: 107 landmark × 3
+WORD_FEATURE_DIM = 321  # Holistic: 107 landmarks × 3
 
 
 def test_buffer_empty_on_init():
-    """Başlangıçta buffer boş olmalı."""
+    """A new classifier starts with an empty buffer."""
     clf = SequenceClassifier(model_type="word")
     assert len(clf._frame_buffer) == 0
     assert clf.buffer_progress == 0.0
@@ -83,10 +83,10 @@ def test_prolonged_hand_absence_resets_stale_word_buffer():
 
 
 def test_buffer_fills_only_when_add_frame_called():
-    """add_frame() çağrıldığında (hands_detected=True simüle) buffer dolmalı."""
+    """Each add_frame() call, standing for a frame with a hand, adds one frame."""
     clf = SequenceClassifier(model_type="word")
-    # add_frame(), _loaded=False iken erken çıkıyor; buffer davranışını test etmek
-    # için _loaded=True set ediyoruz (birim testi: sadece buffer mantığını izole et)
+    # add_frame() returns early while _loaded is False; setting it tests the
+    # buffer on its own, without a model.
     clf._loaded = True
 
     fake_kp = np.zeros(WORD_FEATURE_DIM, dtype=np.float32)
@@ -99,9 +99,9 @@ def test_buffer_fills_only_when_add_frame_called():
 
 
 def test_buffer_reset_clears_all_frames():
-    """reset_buffer() sonrası buffer sıfırlanmalı (el kaybında uygulanan temizlik)."""
+    """reset_buffer(), the clean-up a lost hand triggers, empties the buffer."""
     clf = SequenceClassifier(model_type="word")
-    clf._loaded = True  # buffer davranışı için gerekli
+    clf._loaded = True  # reaches the buffer without a model, as above
 
     fake_kp = np.zeros(WORD_FEATURE_DIM, dtype=np.float32)
     for _ in range(15):
@@ -116,11 +116,11 @@ def test_buffer_reset_clears_all_frames():
 
 
 def test_no_prediction_without_model():
-    """Model yüklü değilken add_frame() None dönmeli (güvenli başlangıç durumu)."""
+    """Without a loaded model, add_frame() predicts nothing and returns None."""
     clf = SequenceClassifier(model_type="word")
-    # _loaded=False (model yok) → add_frame erken çıkar
+    # _loaded is False (no model), so add_frame() returns early.
     fake_kp = np.zeros(WORD_FEATURE_DIM, dtype=np.float32)
     result = clf.add_frame(fake_kp)
     assert result is None, "Modelsiz durumda tahmin yapilmamali"
-    # Buffer da dokunulmamali
+    # It leaves the buffer untouched as well.
     assert len(clf._frame_buffer) == 0

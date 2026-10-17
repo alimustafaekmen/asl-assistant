@@ -1,10 +1,10 @@
 // The harness document is index.html, so markup drift reaches the node tests.
 //
-// The harness used to return a blank element for any id at all, which meant a
-// renamed id or a dropped data-ui hook passed every node test. It now parses
-// the real document. These tests pin that seam: what the scripts find is what
-// the markup holds, the parser reads the HTML constructs the page uses, and
-// the selector engine either matches as a browser does or refuses loudly.
+// A harness that returned a blank element for any id would let a renamed id or
+// a dropped data-ui hook pass every node test, so this one parses the real
+// document. These tests pin that seam: what the scripts find is what the
+// markup holds, the parser reads the HTML constructs the page uses, and the
+// selector engine either matches as a browser does or refuses loudly.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -87,8 +87,8 @@ test("void elements, comments, raw text and templates do not swallow or leak con
     [
       `<p>one<br>two<img src="a.png" alt="">three</p>`,
       `<!-- <div id="commented"></div> -->`,
-      // Lowercasing "İ" lengthens the string, which once shifted where a
-      // script's raw text was taken to end.
+      // Lowercasing "İ" lengthens the string, so a parser that lowercased the
+      // document to find "</script>" would misplace where the raw text ends.
       `<h2>İŞARET İÇİN İPUCU</h2>`,
       `<script>if (a < b && c > d) document.write("<div id='scripted'></div>");</script>`,
       `<template><span id="templated">x</span></template>`,

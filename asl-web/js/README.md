@@ -1,5 +1,9 @@
 # Browser JavaScript Modules
 
+<sub>Location: [`asl-assistant`](../../README.md) / [`asl-web`](../README.md) / `js`</sub>
+
+<sub>Related: [`docs/architecture.md`](../../docs/architecture.md) · [`tests/`](../../tests/README.md)</sub>
+
 The web application uses classic scripts and shared browser globals. It does
 not use a bundler or ES-module graph, so the order in `asl-web/index.html` is a
 runtime contract.
@@ -48,8 +52,7 @@ theme. Startup side effects belong in the bootstrap flow.
 
 `tests/project/test_web_ui_contracts.py` enforces this order, and
 `tests/web/module-contracts.test.js` loads the scripts the same way the browser
-does, so a duplicated global or a file that index.html forgets is caught
-automatically.
+does, so a duplicated global or a file that `index.html` forgets fails a test.
 
 ## Module map
 
@@ -62,9 +65,9 @@ automatically.
 | `media/camera.js` | MediaPipe task lifecycle, GPU/CPU fallback, frame detection loop |
 | `media/overlay.js` | Landmark drawing on the camera canvas |
 | `ml/landmarks.js` | MediaPipe output to the fixed 321D holistic frame and shoulder normalization |
-| `ml/features.js` | Letter 93D and word 168D feature construction |
+| `ml/features.js` | Letter 93D and word 168D feature construction, including the square-units step; the Python counterpart is `asl-features` |
 | `ml/live-inference.js` | Live letter/word inference and word recording finalization |
-| `ml/letter-model.js` | Letter ONNX loading, probability parsing, and backward fallback |
+| `ml/letter-model.js` | Letter ONNX loading, probability parsing, and a label-only fallback when an output cannot be read as probabilities |
 | `ml/word-model.js` | Word ONNX loading, mask handling, calibration, softmax, and top-3 output |
 | `ml/gating.js` | Letter smoothing and difficulty/confusion feedback data |
 | `ml/hold.js` | Hold detection: a target held steadily for a time counts once |
@@ -75,7 +78,7 @@ automatically.
 | `ui/transcript.js` | Transcript editing, persistence, clipboard, speech output |
 | `ui/word-flow.js` | Word countdown, recording progress, quality readout, action buttons |
 | `ui/coach.js` | Learning coach targets, flows, scoring, word guidance panel |
-| `ui/reference.js` | Reference images, video links, lightbox |
+| `ui/reference.js` | Reference images, video links, the image viewer dialog |
 | `ui/qr.js` | Demo deep-link URL and QR rendering |
 | `ui/model-test.js` | Offline fixture loading, validation, and model runs |
 
@@ -140,7 +143,8 @@ attached to the page while that happens.
 No script finds an element by a presentation class. Lookups go through
 `queryUi()` and `queryAllUi()`, which resolve a `data-ui` hook, or through the
 registry by id. That is what lets a class be renamed without touching
-JavaScript, and it is enforced by an allow-list that is now empty.
+JavaScript, and `tests/project/test_web_ui_contracts.py` fails when a script
+looks an element up by class.
 
 **The registry has two halves.**
 
@@ -177,7 +181,7 @@ not a build step: the browser loads these `.js` files unchanged.
 Each type is defined once, in the file where its meaning is fixed, and
 referenced from everywhere else. The classic-script global scope makes those
 definitions visible project-wide, so a second copy would be a second source of
-truth rather than a convenience.
+truth.
 
 | Type group | Owner |
 |---|---|
@@ -209,8 +213,8 @@ Three rules keep the annotations honest:
   registry is the exception: `requireElement()` proves presence at startup, so
   the rest of the app can dereference those fields freely.
 
-Where a runtime check cannot be expressed as a narrowing -- inspecting one
-element to classify an array, or a membership test on a string union -- the
+Where a runtime check cannot be expressed as a narrowing (inspecting one
+element to classify an array, or a membership test on a string union), the
 narrowing is stated in place, next to the check that guarantees it.
 
 Run `make js-typecheck` to verify the contracts. It needs `npm ci` once; nothing
@@ -218,21 +222,19 @@ else in this repository does.
 
 ## Model contracts
 
-The final word inference path makes dominant-hand selection across the complete
-recording, not independently per frame. The input mask uses `true` for a real
-frame and `false` for padding; the exported ONNX graph performs its own internal
-attention-mask inversion.
+Word inference picks the dominant hand once for the whole recording, not frame
+by frame. The input mask uses `true` for a real frame and `false` for padding;
+the exported ONNX graph inverts it internally, so callers must not invert it
+first.
 
 The letter path supports 24 static classes. J and Z are not implemented, and
 no J/Z model is loaded by these modules.
 
 ## Comment conventions
 
-Source comments are written in concise English so the implementation is
-readable to a broader GitHub audience. User-facing interface text remains in
-Turkish. Comments should explain a model contract, browser constraint, fallback,
-or non-obvious design decision; they should not preserve temporary phase names,
-personal workflow notes, or a line-by-line translation of the code.
+Source comments are in English; the interface text is Turkish. A comment
+explains a model contract, a browser constraint, a fallback or a non-obvious
+design decision, and does not restate the code line by line.
 
 ## Change safety
 
@@ -242,6 +244,7 @@ script order, or recording resets, read:
 - [Architecture](../../docs/architecture.md)
 - [Models and data](../../docs/models-and-data.md)
 
-Run `make health` from the repository root, then perform the real-browser
-camera checklist in the architecture guide. Automated checks cannot validate
-camera permissions, handedness metadata, or device-specific MediaPipe behavior.
+Run `make health` from the repository root, then do the manual camera checks in
+[Architecture](../../docs/architecture.md#checking-a-change). Automated checks
+cannot validate camera permissions, handedness metadata, or device-specific
+MediaPipe behaviour.

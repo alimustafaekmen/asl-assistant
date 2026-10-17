@@ -2,8 +2,7 @@
 //
 // The smoother is what makes the label-only ONNX fallback usable: it converts
 // repeated labels into a confidence. Callers treat its result as always
-// present, so the first test here pins that invariant before anything relies
-// on it.
+// present, so the first test here pins that invariant.
 
 import test from "node:test";
 import assert from "node:assert/strict";

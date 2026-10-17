@@ -1,7 +1,7 @@
 // The browser's feature vectors against the numbers Python makes.
 //
 // fixtures/feature-golden.json holds synthetic hands and short word sequences
-// together with the outputs of the Python feature code (asl-ml for the 93-D
+// together with the outputs of the Python feature code (asl-features for the 93-D
 // letter vector, the training notebook's port for the 168-D word frames); the
 // Python suite fails if the file stops matching Python. Here the real
 // features.js and landmarks.js run on the same inputs. A reordered group, a

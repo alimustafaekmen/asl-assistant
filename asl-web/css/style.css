@@ -1,15 +1,17 @@
-/* ============================================================
-   ASL Assistant product UI
-   Odak: Harf Çeviri + Öğrenme Koçu. Kelime Pratik destekleyici.
-   Tema: Soft light + soft dark. Saf beyaz/siyah ve AI mor/neon yok.
-   ============================================================ */
-
-/* Cascade layers, lowest first. Everything below this point is the
-   pre-redesign stylesheet, kept whole in the legacy layer so the new layers
-   (css/tokens.css onwards) win without specificity fights, and so each
-   screen's old rules can be deleted as that screen is rebuilt. Layout comes
-   after components because it places them: a component's own display or
-   margin must not undo where the layout put it. */
+/* The cascade layer order, and the legacy layer.
+ *
+ * The order is declared here because this is the first stylesheet the page
+ * links, and the first statement to name a layer fixes its place. Layout comes
+ * after components because it places them: a component's own display or
+ * margin must not undo where the layout put it.
+ *
+ * The legacy layer is the app's earlier stylesheet, kept whole and lowest, so
+ * the layers above it (css/tokens.css onwards) win without specificity fights.
+ * It still applies wherever no later layer sets the same property, so a
+ * deletion here must be checked on screen. It grew in passes, each one
+ * overriding the rules above it, so the rule that applies to a selector is
+ * often the last one in the file.
+ */
 @layer legacy, tokens, base, components, layout, screens, utilities;
 
 @layer legacy {
@@ -128,21 +130,16 @@ a { color: var(--primary); text-decoration: none; }
 .brand strong { display:block; font-size: 18px; line-height: 1.1; color: var(--text-strong); }
 .brand small { display:block; color: var(--muted); font-size: 13px; margin-top: 3px; }
 
-/* Sekme gruplama: birincil (harf/koç) + ayraç + soluk "ekstra" grubu.
-   Tab grouping: primary (letter/coach) + divider + muted "extra" group. */
-
-/* HOME */
-
 .eyebrow {
   display:inline-flex; align-items:center; gap:6px; color: var(--primary); text-transform: uppercase; letter-spacing: .08em; font-size: 12px; font-weight: 800;
 }
 
-/* WORKSPACE */
+/* Workspace */
 .workspace { width:min(var(--max), 100%); margin: 0 auto; padding: clamp(14px, 2.6vw, 28px); display:grid; gap: 22px; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 1120px) { .workspace { grid-template-columns: minmax(0, 1.45fr) minmax(320px, .82fr); align-items:start; } }
 .camera-column { min-width:0; display:flex; flex-direction:column; gap:16px; }
 
-/* Mode visibility moved to the utilities layer in css/layout.css. */
+/* The .mode-only visibility rules are in the utilities layer (css/layout.css). */
 .app-shell[data-mode="project"] .camera-column { display:none; }
 .app-shell[data-mode="project"] .project-screen { grid-column:1 / -1; }
 .app-shell[data-mode="test"] .camera-column { display:none; }
@@ -201,19 +198,13 @@ a { color: var(--primary); text-decoration: none; }
 .word-group.good { border-left:4px solid var(--success); }
 .word-group.risky { border-left:4px solid var(--warning); }
 
-/* ──────────────────────────────────────────────────────────
-   Word chips: the live-use guidance card
-   wordDemoList / wordRiskList / wordConfusionList içindeki
-   `<p>` elemanı artık chip'leri tutan flex container'a dönüşür.
-   ────────────────────────────────────────────────────────── */
+/* Word chips: each list that holds them is a wrapping row. */
 #wordDemoList,
 #wordRiskList,
 #wordConfusionList {
   display:flex; flex-wrap:wrap; gap:6px;
   margin:0;
 }
-
-/* Severity variants: rahat = success, riskli = warning, karışan çift = accent */
 
 .word-categories { display:grid; gap:10px; }
 .word-categories div { padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface); }
@@ -827,7 +818,7 @@ a { color: var(--primary); text-decoration: none; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
-/* ── V3: ürün akışı düzeltmeleri ───────────────────────────── */
+/* Overrides: the laptop columns, card padding, and the coach and word cards. */
 @media (min-width: 1120px) {
   .workspace {
     grid-template-columns: minmax(680px, 1.85fr) minmax(300px, .72fr);
@@ -889,8 +880,7 @@ a { color: var(--primary); text-decoration: none; }
   padding-right: 2px;
 }
 
-/* ── V4: gerçek kullanım düzeltmeleri ──────────────────────── */
-/* Kamera artık çalışma ekranının ana elemanı. Sağ panel sadece bağlamsal destek. */
+/* Overrides: a wider camera column on laptops, a denser side panel. */
 @media (min-width: 1120px) {
   .workspace {
     grid-template-columns: minmax(740px, 2.25fr) minmax(280px, .62fr);
@@ -906,10 +896,7 @@ a { color: var(--primary); text-decoration: none; }
   }
 }
 
-/* Kamera ve overlay'de görsel gecikme hissi yaratabilecek geçiş yok. */
-
-/* Sağ panel kalabalığını azalt: kartlar biraz daha sıkı, notlar daha küçük. */
-
+/* Smaller notes, so the side panel's cards stay short. */
 .card-note,
 .word-group p,
 .word-categories span,
@@ -919,7 +906,7 @@ a { color: var(--primary); text-decoration: none; }
   line-height: 1.42;
 }
 
-/* Koç kelime hedefi: uzun kelimeler büyük harf kutusunda taşmasın. */
+/* A word target is longer than the letter box is wide: the box grows and the word wraps. */
 .coach-card[data-target-type="word"] .coach-target {
   align-items: flex-start;
 }
@@ -940,7 +927,6 @@ a { color: var(--primary); text-decoration: none; }
   text-transform: uppercase;
 }
 
-/* Kelime kalite göstergesi: el/yüz/omuz hızlı okunur. */
 .quality-pills span[data-ok="true"] {
   background: var(--success-soft);
   color: var(--success);
@@ -950,7 +936,7 @@ a { color: var(--primary); text-decoration: none; }
   color: var(--warning);
 }
 
-/* Kelime kütüphanesi uzun olduğu için kompakt kalsın. */
+/* The word library is long, so its list scrolls in a shorter box. */
 .word-library-card .word-categories {
   max-height: 210px;
 }
@@ -959,8 +945,6 @@ a { color: var(--primary); text-decoration: none; }
   padding: 10px;
 }
 
-/* Referans görseli açıldığında ekranı yutmasın ama okunabilir kalsın. */
-
 @media (max-width: 720px) {
 
   .coach-card[data-target-type="word"] .coach-target span {
@@ -968,7 +952,7 @@ a { color: var(--primary); text-decoration: none; }
   }
 }
 
-/* ── V5: sade, mode-bazlı ürün akışı ──────────────────────── */
+/* Overrides: the dark background, laptop columns, coach flow and collapsible cards. */
 body[data-theme="dark"],
 .app-shell[data-theme="dark"] {
   background: linear-gradient(180deg, var(--bg), var(--bg-soft));
@@ -1091,7 +1075,7 @@ details.card {
   margin: 18px 0 4px;
 }
 
-/* ── V6: camera-first responsive workspace ────────────────── */
+/* Overrides: the workspace width, its gaps and the phone top bar. */
 .app-shell[data-view="app"] .workspace {
   width: min(1880px, calc(100% - 40px));
   padding: 18px 0 28px;
@@ -1152,7 +1136,7 @@ details.card {
   }
 }
 
-/* Guided product-flow refinements. */
+/* Overrides: the coach and word step rows, the coach guide, the Model Test cards. */
 
 .coach-path,
 .word-flow-steps {
@@ -1412,10 +1396,8 @@ details.card {
   }
 }
 
-/* ──────────────────────────────────────────────────────────
-   Lightbox: tam ekran referans görseli
-   (referans kartı tıklanınca açılır)
-   ────────────────────────────────────────────────────────── */
+/* Lightbox: the .lightbox classes only. The #lightbox dialog is the
+   reference viewer, styled in css/screens-word.css. */
 .lightbox {
   position:fixed; inset:0; z-index:9000;
   display:flex; align-items:center; justify-content:center;
@@ -1476,8 +1458,6 @@ details.card {
   outline:2px solid var(--primary, #4d8eff);
   outline-offset:2px;
 }
-
-/* Referans kartındaki görsel zoom-in cursor ile tıklanabilir */
 
 @keyframes lightbox-fade-in {
   from { opacity:0; }

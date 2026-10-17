@@ -1,8 +1,8 @@
 """The canonical artifact contracts.
 
-These used to be duplicated verbatim across two validators. The copies were
-identical, which is exactly the failure mode: moving an artifact meant editing
-two files, and nothing would have reported it if only one had changed.
+Both validators read these from one module. With a copy in each, moving an
+artifact would mean editing two files, and nothing would report it if only
+one had changed.
 """
 
 from __future__ import annotations

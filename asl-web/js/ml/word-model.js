@@ -67,11 +67,12 @@ function ensureWordModel() {
 async function loadWordModel() {
   try {
     if (typeof ort === "undefined") {
-      console.error("ort (onnxruntime-web) yüklenmemiş");
+      console.error("ort (onnxruntime-web) is not loaded");
       return false;
     }
 
-    // Point ORT worker and WASM asset resolution at the pinned CDN version.
+    // Point ORT's worker and WASM files at the pinned CDN version, which must
+    // match the ort.min.js version that index.html loads.
     if (ort.env && ort.env.wasm) {
       ort.env.wasm.wasmPaths =
         "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/";
@@ -85,7 +86,6 @@ async function loadWordModel() {
     console.log("Word ONNX inputs:", wordSession.inputNames);
     console.log("Word ONNX outputs:", wordSession.outputNames);
 
-    // Load the calibration temperature exported with the model.
     try {
       const tempRes = await fetch("./data/temperature.json");
       if (!tempRes.ok) throw new Error(`HTTP ${tempRes.status}`);
@@ -95,11 +95,11 @@ async function loadWordModel() {
         ? parsedTemperature
         : 1.0;
     } catch (e) {
-      console.warn("temperature.json okunamadı, T=1 kullanılıyor:", e.message);
+      console.warn("temperature.json unreadable, using T=1:", e.message);
       temperature = 1.0;
     }
 
-    // Load the ordered output-label mapping.
+    // word_labels.json maps each word to its output index.
     const labelsRes = await fetch("./data/word_labels.json");
     if (!labelsRes.ok) throw new Error(`word_labels.json HTTP ${labelsRes.status}`);
     const labelsData = await labelsRes.json();
@@ -109,11 +109,11 @@ async function loadWordModel() {
     }
 
     console.log(
-      `Kelime modeli yüklendi. T=${temperature}, ${wordLabels.length} kelime`,
+      `Word model loaded: T=${temperature}, ${wordLabels.length} words`,
     );
     return true;
   } catch (err) {
-    console.error("Kelime modeli yüklenemedi:", err);
+    console.error("Word model failed to load:", err);
     wordSession = null;
     return false;
   }
@@ -195,7 +195,7 @@ async function predictWord(features45x168, mask45) {
     } catch (err) {
       lastRunError = err;
       if (dtype !== null) {
-        console.warn(`Word mask dtype ${dtype} başarısız:`, err instanceof Error ? err.message : err);
+        console.warn(`Word model run failed with mask dtype ${dtype}:`, err instanceof Error ? err.message : err);
       }
     }
   }
@@ -205,10 +205,8 @@ async function predictWord(features45x168, mask45) {
   const t1 = performance.now();
   if (typeof recordBenchmark === "function") recordBenchmark("onnx", t1 - t0);
 
-  // Apply temperature calibration, softmax, and top-k selection. Each logit is
-  // converted rather than trusted to be a number: the tensor element type
-  // follows the ONNX dtype. This graph exports float32, where Number() is the
-  // identity, but the conversion keeps the code honest about the contract.
+  // Number() because the element type follows the ONNX dtype; for this
+  // float32 graph it is the identity.
   const calibrated = Array.from(logits, (x) => Number(x) / temperature);
   const probs = stableSoftmax(calibrated);
 
@@ -254,6 +252,6 @@ async function warmupWordModel() {
     await predictWord(dummy, dummyMask);
     console.log(`Word model warmup: ${(performance.now() - t0).toFixed(1)} ms`);
   } catch (err) {
-    console.warn("Warmup başarısız:", err);
+    console.warn("Word model warmup failed:", err);
   }
 }

@@ -1,7 +1,7 @@
 // Camera pipeline guards that do not need a real camera.
 //
-// Task creation, the CDN import, and the detection loop need a browser and are
-// left to the manual smoke checklist. What is covered here are the decisions
+// Real task creation, the CDN import and the detection loop need a browser
+// (the camera check in tests/browser). What is covered here are the decisions
 // around them: which frames may be recorded, when the optional tasks are
 // needed, how handedness is mapped, and what stopping releases.
 
@@ -73,7 +73,7 @@ test("the selfie handedness swap follows the configuration flag", () => {
   config.SELFIE_HANDEDNESS_SWAP = true;
   assert.equal(shouldSwap(), true);
 
-  // Without the key at all, the pre-config behaviour applies.
+  // Without the key at all, the swap defaults to on.
   delete config.SELFIE_HANDEDNESS_SWAP;
   assert.equal(shouldSwap(), true);
 });

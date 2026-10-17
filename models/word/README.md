@@ -1,7 +1,11 @@
 # Word models
 
-Two word-recognition models live here. They come from different stages of the
-project, take different inputs, and cannot be swapped.
+<sub>Location: [`asl-assistant`](../../README.md) / [`models`](../README.md) / `word`</sub>
+
+<sub>Related: [`docs/models-and-data.md`](../../docs/models-and-data.md) · [`notebooks/`](../../notebooks/README.md) · [`notebooks/word_50_results/`](../../notebooks/word_50_results/README.md)</sub>
+
+Two word-recognition models from different stages of the project. They take
+different inputs and cannot be swapped.
 
 | | `web-50/` | `desktop-25/` |
 |---|---|---|
@@ -37,10 +41,9 @@ models/word/web-50/word_labels.json -> asl-web/data/word_labels.json
 models/word/web-50/temperature.json -> asl-web/data/temperature.json
 ```
 
-The Kaggle export called the checkpoint `final_model.pt` and the label file
-`word_to_idx.json`. They were renamed `word_model.pt` and `word_labels.json` when
-they were added here. `notebooks/word_50_results/manifest.json` keeps the
-original names and ties them to these files by hash.
+`notebooks/word_50_results/manifest.json` lists the checkpoint and the label
+file under the Kaggle export's names, `final_model.pt` and `word_to_idx.json`,
+and ties them to these files by hash.
 
 The model returns logits. The word mask uses `true` for a real frame and `false`
 for padding, and the graph inverts it internally, so callers must not invert it
@@ -56,8 +59,7 @@ first. The full input layout is in
 | `word_labels.json` | Word to output index, 25 entries |
 
 Source: `notebooks/word_25_desktop_training.ipynb`. Only `asl-desktop` loads this
-model. Earlier intermediate notebooks and exports from the same line of
-experiments are not published.
+model.
 
 Run `make notebook-check` to confirm that the notebooks and model files are in
 place, and `make health` for the full set of checks on the deployed copies.

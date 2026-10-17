@@ -418,7 +418,6 @@ def process_video(
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = holistic.process(rgb)
 
-            # Convert detections to the narrow row representation.
             rows, hands = extract_frame_landmarks(results, frame_num)
 
             if hands:
@@ -575,11 +574,11 @@ def validate_outputs(output_dir: Path, logger: logging.Logger) -> dict:
             frames = df["frame"].nunique()
             types = set(df["type"].unique())
             if frames < 5 or "right_hand" not in types and "left_hand" not in types:
-                logger.warning(f"  ⚠️ {pq.name}: {frames} frame, types={types}")
+                logger.warning(f"  UYARI: {pq.name}: {frames} frame, types={types}")
                 bad_count += 1
             parquet_count += 1
         except Exception as e:
-            logger.error(f"  ❌ {pq.name}: {e}")
+            logger.error(f"  HATA: {pq.name}: {e}")
             bad_count += 1
     logger.info(f"Toplam parquet: {parquet_count}, sorunlu: {bad_count}")
     return {"validated": parquet_count, "invalid": bad_count}
@@ -631,7 +630,7 @@ def extract_all(
         meta_info = entry_metadata.get(entry_id)
         if meta_info is None:
             stats["no_metadata"] += 1
-            logger.debug(f"  ⚠️ {entry_id}: Metadata bulunamadı, atlanıyor")
+            logger.debug(f"  {entry_id}: Metadata bulunamadı, atlanıyor")
             continue
 
         cid = meta_info["class_id"]
@@ -643,7 +642,7 @@ def extract_all(
         try:
             df, meta = process_video(video_path, box, use_crop=use_crop, logger=logger)
         except Exception as e:
-            logger.error(f"  ❌ {entry_id}: exception: {e}")
+            logger.error(f"  HATA: {entry_id}: exception: {e}")
             state["failed"][entry_id] = {"reason": str(e)[:200]}
             stats["rejected"] += 1
             reject_reasons["exception"] = reject_reasons.get("exception", 0) + 1
@@ -658,7 +657,7 @@ def extract_all(
             state["failed"][entry_id] = {"reason": reason, **meta}
             reason_key = reason.split(" ")[0] if " " in reason else reason
             reject_reasons[reason_key] = reject_reasons.get(reason_key, 0) + 1
-            logger.debug(f"  ✗ {entry_id}: {reason}")
+            logger.debug(f"  {entry_id} reddedildi: {reason}")
             continue
 
         # Persist one narrow-format Parquet file per accepted clip.
@@ -687,8 +686,8 @@ def extract_all(
             pct = (i + 1) / total * 100 if total > 0 else 0
             logger.info(
                 f"[{i + 1}/{total}] {pct:.0f}%: "
-                f"✅{stats['success']} ✗{stats['rejected']} "
-                f"⏩{stats['skipped']}"
+                f"success={stats['success']} rejected={stats['rejected']} "
+                f"skipped={stats['skipped']}"
             )
 
         # Release accumulated native and DataFrame objects in long runs.
@@ -744,7 +743,7 @@ def generate_csv(
     # Report the resulting vocabulary and signer coverage.
     unique_words = df["sign"].nunique() if len(df) > 0 else 0
     unique_signers = df["participant_id"].nunique() if len(df) > 0 else 0
-    logger.info(f"\n✅ CSV oluşturuldu: {csv_path}")
+    logger.info(f"\nCSV oluşturuldu: {csv_path}")
     logger.info(f"   Satır: {len(df)}")
     logger.info(f"   Benzersiz kelime: {unique_words}")
     logger.info(f"   Benzersiz signer: {unique_signers}")
@@ -812,7 +811,7 @@ def generate_metadata(
     with open(meta_path, "w") as f:
         json.dump(metadata, f, indent=2, ensure_ascii=False)
 
-    logger.info(f"✅ Metadata: {meta_path}")
+    logger.info(f"Metadata: {meta_path}")
 
     # Print a compact human-readable coverage table.
     logger.info("\n" + "=" * 65)
@@ -824,7 +823,7 @@ def generate_metadata(
     for word in sorted(word_stats.keys()):
         ws = word_stats[word]
         avg_f = ws["total_frames"] / ws["count"] if ws["count"] > 0 else 0
-        flag = " ⚠️" if ws["count"] < 5 else ""
+        flag = " LOW" if ws["count"] < 5 else ""
         logger.info(
             f"  {word:<15} {ws['count']:>5}     {avg_f:>7.1f}   {len(ws['signers']):>5}{flag}"
         )
@@ -891,9 +890,9 @@ def main() -> int:
 
     logger = setup_logging(args.output_dir)
 
-    # Auditing existing outputs comes first, because it needs neither the
-    # downloaded clips nor the MS-ASL metadata. Loading those before this
-    # branch made the audit fail for anyone without the raw corpus.
+    # Auditing existing outputs comes first: it needs neither the downloaded
+    # clips nor the MS-ASL metadata, so it works for someone who has only the
+    # extracted landmarks.
     if args.validate_only:
         stats = validate_outputs(args.output_dir, logger)
         return 1 if stats["invalid"] else 0
@@ -913,7 +912,6 @@ def main() -> int:
 
     start_time = time.time()
 
-    # Extract or validate the requested dataset.
     stats = extract_all(
         video_dir=args.video_dir,
         output_dir=args.output_dir,

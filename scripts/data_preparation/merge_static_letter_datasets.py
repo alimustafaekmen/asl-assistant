@@ -36,16 +36,15 @@ import numpy as np
 import pandas as pd
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-ASL_ML_SRC = os.path.join(PROJECT_ROOT, "asl-ml", "src")
-if ASL_ML_SRC not in sys.path:
-    sys.path.insert(0, ASL_ML_SRC)
+ASL_FEATURES_SRC = os.path.join(PROJECT_ROOT, "asl-features", "src")
+if ASL_FEATURES_SRC not in sys.path:
+    sys.path.insert(0, ASL_FEATURES_SRC)
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from asl_ml.config import STATIC_LETTERS
-from asl_ml.utils import ensure_dir
+from asl_features.config import STATIC_LETTERS
 
 PROCESSED_DATA_DIR = os.path.join(PROJECT_ROOT, "data", "processed")
 DOCS_ASSETS_DIR = os.path.join(PROJECT_ROOT, "docs", "assets")
@@ -56,19 +55,19 @@ def load_and_merge(csv_paths: list) -> pd.DataFrame:
     dfs = []
     for path in csv_paths:
         if not os.path.exists(path):
-            print(f"  ⚠ Atlandı (yok): {path}")
+            print(f"  Atlandı (yok): {path}")
             continue
         df = pd.read_csv(path)
         if len(df) == 0 or "label" not in df.columns:
-            print(f"  ⚠ Atlandı (boş veya geçersiz): {os.path.basename(path)}")
+            print(f"  Atlandı (boş veya geçersiz): {os.path.basename(path)}")
             continue
         n = len(df)
         classes = df["label"].nunique()
-        print(f"  ✓ {os.path.basename(path)}: {n} örnek, {classes} sınıf")
+        print(f"  {os.path.basename(path)}: {n} örnek, {classes} sınıf")
         dfs.append(df)
 
     if not dfs:
-        print("❌ HATA: Hiç CSV yüklenemedi!")
+        print("HATA: Hiç CSV yüklenemedi!")
         sys.exit(1)
 
     combined = pd.concat(dfs, ignore_index=True)
@@ -175,7 +174,7 @@ def split_train_test(df: pd.DataFrame, test_ratio: float = 0.15) -> tuple:
         actual_ratio = max(test_ratio, n_classes / n_total + 0.01)
         if actual_ratio != test_ratio:
             print(
-                f"  ⚠ Test oranı {test_ratio:.2f} → {actual_ratio:.2f} ayarlandı (min {n_classes} test)"
+                f"  UYARI: Test oranı {test_ratio:.2f} → {actual_ratio:.2f} ayarlandı (min {n_classes} test)"
             )
         X_train, X_test, y_train, y_test = sklearn_split(
             X,
@@ -186,7 +185,7 @@ def split_train_test(df: pd.DataFrame, test_ratio: float = 0.15) -> tuple:
         )
     else:
         # Tiny datasets cannot satisfy stratification constraints.
-        print(f"  ⚠ Dataset çok küçük ({min_class_count}/sınıf), stratify kapalı")
+        print(f"  UYARI: Dataset çok küçük ({min_class_count}/sınıf), stratify kapalı")
         actual_ratio = min(test_ratio, 0.3)
         X_train, X_test, y_train, y_test = sklearn_split(
             X,
@@ -208,7 +207,7 @@ def split_train_test(df: pd.DataFrame, test_ratio: float = 0.15) -> tuple:
 
 def save_class_distribution(df: pd.DataFrame, title: str, output_path: str):
     """Save a class-distribution bar chart."""
-    ensure_dir(os.path.dirname(output_path))
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     counts = df["label"].value_counts().sort_index()
 
@@ -272,7 +271,7 @@ def main():
     args = parser.parse_args()
 
     print("=" * 60)
-    print("  🔀 Dataset Birleştirme ve Hazırlama")
+    print("  Dataset Birleştirme ve Hazırlama")
     print("=" * 60)
 
     # Resolve explicit inputs or discover raw landmark CSV files.
@@ -288,14 +287,13 @@ def main():
             ]
         )
         if not csv_paths:
-            print("❌ HATA: data/processed/ altında *_landmarks.csv bulunamadı!")
+            print("HATA: data/processed/ altında *_landmarks.csv bulunamadı!")
             print("  Önce çıkarma yapın:")
             print(
                 '  python scripts/data_preparation/extract_static_letter_landmarks.py --input "data/raw/ASL Alphabet/asl_alphabet_train/asl_alphabet_train" --output "data/processed/asl_alphabet_landmarks.csv"'
             )
             sys.exit(1)
 
-    # Load and merge source datasets.
     print("\n── Adım 1: CSV Yükleme ──")
     df = load_and_merge(csv_paths)
 
@@ -306,7 +304,6 @@ def main():
     else:
         print("  J/Z dahil edildi.")
 
-    # Remove duplicates and invalid feature rows.
     print("\n── Adım 3: Temizlik ──")
     df = remove_duplicates(df)
     df = remove_anomalies(df)
@@ -316,18 +313,15 @@ def main():
     df.to_csv(combined_path, index=False)
     print(f"\n  Birleştirilmiş → {combined_path}")
 
-    # Balance the working dataset unless explicitly disabled.
     print("\n── Adım 4: Dengeleme ──")
     if not args.no_balance:
         df = balance_classes(df, args.max_per_class)
     else:
         print("  Dengeleme atlandı.")
 
-    # Split the model-ready rows.
     print("\n── Adım 5: Train/Test Bölme ──")
     train_df, test_df = split_train_test(df, args.test_ratio)
 
-    # Persist both split files with the same schema.
     train_path = os.path.join(PROCESSED_DATA_DIR, "train_landmarks.csv")
     test_path = os.path.join(PROCESSED_DATA_DIR, "test_landmarks.csv")
     train_df.to_csv(train_path, index=False)
@@ -335,7 +329,6 @@ def main():
     print(f"  Train → {train_path}")
     print(f"  Test  → {test_path}")
 
-    # Export documentation charts.
     print("\n── Adım 6: Görselleştirme ──")
     save_class_distribution(
         train_df,
@@ -348,9 +341,8 @@ def main():
         os.path.join(DOCS_ASSETS_DIR, "static-letter-class-distribution.png"),
     )
 
-    # Print a concise completion summary.
     print(f"\n{'═' * 60}")
-    print("  ✅ TAMAMLANDI!")
+    print("  TAMAMLANDI!")
     print(f"  Sınıf sayısı:   {train_df['label'].nunique()}")
     print(f"  Train:          {len(train_df)} örnek")
     print(f"  Test:           {len(test_df)} örnek")

@@ -2,11 +2,8 @@
 // LightGBM contract: input (1,93), output probabilities (1,24).
 
 /**
- * The part of an ONNX Runtime Web session this app uses.
- *
- * Only the members both model adapters touch are described. The full CDN type
- * tree is deliberately not copied into the source; a declaration file can cover
- * the `ort` global later if a type checker needs it.
+ * The part of an ONNX Runtime Web session both model adapters use. The full
+ * ORT type tree is deliberately not copied into the source.
  *
  * @typedef {Object} OnnxSessionLike
  * @property {string[]} inputNames
@@ -15,15 +12,13 @@
  */
 
 /**
- * One named session output, as ONNX Runtime Web declares it.
+ * One named session output, as ONNX Runtime Web declares it. Older exports can
+ * materialize something else entirely, which is why _extractLetterProbs()
+ * takes unknown rather than this type.
  *
- * Older exports can materialize something else entirely, which is why
- * _extractLetterProbs() takes unknown rather than this type.
- *
- * The element type follows the tensor's ONNX dtype, so it is not one JavaScript
- * type across outputs: the letter graph's label output is int64 and arrives as
- * a BigInt64Array, while its probabilities and the word graph's logits are
- * float32. Callers convert with Number() rather than assume.
+ * The element type follows the tensor's ONNX dtype: the letter graph's label
+ * output is int64 and arrives as a BigInt64Array, while its probabilities and
+ * the word graph's logits are float32. Callers convert with Number().
  *
  * @typedef {Object} OnnxTensorLike
  * @property {ArrayLike<number | bigint>} data
@@ -48,13 +43,13 @@ const DEFAULT_LETTER_LABELS = [
 const LETTER_MODEL_VERSION = "20260430-nozipmap";
 const LETTER_MODEL_URL = `./models/letter_model.onnx?v=${LETTER_MODEL_VERSION}`;
 // The same model gzipped: about 2.1 MB on the wire instead of 12.6 MB, because
-// the static host serves .onnx uncompressed. check_runtime_assets.py proves it
+// the static host serves .onnx uncompressed. check_runtime_assets.py checks it
 // decompresses to exactly the raw file, which stays deployed as the fallback.
 const LETTER_MODEL_GZ_URL = `./models/letter_model.onnx.gz?v=${LETTER_MODEL_VERSION}`;
 // Published web export:
 //   label tensor(int64)[N], probabilities tensor(float)[N,24]
-// Older LightGBM exports may expose probabilities as ZipMap seq(map); the
-// label-only fallback is retained for backward compatibility.
+// Older LightGBM exports expose probabilities as a ZipMap seq(map), which the
+// label-only fallback in predictLetter() covers.
 /** @type {string | null} */
 let letterProbOutputName = null;
 /** The one shared load; see ensureLetterModel(). @type {Promise<boolean> | null} */
@@ -95,7 +90,7 @@ function ensureLetterModel() {
  */
 async function fetchLetterModelBytes() {
   if (typeof DecompressionStream === "undefined") {
-    throw new Error("DecompressionStream desteklenmiyor");
+    throw new Error("DecompressionStream is not supported");
   }
   const res = await fetch(LETTER_MODEL_GZ_URL);
   if (!res.ok) throw new Error(`${LETTER_MODEL_GZ_URL} HTTP ${res.status}`);
@@ -117,10 +112,11 @@ async function fetchLetterModelBytes() {
 async function loadLetterModel() {
   try {
     if (typeof ort === "undefined") {
-      console.error("ort (onnxruntime-web) yüklenmemiş");
+      console.error("ort (onnxruntime-web) is not loaded");
       return false;
     }
 
+    // Must match the ort.min.js version that index.html loads.
     if (ort.env && ort.env.wasm) {
       ort.env.wasm.wasmPaths =
         "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/";
@@ -133,16 +129,16 @@ async function loadLetterModel() {
         sessionOptions,
       );
     } catch (err) {
-      // Whatever went wrong on the compressed path, the raw file is deployed
-      // beside it and is the model this app has always loaded.
-      console.warn("Sıkıştırılmış harf modeli kullanılamadı, ham dosya yükleniyor:", err?.message || err);
+      // The raw file is deployed beside the gzipped one, so any failure on the
+      // compressed path falls back to it.
+      console.warn("Gzipped letter model unusable, loading the raw file:", err?.message || err);
       letterSession = await ort.InferenceSession.create(LETTER_MODEL_URL, sessionOptions);
     }
 
     console.log("Letter ONNX inputs:", letterSession.inputNames);
     console.log("Letter ONNX outputs:", letterSession.outputNames);
 
-    // Load the model's ordered label map.
+    // letter_labels.json maps each letter to its output index.
     try {
       const res = await fetch("./data/letter_labels.json");
       const data = await res.json();
@@ -151,20 +147,21 @@ async function loadLetterModel() {
         letterLabels[Number(idx)] = letter;
       }
     } catch (e) {
-      console.warn("letter_labels.json okunamadı, dahili 24 harf listesi kullanılıyor");
+      console.warn("letter_labels.json unreadable, using the built-in 24-letter list");
       letterLabels = [...DEFAULT_LETTER_LABELS];
     }
 
-    // Prefer the LightGBM probability tensor when available.
+    // The published export's outputs are [label, probabilities]; a graph with
+    // one output has no probability tensor to read.
     letterProbOutputName =
       letterSession.outputNames.length > 1
         ? letterSession.outputNames[1]
         : letterSession.outputNames[0];
 
-    console.log(`Harf modeli yüklendi. ${letterLabels.length} sınıf, prob output: ${letterProbOutputName}`);
+    console.log(`Letter model loaded: ${letterLabels.length} classes, probability output: ${letterProbOutputName}`);
     return true;
   } catch (err) {
-    console.error("Harf modeli yüklenemedi:", err);
+    console.error("Letter model failed to load:", err);
     letterSession = null;
     return false;
   }
@@ -182,8 +179,8 @@ async function loadLetterModel() {
  * The decision is made per call and nothing is remembered. A run that throws
  * is a failed frame, not a shape problem: it returns null and the next frame
  * tries the probabilities again. Latching the label-only path on the first
- * exception, which the warmup could raise too, used to report every later
- * letter at 100 % for the rest of the visit.
+ * exception (the warmup can raise one too) would report every later letter at
+ * 100 % for the rest of the visit.
  *
  * @param {LetterFeatures93} features93 Letter features; length must be 93.
  * @returns {Promise<PredictionResult | null>} Null when no model is loaded,
@@ -199,7 +196,6 @@ async function predictLetter(features93) {
   const feeds = {};
   feeds[letterSession.inputNames[0]] = input;
 
-  // Try the full probability path first for confidence and top-three output.
   try {
     const results = await letterSession.run(feeds);
     const out = results[letterProbOutputName];
@@ -226,7 +222,7 @@ async function predictLetter(features93) {
     return null;
   }
 
-  // Compatibility path: request only the label and bypass sequence output.
+  // Fetch the label alone, so the run skips the output it could not read.
   try {
     const labelName = letterSession.outputNames[0]; // "label"
     const results = await letterSession.run(feeds, [labelName]);
@@ -237,12 +233,12 @@ async function predictLetter(features93) {
       const d = labelOut?.data;
       if (d && d.length > 0) labelIdx = Number(d[0]);
     } catch (e) {
-      console.warn("[Letter] label tensor data fail:", e.message);
+      console.warn("[Letter] label tensor unreadable:", e.message);
       return null;
     }
 
     if (labelIdx < 0 || labelIdx >= letterLabels.length) {
-      console.warn(`[Letter] geçersiz label index: ${labelIdx}`);
+      console.warn(`[Letter] invalid label index: ${labelIdx}`);
       return null;
     }
 
@@ -250,15 +246,13 @@ async function predictLetter(features93) {
     if (typeof recordBenchmark === "function") recordBenchmark("onnx", t1 - t0);
 
     const letter = letterLabels[labelIdx] || `cls_${labelIdx}`;
-    // The smoother converts repeated label-only predictions into a temporal
-    // confidence score. The per-frame value is therefore a presence signal.
     return {
       label: letter,
       confidence: 1.0,
       alternatives: [{ label: letter, confidence: 1.0 }],
     };
   } catch (err) {
-    console.error("[Letter] label-only fallback de fail:", err);
+    console.error("[Letter] label-only fallback failed too:", err);
     return null;
   }
 }
@@ -323,10 +317,9 @@ function _extractLetterProbs(out, size) {
   // 2. A single map(int64,float).
   if (out instanceof Map) return _mapToProbsArray(out, size);
 
-  // 3. Generic iterable, such as an internal ONNX sequence wrapper. The value
-  // is unknown here, so reading a well-known symbol off it needs the index
-  // signature spelled out. The cast stays inside the condition so the earlier
-  // guards still short-circuit before the property is read.
+  // 3. Generic iterable, such as an internal ONNX sequence wrapper. Reading a
+  // symbol off an unknown value needs the index signature spelled out; the
+  // cast stays inside the condition so the guards before it short-circuit.
   if (
     out &&
     typeof out !== "string" &&
@@ -349,7 +342,7 @@ function _extractLetterProbs(out, size) {
         }
       }
     } catch (e) {
-      // Continue with the remaining representations.
+      // The iterator threw; try the remaining shapes.
     }
   }
 
@@ -360,7 +353,7 @@ function _extractLetterProbs(out, size) {
       if (first instanceof Map) return _mapToProbsArray(first, size);
       if (isRecord(first)) return _objToProbsArray(first, size);
     } catch (e) {
-      // skip
+      // An index accessor threw; try the remaining shapes.
     }
   }
 
@@ -386,7 +379,6 @@ function _extractLetterProbs(out, size) {
     // Unsupported non-tensor output.
   }
 
-  // No supported probability representation was found.
   return null;
 }
 
@@ -404,6 +396,6 @@ async function warmupLetterModel() {
     await predictLetter(dummy);
     console.log(`Letter model warmup: ${(performance.now() - t0).toFixed(1)} ms`);
   } catch (err) {
-    console.warn("Letter warmup başarısız:", err);
+    console.warn("Letter model warmup failed:", err);
   }
 }

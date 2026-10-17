@@ -5,9 +5,10 @@
 // a click on every browser. The screen also redraws from state when it is
 // opened again, so the radios must show what the state says.
 //
-// The page still draws the targets as buttons, so these tests build the radios
-// the way the markup will: <input type="radio"> elements carrying
-// data-qr-target. Nothing else of the app is replaced.
+// These tests hand the change handler radios built like the markup's,
+// <input type="radio"> elements carrying data-qr-target, so each case sets the
+// checked state it needs; qr-screen.test.js drives the page's own radios.
+// Nothing else of the app is replaced.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

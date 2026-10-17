@@ -106,11 +106,9 @@ class CameraWidget(ctk.CTkFrame):
             self._fail_count = 0
             frame = cv2.flip(frame, 1)  # Mirror the preview for natural interaction.
 
-            # Run the owning view's inference and overlay callback.
             if self.callback:
                 frame = self.callback(frame)
 
-            # Convert OpenCV BGR data into a CustomTkinter-compatible image.
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             img = Image.fromarray(rgb)
             img = img.resize(
@@ -123,12 +121,12 @@ class CameraWidget(ctk.CTkFrame):
                 size=(self.display_width, self.display_height),
             )
             self.image_label.configure(image=ctk_img, text="")
+            # Tk shows a blank label once the image is garbage-collected.
             self._current_ctk_image = ctk_img
         else:
             # Keep transient read failures separate from a disconnected camera.
             self._fail_count += 1
             if self._fail_count >= CAMERA_STOP_THRESHOLD:
-                # Stop after the configured sustained-failure threshold.
                 self.image_label.configure(
                     text="❌ Kamera bağlantısı koptu!\n\n"
                     "Kameranızı kontrol edip uygulamayı yeniden başlatın.",
@@ -137,13 +135,11 @@ class CameraWidget(ctk.CTkFrame):
                 self.stop()
                 return
             elif self._fail_count >= CAMERA_WARN_THRESHOLD:
-                # Warn after the shorter configured failure threshold.
                 self.image_label.configure(
                     text="⚠️ Kamera yanıt vermiyor...\nBağlantı kontrol ediliyor.",
                     font=ctk.CTkFont(size=15),
                 )
 
-        # Schedule the next update at the configured target rate.
         delay = max(1, int(1000 / TARGET_FPS))
         self._after_id = self.after(delay, self._update_frame)
 

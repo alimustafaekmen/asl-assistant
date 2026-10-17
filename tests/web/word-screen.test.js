@@ -4,9 +4,9 @@
 // from one attribute, data-word-step, so the scripts must write it for every
 // step; and the readout at the top of the stage (percent, progress bar) and
 // the dock's labels must follow the recording. The harness has no layout, so
-// these tests read the attributes and texts the app writes, and the
-// screenshots check how they look. Only the ONNX runtime,
-// the clock and MediaPipe's results are fake.
+// these tests read the attributes and texts the app writes; how they look is
+// left to a browser. Only the ONNX runtime, the clock and MediaPipe's results
+// are fake.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

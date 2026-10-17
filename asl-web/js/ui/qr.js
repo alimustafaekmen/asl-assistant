@@ -1,19 +1,14 @@
 // QR demo screen: deep-link URL construction and QR rendering.
 //
-// The QR code opens the live app directly in a target mode through the hash
-// route, so the URL must be absolute. A page served from localhost or file://
-// has no shareable origin, so the published demo URL from CONFIG is used
-// instead.
-//
-// Rendering uses the kjua library loaded by index.html. When that CDN script is
-// unavailable the canvas falls back to a readable message, and the copyable
-// link below it keeps the screen usable.
+// The QR code opens the live app in a target mode through the hash route, so
+// the URL must be absolute. The code is drawn by kjua, a CDN script loaded by
+// index.html; without it the screen still works through the copyable link.
 
 /**
  * Resolve the base URL a scanned QR code should open.
  *
  * A page served from localhost or file:// has no shareable origin, so the
- * published demo URL is used instead of a link that only works on this machine.
+ * published demo URL from CONFIG is used instead.
  *
  * @returns {string} Absolute URL ending in a directory.
  */
@@ -44,10 +39,10 @@ function buildQrDemoUrl(target = state.qrTarget) {
 }
 
 /**
- * Open the target of the radio the visitor chose.
+ * Select the target of the radio the visitor chose.
  *
- * Bound to the radios' change event, not to a click: moving between radios
- * with the arrow keys fires change and, on some browsers, no click.
+ * Bound to change, not click: moving between radios with the arrow keys
+ * fires change and, on some browsers, no click.
  *
  * @param {{target: EventTarget | null}} event
  * @returns {void}
@@ -64,18 +59,16 @@ function handleQrTargetChange(event) {
  * @returns {void}
  */
 function setQrTarget(target) {
-  // The membership test is the validation; Array.includes cannot narrow a
-  // string to the union, so the result is stated here.
+  // includes() validates the value but cannot narrow its type, hence the cast.
   state.qrTarget = /** @type {QrTarget} */ (
     ["letter", "word", "test"].includes(target) ? target : "letter"
   );
   renderQrDemo();
 }
 
-// The code's ink and paper do not follow the theme: a scanner needs dark on
-// light whatever the page looks like, so the dark theme must not tint them.
-// The page may define them as custom properties; these are used where it does
-// not.
+// The code's ink and paper ignore the theme, because a scanner needs dark on
+// light. The stylesheet may set them as custom properties; these are the
+// fallbacks.
 const QR_INK_FALLBACK = "#17181b";
 const QR_PAPER_FALLBACK = "#ffffff";
 
@@ -117,7 +110,7 @@ function drawQrCode(url) {
       quiet: 4,
     });
   } catch (err) {
-    console.warn("QR kodu çizilemedi:", err);
+    console.warn("Could not draw the QR code:", err);
     return null;
   }
 }
@@ -125,9 +118,8 @@ function drawQrCode(url) {
 /**
  * Draw the QR code and show its link.
  *
- * When the QR library failed to load, or could not draw, the code's place says
- * so in text and shows the link itself, and the status line points to copying:
- * the link below it keeps the screen usable.
+ * When the code cannot be drawn, its place shows the link as text and the
+ * status line points to copying it.
  *
  * @returns {void}
  */
@@ -136,11 +128,10 @@ function renderQrDemo() {
   queryElements("[data-qr-target]").forEach((button) => {
     const isTarget = button.dataset.qrTarget === state.qrTarget;
     button.classList.toggle("is-active", isTarget);
-    // A radio shows the state it is drawn from, whatever last changed it.
+    // Checked from state, whatever changed the target last.
     if (button instanceof HTMLInputElement) button.checked = isTarget;
   });
-  // The share sheet is a browser feature: the button is only there where it
-  // opens something.
+  // Shown only where the browser has a share sheet to open.
   if (els.qrShare) els.qrShare.hidden = !canShareQrDemoUrl();
   if (els.qrDemoUrl) els.qrDemoUrl.textContent = url;
   if (els.qrOpenDemo) els.qrOpenDemo.href = url;
@@ -168,7 +159,7 @@ function renderQrDemo() {
 }
 
 /**
- * Say something about the link under it, and to a screen reader.
+ * Write the status line under the link, and announce it.
  *
  * @param {string} message
  * @returns {void}
@@ -179,10 +170,8 @@ function setQrStatus(message) {
 }
 
 /**
- * Copy the demo link, and say whether it worked.
- *
- * The clipboard API is tried first, then the legacy copy command. When neither
- * copies, the link is selected so the visitor can copy it by hand.
+ * Copy the demo link, and say whether it worked. When no copy method works,
+ * the link is selected so the visitor can copy it by hand.
  *
  * @returns {Promise<void>}
  */
@@ -196,6 +185,8 @@ async function copyQrDemoUrl() {
 }
 
 /**
+ * Copy through the clipboard API, falling back to the legacy copy command.
+ *
  * @param {string} text
  * @returns {Promise<boolean>} True only when the browser reports the copy done.
  */
@@ -212,7 +203,7 @@ async function copyTextToClipboard(text) {
 }
 
 /**
- * The legacy path: select the text in a hidden input and run the copy command.
+ * Select the text in a hidden input and run the legacy copy command.
  *
  * @param {string} text
  * @returns {boolean} The command's own answer; false when it throws.
@@ -250,11 +241,8 @@ function selectQrDemoUrl() {
 }
 
 /**
- * Whether this browser can open a system share sheet. The share sheet is a
- * browser API that not every browser has, so it is asked for rather than
- * assumed.
- *
- * @returns {boolean}
+ * @returns {boolean} Whether this browser has the Web Share API; not every
+ *   browser does.
  */
 function canShareQrDemoUrl() {
   return typeof navigator !== "undefined" && typeof navigator.share === "function";
@@ -262,8 +250,7 @@ function canShareQrDemoUrl() {
 
 /**
  * Hand the link to the system share sheet, or copy it where there is none.
- *
- * Closing the sheet is the visitor's choice, not a failure, and says nothing.
+ * Closing the sheet is the visitor's choice, not a failure, so it says nothing.
  *
  * @returns {Promise<void>}
  */

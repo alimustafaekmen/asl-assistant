@@ -9,9 +9,9 @@
  * on saffron 9.8:1; saffron on the stage 10.4:1; recording red on the stage
  * 6.8:1. Saffron is never text or a thin line on a light surface (1.6:1).
  *
- * The prefixes (--color-, --stage-, --fs-, --sp-, --r-, ...) are new on
- * purpose: the legacy layer still defines --text, --primary, --space-* and
- * the like, and a shared name would silently restyle the old rules.
+ * The prefixes (--color-, --stage-, --fs-, --sp-, --r-, ...) differ from the
+ * legacy layer's names on purpose: that layer defines --text, --primary,
+ * --space-* and the like, and a shared name would silently restyle its rules.
  */
 
 @layer tokens {
@@ -165,8 +165,8 @@
   }
 
   /* Phone landscape: the stage on the left, a column of fixed parts on the
-     right. The ring steps down with the height, so the column fits 390,
-     360 and 320 px (Tel-Yatay; SPEC Rev. 2 rings 88, 76 and 64). */
+     right. The ring steps down with the height (88, 76 and 64 px), so the
+     column fits 390, 360 and 320 px. */
   @media (orientation: landscape) and (max-height: 32rem) and (max-width: 63.99rem) {
     :root {
       --size-land-side: clamp(16.5rem, 36vw, 19rem);

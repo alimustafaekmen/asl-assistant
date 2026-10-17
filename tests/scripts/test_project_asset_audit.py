@@ -1,10 +1,10 @@
 """The project asset audit fails, by exit code, when the web runtime is broken.
 
 `verify_project_assets.py` carries its own provenance comparison and its own
-list of required web files. The only test of it replaced those functions with
-stubs, so the comparison itself never ran: forcing it to report a match let a
-drifted deploy file pass the audit. Each test here breaks one thing in a copy
-of the checkout and runs the audit on it.
+list of required web files. A test that replaces those functions with stubs
+never runs the comparison, so a comparison forced to report a match would let
+a drifted deploy file pass. Each test here breaks one thing in a copy of the
+checkout and runs the real audit on it.
 
 The copies hold no local datasets, and the dataset report lists each one it
 cannot find as missing, so the runs that read failure lines leave that report

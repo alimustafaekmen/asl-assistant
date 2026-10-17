@@ -11,8 +11,8 @@
 //
 // Every stroke and dot is drawn twice, a dark halo under a light core, so the
 // skeleton reads on light skin, a white wall or a plant as well as on a dark
-// room; a single-colour stroke fell under 3:1 on most of those. The colours
-// are the design tokens, read once: the stage is dark in both themes.
+// room; a single-colour stroke falls under 3:1 contrast on most of those. The
+// colours are the design tokens, read once: the stage is dark in both themes.
 
 /**
  * Where the video actually sits inside its box under `object-fit: cover`.
@@ -70,12 +70,10 @@ const HAND_CONNECTIONS = [
 ];
 
 /**
- * Draw the latest landmarks over the camera canvas.
- *
- * Points arrive normalized against the original frame, so each one is mapped
- * through the cover rectangle and then flipped horizontally to match the
- * CSS-mirrored video. Pose and face guidance points are drawn only in word
- * contexts, where framing is what the user needs to fix.
+ * Draw the latest landmarks over the camera canvas, mapped through the cover
+ * rectangle and mirrored as the file header describes. Pose and face guidance
+ * points are drawn only in word contexts, where framing is what the user
+ * needs to fix.
  *
  * @param {CanvasRenderingContext2D} ctx Target canvas context.
  * @param {MediaPipeFrameResult | null} result Latest frame, or null to draw nothing.
@@ -96,7 +94,7 @@ function drawLandmarks(ctx, result, width, height, videoEl = null) {
   const projectPoint = (pt) => {
     const rawX = videoRect.x + pt.x * videoRect.width;
     const rawY = videoRect.y + pt.y * videoRect.height;
-    // Convert original MediaPipe x coordinates to the CSS-mirrored video view.
+    // The video is flipped by CSS only, so the overlay mirrors x itself.
     return { x: width - rawX, y: rawY };
   };
 
@@ -163,8 +161,8 @@ function drawLandmarks(ctx, result, width, height, videoEl = null) {
     }
   };
 
-  // Word contexts require hand, face, and pose cues. Draw only a small set of
-  // guidance points to keep the overlay readable and inexpensive.
+  // Word contexts need hand, face and pose in view. A few guidance points say
+  // so while keeping the overlay readable and cheap to draw.
   const shouldDrawHolistic =
     typeof state !== "undefined" &&
     (state.mode === "word" ||
@@ -194,8 +192,8 @@ function drawLandmarks(ctx, result, width, height, videoEl = null) {
    */
   const drawFaceKeypoints = (face) => {
     if (!face || !face.length) return;
-    // Avoid the full 468-point mesh; these points are sufficient to communicate
-    // face direction and framing.
+    // Not the full mesh: nose, forehead, chin, eye corners and mouth are
+    // enough to show face direction and framing.
     const idxs = [1, 10, 152, 33, 263, 13, 14, 61, 291].filter((i) => i < face.length);
     idxs.forEach((idx) => drawDot(face[idx], palette.halo, 4.5));
     idxs.forEach((idx) => drawDot(face[idx], palette.guide, 2.5));
@@ -206,11 +204,11 @@ function drawLandmarks(ctx, result, width, height, videoEl = null) {
     drawFaceKeypoints(result.faceLandmarks);
   }
 
-  // Hands arrive nested by detected person and the first one is drawn. The
-  // else branch is reached only for an already-flat list or a nullish value,
-  // which camera.js no longer produces; it is kept as tolerance for the older
-  // Holistic shape. Inspecting one element to classify the array is not
-  // something a type guard can express, so the narrowing is stated here.
+  // Each side arrives as a list of detected hands, and the first is drawn.
+  // The else branch accepts an already-flat list or null, the shape of the
+  // older Holistic API; camera.js does not produce it, and the branch is kept
+  // as tolerance. A type guard cannot classify an array by one element, so
+  // the narrowing is a cast.
   const rh = /** @type {LandmarkList | null} */ (
     Array.isArray(result.rightHandLandmarks) && Array.isArray(result.rightHandLandmarks[0])
       ? result.rightHandLandmarks[0]

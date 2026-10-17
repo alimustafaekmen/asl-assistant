@@ -1,9 +1,8 @@
 """Behaviour of the runtime asset validator's web source inspection.
 
-These faults are why the byte-size floors were replaced. A module that is
-shipped but never loaded, or loaded but never shipped, breaks the page and
-changes no file size at all, so nothing about a size check could have found
-them. Each one is built as a small tree here rather than being checked by hand.
+A module that is shipped but never loaded, or loaded but never shipped,
+breaks the page and changes no file size at all, so no size check can find
+it. Each fault is built as a small tree here rather than checked by hand.
 """
 
 from __future__ import annotations

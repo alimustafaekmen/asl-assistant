@@ -1,5 +1,7 @@
 # ASL Assistant
 
+[Live demo](https://asl-assistant.netlify.app/) · [Getting started](docs/getting-started.md) · [Documentation](docs/README.md) · [Technical report](TECHNICAL_REPORT.md) · [Türkçe](README.tr.md)
+
 ASL Assistant is a sign-language assistant that runs in the browser. It reads
 American Sign Language letters live from the camera and turns them into text,
 and it has an experimental mode for 50 isolated ASL words. Hand, face and pose
@@ -7,10 +9,8 @@ landmarks are found with MediaPipe and classified with ONNX models, all inside
 the page: there is no application server, and the camera image never leaves the
 device. The interface is in Turkish.
 
-[Live demo](https://asl-assistant.netlify.app/) · [Getting started](docs/getting-started.md) · [Documentation](docs/README.md) · [Türkçe](README.tr.md)
-
-> The live demo still runs an older build of the app. It will match this
-> repository, including the interface below, after the next deploy.
+> The live demo runs an older build than this repository and does not yet show
+> the interface below.
 
 ![The letter screen on a laptop, light theme. A dark camera stage asks the visitor to show an ASL letter and offers buttons to open the camera or to try without one; side cards hold the most likely results, the letter reference and the keyboard shortcuts; the text strip and the Delete, Space and Add buttons sit below.](docs/assets/screenshots/letter-laptop.png)
 
@@ -24,13 +24,13 @@ device. The interface is in Turkish.
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="docs/assets/screenshots/word-laptop.png" width="100%" alt="The word screen on a laptop: the camera stage invites the visitor to record an ASL word that is added only after they accept it; side cards hold the results, the 50-word reference and the model card; the dock holds the record, retry and add buttons."><br><sub>Word screen (experimental)</sub></td>
+    <td align="center" width="50%"><img src="docs/assets/screenshots/word-laptop.png" width="100%" alt="The word screen on a laptop: the camera stage invites the visitor to record an ASL word that is added only after they accept it; side cards hold the results, the word reference, words to try first and the searchable 50-word list; the dock holds the record, retry and add buttons."><br><sub>Word screen (experimental)</sub></td>
     <td align="center" width="50%"><img src="docs/assets/screenshots/model-test-laptop.png" width="100%" alt="Model Test after running every letter sample: a summary saying 24 of 24 samples were correct with a median time of 0.5 ms, a note that these samples come from the training data's held-out split, and a table of sample, expected label, prediction, confidence, time and result."><br><sub>Model Test after a real run of the letter samples</sub></td>
   </tr>
 </table>
 
 The screenshots come from headless Chrome without a camera, so no screen shows
-a live recognition. The Model Test results are a real run of the bundled letter
+live recognition. The Model Test results are a real run of the bundled letter
 samples through the published model; what they measure is explained under
 [How it works](#how-it-works).
 
@@ -97,20 +97,20 @@ the ONNX contracts and the full evaluation scope.
 | Testing | `node:test` with a `node:vm` harness that loads the real browser scripts, pytest, headless-Chrome checks over the DevTools Protocol with no npm dependency, Ruff |
 | Hosting | Netlify, as a static site uploaded by hand; response headers live in `asl-web/_headers` |
 
-## Methods worth highlighting
+## Engineering practices
 
 - **Tests that are shown to fail.** The rules that matter most each have a
   behavioural test that was run against a deliberately broken copy and seen to
   fail: a word is never added without the visitor accepting it, the word mask
   is not inverted, frames reach the model in order, and leaving a camera screen
-  releases the camera. The headless-Chrome checks were proven the same way,
-  each against the faults listed in [tests/browser](tests/browser/README.md).
+  releases the camera. The [headless-Chrome checks](tests/browser/README.md)
+  were shown to fail on deliberate faults the same way.
   New tests assert behaviour rather than source text and mock only the system
-  boundaries: camera, network, clock, MediaPipe and ONNX Runtime. Older tests
-  that match source text are being retired, each once its replacement is shown
+  boundaries: camera, network, clock, MediaPipe and ONNX Runtime. Some older
+  tests still match source text; each is retired once a replacement is shown
   to catch the same faults.
 - **Python and the browser compute the same features.** Feature engineering
-  lives in Python (`asl-ml/`) for training and in JavaScript for the app. A
+  lives in Python (`asl-features/`) for training and in JavaScript for the app. A
   vector in the wrong order still runs and quietly predicts nonsense, so
   `make parity` feeds the same deterministic inputs to both and requires them
   to agree within 1e-4, for letters and words. Every deployed model is also
@@ -120,7 +120,7 @@ the ONNX contracts and the full evaluation scope.
   host, which uploads whatever is on disk. `make deploy-check` lists every file
   that upload would carry and fails on ignored or hidden files, unknown file
   types, and the local samples derived from data that may not be redistributed.
-- **Privacy by design.** No backend, no account and no analytics. Video is
+- **Privacy.** No backend, no account and no analytics. Video is
   processed in the page and is not recorded or sent anywhere. The browser keeps
   three things in `localStorage`: the theme, the text and the coach progress.
   CDN scripts are pinned to exact versions with integrity hashes.
@@ -155,7 +155,7 @@ target, deployment and troubleshooting.
 
 ```text
 asl-web/       the app: index.html, css/, js/ (core, media, ml, services, ui), models/, data/
-asl-ml/        Python feature engineering, the source of truth for both pipelines
+asl-features/  Python feature engineering for letters and words, the source of truth for both pipelines
 asl-desktop/   an earlier desktop prototype in Python, kept working
 scripts/       data preparation, training, fixture export, validation
 tests/         browser units (tests/web), headless-Chrome checks, Python and repository tests

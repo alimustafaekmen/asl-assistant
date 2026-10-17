@@ -1,6 +1,10 @@
 # Model artifacts
 
-The curated source copy of every published model. Training code lives in
+<sub>Location: [`asl-assistant`](../README.md) / `models`</sub>
+
+<sub>Related: [`models/letter/`](letter/README.md) · [`models/word/`](word/README.md) · [`docs/models-and-data.md`](../docs/models-and-data.md) · [`scripts/validation/`](../scripts/validation/README.md)</sub>
+
+The source copy of every published model. Training code lives in
 `scripts/model_training/` and `notebooks/`; the copies the browser loads live in
 `asl-web/models/` and `asl-web/data/`.
 
@@ -22,15 +26,13 @@ copies, and `make validate` compares each copy with the file here by SHA-256 and
 checks the ONNX inputs and outputs. The mapping is listed in
 [Models and data](../docs/models-and-data.md#artifact-provenance).
 
-The two word models are separate on purpose. `web-50` is the current model;
-`desktop-25` is the earlier one, kept so the desktop prototype still runs. Their
-inputs, class counts and file formats are incompatible, and neither can stand in
-for the other.
+`web-50` is the word model the web app runs and `desktop-25` the one the
+desktop prototype loads. Their inputs, class counts and file formats are
+incompatible, and neither can stand in for the other.
 
-Model files are ignored by `.gitignore` unless listed there. The exceptions
-cover exactly what is needed to run the desktop prototype, deploy the browser
-copies and check Python against ONNX. A model file that is not listed is not
-automatically a source artifact worth publishing.
+`.gitignore` ignores model files here unless it lists them as exceptions. The
+exceptions are what is needed to run the desktop prototype, deploy the browser
+copies and check Python against ONNX.
 
 ## Licence
 

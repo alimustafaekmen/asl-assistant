@@ -68,9 +68,9 @@ def _fixture_hands() -> dict[str, np.ndarray]:
 def _features(raw63: np.ndarray) -> np.ndarray:
     import sys
 
-    sys.path.insert(0, str(PROJECT_ROOT / "asl-ml" / "src"))
-    from asl_ml.features.letter_features import extract_features
-    from asl_ml.utils.landmarks import normalize_landmarks
+    sys.path.insert(0, str(PROJECT_ROOT / "asl-features" / "src"))
+    from asl_features.landmarks import normalize_landmarks
+    from asl_features.letter import extract_features
 
     return extract_features(normalize_landmarks(raw63)).astype(np.float32)
 

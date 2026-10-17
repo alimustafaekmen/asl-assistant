@@ -47,7 +47,7 @@
 
   /* No element resets here: a later layer wins over the legacy layer whatever
      the specificity, so a reset of p or h1 margins in this layer would undo
-     every old screen's spacing at once. Components reset their own parts. */
+     every margin the legacy layer still sets. Components reset their own parts. */
 
   /* hidden must win over any component's display. Kept here, not only in the
      legacy layer, so it survives that layer's removal. */

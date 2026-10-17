@@ -2,9 +2,10 @@
 // appends it once.
 //
 // The recording runs through the app's own flow with fake runtimes; see
-// helpers/word-recording.mjs. The accept button's handler is called directly,
-// because the harness keeps no listeners, and the clock is moved past the
-// 250 ms double-click debounce so that a second press is a real second press.
+// helpers/word-recording.mjs. The command the accept button runs is called
+// directly, because this app is not booted and its buttons are not bound, and
+// the clock is moved past the 250 ms double-click debounce so that a second
+// press is a real second press.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

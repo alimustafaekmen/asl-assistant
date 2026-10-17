@@ -1,12 +1,12 @@
 // The phone's "Diğer" menu in a browser without the Popover API.
 //
 // The menu is a popover opened by popovertarget. Safari before 17 and other
-// older browsers have neither: the button does nothing, and the menu code
-// threw, because such a browser rejects ":popover-open" as a selector. The
-// fault these tests kill is a phone menu that cannot be opened, or a menu
-// choice that throws instead of opening its screen. The browser is faked at
-// its API: the popover methods are absent and the selector is refused, as
-// such a browser does; everything else is the real page.
+// older browsers have neither: the button does nothing there, and menu code
+// that asks for ":popover-open" throws, because such a browser rejects it as a
+// selector. The fault these tests kill is a phone menu that cannot be opened,
+// or a menu choice that throws instead of opening its screen. The browser is
+// faked at its API: the popover methods are absent and the selector is
+// refused, as such a browser does; everything else is the real page.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

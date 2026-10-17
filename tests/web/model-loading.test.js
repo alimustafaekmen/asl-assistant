@@ -2,8 +2,9 @@
 //
 // The letter model alone is 12.6 MB, and a visitor who only reads the project
 // page or scans the QR code never runs it. These tests replace the two loaders
-// with counters, so they observe what the app decides to load rather than
-// ONNX Runtime itself, which only a browser can run.
+// with counters, so they observe when the app decides to load a model, not how
+// the download itself goes; letter-model-gzip.test.js covers the letter loader
+// with ONNX Runtime faked at its boundary.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

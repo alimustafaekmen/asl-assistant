@@ -122,7 +122,7 @@ class LearningCoachView(ctk.CTkFrame):
         """Build the camera and fixed-grid coaching columns."""
         F = ctk.CTkFont
 
-        # Header and mode switcher.
+        # Header.
         top = ctk.CTkFrame(self, height=48, corner_radius=0, fg_color=BG_BASE)
         top.pack(fill="x")
         top.pack_propagate(False)
@@ -206,12 +206,12 @@ class LearningCoachView(ctk.CTkFrame):
         right = ctk.CTkFrame(body, fg_color="transparent")
         right.grid(row=0, column=1, sticky="nsew")
         right.columnconfigure(0, weight=1)
-        right.rowconfigure(0, weight=0)  # hedef kartı (kompakt)
+        right.rowconfigure(0, weight=0)  # target card (compact)
         right.rowconfigure(1, weight=0)  # feedback label
         right.rowconfigure(2, weight=0)  # hint label
-        right.rowconfigure(3, weight=0)  # liste (tek satır, horizontal scroll)
-        right.rowconfigure(4, weight=1)  # referans görseli: büyük, tüm boşluğu alır
-        right.rowconfigure(5, weight=0)  # sonraki butonu
+        right.rowconfigure(3, weight=0)  # target list (one row, scrolls sideways)
+        right.rowconfigure(4, weight=1)  # reference image: takes the free space
+        right.rowconfigure(5, weight=0)  # next button
 
         # Row 0: selected target and its short hint.
         target_card = ctk.CTkFrame(
@@ -299,7 +299,7 @@ class LearningCoachView(ctk.CTkFrame):
             command=self._on_hazirim_clicked,
         )
         self._hazirim_btn.grid(row=2, column=0, sticky="ew", pady=(2, 4))
-        self._hazirim_btn.grid_remove()  # kelime seçilince görünür
+        self._hazirim_btn.grid_remove()  # Shown once a word is selected.
 
         # Row 3: single-line target selector.
         list_bar = ctk.CTkFrame(
@@ -640,7 +640,6 @@ class LearningCoachView(ctk.CTkFrame):
         if self._is_successful:
             return
 
-        # Update success state on every prediction.
         threshold = (
             WORD_COACH_SUCCESS_THRESHOLD if self._mode == "word" else COACH_SUCCESS_THRESHOLD
         )

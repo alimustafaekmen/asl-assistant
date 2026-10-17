@@ -34,9 +34,9 @@
  *
  * No model loads here. A bare URL opens letter mode, but most visitors never
  * start the camera, so the models wait for their first real need: the camera
- * starting in a mode that runs one, a word recording, or a Model Test run. The fixture manifest and the word guidance data are a few
- * kilobytes and load last; the guidance panel renders once its fetch has
- * settled.
+ * starting in a mode that runs one, a word recording, or a Model Test run.
+ * The fixture manifest and the word guidance data are a few kilobytes and
+ * load last; the guidance panel renders once its fetch has settled.
  *
  * @returns {Promise<void>}
  */
@@ -65,9 +65,9 @@ async function init() {
  * Which models a live camera mode runs.
  *
  * The coach runs the letter model, and the word model only while it is on
- * words: a letter session never runs the word model, which is 1.8 MB of
- * hosting credit. Turning the coach to words with the camera on asks for it
- * then. The informational screens run none.
+ * words: a letter session never downloads the word model, 1.8 MB it would
+ * not use. Turning the coach to words with the camera on asks for it then.
+ * The informational screens run none.
  *
  * @param {AppMode} mode
  * @returns {{letter: boolean, word: boolean}}
@@ -118,7 +118,8 @@ async function loadModelsWithStatus(needs) {
   const downloading = models.some((model) => !model.loaded);
   // A record press waiting on the word model, now or by the time it settles,
   // reports that model's outcome itself: its refusal (hand tracking not ready)
-  // or its failure (try again) must not be overwritten by "Hazır" or repeated.
+  // or its failure (try again) must not be overwritten by "Hazır" (ready) or
+  // repeated.
   const pressesBefore = wordModelPresses;
   const pressWaiting = needs.word === true && _wordModelWait;
   if (downloading) {
@@ -147,7 +148,7 @@ async function loadModelsWithStatus(needs) {
     }
     return allReady;
   } catch (err) {
-    console.error("Model yükleme hatası:", err);
+    console.error("Model loading failed:", err);
     if (sessionEnded()) return false;
     reportProblem("Model indirilemedi. Bağlantınızı kontrol edip sayfayı yenileyin.");
     setBadge("Hata");
@@ -164,11 +165,9 @@ let _eventsBound = false;
  * Bindings stay in one place on purpose. Spreading them across the feature
  * modules would make it impossible to see what the page reacts to.
  *
- * Calling this a second time is a no-op. Every binding here adds a listener
- * rather than replacing one, so a second call would leave two of each and every
- * click would fire twice; nothing at the call site would show it. The guard is
- * the smallest thing that makes the function safe to call again, which is what
- * rebuilding part of a screen would want to do.
+ * Calling it again is a no-op. Every binding adds a listener rather than
+ * replacing one, so a second call would make every click fire twice, with
+ * nothing at the call site to show it.
  *
  * @returns {void}
  */
@@ -204,12 +203,13 @@ function bindEvents() {
   });
 
   // A button clicked with a mouse keeps focus, so the next Space would press
-  // it again (another space after Boşluk) instead of adding the current
-  // letter. A click from the keyboard has detail 0 and keeps its focus, as a
-  // keyboard user expects. So does a touch: iOS VoiceOver's double tap is
-  // one, and a blur there sends VoiceOver back to the top of the page. The
-  // press is told by the pointerType of the pointerdown on the same button;
-  // a click with no such press keeps the old rule.
+  // it again (another space after the "Boşluk" button) instead of adding the
+  // current letter; such a click gives its focus up. A click from the
+  // keyboard has detail 0 and keeps its focus, as a keyboard user expects.
+  // So does a touch: iOS VoiceOver's double tap is one, and a blur there
+  // sends VoiceOver back to the top of the page. The pointerType of the
+  // pointerdown on the same button tells the two apart; a click with no such
+  // press is blurred.
   /** @type {{button: HTMLElement, pointerType: string} | null} */
   let lastPress = null;
   window.addEventListener("pointerdown", (event) => {
@@ -448,7 +448,7 @@ function setFallbackMenuOpen({ menu, button }, open) {
 }
 
 /**
- * Let the "Diğer" button open its menu in a browser without popovers.
+ * Let the "Diğer" (more) button open its menu in a browser without popovers.
  *
  * With the Popover API the browser does all of this from popovertarget, so
  * nothing is bound.
@@ -514,7 +514,8 @@ function showHome() {
 }
 
 /**
- * Show a theme everywhere it is read. The only writer of the theme.
+ * Show a theme everywhere it is read. After load, the only writer of the
+ * theme.
  *
  * theme-boot.js already painted the root element before the stylesheets;
  * this repeats that and mirrors the theme onto the body and the shell, which
@@ -572,7 +573,7 @@ function watchSystemTheme() {
 function toggleTheme() {
   const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   applyTheme(next, "user");
-  try { localStorage.setItem("asl-theme", next); } catch (err) { /* noop */ }
+  try { localStorage.setItem("asl-theme", next); } catch (err) { /* storage blocked: the choice lasts this visit */ }
 }
 
 /**
@@ -612,7 +613,6 @@ function setMode(mode, options = {}) {
   }
   const shell = els.appShell || queryUi("app-shell");
   if (shell) { shell.dataset.view = "app"; shell.dataset.mode = mode; }
-  // Clear temporal state so predictions cannot leak across mode changes.
   if (typeof resetSmoother === "function") resetSmoother();
   resetLetterLandmarkSmoother();
   resetCoachAttempt();
@@ -635,7 +635,6 @@ function setMode(mode, options = {}) {
     else tab.removeAttribute("aria-current");
   });
 
-  // Informational screens replace the camera workspace with their own section.
   const isProject = mode === "project";
   const isTest = mode === "test";
   const isQr = mode === "qr";
@@ -754,10 +753,9 @@ let _cameraTrackEnded = null;
  */
 
 /**
- * Title and explanation for each camera problem, in Turkish with siz.
- *
- * The message line and the announcement carry "title. text". The lost
- * camera's pair keeps the wording that line has always had.
+ * Title and explanation for each camera problem, in Turkish, addressing the
+ * user formally (siz). The message line and the announcement carry
+ * "title. text".
  *
  * @type {Record<CameraProblemKind, {title: string, text: string}>}
  */
@@ -855,9 +853,9 @@ function cameraHelpBrowser() {
  * Show why the camera is not open, in place of the first-visit stage.
  *
  * The stage stays at rest (no video). Where retrying cannot help (an
- * insecure page, a browser without the API) only "Kamerasız dene" is
- * offered; where there is no camera it comes first. The cause is announced
- * once, through the message line's report.
+ * insecure page, a browser without the API) only "Kamerasız dene" (try
+ * without a camera) is offered; where there is no camera it comes first.
+ * The cause is announced once, through the message line's report.
  *
  * @param {CameraProblemKind} kind
  * @returns {void}
@@ -1000,7 +998,7 @@ async function toggleCamera() {
         if (cancelled()) return;
         els.latencyBadge.textContent = "El izleme hazır";
       } catch (err) {
-        console.warn("MediaPipe başlatılamadı:", err);
+        console.warn("MediaPipe failed to start:", err);
         // A camera stopped meanwhile has nothing left to track hands on.
         if (cancelled()) return;
         els.latencyBadge.textContent = "El izleme yok";
@@ -1015,7 +1013,7 @@ async function toggleCamera() {
     // A start the user cancelled (home, an information screen) has nothing
     // left to report: the stop already put the camera area back to idle.
     if (cancelled()) {
-      console.warn("Vazgeçilen kamera başlatması başarısız oldu:", error);
+      console.warn("A cancelled camera start failed:", error);
       return;
     }
     // The browser's own text is for the console; it is English and technical.
@@ -1059,8 +1057,6 @@ function stopCamera() {
     try { stopMediaPipe(); } catch (e) { /* noop */ }
   }
 
-  // Cancel any active recording flow. Leaving a stale countdown state would
-  // prevent the next recording from starting.
   state.wordState = "IDLE";
   state.wordFrames = 0;
   state.wordQualityWarnings = [];
@@ -1073,7 +1069,6 @@ function stopCamera() {
   updateWordState();
   syncRecordButton();
 
-  // Start the next camera session with empty temporal state.
   frameBuffer = [];
   normalizedFrameBuffer = [];
   previousFrame = null;
@@ -1113,12 +1108,11 @@ function renderLoop(now) {
   // MediaPipe has produced landmark data.
   if (state.cameraOn && typeof realInference === "function" && isInferenceDue(now)) {
     // Only a letter tick moves the throttle, so the first letter frame after a
-    // word context runs at once, as it always has.
+    // word context runs at once.
     if (isLetterContext()) state.lastTick = now;
     realInference(now);
   }
 
-  // Refresh the waiting/latency status at most once per second.
   updateMediaPipeStatus(now);
   updateDebug();
   requestAnimationFrame(renderLoop);
@@ -1151,7 +1145,6 @@ function updateMediaPipeStatus(now) {
   if (!hasHand) {
     _noHandSeconds++;
     els.latencyBadge.textContent = "El aranıyor";
-    // Show a clear hint after five seconds without a detected hand.
     if (_noHandSeconds === 5) {
       setMessage(
         "El görünmüyor. Kol boyu uzaklıkta, iyi ışıkta, eliniz kadrajın ortasında olsun.",
@@ -1161,7 +1154,6 @@ function updateMediaPipeStatus(now) {
   } else {
     if (_noHandSeconds > 0) {
       _noHandSeconds = 0;
-      // Clear the waiting state when a hand returns.
       setMessage("El algılandı.", "good");
     }
     // Which hand and the frame rate are developer readouts; the debug panel
@@ -1204,9 +1196,9 @@ function updateFps(now) {
  * the overlay stays sharp on a high-density display. Overlay drawing is
  * optional decoration: a failure here must not stop inference.
  *
- * This always draws the latest published MediaPipe result, so it needs no
- * timestamp: the two loops that call it run on different clocks and neither
- * one's reading was ever read here.
+ * It draws the latest published MediaPipe result, so it takes no timestamp;
+ * its two callers, the render loop and the detection loop, run on different
+ * clocks.
  *
  * @returns {void}
  */
@@ -1282,7 +1274,7 @@ async function waitForVideoReady(videoEl) {
   try {
     await videoEl.play();
   } catch (err) {
-    console.warn("Video play() başarısız, autoplay devam edebilir:", err?.message || err);
+    console.warn("video.play() failed; autoplay may still start playback:", err?.message || err);
   }
 }
 
@@ -1300,7 +1292,7 @@ async function waitForVideoReady(videoEl) {
  * @returns {void}
  */
 function reportStartupFailure(error) {
-  console.error("Uygulama başlatılamadı:", error);
+  console.error("The app failed to start:", error);
   const text = "Uygulama başlatılamadı. Sayfayı yenileyin; sorun sürerse bağlantınızı kontrol edin.";
   const notice = document.getElementById("startupError");
   if (notice) {
@@ -1351,7 +1343,7 @@ window.aslDebug = {
     return {
       lastRecording: window._lastWordDebug || null,
       currentFrame: window._lastWordCurrentFrame || null,
-      // Current recording state remains useful before final inference.
+      // Readable while a recording runs, before its final inference.
       live: {
         wordState: state.wordState,
         wordFrames: state.wordFrames,
@@ -1380,7 +1372,7 @@ window.aslDebug = {
     };
   },
   dump() {
-    console.log("=== ASL DEBUG ===");
+    console.log("ASL Assistant debug dump");
     console.log("state:", { mode: state.mode, cameraOn: state.cameraOn, wordState: state.wordState, frameCount: state.frameCount, fps: state.fps });
     console.log("models:", this.models);
     console.log("mediapipe:", this.mediapipe);

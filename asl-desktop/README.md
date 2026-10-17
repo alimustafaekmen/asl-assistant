@@ -1,14 +1,18 @@
 # asl-desktop
 
-The first version of the project: a Python app built with CustomTkinter, OpenCV
-and MediaPipe. The browser app in `asl-web/` is the maintained product. This one
-is kept working, as a reference and for experiments, but is no longer where
-development is going.
+<sub>Location: [`asl-assistant`](../README.md) / `asl-desktop`</sub>
+
+<sub>Related: [`docs/getting-started.md`](../docs/getting-started.md) · [`asl-features/`](../asl-features/README.md) · [`models/word/`](../models/word/README.md) · [`tests/`](../tests/README.md)</sub>
+
+The project's first version: a desktop prototype in Python, built with
+CustomTkinter, OpenCV and MediaPipe. The browser app in `asl-web/` is the
+maintained product; this one is kept working as a reference and for
+experiments.
 
 ## What it does
 
 - **Translation view:** reads letters from the camera with the 93-feature
-  LightGBM model and words with the older 25-word BiGRU, and can speak the result
+  LightGBM model and words with the 25-word BiGRU, and can speak the result
   with offline text-to-speech (`pyttsx3`).
 - **Learning coach:** guided practice for letters and the 25 words.
 - **Personalization:** few-shot letter templates recorded by the user and matched
@@ -32,18 +36,19 @@ src/asl_desktop/
 └── utils/       landmark smoothing and motion tracking
 ```
 
-The app depends on [`asl-ml`](../asl-ml/README.md) for landmark normalization,
-the 93D features and the label-map helpers. Values shared with training (the 21
-landmarks, the 24 letters, augmentation defaults) come from `asl_ml.config`. Paths,
-camera behaviour, thresholds, colours and the 25-word model settings live in
-`asl_desktop.config`. The browser has its own JavaScript configuration. Similar
-screens do not mean identical inference: for letters the web app mirrors a detected
-left hand, which the desktop app does not do.
+The app depends on [`asl-features`](../asl-features/README.md) for landmark
+normalization (including the correction for the webcam's non-square frame) and
+the 93D features. Values shared with training (the 21 landmarks, the 24
+letters, augmentation defaults) come from `asl_features.config`. Paths, camera
+behaviour, thresholds, colours and the 25-word model settings live in
+`asl_desktop.config`; the browser has its own JavaScript configuration. The two
+apps do not run identical inference: for letters the web app mirrors a
+detected left hand, and the desktop app does not.
 
 The word path is the 25-class BiGRU with attention pooling, fed 30 frames of 321
-holistic landmark values from `models/word/desktop-25/`. It does not load the web
-app's 50-word SignTransformer (45 × 168 features). How the two came about is told
-in the [project journey](../docs/project-journey.md).
+holistic landmark values, from `models/word/desktop-25/`. It does not load the
+web app's 50-word SignTransformer (45 × 168 features). How the two came about
+is told in the [project journey](../docs/project-journey.md).
 
 ## Install and run
 
@@ -58,7 +63,7 @@ make desktop
 ```
 
 In an existing Conda environment (not `base`) or a Python 3.12 `venv`, run
-`make setup` first. It installs the pinned requirements, then `asl-ml` and
+`make setup` first. It installs the pinned requirements, then `asl-features` and
 `asl-desktop` in editable mode, and refuses to run in Conda's base environment.
 [Getting started](../docs/getting-started.md) has the direct commands and notes
 for each platform.

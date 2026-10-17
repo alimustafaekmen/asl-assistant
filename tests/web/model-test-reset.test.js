@@ -2,9 +2,9 @@
 //
 // After a good run the panel shows a prediction, its confidence and a ranked
 // list. If the next file is unreadable, or the next run fails, the badge says
-// "Hata" but the old answer used to stay beside it, so a visitor read A at
-// 100 % as the outcome of a file that never ran. ONNX Runtime is the boundary
-// and is faked (helpers/fake-ort.mjs); the panel itself is the real one.
+// "Hata", and an old answer left beside it would read, A at 100 %, as the
+// outcome of a file that never ran. ONNX Runtime is the boundary and is faked
+// (helpers/fake-ort.mjs); the panel itself is the real one.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

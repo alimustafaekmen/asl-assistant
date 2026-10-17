@@ -1,10 +1,10 @@
 // Copying the link on the "open on your phone" screen.
 //
 // "Bağlantı kopyalandı" is a promise that pasting will work. Copying can fail
-// (a denied permission, an insecure page, a browser without the clipboard API)
-// and the screen used to say it had worked anyway, whatever the browser
-// answered. The clipboard, the legacy copy command and the text selection are
-// browser APIs and are the boundaries faked here.
+// (a denied permission, an insecure page, a browser without the clipboard API),
+// so the screen may say it worked only when the browser says so. The
+// clipboard, the legacy copy command and the text selection are browser APIs
+// and are the boundaries faked here.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

@@ -1,14 +1,12 @@
 // Prediction presentation: the primary result, top-3 list, status message,
 // feedback bar, and the word result guide.
 //
-// This file is display only. It never parses model output, smooths it, or
-// decides thresholds; it reads the already-decided values from state and turns
-// them into text and CSS state. Thresholds come from config.js so letter and
-// word contexts stay on their own scales.
+// Display only: model output is parsed, smoothed and thresholded elsewhere,
+// and this file turns the values in state into text and CSS state. Letter and
+// word contexts each use their own thresholds from config.js.
 //
-// The word result guide is what keeps word predictions under user control: it
-// says whether a result looks usable, but appending it to the transcript stays
-// an explicit user action.
+// The word result guide says whether a result looks usable; appending it to
+// the transcript stays an explicit user action.
 
 /**
  * Confidence band for the current result, resolved against the thresholds of
@@ -26,9 +24,8 @@
  */
 
 /**
- * What the user is told about each recording quality warning. This is the one
- * place the codes are worded; the technical reasons stay in the debug
- * snapshot (window._lastWordDebug).
+ * The user's wording of each recording quality warning; the technical reasons
+ * stay in the debug snapshot (window._lastWordDebug).
  *
  * @type {Record<WordQualityCode, string>}
  */
@@ -45,8 +42,8 @@ const WORD_QUALITY_COPY = {
  * Show one model result: primary label, confidence ring, decision, top-3,
  * message, and word result guide.
  *
- * Everything downstream reads from state, so this is the single place a new
- * result enters the UI.
+ * The single place a new result enters the UI; everything downstream reads
+ * it from state.
  *
  * @param {PredictionResult} prediction
  * @returns {void}
@@ -98,8 +95,8 @@ function updatePrediction(prediction) {
   updateMessageForPrediction();
   renderWordResultGuide();
   syncActionBar();
-  // The word reference follows the word on screen; the letter reference does
-  // not change with a prediction, so this is not asked for on every frame.
+  // Only the word reference follows the prediction; the letter chart does
+  // not, so letter frames skip this.
   if (state.mode === "word") updateReferenceForMode();
 }
 
@@ -111,7 +108,7 @@ function updatePrediction(prediction) {
 function renderTop3() {
   els.top3List.innerHTML = "";
   if (!state.top3.length) {
-    // A placeholder row ("1. - %0") read as a result; a sentence does not.
+    // A sentence, because a placeholder row such as "1. - %0" reads as a result.
     const hint = document.createElement("p");
     hint.className = "top3-empty";
     hint.textContent = "Kamera açılınca en olası sonuçlar burada görünür.";
@@ -148,10 +145,9 @@ function renderTop3() {
 /**
  * Write the status line for the current result.
  *
- * Word contexts get a different message from letter contexts: the 50-class
- * model produces low top-1 confidence even when correct, so the text lists the
- * likeliest words and says when the top two are close, rather than treating a
- * low number as failure.
+ * The 50-class word model gives a low top-1 confidence even when it is right,
+ * so a word message lists the likeliest words and flags a close top two
+ * instead of treating a low number as failure.
  *
  * @returns {void}
  */
@@ -223,8 +219,7 @@ function formatTopPredictions(items, limit = 3) {
 /**
  * Judge a finished word recording and say what the user should do next.
  *
- * This decides only whether the accept action is offered. It never appends
- * anything: a word reaches the transcript through an explicit user action.
+ * Decides only whether the accept action is offered; it never appends.
  *
  * @returns {WordResultAssessment | null} Null outside a finished word recording.
  */
@@ -276,10 +271,9 @@ function assessWordResult() {
 }
 
 /**
- * Show the nearest other words under a finished word result, on the plate.
- *
- * The winner is already the plate's face, so only the runners-up are named,
- * with their Turkish gloss once a signer has reviewed the glosses.
+ * Name the runners-up of a finished word result on the plate; the winner is
+ * already its face. Each carries its Turkish gloss once a signer has reviewed
+ * the glosses.
  *
  * @returns {void}
  */
@@ -338,9 +332,8 @@ function setMessage(text, level) {
 /**
  * Show a problem the user must act on, and announce it.
  *
- * The message line is not a live region on purpose: it changes with every
- * prediction. A camera or download failure is different, so it is also
- * spoken.
+ * The message line is deliberately not a live region, since it changes with
+ * every prediction; a camera or download failure has to be spoken.
  *
  * @param {string} text Turkish text shown to the user.
  * @returns {void}
@@ -364,11 +357,7 @@ function showFeedback(text, kind) {
   els.feedbackBar.hidden = false;
 }
 
-/**
- * Hide the feedback bar.
- *
- * @returns {void}
- */
+/** @returns {void} */
 function clearFeedback() {
   if (!els.feedbackBar) return;
   els.feedbackBar.hidden = true;

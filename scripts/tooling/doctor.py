@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Report the active Python environment. Installs nothing.
 
-Bu komut aktif Python ortamini raporlar; kurulum yapmaz.
-
 Diagnosis and setup are separate commands on purpose: reading this report must
 never change the environment it is describing.
 
@@ -11,6 +9,7 @@ Exit codes:
      yet to take, such as running setup
   1  a package is installed but cannot be imported, which is a fault rather
      than a missing step
+  2  the command was given an argument; it takes none
 """
 
 from __future__ import annotations

@@ -1,11 +1,11 @@
 // A finished word result gets one verdict, and every readout gives it.
 //
 // The accept threshold (WORD_ACCEPT_THRESHOLD, 0.15) decides whether a word
-// can be appended. The plate's decision word, the confidence ring, the stage
-// frame and the message line used a separate band edge (0.10), so a word at
-// 12 % read "Büyük olasılıkla" on a yellow ring while its accept button was
-// disabled and the result guide called it weak: three readouts, two verdicts.
-// A word too weak to accept must look too weak everywhere.
+// can be appended. If the plate's decision word, the confidence ring, the
+// stage frame and the message line had a band edge of their own (say 0.10), a
+// word at 12 % would read "Büyük olasılıkla" on a yellow ring while its accept
+// button was disabled and the result guide called it weak: three readouts, two
+// verdicts. A word too weak to accept must look too weak everywhere.
 //
 // The recording runs through the app's own flow; only the ONNX session,
 // MediaPipe's results and the countdown clock are faked.

@@ -9,17 +9,17 @@
  */
 
 @layer screens {
-  /* ── Icons the shared set does not have ───────────────────────────── */
+  /* Icons the shared set does not have */
   [data-icon="check"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E"); }
   [data-icon="skip"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 5l9 7-9 7z'/%3E%3Cpath d='M19 5v14'/%3E%3C/svg%3E"); }
   [data-icon="chevron"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); }
 
-  /* ── The stage: the status chip steps aside for the target ───────────
-     The plate and the empty state carry the status in the coach. */
+  /* Stage: the status chip steps aside for the target tile; in the coach
+     the plate and the empty state carry the status. */
   .app-shell[data-mode="coach"] .stage-chip { display: none; }
   .app-shell[data-mode="coach"] .stage__top { justify-content: flex-end; }
 
-  /* ── Target tile ──────────────────────────────────────────────────── */
+  /* Target tile */
   .target-tile {
     position: absolute;
     inset: var(--sp-3) auto auto var(--sp-3);
@@ -67,7 +67,7 @@
     line-height: 1;
     letter-spacing: -0.02em;
   }
-  /* A word has no reference tile of its own yet, and its text can be long. */
+  /* A word has no reference tile of its own, and its text can be long. */
   .target-tile[data-kind="word"] .target-tile__glyph {
     max-width: 7ch;
     font-size: var(--fs-lg);
@@ -77,7 +77,7 @@
     text-align: center;
   }
 
-  /* ── Plate: what the coach adds ───────────────────────────────────── */
+  /* Plate: what the coach adds */
   .app-shell[data-mode="coach"] .plate__level .signal,
   .app-shell[data-mode="coach"] .plate__pct { display: none; }
   .plate__cue {
@@ -134,7 +134,7 @@
   }
   .plate__stay { flex: none; min-height: var(--size-target); padding-inline: var(--sp-3); }
 
-  /* ── Session row ──────────────────────────────────────────────────── */
+  /* Session row */
   .session {
     display: flex;
     align-items: center;
@@ -159,7 +159,8 @@
     font-weight: var(--fw-bold);
     cursor: pointer;
   }
-  /* The chevron follows the words, as in the prototype. */
+  /* The chevron comes after the label, so it moves from the shared ::before
+     to ::after. */
   .session__button[data-icon]::before { content: none; }
   .session__button[data-icon]::after {
     content: "";
@@ -188,7 +189,7 @@
   .session-dots > [data-state="hit"] { border-color: var(--color-text); background: var(--color-text); }
   .session-dots > [data-state="active"] { border-width: 2px; border-color: var(--color-text); }
 
-  /* ── Dock ─────────────────────────────────────────────────────────── */
+  /* Dock */
   .app-shell[data-mode="coach"] .dock > .btn { flex: 0 0 auto; }
   .app-shell[data-mode="coach"] .dock > .btn--grow { flex: 1 1 8rem; }
   /* One control carries .btn--primary in the markup, the one that moves on;
@@ -211,7 +212,7 @@
     mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14'/%3E%3Cpath d='m13 6 6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
   }
 
-  /* ── Study cards ──────────────────────────────────────────────────── */
+  /* Study cards */
   .coach-study { display: grid; gap: var(--sp-3); }
   .coach-study .modes { display: flex; }
   .coach-study .modes__item { min-height: 40px; padding-inline: var(--sp-3); }
@@ -259,7 +260,7 @@
   }
   .letter-grid__item[aria-disabled="true"] { opacity: 0.55; cursor: default; }
 
-  /* ── Phone and tablet: the study cards are a sheet ─────────────────── */
+  /* Phone and tablet: the study cards are a sheet */
   @media (max-width: 63.99rem) {
     .coach-study {
       display: none;
@@ -334,7 +335,7 @@
     .session__button { font-size: var(--fs-sm); }
   }
 
-  /* ── Laptop ───────────────────────────────────────────────────────── */
+  /* Laptop */
   @media (min-width: 64rem) {
     .target-tile__ref { width: 7.5rem; min-height: 7.5rem; }
     .target-tile__glyph { font-size: 6rem; }

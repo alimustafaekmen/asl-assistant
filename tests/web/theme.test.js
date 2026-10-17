@@ -1,9 +1,9 @@
 // The theme a visitor sees first, and a system preference that changes.
 //
 // The faults these tests kill:
-// - a dark-preference visitor gets a light first frame: nothing resolved the
-//   theme before the stylesheets applied, because restoreTheme() ran only in
-//   init(), after every script including the CDN runtime had loaded;
+// - a dark-preference visitor gets a light first frame because nothing
+//   resolves the theme before the stylesheets apply: restoreTheme() in init()
+//   runs only after every script, the CDN runtime included, has loaded;
 // - the page ignores the system switching between light and dark while it is
 //   open, though the visitor never chose a theme;
 // - the page follows the system after the visitor did choose (in either

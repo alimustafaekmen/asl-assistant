@@ -42,9 +42,9 @@ def test_external_letter_test_data_rejects_unknown_labels() -> None:
 def test_external_letter_test_data_rejects_an_empty_set() -> None:
     """An empty CSV must be refused where it is read, not deep in the estimator.
 
-    Everything here accepts a zero-row test set; the failure surfaces later
-    inside the model with a message that never mentions the file the user
-    passed on the command line.
+    Without that check, every step before the estimator accepts a zero-row test
+    set, and the failure surfaces later inside the model with a message that
+    never mentions the file the user passed on the command line.
     """
     X = np.random.default_rng(0).random((20, 3), dtype=np.float32)
     y = np.array(["A"] * 10 + ["B"] * 10)

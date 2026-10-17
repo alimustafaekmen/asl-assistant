@@ -153,7 +153,6 @@ const MP_TASKS_VERSION = "0.10.18";
  * @throws {Error} When the CDN is unreachable.
  */
 async function _importTasksVision() {
-  // Load the MediaPipe ESM bundle only when the camera pipeline starts.
   const mod = await import(
     `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_TASKS_VERSION}/vision_bundle.mjs`
   );
@@ -171,19 +170,19 @@ async function _importTasksVision() {
  * @throws {Error} When both delegates fail; the CPU error is propagated.
  */
 async function _createWithFallback(name, factory, options) {
-  console.log(`[MP] ${name}: GPU deneniyor...`);
+  console.log(`[MP] ${name}: trying the GPU delegate`);
   try {
     const inst = await factory(options.gpu);
-    console.log(`[MP] ${name}: GPU OK ✓`);
+    console.log(`[MP] ${name}: GPU ready`);
     return inst;
   } catch (gpuErr) {
-    console.warn(`[MP] ${name}: GPU başarısız (${gpuErr?.message || gpuErr}), CPU'ya düşülüyor`);
+    console.warn(`[MP] ${name}: GPU failed (${gpuErr?.message || gpuErr}), falling back to CPU`);
     try {
       const inst = await factory(options.cpu);
-      console.log(`[MP] ${name}: CPU OK ✓`);
+      console.log(`[MP] ${name}: CPU ready`);
       return inst;
     } catch (cpuErr) {
-      console.error(`[MP] ${name}: CPU de başarısız:`, cpuErr);
+      console.error(`[MP] ${name}: CPU failed too:`, cpuErr);
       throw cpuErr;
     }
   }
@@ -206,7 +205,7 @@ async function _createWithFallback(name, factory, options) {
  */
 async function startMediaPipe(videoEl) {
   if (mpRunning || mpStarting) {
-    console.log("[MP] zaten çalışıyor/başlatılıyor, atlanıyor");
+    console.log("[MP] already running or starting; skipped");
     return;
   }
   mpStarting = true;
@@ -215,25 +214,25 @@ async function startMediaPipe(videoEl) {
   const cancelled = () => generation !== _mpGeneration;
 
   try {
-    console.log("[MP] vision_bundle.mjs import ediliyor...");
+    console.log("[MP] importing vision_bundle.mjs");
     let vision;
     try {
       vision = await _importTasksVision();
-      console.log("[MP] import OK ✓");
+      console.log("[MP] import done");
     } catch (err) {
-      console.error("[MP] import hatası: CDN erişimi yok mu?", err);
+      console.error("[MP] import failed; is the CDN reachable?", err);
       throw err;
     }
     if (cancelled()) return;
 
     const { FilesetResolver, HandLandmarker, PoseLandmarker, FaceLandmarker } = vision;
 
-    console.log("[MP] FilesetResolver.forVisionTasks (wasm) yükleniyor...");
+    console.log("[MP] loading the WASM fileset");
     const resolver = await FilesetResolver.forVisionTasks(
       `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_TASKS_VERSION}/wasm`,
     );
     if (cancelled()) return;
-    console.log("[MP] resolver OK ✓");
+    console.log("[MP] WASM fileset ready");
 
     // Pinned like the bundle: a /latest/ model could change under it unseen.
     // When pinned, /1/ and /latest/ served identical bytes (same md5).
@@ -244,9 +243,6 @@ async function startMediaPipe(videoEl) {
     const FACE_MODEL =
       "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
-    // Hands are required by every inference mode. Pose and face are required
-    // only for words, so letter mode can remain available if either optional
-    // task fails.
     const handDetConf =
       typeof CONFIG !== "undefined" && CONFIG.HAND_DETECTION_CONFIDENCE != null
         ? CONFIG.HAND_DETECTION_CONFIDENCE
@@ -304,7 +300,7 @@ async function startMediaPipe(videoEl) {
         cpu: "CPU",
       });
     } catch (err) {
-      console.error("[MP] HandLandmarker başlatılamadı, MediaPipe iptal:", err);
+      console.error("[MP] HandLandmarker failed to start; MediaPipe aborted:", err);
       throw err;
     }
     if (cancelled()) {
@@ -321,7 +317,7 @@ async function startMediaPipe(videoEl) {
     _firstHandLogged = false;
     _noHandWarnLogged = false;
     _frameStats = { processed: 0, handsDetected: 0, lastSummary: 0 };
-    console.log("[MP] başlatıldı: Hand hazır (1/3)");
+    console.log("[MP] started: hand task ready (1/3)");
     if (typeof state !== "undefined" && typeof els !== "undefined" && els.latencyBadge) {
       els.latencyBadge.textContent = "El izleme hazır";
     }
@@ -349,7 +345,6 @@ function stopMediaPipe() {
   _mpGeneration++;
   mpRunning = false;
   mpStarting = false;
-  // Cancel the pending frame so no loop survives a stop/restart cycle.
   if (_rafId !== null) {
     cancelAnimationFrame(_rafId);
     _rafId = null;
@@ -409,7 +404,7 @@ async function _loadOptionalHolisticLandmarkers() {
       cpu: "CPU",
     });
   } catch (err) {
-    console.warn("[MP] PoseLandmarker yüklenemedi (kelime modu etkilenir):", err);
+    console.warn("[MP] PoseLandmarker failed to load; word recording stays disabled:", err);
   }
 
   // A cancelled load leaves mpOptionalLoading to the newer session.
@@ -425,7 +420,7 @@ async function _loadOptionalHolisticLandmarkers() {
       cpu: "CPU",
     });
   } catch (err) {
-    console.warn("[MP] FaceLandmarker yüklenemedi (kelime modu etkilenir):", err);
+    console.warn("[MP] FaceLandmarker failed to load; word recording stays disabled:", err);
   }
 
   if (cancelled()) {
@@ -440,13 +435,14 @@ async function _loadOptionalHolisticLandmarkers() {
     poseLandmarker ? "Pose" : null,
     faceLandmarker ? "Face" : null,
   ].filter(Boolean);
-  console.log(`[MP] opsiyonel modeller hazır: ${ready.join("+")} (${ready.length}/3)`);
+  console.log(`[MP] tasks ready: ${ready.join("+")} (${ready.length}/3)`);
   if (typeof state !== "undefined" && typeof els !== "undefined" && els.latencyBadge) {
     els.latencyBadge.textContent = `Hazırlanıyor (${ready.length}/3)`;
   }
 }
 
-// One-shot diagnostics prevent repetitive console output.
+// Console diagnostics for _processFrame: one-shot messages per session, and a
+// periodic hand hit-rate summary.
 let _firstFrameLogged = false;
 let _firstHandLogged = false;
 let _handStartTs = 0;
@@ -475,14 +471,13 @@ function _processFrame() {
     _firstFrameLogged = true;
     _handStartTs = performance.now();
     console.log(
-      `[MP] ilk frame işleniyor: video ${mpVideoEl.videoWidth}x${mpVideoEl.videoHeight}, readyState=${mpVideoEl.readyState}`,
+      `[MP] first frame: video ${mpVideoEl.videoWidth}x${mpVideoEl.videoHeight}, readyState=${mpVideoEl.readyState}`,
     );
   }
   _frameStats.processed++;
 
   const ts = performance.now();
   const t0 = ts;
-  // MediaPipe rejects duplicate calls with the same video timestamp.
   if (ts <= lastHandTs) {
     _rafId = requestAnimationFrame(_processFrame);
     return;
@@ -500,7 +495,7 @@ function _processFrame() {
       if (faceLandmarker) faceRes = faceLandmarker.detectForVideo(mpVideoEl, ts);
     }
   } catch (err) {
-    console.warn("[MP] detect hatası:", err);
+    console.warn("[MP] detection failed:", err);
     _rafId = requestAnimationFrame(_processFrame);
     return;
   }
@@ -555,10 +550,10 @@ function _processFrame() {
           .map((h) => h?.[0]?.categoryName || "?")
           .join(", ");
         console.log(
-          `[MP] ✓ ilk el algılandı: handedness=[${handsList}], ` +
+          `[MP] first hand: handedness=[${handsList}], ` +
             `mapped=[${handednessDebug.map((h) => h.mapped).join(", ")}], ` +
-            `lm sayısı=${handRes.landmarks[0]?.length}, ` +
-            `ilk el için ${(performance.now() - _handStartTs).toFixed(0)}ms geçti`,
+            `landmarks=${handRes.landmarks[0]?.length}, ` +
+            `after ${(performance.now() - _handStartTs).toFixed(0)} ms`,
         );
       }
     }
@@ -573,17 +568,17 @@ function _processFrame() {
   ) {
     _noHandWarnLogged = true;
     console.warn(
-      `[MP] ⚠ 5 sn'dir hand detection YOK (${_frameStats.processed} frame işlendi, 0 hand). ` +
-        "Eli kameraya net göster, ışığı artır, mesafeyi 50-80 cm tut.",
+      `[MP] no hand detected for 5 s (${_frameStats.processed} frames processed). ` +
+        "Show the hand clearly, add light, and stay 50-80 cm from the camera.",
     );
   }
 
-  // Emit a compact diagnostic summary every five seconds while hands are visible.
+  // The hand hit rate, at most every five seconds.
   if (performance.now() - _frameStats.lastSummary > 5000 && _frameStats.processed > 30) {
     _frameStats.lastSummary = performance.now();
     const rate = ((_frameStats.handsDetected / _frameStats.processed) * 100).toFixed(0);
     console.log(
-      `[MP] stat: ${_frameStats.processed} frame, ${_frameStats.handsDetected} hand (%${rate} hit)`,
+      `[MP] stats: ${_frameStats.processed} frames, ${_frameStats.handsDetected} with a hand (${rate}% hit rate)`,
     );
     _frameStats.processed = 0;
     _frameStats.handsDetected = 0;

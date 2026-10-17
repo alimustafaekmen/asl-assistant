@@ -8,7 +8,7 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ROOTS = (
-    PROJECT_ROOT / "asl-ml" / "src",
+    PROJECT_ROOT / "asl-features" / "src",
     PROJECT_ROOT / "asl-desktop" / "src",
     PROJECT_ROOT,
 )
@@ -16,6 +16,18 @@ for source_root in reversed(SOURCE_ROOTS):
     source = str(source_root)
     if source not in sys.path:
         sys.path.insert(0, source)
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    # MediaPipe 0.10.21 needs protobuf 4.25, whose compiled module warns that
+    # Python 3.14 will reject one of its type definitions. The project runs on
+    # Python 3.12 and cannot move protobuf past MediaPipe's bound, so the
+    # warning says nothing about this code; ignoring exactly that message
+    # keeps the summary for warnings the project can act on.
+    config.addinivalue_line(
+        "filterwarnings",
+        "ignore:Type google._upb._message.*uses PyType_Spec:DeprecationWarning",
+    )
 
 
 @pytest.fixture

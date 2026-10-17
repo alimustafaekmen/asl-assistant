@@ -61,7 +61,7 @@ def find_file(paths, name):
         if os.path.exists(p):
             print(f"  {name}: {p} ({os.path.getsize(p) / 1024:.1f} KB)")
             return p
-    print(f"  ✗ {name} BULUNAMADI! Aranan yollar:")
+    print(f"  HATA: {name} BULUNAMADI! Aranan yollar:")
     for p in paths:
         print(f"    - {p}")
     sys.exit(1)
@@ -99,7 +99,6 @@ def main():
     temp_path = find_file(temp_paths, "temperature.json")
     print()
 
-    # Inspect the deployed graph before generating its fixture.
     print("ONNX model yükleniyor...")
     session = ort.InferenceSession(model_path)
 
@@ -115,7 +114,6 @@ def main():
     output_names = [o.name for o in session.get_outputs()]
     print()
 
-    # Load output labels.
     with open(labels_path) as f:
         word_to_idx = json.load(f)
     idx_to_word = {int(v): k for k, v in word_to_idx.items()}
@@ -143,7 +141,6 @@ def main():
     print(f"  Gerçek frame: {actual_frames}/45")
     print()
 
-    # Run ONNX inference.
     print("ONNX inference çalıştırılıyor...")
     feeds = {input_names[0]: features, input_names[1]: mask}
     results = session.run(output_names, feeds)
@@ -165,16 +162,15 @@ def main():
     print(f"\nBeklenen kelime: {expected_word}")
     print()
 
-    # Serialize the complete deterministic input/output contract.
     test_sample = {
-        "features": features[0].flatten().tolist(),  # flat 45*168 = 7560 eleman
-        "mask": mask[0].tolist(),  # 45 eleman bool
+        "features": features[0].flatten().tolist(),  # 45 * 168 = 7560 values, frame-major
+        "mask": mask[0].tolist(),  # 45 booleans, true for a real frame
         "expected_word": expected_word,
         "expected_confidence": float(probs[top3_idx[0]]),
         "expected_top3": [
             {"label": idx_to_word[idx], "confidence": float(probs[idx])} for idx in top3_idx
         ],
-        "expected_logits": logits.tolist(),  # 50 eleman, numerik doğrulama için
+        "expected_logits": logits.tolist(),  # 50 values, for a numeric comparison
         "temperature": T,
         "actual_frames": actual_frames,
         "seed": 42,
@@ -194,7 +190,7 @@ def main():
         print(f"Kaydedildi: {web_path}")
         print(f"  Boyut: {os.path.getsize(web_path) / 1024:.1f} KB")
     else:
-        print(f"  ⚠ {web_data_dir} bulunamadı, kaydedilemedi")
+        print(f"  UYARI: {web_data_dir} bulunamadı, kaydedilemedi")
 
     if args.write_notebooks:
         results_dir = os.path.join(PROJECT_ROOT, "notebooks", "word_50_results")
@@ -207,7 +203,7 @@ def main():
             written_path = results_path
 
     if written_path is None:
-        print("  ✗ Yazılacak hedef bulunamadı.")
+        print("  HATA: Yazılacak hedef bulunamadı.")
         sys.exit(1)
 
     # Reload the saved fixture and independently reproduce its result.
@@ -217,21 +213,19 @@ def main():
     print("=" * 60)
     print()
 
-    # Confirm serialization preserved every input value.
     with open(written_path) as f:
         loaded = json.load(f)
 
     features_back = np.array(loaded["features"], dtype=np.float32).reshape(1, 45, 168)
     mask_back = np.array(loaded["mask"], dtype=bool).reshape(1, 45)
 
-    # Repeat inference from the reloaded JSON data.
     feeds2 = {input_names[0]: features_back, input_names[1]: mask_back}
     results2 = session.run(output_names, feeds2)
     logits2 = results2[0][0]
 
     max_diff = np.max(np.abs(logits - logits2))
     print(f"JSON save/load sonrası max logit farkı: {max_diff:.2e}")
-    print(f"  {'✓ BAŞARILI' if max_diff < 1e-6 else '✗ FARK ÇOK BÜYÜK!'}")
+    print(f"  {'BAŞARILI' if max_diff < 1e-6 else 'HATA: FARK ÇOK BÜYÜK!'}")
 
     print()
     print("─" * 60)

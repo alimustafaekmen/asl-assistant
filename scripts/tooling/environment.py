@@ -1,9 +1,9 @@
 """Pure environment detection and setup policy.
 
 Nothing here reads the process it is describing. Every function takes the facts
-it needs, so each state the commands care about -- Apple CommandLineTools,
+it needs, so each state the commands care about (Apple CommandLineTools,
 conda base, an interpreter outside the active environment, missing packages, a
-package that cannot be imported -- can be produced in a test without arranging
+package that cannot be imported) can be produced in a test without arranging
 a real interpreter to be in that state.
 
 `describe_current()` is the one function that looks at the running process, and
@@ -39,7 +39,7 @@ APPLE_CLT_MARKER = "/Library/Developer/CommandLineTools/"
 # The packages the report groups separately: the ones any checkout needs, and
 # the ones `make setup` installs from this repository.
 BASIC_PACKAGES = ("pytest", "onnxruntime", "numpy")
-PROJECT_PACKAGES = ("asl_ml", "asl_desktop")
+PROJECT_PACKAGES = ("asl_features", "asl_desktop")
 
 
 @dataclass(frozen=True)
@@ -62,9 +62,9 @@ class EnvironmentFacts:
 class ImportCheck:
     """One package's availability.
 
-    `status` separates three cases the report used to collapse into two:
-    "ok" imported, "missing" is not installed, and "broken" is installed but
-    raised on import, which is what a mismatched native library looks like.
+    `status` is "ok" (imported), "missing" (not installed) or "broken"
+    (installed but raised on import, which is what a mismatched native library
+    looks like).
     """
 
     name: str

@@ -19,9 +19,8 @@
  */
 
 /**
- * Append the current letter prediction, if it is confident enough.
- *
- * Only letter mode appends automatically; a word needs an explicit accept.
+ * Append the current letter prediction, if it is confident enough. Letter
+ * mode only; a word goes through appendWordResultToTranscript().
  *
  * @returns {void}
  */
@@ -35,25 +34,25 @@ function appendCurrentLetter() {
 }
 
 /**
- * Whether the word result on screen has already been accepted. Starting a new
- * recording clears it, so each result is appended at most once: the debounce
- * alone let a second press a moment later append the same word again.
+ * Whether the word result on screen has already been accepted; a new
+ * recording clears it. This, not the 250 ms debounce, limits each result to
+ * one append: a second press after the debounce window would pass it.
  */
 let wordResultAccepted = false;
 
 /**
  * Append the current word result after the user accepted it.
  *
- * This is the only path from a word prediction to the transcript; nothing
- * appends a word on its own. One accept appends once; the accept action stays
- * disabled until a new recording produces a new result.
+ * The only path from a word prediction to the transcript. One accept appends
+ * once; the accept action stays disabled until a new recording produces a
+ * new result.
  *
  * @returns {void}
  */
 function appendWordResultToTranscript() {
-  // The same rule as the accept button, checked here as well, because a
-  // handler reached another way must not append what the button refuses: a
-  // word from word mode, from a finished recording, and from the latest one.
+  // The accept button's rule, checked again so a caller that bypasses the
+  // button cannot append what it refuses: a word-mode result, finished, from
+  // the latest recording.
   if (state.mode !== "word" || state.wordState !== "RESULT") return;
   if (!wordResultIsCurrent() || wordResultAccepted) return;
   if (!state.prediction || state.prediction === "?" || state.prediction.length <= 1) return;
@@ -69,9 +68,9 @@ function appendWordResultToTranscript() {
     returnFocus: els.recordWord,
     action: {
       label: "Geri al",
-      // Takes out exactly the word that was added, and only while it is still
-      // the last thing in the text: anything typed since is left alone. The
-      // result stays accepted, so undo never offers the same consent twice.
+      // Removes the added word only while it is still the end of the text, so
+      // anything typed since is left alone. The result stays accepted: undo
+      // never offers the same consent twice.
       run: () => {
         if (!state.transcript.endsWith(token)) return;
         state.transcript = state.transcript.slice(0, -token.length);
@@ -120,11 +119,7 @@ function insertSpaceInTranscript() {
   renderTranscript();
 }
 
-/**
- * Delete the last character.
- *
- * @returns {void}
- */
+/** @returns {void} */
 function removeLastTranscriptChar() {
   state.transcript = state.transcript.slice(0, -1);
   saveTranscript();
@@ -138,15 +133,15 @@ function removeLastTranscriptChar() {
  */
 function renderTranscript() {
   const text = state.transcript.trim();
-  // The placeholder is styled apart from real text, so the strip says which it is.
+  // Lets the stylesheet set the placeholder apart from real text.
   els.transcriptText.dataset.empty = text ? "false" : "true";
   // Fingerspelled text is English letters; the placeholder is Turkish. The
   // caret is decoration, not a character to read out.
   els.transcriptText.lang = text ? "en" : "tr";
   els.transcriptText.innerHTML = `${escapeHtml(text || "Metin burada görünür")}<span class="cursor" aria-hidden="true">|</span>`;
-  // One line that scrolls: the end, where the newest letter and the caret
-  // are, stays in view, and the start fades out once it is scrolled off.
-  // A screen reader still gets the whole text.
+  // One scrolling line: the end, with the newest letter and the caret, stays
+  // in view and the start fades once scrolled off. A screen reader still
+  // gets the whole text.
   const strip = els.transcriptText;
   strip.scrollLeft = text ? strip.scrollWidth || 0 : 0;
   strip.dataset.overflow = text && strip.scrollLeft > 0 ? "start" : "none";
@@ -154,17 +149,16 @@ function renderTranscript() {
 
 /**
  * Text cleared while its undo is still offered, oldest first. A second clear
- * in that time replaces the toast; without this, its undo would bring back
- * only the second part and the first would be lost for good.
+ * replaces the toast, and without this its undo would restore only the
+ * second part.
  */
 let _clearedPendingUndo = "";
 
 /**
  * Clear the transcript and its stored copy, and offer to undo it.
  *
- * While an earlier clear's undo is still offered, the clears add up, so one
- * "Geri al" restores everything cleared, in order. The undo ends with its
- * toast.
+ * Clears made while an earlier undo is offered add up, so one "Geri al"
+ * restores everything, in order. The undo ends with its toast.
  *
  * @returns {void}
  */
@@ -197,10 +191,7 @@ function clearTranscript() {
 }
 
 /**
- * Mirror the transcript into localStorage.
- *
- * A storage failure is logged and ignored, because the app must keep working in
- * a private window and with storage blocked.
+ * Mirror the transcript into localStorage; a failure is logged and ignored.
  *
  * @returns {void}
  */
@@ -208,7 +199,7 @@ function saveTranscript() {
   try {
     localStorage.setItem("asl-web-transcript", state.transcript);
   } catch (err) {
-    console.warn("Transcript kaydedilemedi:", err?.message || err);
+    console.warn("Could not save the transcript:", err?.message || err);
   }
 }
 
@@ -221,17 +212,15 @@ function restoreTranscript() {
   try {
     state.transcript = localStorage.getItem("asl-web-transcript") || "";
   } catch (err) {
-    console.warn("Transcript okunamadı:", err?.message || err);
+    console.warn("Could not read the stored transcript:", err?.message || err);
     state.transcript = "";
   }
   renderTranscript();
 }
 
 /**
- * Copy the transcript to the clipboard and confirm it in a toast.
- *
- * The camera status chip is no place for this: the status loop rewrites it
- * every second while the camera runs.
+ * Copy the transcript to the clipboard and confirm it in a toast, not in the
+ * camera status chip, which the status loop rewrites every second.
  *
  * @returns {Promise<void>} Resolves whether or not the copy succeeded.
  */

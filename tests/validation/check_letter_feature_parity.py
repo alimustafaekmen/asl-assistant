@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
 """Compare Python and browser JS letter feature engineering.
-Python ve tarayici JS harf feature'larinin ayni sonucu urettigini dogrular.
 
-This is a production-independent validation script. It loads the classic
-browser runtime feature file in Node.js and compares computeLetterFeatures()
-against the Python source-of-truth pipeline:
+It loads the browser's classic features.js in a Node.js vm context and compares
+computeLetterFeatures() against the Python source-of-truth pipeline:
 
     normalize_landmarks(raw63) -> extract_features(normalized63)
 
-Node.js gerektirir (features.js'i calistirmak icin); runtime asset'lerini
-degistirmez. / Requires Node.js to run features.js; modifies no runtime assets.
+It needs Node.js to run features.js and changes no runtime asset.
 
 Exit status: 0 every fixture matched, 1 a mismatch or browser code that did
 not run, 2 Node.js is not on PATH, so nothing was compared.
@@ -73,9 +70,9 @@ def _frame321(right: np.ndarray | None = None, left: np.ndarray | None = None) -
 
 
 def _python_features(raw63: np.ndarray) -> np.ndarray:
-    sys.path.insert(0, str(PROJECT_ROOT / "asl-ml" / "src"))
-    from asl_ml.features.letter_features import extract_features
-    from asl_ml.utils.landmarks import normalize_landmarks
+    sys.path.insert(0, str(PROJECT_ROOT / "asl-features" / "src"))
+    from asl_features.landmarks import normalize_landmarks
+    from asl_features.letter import extract_features
 
     normalized = normalize_landmarks(raw63.astype(np.float32))
     return extract_features(normalized)

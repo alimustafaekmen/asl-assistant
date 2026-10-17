@@ -1,87 +1,107 @@
-# Project Journey and Research Notes
+# Project Journey
 
-ASL Assistant began as a Python desktop prototype and became a browser
-application with checked model contracts. This document records what was tried,
-what changed, what failed, and what may help anyone building a
-small-vocabulary sign-recognition system.
+<sub>Location: [`asl-assistant`](../README.md) / [`docs`](README.md) / `project-journey.md`</sub>
 
-It is an engineering case study, not a claim of a new state-of-the-art model.
-What it offers is the path from experiments to a browser runtime: keeping the
-tasks apart, matching features between Python and JavaScript, tracing every
-deployed file to its source, testing with deterministic fixtures, and being
-straightforward about how reliable the live result is.
+<sub>Related: [`TECHNICAL_REPORT.md`](../TECHNICAL_REPORT.md) · [`docs/models-and-data.md`](models-and-data.md) · [`docs/architecture.md`](architecture.md)</sub>
 
-## Research context
+ASL Assistant started as a Python desktop app and became a browser app whose
+models and features are checked against their sources. The project introduces
+no new sign-recognition architecture or dataset; what it found is about
+engineering. For anyone building a similar system, the most useful parts are
+[what went wrong](#what-went-wrong-and-what-changed) and the
+[lessons](#lessons-for-similar-projects) that follow it.
 
-Sign-language recognition spans different tasks that should not be collapsed
-into one accuracy number:
+## The path at a glance
 
-- fingerspelling or static handshape recognition;
-- isolated sign recognition, where one recording contains one sign; and
-- continuous recognition or translation, where segmentation, grammar, and
-  linguistic context also matter.
+| When | What happened | Where it is recorded |
+|---|---|---|
+| March 2026 | The 24-letter model was trained (13 March), and the desktop prototype got its 25-word model (28 March) | `trained_at` in `models/letter/letter_model_meta.json` and `models/word/desktop-25/word_model_meta.json` |
+| April 2026 | The 50-word model was trained and exported on Kaggle (25 April) | `created_at_unix` in `notebooks/word_50_results/manifest.json` |
+| September and October 2026 | The browser code was split into modules, the tests were rebuilt around behaviour, and the interface was rebuilt screen by screen | the [technical report](../TECHNICAL_REPORT.md#12-change-history) |
 
-This project covers the first two tasks only. Its word model predicts one of 50
-isolated signs and does not translate ASL sentences.
+## What the project tries to do
 
-The word research used only the
-[Google Isolated Sign Language Recognition competition](https://www.kaggle.com/competitions/asl-signs)
-data. The final model was trained in Kaggle on a 50-class subset with a
-signer-independent split, and its reported results apply only to that subset,
-feature pipeline and split.
+Sign-language recognition covers several tasks, and one accuracy number cannot
+describe them all:
 
-## Phase 1: desktop prototype
+- fingerspelling, or recognising a static handshape such as a letter;
+- isolated sign recognition, where one recording holds one sign;
+- continuous recognition or translation, where segmentation, grammar and
+  context also matter.
 
-The first working product used Python, OpenCV, MediaPipe, CustomTkinter,
-LightGBM/scikit-learn, and PyTorch. It combined:
+This project covers the first two only. Its word model picks one of 50 isolated
+signs. It does not translate ASL sentences.
 
-- a 24-class static-letter model with a 93D hand feature vector; and
-- a 25-class word model with 30 frames of 321D holistic landmarks and a
-  bidirectional GRU with attention pooling.
+Both models read **landmarks**: the x, y and z positions of points that
+MediaPipe finds on the hands, face and body. They never see the camera image
+itself.
+
+## Starting on the desktop
+
+The first working version was a Python app built with OpenCV, MediaPipe,
+CustomTkinter, LightGBM/scikit-learn and PyTorch. It had two models:
+
+- a 24-class static-letter model that reads a 93-value hand feature vector
+  (93D); and
+- a 25-class word model that reads 30 frames of 321 values each, the holistic
+  landmarks of both hands, the face and the body pose. It is a bidirectional
+  GRU (a recurrent network that reads the sequence in both directions) with
+  attention pooling.
 
 The letter images came from three alphabet sources. They were converted to
-landmarks, merged, and trained locally. The sources, retained sample counts and
-exclusions are listed in [Models and data](models-and-data.md#training-data-and-environments).
+landmarks, merged and trained locally. [Models and data](models-and-data.md#training-data-and-environments)
+lists the sources, the rows kept and what was excluded. The same letter model
+runs in both apps: the desktop app loads it directly, and the browser loads an
+ONNX export of it.
 
-This phase established two lessons early. First, static handshape and temporal
-sign recognition are different problems and need separate models. Second, a
-high offline score does not guarantee stable webcam behavior when landmark
-quality, framing, handedness, and signer style change.
+Two lessons came early:
 
-The desktop application is kept as a prototype (see
+1. Static handshapes and signs that move are different problems, and they need
+   separate models.
+2. A high offline score does not promise steady behaviour on a webcam, where
+   landmark quality, framing, handedness and signing style all change.
+
+The desktop app is kept working as a prototype (see
 [asl-desktop](../asl-desktop/README.md)). Its 25-word model is preserved under
-`models/word/desktop-25/` and is not the source of the current web word model.
+`models/word/desktop-25/` and is not the source of the web word model.
 
-## Phase 2: word-model experiments
+## Finding a word model
 
-The final word experiments ran in a Kaggle-hosted notebook against the Google
-Isolated Sign Language Recognition data. The notebook chose 50 sufficiently
-represented classes and separated signers across training, validation, and
-test partitions before computing features.
+The final word experiments ran in a Kaggle notebook on the data of the
+[Google Isolated Sign Language Recognition competition](https://www.kaggle.com/competitions/asl-signs).
+The notebook chose 50 classes with enough recordings and then split the data
+**by signer**: each person appears in only one of training, validation and
+test, so the test measures people the model has never seen. The split was made
+before any features were computed. The results below apply only to that
+50-class subset, that feature pipeline and that split.
 
-MS-ASL download and preprocessing utilities were explored as a possible data
-extension, but MS-ASL was not used to train the published 25- or 50-class word
-models. Keeping that distinction explicit prevents an experimental data path
-from being mistaken for model provenance.
+Scripts to download and preprocess MS-ASL were also written, as a possible
+source of more word data. MS-ASL was not used to train either published word
+model, the 25-word or the 50-word one.
 
-The experiments went through these stages:
+The experiments went through seven stages:
 
 1. a 15-word recurrent baseline;
-2. a 25-word hand-landmark BiGRU;
-3. a 25-word holistic 321D BiGRU;
-4. attention pooling with focal loss, mixup, and stronger augmentation;
-5. feature-set and sequence-length ablations;
-6. 50-word recurrent and Transformer comparisons; and
-7. a separate raw-video experiment that did not produce the deployed model.
+2. a 25-word BiGRU on hand landmarks;
+3. a 25-word BiGRU on all 321 holistic values;
+4. attention pooling with focal loss, mixup and stronger augmentation;
+5. ablations of the feature set and the sequence length;
+6. 50-word comparisons of recurrent and Transformer models; and
+7. a separate raw-video classifier, which did not produce the deployed model.
 
-Only the later stages are kept in the repository: the final 25-word desktop
-notebook and the 50-word notebooks with their results
+Only the later stages are in the repository: the final 25-word desktop notebook
+and the 50-word notebooks with their results
 ([notebooks/README.md](../notebooks/README.md)). The earlier iterations and the
-video experiment were left out of the public tree because their findings are
-carried by the final workflow. The tables below come from
-`notebooks/word_50_results/all_experiment_results.json`.
+video experiment were left out, because the final workflow carries what they
+found.
 
-### Feature ablation
+The three tables below come from
+`notebooks/word_50_results/all_experiment_results.json`. Each is an
+**ablation**: the same training run with one choice changed, to see what that
+choice is worth. The score is the test **macro-F1**, the F1 score averaged over
+the 50 words with equal weight, so a rare word counts as much as a common one.
+
+### Which features
 
 | Representation | Dimension | Recorded test macro-F1 |
 |---|---:|---:|
@@ -92,12 +112,12 @@ carried by the final workflow. The tables below come from
 | Compact | 168D | 0.699 |
 | Full engineered set | 519D | 0.639 |
 
-The largest feature vector was not the best. The 168D representation kept
-dominant-hand geometry, hand shape, hand-to-body distances and motion, and
-avoided part of the noise and download cost of the 519D set. More engineered
-variables can add redundancy and overfitting instead of information.
+The largest feature vector was not the best. The 168D set keeps the dominant
+hand's geometry, hand shape, hand-to-body distances and motion, and avoids part
+of the noise and download cost of the 519D set. More engineered values can add
+redundancy and overfitting instead of information.
 
-### Sequence strategy
+### How long a sequence
 
 | Strategy | Recorded test macro-F1 |
 |---|---:|
@@ -105,11 +125,11 @@ variables can add redundancy and overfitting instead of information.
 | 45 frames with padding mask | 0.700 |
 | Motion-focused variant | 0.694 |
 
-The differences are small. The 45-frame masked representation was chosen
-because it states the valid length explicitly and matches the final ONNX
-contract.
+The differences are small. The 45-frame version was chosen because its
+**padding mask**, one true or false per frame saying which frames are real,
+states the valid length explicitly, and it matches the final ONNX contract.
 
-### Model comparison
+### Which model
 
 | Model | Parameters | Recorded test macro-F1 |
 |---|---:|---:|
@@ -119,194 +139,221 @@ contract.
 | SignTransformer | 446,195 | 0.719 |
 | Two-model ensemble | 1,048,934 | 0.733 |
 
-The ensemble scored higher but has more than twice the parameters and would
-have meant shipping two models to the browser. The single SignTransformer was
-chosen as the better trade between accuracy and complexity.
+The two-model ensemble scored highest, but it has more than twice the
+parameters and would have meant shipping two models to the browser. The single
+SignTransformer was the better trade between accuracy and complexity.
 
-The comparison table and the deployed model are different runs. The
-SignTransformer scored 0.719 macro-F1 in the comparison; the final full-training
-run that was exported records 71.92% accuracy, 0.714 macro-F1 and 0.803 best
-validation F1 on the same signer-independent split (4 test signers, 3,918
-samples). The latter are the figures used everywhere else in this repository.
+### The comparison run and the shipped run
 
-## Phase 3: browser application
+The comparison table and the deployed model come from different runs. The
+SignTransformer scored 0.719 macro-F1 in the comparison. The final
+full-training run, the one that was exported, records 71.92% accuracy,
+0.714 macro-F1 and 0.803 best validation F1 on the same signer-independent
+split (4 test signers, 3,918 samples). The rest of the repository uses these
+final figures.
 
-The product moved from a desktop GUI to `asl-web/`, a static
-HTML/CSS/JavaScript application with no build step. MediaPipe extracts
-landmarks and ONNX Runtime Web runs inference in the browser. Python remains in
-training, validation and fixture export, and is not part of anything the
-visitor loads.
+## Moving to the browser
 
-Running the models client-side
-([ONNX Runtime Web](https://onnxruntime.ai/docs/tutorials/web/)) means no
-inference server and no camera frames leaving the device. The costs are model
-download size, browser compatibility, device limits, and having to reproduce
-the preprocessing exactly in JavaScript.
+The product then moved from the desktop GUI to `asl-web/`, a static HTML, CSS
+and JavaScript app with no build step. MediaPipe finds the landmarks, and
+[ONNX Runtime Web](https://onnxruntime.ai/docs/tutorials/web/) runs the models
+inside the page. (ONNX is a portable file format for trained models.) Python
+stays in training, validation and fixture export, and is not part of anything
+a visitor loads.
 
-The models take landmarks, not raw video frames. The
+Running the models in the browser means there is no inference server, and no
+camera frame leaves the device. The costs are the model download, browser
+compatibility, device limits, and having to reproduce the Python preprocessing
+exactly in JavaScript.
+
+The models take landmarks rather than video frames. The
 [MediaPipe framework](https://arxiv.org/abs/1906.08172) was designed for
 cross-platform perception pipelines, and
 [MediaPipe Hands](https://arxiv.org/abs/2006.10214) provides an on-device palm
-detector plus hand-landmark model. Landmarks keep the models small and the
-features inspectable, but any MediaPipe error becomes part of the system's
+detector plus a hand-landmark model. Landmarks keep the models small and the
+features easy to inspect, but any MediaPipe error becomes part of the system's
 error.
 
-## Why letter mode became the primary feature
+The download cost shaped the app too. When every model loaded with the page,
+each visitor downloaded 14.4 MiB (15.0 MB) of models. A model now downloads on
+first use, and the 13.2 MB letter model is served gzipped at about 2.2 MB.
 
-The letter metadata reports 99.35% accuracy on a held-out landmark set of 24
-static classes. The browser reproduces the ordered 93D feature pipeline and
-uses a probability-tensor ONNX export.
+The web app has six screens: letter, word, coach, Model Test (bundled samples
+run without a camera), QR and a project page. The
+[root README](../README.md#what-it-does) describes each one.
 
-That score is not live accuracy: the held-out rows were drawn at random from
-the same image collections as the training rows, not from unseen signers (see
-[Models and data](models-and-data.md#training-data-and-environments)). Even so,
-the task is much narrower than word recognition. One hand pose is classified
-with no temporal alignment, padding, face or pose visibility, sequence-level
-hand choice or motion history. In use, letter mode proved the more dependable
-and easier to understand feature.
+## Why letters became the main mode
 
-Word mode stays as an experiment that shows its limits: the interface lists the
-top three alternatives, hints at known look-alike pairs, and appends nothing to
-the transcript until the user accepts a word. It is not presented as a reliable
-translator.
+The letter metadata reports 99.35% accuracy on a held-out set of landmark rows
+over 24 static classes. The browser reproduces the ordered 93D feature pipeline
+and uses an ONNX export that returns a plain probability tensor.
 
-## Problems that changed the design
+That score is not live accuracy. The held-out rows were drawn at random from
+the same image collections as the training rows, not from new signers. On 122
+rows that neither split contains (`semcom_test`), the published model scores
+68.9%, and retraining with one whole source held out gives between 39.9% and
+79.6%. The [evaluation caveat](models-and-data.md#evaluation-caveat) in Models
+and data has the details and the letters that suffer most.
 
-### Feature parity across Python and JavaScript
+Even so, the letter task is much narrower than word recognition. It classifies
+one hand pose, with no timing, padding, face or pose visibility, hand choice
+across a sequence, or motion history. In use, letter mode proved the more
+dependable feature and the easier one to understand.
 
-The most dangerous integration bugs were not shape errors. A `(1, 45, 168)`
-tensor can still be wrong if the feature order, normalization, hand choice, or
-motion state differs from training. Python-to-JavaScript parity fixtures were
-therefore added for both pipelines. The useful rule is simple: write the parity
-test before changing runtime preprocessing.
+Word mode stays as an experiment that shows its limits. It lists the three most
+likely words, warns about known look-alike pairs, and adds nothing to the text
+until the user accepts a word. It is not presented as a reliable translator.
 
-### Dominant hand must be a sequence decision
+## What went wrong, and what changed
 
-The notebook chooses the hand with better visibility across the complete
-recording. An early browser path could choose independently per frame, causing
-the hand source and motion values to switch. The final path buffers normalized
-321D frames and constructs the 168D sequence only after recording finishes.
+The most dangerous bugs on the way were not shape errors. A `(1, 45, 168)`
+tensor has the right shape and can still be wrong if the feature order,
+normalization, hand choice or motion state differs from training. The model
+then runs and quietly predicts nonsense. Each problem below changed the design.
 
-### Missing shoulders need the same fallback
+### Python and JavaScript computed different features
 
-The notebook falls back to nonzero min-max normalization when shoulders are not
-usable. Returning an unnormalized frame in JavaScript created a quiet domain
-shift. Matching the fallback removed this known parity gap.
+Training computes features in Python and the browser computes them again in
+JavaScript, so the two can drift apart without any error. Parity checks were
+added for both pipelines: the same landmarks go through both versions, and the
+features must agree within 1e-4. The rule that came out of it: write the
+parity test before changing runtime preprocessing. `make parity` runs the
+checks.
 
-### Mask semantics are easy to invert twice
+### The dominant hand switched between frames
 
-The browser input uses `true` for real frames and `false` for padding. The ONNX
-graph performs its own attention-mask inversion. Reversing the values again in
-JavaScript would produce a valid tensor with invalid attention behavior.
+The notebook picks the hand that is better visible across the whole recording.
+An early browser path chose a hand for each frame on its own, so the hand
+source and the motion values could switch halfway through. The final path
+buffers normalized 321D frames and builds the 168D sequence only after the
+recording ends.
 
-### ONNX output structure matters
+### Missing shoulders changed the input
 
-The first LightGBM export used ZipMap, producing a sequence of maps that ONNX
-Runtime Web could not read reliably. The active export disables ZipMap and
-returns a plain `(N, 24)` probability tensor. This was a deployment-contract
-problem, not a model-accuracy problem.
+Word frames are normalized around the shoulders. When the shoulders are not
+usable, the notebook falls back to min-max normalization over the nonzero
+values. The JavaScript at first returned the frame unnormalized instead, a
+quiet shift away from what the model was trained on. Matching the fallback
+closed that gap.
 
-### Recording state must be fully reset
+### The mask was easy to invert twice
+
+The browser sends `true` for a real frame and `false` for padding. The ONNX
+graph inverts the mask itself for its attention step. Inverting it again in
+JavaScript would give a valid tensor with wrong attention, and nothing would
+crash.
+
+### The first letter export could not be read
+
+The first LightGBM export used ZipMap, an ONNX step that returns the class
+probabilities as a list of label-to-probability maps. ONNX Runtime Web could
+not read that output reliably. The deployed export turns ZipMap off and
+returns a plain `(N, 24)` probability tensor.
+
+### One recording leaked into the next
 
 Frame buffers, normalized frames, motion history, mask state, animation-frame
-handles, and user messages all cross recording boundaries. Partial resets made
-later predictions depend on earlier attempts. The final lifecycle resets state
-on start, finish, retry, mode change, and camera stop.
+handles and user messages all cross the boundary between recordings. Partial
+resets made a prediction depend on earlier attempts. The final lifecycle resets
+this state on start, finish, retry, mode change and camera stop.
 
-### Calibration does not solve ambiguity
+### A wide camera frame distorted the hand
 
-Temperature scaling did not improve the recorded word ECE (0.0235 before,
-0.0252 after), and no recalibration turns a low-margin live prediction into a
-trustworthy one. The product response was to show the alternatives and require
-the user's confirmation. A single low minimum confidence
-(`WORD_ACCEPT_THRESHOLD` in `asl-web/js/core/config.js`) only filters out
-results that are close to noise.
+The letter training landmarks come from square photographs. A camera frame is
+rarely square, and MediaPipe scales x by the frame's width and y by its height,
+so the same hand gives different numbers. On real MediaPipe output, a 1280 by
+720 frame took held-out accuracy from 98.4% to 88.6%. The browser and the
+desktop app both multiply x and z by the frame's width over its height before
+computing the features (see
+[Models and data](models-and-data.md#camera-aspect-step)).
 
-## Approaches not used in the final runtime
+### Calibration did not make weak predictions trustworthy
+
+**Temperature scaling** divides the model's raw scores by one constant before
+they become probabilities, to make the confidence more honest. It did not
+improve the word model's expected calibration error (ECE, the gap between
+confidence and actual accuracy): 0.0235 before, 0.0252 after. No recalibration
+turns a low-margin live prediction into a trustworthy one.
+
+The product answer was to show the alternatives and ask the user to confirm. A
+single low minimum confidence (`WORD_ACCEPT_THRESHOLD` in
+`asl-web/js/core/config.js`, set to 0.15) only filters out results that are
+close to noise.
+
+### Passing tests did not mean guarded behaviour
+
+Some early tests checked the source text instead of what the code did. They
+broke on harmless edits and still missed real faults. The tests were rebuilt
+around behaviour, and each new guard is shown to fail on a deliberately planted
+fault before it is trusted.
+[Section 9.2 of the technical report](../TECHNICAL_REPORT.md#92-tests-shown-to-fail)
+lists examples.
+
+## Approaches that did not make it
 
 | Approach | Reason |
 |---|---|
-| 15-word and early 25-word recurrent models | Superseded by later experiments. The final 25-word V4 checkpoint remains only for the desktop prototype. |
-| 507D experimental Python pipeline | Feature and label contracts do not match the deployed 168D model. |
-| Two-model ensemble | Better experiment score, but more than twice the parameters and two models to ship to the browser. |
-| Raw-video classifier | Did not produce the active artifact or a browser integration. |
-| J/Z recognition | Not implemented; no trained or deployed J/Z model is included. Configuration and an experimental training utility remain reserved for possible future work. |
-| React and standalone mockups | Design experiments; the maintained app uses plain HTML, CSS, and JavaScript. |
-| ZipMap letter ONNX | Browser output compatibility was unreliable. |
+| 15-word and early 25-word recurrent models | Replaced by later experiments. The last 25-word checkpoint remains for the desktop prototype only. |
+| An experimental 507-value Python word feature pipeline | Its feature and label contracts do not match the deployed 168-value model. |
+| Raw-video classifier | Did not produce the deployed model or a browser integration. |
+| J and Z recognition | Not implemented; no trained or deployed J or Z model is included. Configuration and an experimental training script remain for possible future work. |
+| React and standalone page mockups | Design experiments; the app uses plain HTML, CSS and JavaScript. |
 
-Keeping unsuccessful paths documented is useful when the reason is evidence,
-not nostalgia. The historical implementations themselves are not required in
-the public runtime.
+The ensemble and the ZipMap export, described above, did not make it either.
 
-## Transferable lessons
+## Lessons for similar projects
 
 1. **Define the task before comparing metrics.** Static letters, isolated
-   signs, and continuous translation are different research problems.
-2. **Split by signer when generalization matters.** Random sample splits can
-   reward signer-specific cues.
+   signs and continuous translation are different research problems.
+2. **Split by signer when generalization matters.** A random split of samples
+   can reward cues that belong to one signer.
 3. **Treat preprocessing as part of the model.** Feature order, normalization,
-   handedness, padding, and motion state belong to the inference contract.
-4. **Measure deployment constraints during model selection.** The highest
+   handedness, padding and motion state belong to the inference contract.
+4. **Measure deployment constraints while choosing a model.** The highest
    offline score may not justify twice the model size or runtime complexity.
-5. **Keep fixtures separate from evaluation.** A deterministic sample proves
-   serialization and inference repeatability, not generalization.
+5. **Keep fixtures separate from evaluation.** A fixed sample proves that
+   serialization and inference repeat exactly, not that the model generalizes.
 6. **Report domain shift honestly.** Landmark quality, camera setup, signing
-   speed, and user variation can dominate live behavior.
-7. **Design uncertainty into the product.** Top-3 display and explicit
-   acceptance are safer than automatic output for a weak live classifier.
+   speed and differences between users can dominate live behaviour.
+7. **Design uncertainty into the product.** Showing the top three and asking
+   for acceptance is safer than automatic output from a weak live classifier.
 
-## What this project contributes
+## Current limits
 
-The project does not introduce a new sign-recognition architecture or dataset.
-Its reusable contribution is a compact reference implementation and a set of
-engineering findings:
-
-- two task-specific browser pipelines under one interface;
-- explicit Python/JavaScript feature-parity checks;
-- source-to-deploy artifact provenance and ONNX contract validation;
-- versioned feature fixtures for deterministic browser inference;
-- documented failure cases in handedness, missing landmarks, masks, ZipMap,
-  and recording state; and
-- product language that distinguishes a strong static-letter path from an
-  experimental isolated-word path.
-
-These practices are relevant to other landmark-based, client-side perception
-projects even when their language, vocabulary, or model differs.
-
-## Limitations and responsible interpretation
-
-- The project recognizes a small, predefined vocabulary and does not model ASL
+- The project recognizes a small, fixed vocabulary. It does not model ASL
   grammar or continuous signing.
-- J and Z are not supported, and no trained or deployed model for them is
-  included. The current letter task contains 24 static classes only.
-- Neither model has a learned `unknown/no-sign` class.
+- The letter task has 24 static classes; J and Z are not supported. Neither
+  model has an `unknown/no-sign` class.
+- Letter accuracy for hands the model has not seen is far below 99.35%: 68.9%
+  on rows outside both splits.
 - Letter and word metrics come from different datasets and cannot be compared
-  as a head-to-head model result.
-- Live word behavior is not reliable enough for accessibility-critical use.
-- Dataset and sign variants can reflect collection choices; evaluation on one
-  variant does not establish linguistic coverage.
-- The system should be described as a learning and engineering prototype, not
-  as a replacement for interpreters or a general communication aid.
+  as a head-to-head result.
+- Live word behaviour is not reliable enough for accessibility-critical use.
+- The app has not been tested on a real phone. Automated checks run in headless
+  desktop Chrome with a simulated camera; iOS Safari, Android Chrome and real
+  hands are untested.
+- Datasets and sign variants reflect how the data was collected. Evaluation on
+  one variant does not establish linguistic coverage.
+- The system is a learning and engineering prototype. It is not a replacement
+  for interpreters or a general communication aid.
 
-## Reproducing the evidence
+## Checking the evidence
 
-The current claims can be traced to:
+Each claim above can be traced to a file in the repository:
 
-- `models/letter/letter_model_meta.json`;
-- `notebooks/word_50_training.ipynb`;
-- `notebooks/word_50_training_results.ipynb`;
-- `notebooks/word_25_desktop_training.ipynb`;
-- `models/word/README.md`;
-- `notebooks/word_50_results/all_experiment_results.json`;
-- `notebooks/word_50_results/classification_report.txt`;
-- `notebooks/word_50_results/manifest.json`;
-- `tests/validation/`; and
-- `scripts/validation/check_runtime_assets.py` and
-  `scripts/validation/verify_project_assets.py`.
+| Claim | Where to check |
+|---|---|
+| Letter model: 24 classes, 93 features, 99.35% held-out accuracy | `models/letter/letter_model_meta.json` |
+| Word experiments: feature, sequence and model comparisons | `notebooks/word_50_results/all_experiment_results.json` |
+| Final word run: 71.92% accuracy, 0.714 macro-F1, ECE, export hashes | `notebooks/word_50_results/all_experiment_results.json`, `notebooks/word_50_results/manifest.json`, `notebooks/word_50_results/classification_report.txt` |
+| How the 50-word model was trained | `notebooks/word_50_training.ipynb`, and `notebooks/word_50_training_results.ipynb` with its outputs kept |
+| The desktop 25-word model | `notebooks/word_25_desktop_training.ipynb`, `models/word/README.md` |
+| Python and JavaScript features agree | `tests/validation/` |
+| Deployed files match their sources; ONNX inputs and outputs | `scripts/validation/check_runtime_assets.py`, `scripts/validation/verify_project_assets.py` |
 
-Run `make health` for the repository-level checks. They do not replace a test
-with a real camera and real hands in a real browser, which is still needed for
-live behavior.
+Run `make health` for the repository checks, feature parity included. They do
+not replace a test with a real camera, real hands and a real browser, which
+live behaviour still needs.
 
 ## References
 
@@ -322,3 +369,4 @@ live behavior.
 - [Architecture](architecture.md)
 - [Models and data](models-and-data.md)
 - [Getting started](getting-started.md)
+- [Technical report](../TECHNICAL_REPORT.md)

@@ -90,28 +90,27 @@ const CONFIG = {
   SMOOTHER_WINDOW: 5,
   TOP_K: 3,
   WORD_FRAME_COUNT: 45,
-  // The recording countdown shows three 720 ms steps. This value is a step
-  // count retained for compatibility; it is not a duration in seconds.
+  // The recording countdown shows three 720 ms steps. Despite its name, this
+  // value counts steps, not seconds.
   COUNTDOWN_SECONDS: 3,
   // A word recording that the camera cannot fill ends on its own instead of
   // waiting at 0/45. A frame is usable only with hand, face and shoulders in
   // view. The first usable frame gets longer than a later gap, because the
   // hands come up after the countdown. The overall limit catches frames that
-  // trickle in just often enough to beat the gap. All three are proposals to
-  // be tuned in the real-device test.
+  // trickle in just often enough to beat the gap. All three are starting
+  // values, to be tuned on real devices.
   WORD_FIRST_FRAME_TIMEOUT_MS: 6000,
   WORD_NO_HAND_TIMEOUT_MS: 4000,
   WORD_MAX_RECORDING_MS: 15000,
-  // Coach letter scoring is a hold, not a button press. One second is a
-  // deliberate, still handshape: about nine 120 ms inference ticks, which is
-  // what "en az 1 saniye sabit" has always asked of the learner. Success
-  // means the plate would say "Emin", so the confidence stays equal to
+  // Coach letter scoring is a hold, not a button press. One second of a still
+  // handshape is about nine 120 ms inference ticks, and is what the hint "en
+  // az 1 saniye sabit" (hold still for at least a second) asks. Success means
+  // the plate would say "Emin" (confident), so the confidence stays equal to
   // CONFIDENT_THRESHOLD. The grace is two ticks, so a single noisy frame does
-  // not punish the learner; the release separates two repetitions. The miss
-  // hint waits long enough not to nag while the hand is still forming, and
-  // the advance long enough to see the success and choose to stay. Sessions
-  // of ten match the prototype. All are starting values for the real-device
-  // test to tune.
+  // not reset a hold; the release separates two repetitions. The miss hint
+  // waits long enough not to nag while the hand is still forming, and the
+  // advance long enough to see the success and choose to stay. All are
+  // starting values, to be tuned on real devices.
   COACH_HOLD_MS: 1000,
   COACH_HOLD_CONFIDENCE: 0.65,
   COACH_HOLD_GRACE_MS: 240,

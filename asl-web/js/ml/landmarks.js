@@ -1,23 +1,20 @@
-// MediaPipe results to the fixed 321D word-model landmark vector.
+// MediaPipe results to the 321D holistic frame the word model reads.
 //
-// Feature order must match the final training notebook. A dimensionally valid
-// vector with a different order will still run but produce invalid predictions.
+// The order must match the training notebook: a vector of the right length in
+// the wrong order still runs and predicts nonsense.
 //
-// Layout:
 //   [0..62]    right hand  (21 landmarks x 3)
 //   [63..125]  left hand   (21 landmarks x 3)
 //   [126..245] face        (40 selected landmarks x 3)
 //   [246..320] pose        (25 selected landmarks x 3)
 //
-// FACE_INDICES is copied from notebooks/word_50_training.ipynb and belongs to
-// the published 50-word model contract.
+// FACE_INDICES and POSE_INDICES are copied from the training notebook
+// (notebooks/word_50_training.ipynb) and are part of the published 50-word
+// model contract. The Python reference is asl_features.word in asl-features/.
 
 /**
- * One normalized holistic frame in the published 321D layout.
- *
- * JSDoc cannot express the length, so it stays a runtime invariant: the value
- * is always a Float32Array of exactly 321 values, laid out as right hand 0..62,
- * left hand 63..125, face 126..245, pose 246..320.
+ * One holistic frame in the 321D layout above. JSDoc cannot express the
+ * length, so exactly 321 values is a runtime invariant.
  *
  * @typedef {Float32Array} Frame321D
  */
@@ -37,8 +34,8 @@ const POSE_INDICES = [
   23, 24, 25, 26, 27, 28, 29, 30,
 ];
 
-console.assert(FACE_INDICES.length === 40, "FACE_INDICES 40 eleman olmalı");
-console.assert(POSE_INDICES.length === 25, "POSE_INDICES 25 eleman olmalı");
+console.assert(FACE_INDICES.length === 40, "FACE_INDICES must have 40 entries");
+console.assert(POSE_INDICES.length === 25, "POSE_INDICES must have 25 entries");
 
 /**
  * Resolve one landmark list from either shape MediaPipe returns.
@@ -52,11 +49,9 @@ console.assert(POSE_INDICES.length === 25, "POSE_INDICES 25 eleman olmalı");
 function _firstList(maybeNested) {
   if (!maybeNested) return null;
   if (Array.isArray(maybeNested) && maybeNested.length > 0) {
-    // Nested array: select the first detected person.
     if (Array.isArray(maybeNested[0])) return maybeNested[0];
-    // A non-array first element means this is already a flat landmark list.
-    // Inspecting one element to classify the whole array is not something a
-    // type guard can express, so the narrowing is stated here.
+    // Already flat. Classifying the array by its first element is beyond what
+    // a type guard can express, so the cast states the narrowing.
     return /** @type {LandmarkList} */ (maybeNested);
   }
   return null;
@@ -170,16 +165,15 @@ function normalizeShoulders(frame321d) {
 /**
  * Scale a frame by the min-max range of its non-zero values.
  *
- * This is the notebook-compatible path used when shoulders are unavailable. A
- * frame with no visible landmarks returns all zeros, and a frame whose values
- * share one magnitude is passed through unscaled, so the result is always
- * finite.
+ * The notebook's path for a frame without usable shoulders. Zeros are missing
+ * landmarks and stay zero. A frame with no visible landmark returns all zeros,
+ * and one whose non-zero values are all equal passes through unscaled, so the
+ * result is always finite.
  *
  * @param {Frame321D} frame321d
  * @returns {Frame321D} A new frame; the input is not modified.
  */
 function normalizeShouldersFallbackMinMax(frame321d) {
-  // Preserve zero-valued missing landmarks while scaling non-zero values.
   let minValue = Infinity;
   let maxValue = -Infinity;
   for (let i = 0; i < frame321d.length; i++) {

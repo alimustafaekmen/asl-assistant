@@ -3,8 +3,8 @@
 /**
  * One published confusion pair in object form.
  *
- * The bundled data has used two object spellings over time -- {word_a, word_b}
- * and {a, b}. Every field is optional because none of them is validated on load.
+ * The reader accepts two object spellings, {word_a, word_b} and {a, b}. Every
+ * field is optional because none is validated on load.
  *
  * @typedef {Object} ConfusionPairObject
  * @property {string} [word_a]
@@ -16,10 +16,8 @@
  */
 
 /**
- * One published confusion pair, in any spelling the reader accepts.
- *
- * The third published spelling is a bare two-element array. The reader has
- * always handled it, so it belongs in the type rather than only in prose.
+ * One published confusion pair, in any spelling the reader accepts; the third
+ * is a bare two-element array.
  *
  * @typedef {ConfusionPairObject | [string, string]} ConfusionPairRaw
  */
@@ -34,9 +32,9 @@
  */
 
 /**
- * The evaluation fields the app reads for one word: this module the
- * difficulty, the word screen's lists the accuracy too. Other fields may be
- * present in the published JSON and are ignored.
+ * The evaluation fields the app reads for one word: the difficulty here, and
+ * the accuracy in the word screen's lists. Other fields in the published JSON
+ * are ignored.
  *
  * @typedef {Object} PerWordStat
  * @property {string} [difficulty] Published label; preferred over the F1 fallback.
@@ -59,12 +57,13 @@ let perWordStats = {};
  * Both files are optional guidance, so each falls back to empty rather than
  * failing the app.
  *
- * @returns {Promise<boolean>} True when both fetches completed.
+ * @returns {Promise<boolean>} False only when reading the results throws; a
+ *   missing or unreadable file loads as empty and still returns true.
  */
 async function loadGatingData() {
   try {
-    // Each fallback states its own shape; without it the empty literals widen
-    // to any[] and the guards below would be checking nothing.
+    // Each fallback is cast to its shape: an uncast empty literal widens to
+    // any[], and the guards below would check nothing.
     const tasks = [
       fetch("./data/confusion_pairs.json")
         .then((r) => r.json())
@@ -77,11 +76,11 @@ async function loadGatingData() {
     confusionPairs = Array.isArray(conf) ? conf : [];
     perWordStats = stats || {};
     console.log(
-      `Gating yüklendi: ${confusionPairs.length} confusion pair, ${Object.keys(perWordStats).length} word stats`,
+      `Gating data loaded: ${confusionPairs.length} confusion pairs, ${Object.keys(perWordStats).length} word stats`,
     );
     return true;
   } catch (err) {
-    console.warn("Gating verileri yüklenemedi:", err);
+    console.warn("Gating data could not be loaded:", err);
     return false;
   }
 }
@@ -89,11 +88,9 @@ async function loadGatingData() {
 /**
  * Read one published confusion pair, whichever spelling it uses.
  *
- * The array spelling has to be separated before the object fields are read: a
- * two-element array has no word_a to fall through from. Keeping that in one
- * place is what stops the live warning and the coach panel from accepting
- * different subsets of the published data, which is what they did while each
- * unpacked the pair itself.
+ * The array spelling is checked first, since an array has no word_a to fall
+ * through from. The live warning and the coach panel both read pairs through
+ * here, so they accept the same data.
  *
  * Missing words become empty strings rather than null, so callers can test them
  * without a nullability branch. A pair with an empty word matches nothing.
@@ -153,8 +150,6 @@ function getConfusionFeedback(top1, top2) {
 function getWordDifficulty(word) {
   const stats = perWordStats[word];
   if (!stats) return "unknown";
-  // Only a label this module understands is taken at face value; anything else
-  // falls through to the F1 thresholds rather than reaching callers unchecked.
   const published = stats.difficulty;
   if (published === "easy" || published === "medium" || published === "hard") {
     return published;
@@ -177,12 +172,8 @@ function getDifficultyMessage(word) {
   return null;
 }
 
-// Letter-mode temporal smoother.
-//
-// Select the most frequent label in the recent window. Reported confidence is
-// label dominance multiplied by that label's mean raw confidence. This remains
-// meaningful when the ONNX compatibility path returns labels without a full
-// probability vector.
+// Letter-mode temporal smoother. The most frequent label in the recent window
+// wins; smoothLetterPrediction() explains the confidence it reports.
 const _smoother = {
   /** @type {PredictionResult[]} */
   buffer: [],
@@ -202,13 +193,13 @@ const _smoother = {
   get() {
     if (this.buffer.length === 0) return null;
     const window = this.buffer.length;
-    // Aggregate count and raw confidence by label.
     /** @type {Record<string, number>} */
     const counts = {};
     /** @type {Record<string, number>} */
     const confSum = {};
     let best = null;
     let bestCount = 0;
+    // A tie goes to the label that reached the count first.
     for (const p of this.buffer) {
       counts[p.label] = (counts[p.label] || 0) + 1;
       confSum[p.label] = (confSum[p.label] || 0) + (p.confidence ?? 0);
@@ -217,13 +208,10 @@ const _smoother = {
         best = p.label;
       }
     }
-    // Mean raw confidence for the dominant label.
     const rawAvg = bestCount > 0 ? confSum[best] / bestCount : 0;
-    // Fraction of the window occupied by the dominant label.
     const dominance = bestCount / window;
-    // Combine temporal stability with model confidence.
     const smoothedConf = dominance * rawAvg;
-    // Keep the latest alternatives for top-three display.
+    // The alternatives come from the winning label's latest frame.
     const matching = this.buffer.filter((p) => p.label === best);
     const last = matching[matching.length - 1];
     return {

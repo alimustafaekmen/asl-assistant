@@ -42,11 +42,12 @@ import torch.nn as nn
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 
-# Resolve both local packages; this experimental trainer targets the desktop
-# sequence runtime while reusing the shared ML landmark contract.
+# Both local packages are put on the path, so the trainer runs without an
+# editable install: the model comes from asl-desktop, the landmark step from
+# asl-features.
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 for source_dir in (
-    os.path.join(PROJECT_ROOT, "asl-ml", "src"),
+    os.path.join(PROJECT_ROOT, "asl-features", "src"),
     os.path.join(PROJECT_ROOT, "asl-desktop", "src"),
 ):
     if source_dir not in sys.path:
@@ -69,13 +70,13 @@ from asl_desktop.config import (
     TRAIN_EPOCHS,
     TRAIN_LR,
 )
-from asl_ml.config import (
+from asl_features.config import (
     HAND_LANDMARK_DIM,
     MIN_DETECTION_CONFIDENCE,
     MIN_TRACKING_CONFIDENCE,
     NUM_HANDS,
 )
-from asl_ml.utils import normalize_landmarks
+from asl_features.landmarks import normalize_landmarks
 
 # Local recording directory; raw sequences remain outside Git.
 DYNAMIC_DIR = str(DYNAMIC_DATA_DIR)
@@ -131,7 +132,6 @@ def _draw_progress_bar(
     """Draw a color-interpolated progress bar at the bottom of a frame."""
     h, w = frame.shape[:2]
     bar_width = int(w * progress)
-    # Interpolate from the start color to the end color.
     r = int(color_start[0] + (color_end[0] - color_start[0]) * progress)
     g = int(color_start[1] + (color_end[1] - color_start[1]) * progress)
     b = int(color_start[2] + (color_end[2] - color_start[2]) * progress)
@@ -157,7 +157,7 @@ def collect_dynamic_data(
     signs = signs or ["J", "Z"]
 
     print("\n" + "=" * 60)
-    print("  📹 J/Z veri toplama: rehberli surum")
+    print("  J/Z veri toplama: rehberli surum")
     print("=" * 60)
     print(f"\n  Harfler:       {signs}")
     print(f"  Kayit/harf:    {sequences_per_sign}")
@@ -166,7 +166,6 @@ def collect_dynamic_data(
     print(f"  Min el orani:  {MIN_HAND_DETECTION_RATIO:.0%}")
     print(f"  Kayit dizini:  {DYNAMIC_DIR}")
 
-    # Reuse one MediaPipe tracker throughout the capture session.
     hands = mp.solutions.hands.Hands(
         static_image_mode=False,
         max_num_hands=NUM_HANDS,
@@ -175,13 +174,12 @@ def collect_dynamic_data(
     )
     mp_draw = mp.solutions.drawing_utils
 
-    # Open the configured camera at the desktop preview resolution.
     cap = cv2.VideoCapture(CAMERA_INDEX)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
 
     if not cap.isOpened():
-        print("❌ Kamera acilamadi!")
+        print("HATA: Kamera acilamadi!")
         return
 
     print("\n  Kontroller:")
@@ -228,12 +226,10 @@ def collect_dynamic_data(
 
             hand_visible = results.multi_hand_landmarks is not None
 
-            # Draw the current hand when available.
             if hand_visible:
                 for hand_lm in results.multi_hand_landmarks:
                     mp_draw.draw_landmarks(frame, hand_lm, mp.solutions.hands.HAND_CONNECTIONS)
 
-            # Persistent status band.
             cv2.rectangle(frame, (0, 0), (w, 90), (30, 30, 30), -1)
             cv2.putText(
                 frame,
@@ -246,7 +242,6 @@ def collect_dynamic_data(
                 cv2.LINE_AA,
             )
 
-            # Hand-visibility indicator.
             if hand_visible:
                 cv2.putText(
                     frame,
@@ -272,7 +267,6 @@ def collect_dynamic_data(
 
             # Idle: wait for the user to start a recording.
             if state == "idle":
-                # Show sign instructions beside the camera view.
                 _draw_text_block(
                     frame,
                     instructions,
@@ -283,7 +277,6 @@ def collect_dynamic_data(
                     thickness=1,
                     line_gap=26,
                 )
-                # Emphasize the start action in the center.
                 cv2.putText(
                     frame,
                     "SPACE ile baslat",
@@ -313,7 +306,6 @@ def collect_dynamic_data(
                 remaining = COUNTDOWN_SECONDS - elapsed
 
                 if remaining > 0:
-                    # Draw the remaining count prominently.
                     num = int(remaining) + 1
                     cv2.putText(
                         frame,
@@ -336,7 +328,6 @@ def collect_dynamic_data(
                         cv2.LINE_AA,
                     )
 
-                    # Keep the gesture reminder visible below.
                     _draw_text_block(
                         frame,
                         instructions[:3],
@@ -348,7 +339,6 @@ def collect_dynamic_data(
                         line_gap=22,
                     )
                 else:
-                    # Start with an empty sequence after the countdown.
                     state = "recording"
                     frame_buffer = []
                     detected_frames = 0
@@ -366,7 +356,6 @@ def collect_dynamic_data(
 
                 progress = len(frame_buffer) / frames_per_sequence
 
-                # Make recording state visually explicit.
                 cv2.putText(
                     frame,
                     "KAYIT",
@@ -378,7 +367,6 @@ def collect_dynamic_data(
                     cv2.LINE_AA,
                 )
 
-                # Display captured-frame progress.
                 cv2.putText(
                     frame,
                     f"{len(frame_buffer)}/{frames_per_sequence} frame",
@@ -390,14 +378,12 @@ def collect_dynamic_data(
                     cv2.LINE_AA,
                 )
 
-                # Blink a red recording indicator.
+                # A blinking red dot marks the recording.
                 if int(time.time() * 3) % 2 == 0:
                     cv2.circle(frame, (w - 40, 45), 12, (0, 0, 255), -1)
 
-                # Mirror progress at the bottom edge.
                 _draw_progress_bar(frame, progress)
 
-                # Validate hand coverage after the sequence completes.
                 if len(frame_buffer) >= frames_per_sequence:
                     state = "checking"
 
@@ -408,7 +394,6 @@ def collect_dynamic_data(
                 )
 
                 if detection_ratio >= MIN_HAND_DETECTION_RATIO:
-                    # Persist recordings that pass the visibility gate.
                     seq_array = np.array(frame_buffer[:frames_per_sequence], dtype=np.float32)
                     save_path = os.path.join(sign_dir, f"seq_{seq_idx}.npy")
                     np.save(save_path, seq_array)
@@ -417,7 +402,9 @@ def collect_dynamic_data(
                     last_quality_msg = (
                         f"Kayit {seq_idx}/{target} BASARILI (el: {detection_ratio:.0%})"
                     )
-                    print(f"    ✓ Kayit {seq_idx}/{target} (el algilama: {detection_ratio:.0%})")
+                    print(
+                        f"    Kayit {seq_idx}/{target} BASARILI (el algilama: {detection_ratio:.0%})"
+                    )
                     state = "pause"
                     pause_start = time.time()
                 else:
@@ -425,7 +412,7 @@ def collect_dynamic_data(
                     total_rejected += 1
                     last_quality_msg = f"Reddedildi: el {detection_ratio:.0%} algilandi (min {MIN_HAND_DETECTION_RATIO:.0%}). Tekrar deneyin!"
                     print(
-                        f"    ✗ Reddedildi (el algilama: {detection_ratio:.0%} < {MIN_HAND_DETECTION_RATIO:.0%})"
+                        f"    Reddedildi (el algilama: {detection_ratio:.0%} < {MIN_HAND_DETECTION_RATIO:.0%})"
                     )
                     state = "idle"
 
@@ -462,7 +449,6 @@ def collect_dynamic_data(
                     state = "countdown"
                     countdown_start = time.time()
 
-            # Draw keyboard controls before presenting the frame.
             cv2.putText(
                 frame,
                 "SPACE:Baslat  R:Tekrarla  S:Atla  Q:Cik",
@@ -494,7 +480,7 @@ def collect_dynamic_data(
                         seq_idx -= 1
                         total_saved -= 1
                         last_quality_msg = f"Son kayit silindi. Tekrar: {seq_idx}/{target}"
-                        print(f"    ↺ Kayit {seq_idx + 1} silindi, tekrar")
+                        print(f"    Kayit {seq_idx + 1} silindi, tekrar")
                 state = "idle"
                 frame_buffer = []
 
@@ -516,7 +502,7 @@ def collect_dynamic_data(
     hands.close()
 
     print("\n  ═══════════════════════════════════════")
-    print("  ✅ Veri toplama tamamlandi!")
+    print("  Veri toplama tamamlandi!")
     print(f"  Kaydedilen:  {total_saved}")
     print(f"  Reddedilen:  {total_rejected}")
     print(f"  Kayit dizini: {DYNAMIC_DIR}")
@@ -540,7 +526,7 @@ def load_jz_data():
     for sign, idx in label_map.items():
         sign_dir = os.path.join(DYNAMIC_DIR, sign)
         if not os.path.isdir(sign_dir):
-            print(f"  ⚠ {sign_dir} bulunamadı")
+            print(f"  UYARI: {sign_dir} bulunamadı")
             continue
 
         npy_files = sorted([f for f in os.listdir(sign_dir) if f.endswith(".npy")])
@@ -562,7 +548,7 @@ def load_jz_data():
                     X_list.append(padded)
                 y_list.append(idx)
             else:
-                print(f"  ⚠ Beklenmeyen boyut: {f} → {seq.shape}")
+                print(f"  UYARI: Beklenmeyen boyut: {f} → {seq.shape}")
 
         print(f"  [{sign}] {sum(1 for label in y_list if label == idx)} sekans yüklendi")
 
@@ -581,14 +567,13 @@ def train_jz_model(
     """Train and evaluate the optional J/Z desktop LSTM."""
 
     print("\n" + "=" * 60)
-    print("  🧠 J/Z LSTM Modeli Eğitimi")
+    print("  J/Z LSTM Modeli Eğitimi")
     print("=" * 60)
 
-    # Load user-recorded local data.
     X, y, label_map = load_jz_data()
 
     if len(X) < 10:
-        print(f"\n❌ HATA: Yeterli veri yok! ({len(X)} sekans)")
+        print(f"\nHATA: Yeterli veri yok! ({len(X)} sekans)")
         print(
             "  Önce veri toplayın: python scripts/model_training/train_dynamic_jz_model.py collect"
         )
@@ -607,7 +592,6 @@ def train_jz_model(
 
     print(f"  Train: {len(y_train)}, Val: {len(y_val)}, Test: {len(y_test)}")
 
-    # Build deterministic tensor loaders.
     train_dl = DataLoader(
         TensorDataset(torch.tensor(X_train), torch.tensor(y_train)),
         batch_size=batch_size,
@@ -690,7 +674,6 @@ def train_jz_model(
     if best_state:
         model.load_state_dict(best_state)
 
-    # Report held-out accuracy.
     model.eval()
     test_dl = DataLoader(
         TensorDataset(torch.tensor(X_test), torch.tensor(y_test)),
@@ -715,7 +698,7 @@ def train_jz_model(
         json.dump(label_map, f, indent=2)
 
     print(f"\n{'=' * 60}")
-    print("  ✅ J/Z Modeli Tamamlandı!")
+    print("  J/Z Modeli Tamamlandı!")
     print(f"  Test doğruluk: {test_acc:.1%}")
     print(f"  Model: {JZ_MODEL_PATH}")
     print(f"{'=' * 60}")

@@ -13,8 +13,7 @@ import warnings
 
 import joblib
 import numpy as np
-from asl_ml.features.letter_features import extract_features
-from asl_ml.utils import invert_label_map, load_label_map
+from asl_features.letter import extract_features
 
 from asl_desktop.config import LETTER_LABEL_MAP_PATH, LETTER_MODEL_PATH
 from asl_desktop.services.personalization import PersonalizedKNN
@@ -57,8 +56,10 @@ class LetterClassifier:
             return False
 
         self.model = joblib.load(model_path)
-        self.label_map = load_label_map(label_map_path)
-        self.inv_label_map = invert_label_map(self.label_map)
+        with open(label_map_path, encoding="utf-8") as f:
+            self.label_map = json.load(f)
+        # Older exports wrote the class index as a string.
+        self.inv_label_map = {int(index): label for label, index in self.label_map.items()}
 
         meta_path = os.path.splitext(model_path)[0] + "_meta.json"
         if os.path.exists(meta_path):

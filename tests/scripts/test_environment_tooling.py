@@ -2,8 +2,8 @@
 
 These run the command rather than reading the Makefile, because what matters is
 the process result a user or a script sees. A package that is installed but
-cannot be imported is the case this covers: the report named it correctly while
-the command still succeeded, so anything checking the exit code read a faulty
+cannot be imported is the case this covers: if the report names it but the
+command still succeeds, anything checking the exit code reads a faulty
 environment as ready.
 
 Each doctor run imports every project package, about a second, so the two runs
@@ -77,8 +77,8 @@ def test_doctor_fails_when_an_installed_package_cannot_be_imported(doctor_runs) 
     """A broken native library is a fault, not a step the user has yet to take.
 
     The package is found, so it is not missing; importing it raises, which is
-    what a mismatched native library looks like. Reporting that as success let
-    a broken environment pass for a ready one.
+    what a mismatched native library looks like. Reporting that as success
+    would let a broken environment pass for a ready one.
     """
 
     result = doctor_runs["broken import"]

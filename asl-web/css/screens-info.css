@@ -1,4 +1,5 @@
-/* The information screens: Kamerasız dene, Telefonda aç and Nasıl çalışır.
+/* The information screens: #test ("Kamerasız dene"), #qr ("Telefonda aç")
+ * and #project ("Nasıl çalışır").
  *
  * They share a page frame and a few components (a choice group, a notice, a
  * list of facts), so those live at the top; each screen's own layout follows.
@@ -10,7 +11,7 @@
  */
 
 @layer screens {
-  /* ── The page frame ───────────────────────────────────────────────── */
+  /* The page frame */
 
   /* layout.css gives the workspace a fixed laptop height and a two-column
      grid for the camera. These screens are ordinary documents that scroll. */
@@ -97,7 +98,7 @@
     .page { padding-inline: var(--sp-8); }
   }
 
-  /* ── Kamerasız dene ───────────────────────────────────────────────── */
+  /* Model Test screen (#test) */
 
   .mt__grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); }
   .mt__main, .mt__side { display: grid; align-content: start; gap: var(--sp-4); min-width: 0; }
@@ -118,8 +119,8 @@
     color: var(--color-selected-fg);
   }
 
-  /* The legacy layer still styles .model-test-advanced as a boxed card;
-     the class stays because the guided-actions contract names it. */
+  /* The legacy layer styles .model-test-advanced as a boxed card; the class
+     stays because the tests find the advanced section by it. */
   .mt .mt__advanced {
     margin: 0;
     padding: var(--sp-3) 0 0;
@@ -245,7 +246,7 @@
     .mt__prediction-value { font-size: var(--fs-2xl); }
   }
 
-  /* ── Telefonda aç ─────────────────────────────────────────────────── */
+  /* QR screen (#qr) */
 
   .qr { max-width: 60rem; }
   .qr__copy { display: grid; align-content: start; gap: var(--sp-5); min-width: 0; }
@@ -316,7 +317,7 @@
     .qr__tile { width: min(100%, 240px); }
   }
 
-  /* ── Nasıl çalışır ────────────────────────────────────────────────── */
+  /* Project screen (#project) */
 
   .page a:not(.btn) { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
   .pj__cta { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }

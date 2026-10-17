@@ -1,9 +1,12 @@
 # scripts
 
-Command-line tools that sit around the models: preparing data, training,
-exporting fixtures, and checking that what the browser loads is what the
-sources say. None of them runs inside the web app, and `asl-web/` never imports
-them.
+<sub>Location: [`asl-assistant`](../README.md) / `scripts`</sub>
+
+<sub>Related: [`data/`](../data/README.md) · [`docs/models-and-data.md`](../docs/models-and-data.md) · [`tests/`](../tests/README.md) · [`docs/getting-started.md`](../docs/getting-started.md)</sub>
+
+Command-line tools around the models: preparing data, training, exporting
+fixtures, and checking that what the browser loads matches its sources. None of
+them runs inside the web app, and `asl-web/` never imports them.
 
 ```text
 scripts/
@@ -14,10 +17,10 @@ scripts/
 └── tooling/            Python environment diagnosis behind `make doctor` and `make setup`
 ```
 
-Run everything from the repository root. The `validation/` and `tooling/`
-scripts are what `make validate`, `make health` and `make doctor` call, so most
-people never need to run them directly. `data_preparation/`, `model_training/`
-and `evaluation/` need the full dependency set from `requirements.txt` and, for
+Run everything from the repository root. `make validate`, `make health` and
+`make doctor` call the `validation/` and `tooling/` scripts, so most people
+never run those directly. `data_preparation/`, `model_training/` and
+`evaluation/` need the full dependency set from `requirements.txt` and, for
 anything that reads a dataset, files under `data/` that you download yourself.
 
 ## Common commands
@@ -37,16 +40,14 @@ python scripts/evaluation/export_model_test_word_samples.py \
   --samples-per-word 1
 ```
 
-Run `make doctor` before `make setup`. It only reports. `make setup` installs,
-and stops first when the active Python is the wrong one (Apple's
-CommandLineTools Python, a conda base environment, or an interpreter outside the
-activated environment).
+`make doctor` only reports; `make setup` installs, and refuses to install into
+the wrong environment. [Tooling](tooling/README.md) explains both.
 
 ## Exit codes
 
-The validation scripts and the parity checks in `tests/validation/` share one
-contract, so that a script or a Make target can tell a failed check from one
-that could not run:
+The validation scripts, the parity checks in `tests/validation/` and the
+browser checks share one contract, so that a script or a Make target can tell a
+failed check from one that could not run:
 
 | Code | Meaning |
 |---:|---|
@@ -54,21 +55,27 @@ that could not run:
 | 1 | a check ran and failed |
 | 2 | bad usage, or a required tool is missing (Node.js, ONNX Runtime), so nothing was verified |
 
-A missing tool is never reported as success. Each workflow README lists the
-exceptions to this table.
+A missing tool is never reported as success. The exceptions:
+
+- `doctor.py` exits 0 when a package is missing, because that is a setup step
+  still to take, and 1 only when a package is installed but cannot be imported.
+- `setup_guard.py` exits 2 when it refuses to install.
+- The local dataset report of `verify_project_assets.py` never changes its
+  exit code.
 
 ## Where things are read and written
 
-Data preparation and static-letter training import `asl_ml.config` for the
-shared ML contracts (class lists, feature sizes). The experimental J/Z trainer
-imports `asl_desktop.config` because it targets the desktop sequence runtime.
-Input and output paths are defined inside each script.
+Data preparation and static-letter training import `asl_features` for the
+shared ML contracts (class lists, landmark normalization, the 93D letter
+features). The experimental J/Z trainer also imports `asl_desktop.config`,
+because it targets the desktop sequence runtime. Each script defines its own
+input and output paths.
 
-Raw and generated datasets live under `data/`, which Git ignores apart from its
-README. Replacing a model or a runtime JSON file is a coordinated export change
-across several files; see the [models and data contract](../docs/models-and-data.md).
+Raw and generated datasets live under `data/raw/` and `data/processed/`, which
+Git ignores. Replacing a model or a runtime JSON file changes several files
+together; see the [models and data contract](../docs/models-and-data.md).
 
-Each workflow has a README with its scope and output boundary:
+Each folder has its own README:
 
 - [Data preparation](data_preparation/README.md)
 - [Model training](model_training/README.md)

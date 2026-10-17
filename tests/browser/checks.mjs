@@ -7,8 +7,8 @@
 // style, layout boxes or the CSSOM, never the source text, so a harmless move
 // of a rule from one file to another changes nothing here.
 //
-// Each check names the fault it is there to catch. tests/browser/README.md
-// lists them with the mutation each was shown to fail on.
+// Each check's summary names what it guards; tests/browser/README.md describes
+// every check.
 
 /** The camera modes; each has its own controls, tagged `<mode>-only`. */
 export const CAMERA_MODES = ["letter", "word", "coach"];

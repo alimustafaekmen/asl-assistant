@@ -82,3 +82,21 @@ def test_load_rejects_missing_inputs(tmp_path):
     classifier = LetterClassifier()
     assert classifier.load(str(tmp_path / "missing.pkl"), str(tmp_path / "missing.json")) is False
     assert classifier.is_loaded is False
+
+
+def test_a_label_map_with_string_indices_still_names_the_classes(monkeypatch, tmp_path):
+    """Older exports wrote the class index as a string; it must still map."""
+    model_path = tmp_path / "letter_model.pkl"
+    label_path = tmp_path / "letter_labels.json"
+    model_path.touch()
+    label_path.write_text(json.dumps({"A": "0", "B": "1", "C": "2"}), encoding="utf-8")
+    monkeypatch.setattr(
+        classifier_module.joblib, "load", lambda _: FakeProbabilityModel([0.1, 0.7, 0.2])
+    )
+
+    classifier = LetterClassifier()
+    assert classifier.load(str(model_path), str(label_path)) is True
+    label, _, top3 = classifier.predict(np.zeros(63, dtype=np.float32))
+
+    assert label == "B"
+    assert [item[0] for item in top3] == ["B", "C", "A"]

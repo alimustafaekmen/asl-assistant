@@ -1,9 +1,13 @@
 # Data
 
+<sub>Location: [`asl-assistant`](../README.md) / `data`</sub>
+
+<sub>Related: [`docs/models-and-data.md`](../docs/models-and-data.md) · [`scripts/data_preparation/`](../scripts/data_preparation/README.md) · [`scripts/model_training/`](../scripts/model_training/README.md) · [`notebooks/`](../notebooks/README.md)</sub>
+
 This is where datasets are downloaded and where generated landmark tables are
 written. Nothing in it ships with the repository: the web app does not read this
-directory (its reviewed runtime data lives in `asl-web/data/`), and the trained
-models contain learned parameters only, not the data.
+directory (its runtime data is in `asl-web/data/`), and the trained models
+contain learned parameters only, not the data.
 
 Only this README is tracked. `raw/`, `processed/` and `reference/` are ignored
 because their contents are large, generated, under separate licences, or specific
@@ -62,7 +66,7 @@ splits and caveats are in [Models and data](../docs/models-and-data.md).
 
 | Source | What happened |
 |---|---|
-| [MediaPipe Processed ASL](https://www.kaggle.com/datasets/vignonantoine/mediapipe-processed-asl-dataset) | Tried for the letter pipeline; the preserved run found no usable hands, so it is not in the final merge |
+| [MediaPipe Processed ASL](https://www.kaggle.com/datasets/vignonantoine/mediapipe-processed-asl-dataset) | Tried for the letter pipeline; the recorded run found no usable hands, so it is not in the final merge |
 | [MS-ASL](https://www.microsoft.com/en-us/research/project/ms-asl/) | Download and extraction scripts exist as an experimental word-data path; neither published word model used it |
 | `raw/asl-signs-sample-subset/` | A small slice of the competition data, used only to export Model Test fixtures |
 
@@ -88,8 +92,8 @@ python scripts/evaluation/download_kaggle_sample_subset.py \
 ```
 
 By default the merge step undersamples every class to the size of the smallest
-one. The preserved final tables are not balanced, so add `--no-balance` to keep
-all rows. The 50-word model is trained in
+one. The final tables behind the published letter model are not balanced, so
+add `--no-balance` to keep all rows. The 50-word model is trained in
 `notebooks/word_50_training.ipynb`; see [notebooks/README.md](../notebooks/README.md).
 The Kaggle download needs your own credentials and an accepted copy of the
 competition rules.

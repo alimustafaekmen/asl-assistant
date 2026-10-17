@@ -1,20 +1,16 @@
 // Reference gallery: sign images, video links, and the viewer dialog.
 //
-// Letter mode shows the single alphabet card. Word contexts show the five-page
+// Letter mode shows the alphabet chart. Word contexts show the five-page
 // split reference, because the combined poster is unreadable at screen size. In
 // coach mode the current target decides which of the two is shown. In word mode
 // a recognised word shows its own card: the page image cropped to the card's
 // rectangle from data/word_reference.json, so no extra image files are needed.
 //
-// Video links come from the same JSON shape the desktop prototype uses. When
-// that file is missing the UI falls back to a generated search URL, so the
-// action button always leads somewhere useful.
+// Video links use the same JSON shape as the desktop prototype.
 
 /**
- * Load the optional reference video links.
- *
- * The file is optional guidance: a missing or unreadable one leaves the
- * generated search fallback in place, so the video action always leads
+ * Load the optional reference video links. A missing or unreadable file
+ * leaves the generated search URL in place, so the video action always leads
  * somewhere.
  *
  * @returns {Promise<void>} Resolves whether or not the links were loaded.
@@ -30,15 +26,13 @@ async function loadReferenceVideoLinks() {
     };
     updateReferenceForMode();
   } catch (err) {
-    // Missing optional link data is handled by the generated search fallback.
+    // Optional: the generated search URL stays in place.
   }
 }
 
 /**
- * Load where each word's card sits on the reference pages.
- *
- * The file is optional: without it the word reference shows whole pages, and
- * a recognised word has no card to show.
+ * Load where each word's card sits on the reference pages. Optional: without
+ * it the word reference shows whole pages only.
  *
  * @returns {Promise<void>} Resolves whether or not the file was loaded.
  */
@@ -70,13 +64,13 @@ async function loadWordReference() {
     const size = Array.isArray(data.page_size) && data.page_size.length === 2 ? data.page_size : [1024, 1536];
     wordReference = {
       pageSize: [Number(size[0]) || 1024, Number(size[1]) || 1536],
-      // Glosses are shown only after a signer has reviewed them (decision 18).
+      // Glosses are shown only after a signer has reviewed them.
       glossReviewed: data.gloss_reviewed === true,
       cards,
     };
     updateReferenceForMode();
   } catch (err) {
-    // Missing optional card data leaves the page view in place.
+    // Optional: the whole-page view stays in place.
   }
 }
 
@@ -109,9 +103,9 @@ function wordCardTitle(card) {
 /**
  * Crop a page image to one card.
  *
- * The frame clips the page image, which the stylesheet scales and offsets
- * from these custom properties; they are set through the CSS object model,
- * which a content security policy allows where an inline style would not be.
+ * The stylesheet scales and offsets the page inside the clipping frame from
+ * these custom properties. They are set through the CSS object model, which
+ * a content security policy allows where an inline style attribute is not.
  *
  * @param {HTMLElement} frame The clipping box.
  * @param {HTMLImageElement} image The page image inside it.
@@ -135,7 +129,7 @@ function showWordCard(frame, image, card) {
 }
 
 /**
- * Which material the reference panel shows now, for the open button.
+ * What the reference panel shows now, so the open button opens the same.
  *
  * @type {{kind: "letter" | "page" | "card", index: number, label: string}}
  */
@@ -148,10 +142,8 @@ let referenceCardShown = "";
 let referencePendingSrc = "";
 
 /**
- * Give the panel image its source once the panel is open.
- *
- * Browsers fetch a hidden image, and a word page is 1.5 MB, so the word
- * reference keeps its source back until somebody can see it.
+ * Give the panel image its source once the panel is open. Browsers fetch even
+ * a hidden image, so a word page is held back until it can be seen.
  *
  * @returns {void}
  */
@@ -164,10 +156,8 @@ function applyReferencePendingSrc() {
 /**
  * Point the reference panel at the right material for the current mode.
  *
- * Word contexts get the five-page split reference rather than the combined
- * poster, which is unreadable at screen size. A recognised word shows its own
- * card instead, and opens the panel the first time that word appears. In coach
- * mode the target decides which of the two applies.
+ * A recognised word shows its own card and opens the panel the first time
+ * that word appears.
  *
  * @returns {void}
  */
@@ -201,8 +191,7 @@ function updateReferenceForMode() {
     const pageIndex = referenceView.kind === "page" ? referenceView.index : 0;
     const refAsset = isWordRef ? REFERENCE_ASSETS.wordPages[pageIndex] : REFERENCE_ASSETS.letter.src;
     if (isWordRef && els.referenceBody.hidden) {
-      // Nobody can see the page yet: keep its 1.5 MB from loading until the
-      // panel opens.
+      // The panel is closed: hold the page back until it opens.
       referencePendingSrc = refAsset;
       els.referenceImage.removeAttribute("src");
     } else {
@@ -268,8 +257,7 @@ function renderReferenceThumbnails(isWordRef) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "reference-thumb";
-    // The thumbs are built here, so they carry their own lookup hook rather
-    // than being found again by the class that styles them.
+    // Found again by this hook, not by the class that styles them.
     button.dataset.ui = "reference-thumb";
     button.textContent = `${index + 1}`;
     button.title = `Kelime referans sayfası ${index + 1}`;
@@ -325,16 +313,13 @@ function setReferenceOpen(open) {
   if (open) applyReferencePendingSrc();
 }
 
-/**
- * Show or hide the reference body.
- *
- * @returns {void}
- */
+/** @returns {void} */
 function toggleReference() {
   setReferenceOpen(els.referenceBody.hidden);
 }
 
-// ── The viewer ────────────────────────────────────────────────────────────
+// The viewer: a modal dialog over the letter chart, a word page, or one
+// word's card.
 
 /**
  * Zoom steps of the viewer, as fractions of the image's natural width. Zero
@@ -390,9 +375,9 @@ function syncReferenceOpener() {
 /**
  * Open the viewer on the letter chart, a word page, or one word's card.
  *
- * It asks the browser for a modal dialog, which makes the rest of the page
- * inert and keeps Tab inside. Without card data a card request shows the
- * first page.
+ * A modal dialog makes the rest of the page inert and keeps Tab inside.
+ * A card request the card data cannot meet shows a page instead: the one
+ * given, or the first.
  *
  * @param {{kind: "letter" | "page" | "card", index?: number, label?: string, opener?: HTMLElement | null}} request
  * @returns {void}
@@ -436,8 +421,8 @@ function closeReferenceViewer() {
 }
 
 /**
- * Focus the control that opened the viewer, once per opening. A control the
- * page has since rebuilt is gone, so the open button stands in for it.
+ * Focus the control that opened the viewer, once per opening. If the page has
+ * rebuilt that control since, the open button stands in for it.
  *
  * @returns {void}
  */
@@ -451,8 +436,8 @@ function restoreViewerFocus() {
 }
 
 /**
- * Draw the viewer for viewerState: the image or the card, its title, and which
- * tools make sense for it. A source is assigned only to the image in use.
+ * Draw the viewer for viewerState: the image or the card, its title, and the
+ * tools that apply to it. Only the image in use is given a source.
  *
  * @returns {void}
  */
@@ -588,10 +573,10 @@ function toggleViewerCard() {
 /**
  * Wire the panel's open controls and the viewer's own.
  *
- * The viewer is a native modal dialog: Escape arrives as its cancel event,
- * which closes through closeReferenceViewer() so focus goes back. A click on
- * the dialog itself, not on its content, is a click on the backdrop. The keys
- * below act only while focus is inside the dialog.
+ * Escape arrives as the dialog's cancel event and closes through
+ * closeReferenceViewer(), so focus goes back. A click on the dialog itself,
+ * not on its content, is a click on the backdrop. The keys act only while
+ * focus is inside the dialog.
  *
  * @returns {void}
  */
@@ -599,7 +584,7 @@ function bindReferenceLightbox() {
   const dialog = viewerDialog();
   if (!dialog) return;
 
-  /** Open on whatever the panel shows, from the control that was used. */
+  /** Open on whatever the panel shows; focus returns to the open button. */
   const openFromPanel = () => {
     openReferenceViewer({
       kind: referenceView.kind,

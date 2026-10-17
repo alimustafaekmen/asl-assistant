@@ -5,9 +5,9 @@
 // covers a stop and a mode change). The fault here is the round trip: the
 // model is still computing, the user switches to letter mode and back, or
 // stops and restarts the camera, and starts nothing new. The recording that
-// result belongs to was abandoned by the switch, yet the result arrived on a
-// word screen with the camera on and was offered for acceptance, so the user
-// could append a word for a recording the screen had already cleared. The
+// result belongs to is abandoned by the switch, yet the result would arrive on
+// a word screen with the camera on and be offered for acceptance, so the user
+// could append a word for a recording the screen has already cleared. The
 // consent invariant needs the result to belong to a recording that is still
 // waiting for it.
 //

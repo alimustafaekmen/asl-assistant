@@ -124,7 +124,7 @@ test("the word guidance panel replaces its chips on a repeat render", () => {
 });
 
 test("an empty prediction list shows a hint instead of a placeholder row", () => {
-  // The old placeholder was a ranked row "#1 - 0%", which read as a result.
+  // A placeholder shaped like a ranked row ("#1 - 0%") would read as a result.
   const app = loadWebApp();
   app.evaluate("state.top3 = [];");
   app.get("renderTop3")();
@@ -135,7 +135,7 @@ test("an empty prediction list shows a hint instead of a placeholder row", () =>
 });
 
 test("the stage says whether its result is a letter or a word", () => {
-  // A word drawn at the letter's display size ran far out of the caption
+  // A word drawn at the letter's display size runs far out of the caption
   // plate; the stylesheet sizes the result from this attribute.
   const app = loadWebApp();
   const updatePrediction = app.get("updatePrediction");

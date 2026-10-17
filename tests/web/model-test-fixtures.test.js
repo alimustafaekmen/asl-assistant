@@ -143,7 +143,7 @@ test("fixture metadata falls back to documented defaults", () => {
 test("isRecord accepts anything whose properties can be read", () => {
   assert.equal(isRecord({}), true);
   assert.equal(isRecord({ features: [] }), true);
-  // Arrays pass, as the earlier typeof check did; the field reads reject them.
+  // Arrays pass here; the field reads reject them (see the next test).
   assert.equal(isRecord([]), true);
 
   assert.equal(isRecord(null), false);
@@ -174,6 +174,6 @@ test("hand-written metadata is read as text", () => {
   assert.equal(sample.expectedLabel, "5");
   assert.equal(sample.sampleId, "12");
   assert.equal(sample.schemaVersion, "1");
-  // A falsy source falls through to the caller's name, as before.
+  // A falsy source falls through to the caller's name.
   assert.equal(sample.source, "numbers.json");
 });

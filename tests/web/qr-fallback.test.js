@@ -1,7 +1,7 @@
 // The "open on your phone" screen without its QR library.
 //
-// kjua comes from a CDN. If it is blocked, offline or throws, the screen used
-// to draw a placeholder picture and say the library failed, which left the
+// kjua comes from a CDN, and it can be blocked, offline or throw. A
+// placeholder picture and a line saying the library failed would leave the
 // visitor without the one thing the screen is for. The link is the fallback:
 // it must be shown, readable and copyable. kjua is the boundary faked here.
 

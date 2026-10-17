@@ -1,7 +1,7 @@
 // Confirmations: the toast the user sees and the line a screen reader hears.
 //
-// Copy feedback used to go to the camera status chip, which the status loop
-// rewrites every second, and clearing the transcript could not be undone.
+// Copy feedback goes to the toast, not to the camera status chip, which the
+// status loop rewrites every second; and clearing the transcript can be undone.
 // The clock and the clipboard are faked; everything else is the app's own.
 
 import assert from "node:assert/strict";
@@ -111,10 +111,10 @@ test("an undo toast waits while it has focus or the pointer, then returns focus"
   assert.equal(app.evaluate("__returned"), 1, "after undo, focus goes back to the clear button");
 });
 
-// A second clear while the first one's undo is still offered used to replace
-// that undo, so "Geri al" brought back only the second part and the first
-// was lost for good. While the toast is up, clears add up; "Geri al" restores
-// all of it, in order.
+// A second clear while the first one's undo is still offered must not replace
+// that undo, or "Geri al" would bring back only the second part and lose the
+// first for good. While the toast is up, clears add up; "Geri al" restores all
+// of it, in order.
 
 test("a second clear keeps the first restorable", () => {
   const { app } = loadApp();

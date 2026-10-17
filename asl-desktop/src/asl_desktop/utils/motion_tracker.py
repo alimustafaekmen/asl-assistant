@@ -46,7 +46,6 @@ class MotionTracker:
         if len(self._history) < self.history_size:
             return True  # Wait for a complete history before accepting a pose.
 
-        # Average the L2 displacement between adjacent frames.
         displacements = []
         for i in range(1, len(self._history)):
             dist = float(np.linalg.norm(self._history[i] - self._history[i - 1]))

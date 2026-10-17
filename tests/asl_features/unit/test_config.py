@@ -1,6 +1,6 @@
 """Behavioral contracts for shared Python ML configuration."""
 
-from asl_ml import config
+from asl_features import config
 
 
 def test_static_letter_domain_is_exactly_the_published_24_classes() -> None:

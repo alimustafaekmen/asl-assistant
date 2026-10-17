@@ -145,7 +145,8 @@ function createHoldTracker({ holdMs, minConfidence, graceMs, releaseMs }) {
         if (!held) return idle();
         startHold(target, now);
       } else if (now - lastHeldAt > graceMs) {
-        // The dip outlasted the grace.
+        // The dip outlasted the grace: start over, from now if this frame
+        // holds.
         if (!held) {
           dropHold();
           return idle();

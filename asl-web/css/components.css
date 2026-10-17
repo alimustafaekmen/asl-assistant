@@ -7,10 +7,9 @@
  */
 
 @layer components {
-  /* ── Icons ──────────────────────────────────────────────────────────
-     Drawn as a mask on ::before, coloured by currentColor. The scripts
-     rewrite some button labels with textContent, which would delete a child
-     <svg>; a pseudo-element on the button itself survives that. */
+  /* Icons: drawn as a mask on ::before, coloured by currentColor. The
+     scripts rewrite some button labels with textContent, which would delete
+     a child <svg>; a pseudo-element on the button itself survives that. */
   [data-icon]::before {
     content: "";
     flex: none;
@@ -38,7 +37,7 @@
   [data-icon="retry"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12a9 9 0 0 1 15-6.7L21 8'/%3E%3Cpath d='M21 3v5h-5'/%3E%3Cpath d='M21 12a9 9 0 0 1-15 6.7L3 16'/%3E%3Cpath d='M3 21v-5h5'/%3E%3C/svg%3E"); }
   [data-icon="external"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/%3E%3C/svg%3E"); }
 
-  /* ── Brand ───────────────────────────────────────────────────────── */
+  /* Brand */
   .brand {
     display: inline-flex;
     align-items: center;
@@ -57,9 +56,8 @@
   .brand__mark line { stroke: var(--brand-caret); }
   .brand__name { font-size: 1.0625rem; font-weight: var(--fw-bold); letter-spacing: -0.005em; }
 
-  /* ── Buttons ─────────────────────────────────────────────────────────
-     One base, a few variants. Disabled is visibly different (dashed edge,
-     sunken fill), not only fainter. */
+  /* Buttons: one base, a few variants. Disabled is visibly different
+     (dashed edge, sunken fill), not only fainter. */
   .btn {
     display: inline-flex;
     align-items: center;
@@ -130,7 +128,7 @@
   /* The mono face has no keyboard symbols; the system face draws them. */
   .kbd--symbol { font-family: system-ui, sans-serif; font-size: var(--fs-sm); }
 
-  /* ── Mode switch ───────────────────────────────────────────────────── */
+  /* Mode switch */
   .modes {
     min-width: 0;
     display: flex;
@@ -204,9 +202,8 @@
     background: var(--color-error);
   }
 
-  /* ── Stage ───────────────────────────────────────────────────────────
-     The mirror. Its frame carries the state the app writes to data-state:
-     idle, low, maybe, good, recording. */
+  /* Stage: the mirror. Its frame carries the state the app writes to
+     data-state: idle, low, maybe, good, recording. */
   .stage {
     position: relative;
     overflow: hidden;
@@ -340,9 +337,9 @@
      while a camera problem shows; it takes no part in the layout. */
   .stage__intro { display: contents; }
 
-  /* Camera problem (Tel-Izin): replaces the first-visit content when the
-     camera cannot open. The phone layout is the base; part of its geometry is
-     refined with the plate move. */
+  /* Camera problem: replaces the first-visit content when the camera cannot
+     open. These are the phone rules; layout.css adjusts them to the stage's
+     height and to phone landscape. */
   .stage__problem {
     display: flex;
     flex-direction: column;
@@ -400,9 +397,8 @@
     color: var(--stage-text-2);
   }
   .stage__help-steps strong { color: var(--stage-text); }
-  /* While a problem shows, the plate's message line repeats it under the
-     block; the block is the one place it is read. With the plate gone the
-     stage needs no room kept for it at the bottom. */
+  /* While a problem shows, the plate's message line would only repeat it,
+     so the plate is hidden and the stage keeps no room for it. */
   .stage:has(.stage__problem:not([hidden])) + .plate { display: none; }
   .stage__empty:has(> .stage__problem:not([hidden])) { padding-block: var(--sp-12) var(--sp-6); }
   /* Short phones: the icon goes first, as the illustration does. */
@@ -415,11 +411,10 @@
   .stage__close { display: none; }
   .stage:has(> .stage__empty[hidden]) .stage__close { display: inline-flex; }
 
-  /* ── Caption plate ───────────────────────────────────────────────────
-     The one place the current result lives. With the camera off only its
-     message line shows, so loading and errors are never off screen. It is
-     the stage's next sibling, so it reads the stage's state through "+";
-     layout.css places it over the stage or beside it. */
+  /* Caption plate: the one place the current result lives. With the camera
+     off only its message line shows, so loading and errors are never off
+     screen. It is the stage's next sibling, so it reads the stage's state
+     through "+"; layout.css places it over the stage or beside it. */
   .plate {
     z-index: var(--z-stage-plate);
     display: flex;
@@ -490,7 +485,7 @@
   }
 
   /* Three bars: level by count as well as by colour. Not named meter: the
-     legacy word card already uses that class for its progress bar. */
+     legacy layer styles .meter as the word recording's progress bar. */
   .signal { display: inline-flex; align-items: flex-end; gap: 3px; height: 17px; }
   .signal i { width: 5px; border-radius: 2px; background: var(--stage-bar-off); }
   .signal i:nth-child(1) { height: 9px; }
@@ -590,7 +585,7 @@
      would be 1.6:1 here. */
   .toast :focus-visible { outline-color: var(--color-focus); }
 
-  /* ── Transcript strip ──────────────────────────────────────────────── */
+  /* Transcript strip */
   .strip {
     display: flex;
     align-items: center;
@@ -611,8 +606,8 @@
     letter-spacing: 0.04em;
     white-space: nowrap;
     /* Scrolled to its end by the app, so the newest letter shows; an ellipsis
-       at the end hid exactly that letter. The scrollbar would only take
-       height from a 56 px strip. */
+       at the end would hide exactly that letter. The scrollbar would only
+       take height from a 56 px strip. */
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
@@ -648,7 +643,7 @@
   .strip__text[data-empty="true"] .cursor { display: none; }
   .strip .btn--icon { width: var(--size-target); min-height: var(--size-target); }
 
-  /* ── Panels (laptop side column, phone below the fold) ────────────── */
+  /* Panels: the side column on a laptop, below the fold on a phone */
   .panel {
     display: grid;
     gap: var(--sp-3);
@@ -692,7 +687,7 @@
     font-size: var(--fs-sm);
   }
 
-  /* Reference card. */
+  /* Reference card */
   .reference__body { display: grid; gap: var(--sp-3); }
   .reference__body img {
     width: 100%;
@@ -718,16 +713,15 @@
     border-color: transparent;
   }
 
-  /* Shortcut list. */
+  /* Shortcut list */
   .shortcuts { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-2) var(--sp-3); align-items: center; margin: 0; }
   .shortcuts dt { margin: 0; }
   .shortcuts dd { margin: 0; font-size: var(--fs-sm); color: var(--color-text-2); }
 
-  /* ── Start-up error ─────────────────────────────────────────────────
-     Shown when the app could not start, so the page does not look ready
-     while every button does nothing. It floats under the top bar, over
-     whatever screen the markup shows, and is announced by the app through
-     #announcer, so it is not a live region itself. */
+  /* Start-up error: shown when the app could not start, so the page does not
+     look ready while every button does nothing. It floats under the top bar,
+     over whatever screen the markup shows, and is announced by the app
+     through #announcer, so it is not a live region itself. */
   .startup-error {
     position: fixed;
     top: calc(var(--size-topbar) + var(--sp-2));
@@ -748,8 +742,8 @@
     transform: translateX(-50%);
   }
 
-  /* ── Skip link ──────────────────────────────────────────────────────
-     Off screen until it has keyboard focus, then above the top bar. */
+  /* Skip link: off screen until it has keyboard focus, then above the top
+     bar. */
   .skip-link {
     position: absolute;
     top: var(--sp-2);
@@ -771,7 +765,7 @@
      the whole page. */
   main[tabindex="-1"]:focus { outline: none; }
 
-  /* ── Popover menu (phone "Diğer") ─────────────────────────────────── */
+  /* Popover menu: "Diğer" on a phone */
   .menu {
     margin: 0;
     padding: var(--sp-2);

@@ -1,11 +1,10 @@
 // A small DOM built from the real index.html, for the vm harness.
 //
-// The harness used to hand out one blank stub for any id it was asked for, so
-// markup and scripts could drift apart without a single node test noticing.
-// This module parses the static document instead and gives the scripts the
-// elements it actually holds: getElementById() returns null for an id the
-// markup lacks, and every element starts with the markup's attributes,
-// dataset, hidden, classList and text.
+// A blank stub for any id would let markup and scripts drift apart without a
+// single node test noticing. This module parses the static document and gives
+// the scripts the elements it actually holds: getElementById() returns null
+// for an id the markup lacks, and every element starts with the markup's
+// attributes, dataset, hidden, classList and text.
 //
 // It is a parse of HTML, not a match over it. The tokenizer reads tags,
 // attributes (quoted, unquoted, valueless), comments, void elements, raw text
@@ -286,9 +285,7 @@ function dedupeAttrs(attrs, foreign) {
   return out;
 }
 
-// ---------------------------------------------------------------------------
 // Selectors
-// ---------------------------------------------------------------------------
 
 const IDENT_CHAR = (ch) => isAsciiAlpha(ch) || (ch >= "0" && ch <= "9") || ch === "-" || ch === "_";
 
@@ -470,9 +467,7 @@ export function matchesSelector(element, selector) {
   return matchesList(element, compiled(selector));
 }
 
-// ---------------------------------------------------------------------------
 // Nodes
-// ---------------------------------------------------------------------------
 
 const camelFromData = (name) => name.slice(5).replace(/-([a-z])/g, (_, ch) => ch.toUpperCase());
 const dataFromCamel = (key) => `data-${key.replace(/[A-Z]/g, (ch) => `-${ch.toLowerCase()}`)}`;
@@ -725,7 +720,7 @@ export function createDomClasses({ listenerLog }) {
       return [...this._childNodes];
     }
 
-    // Anything a test appends counts as a child, as the old stub's list did;
+    // Anything a test appends counts as a child, a plain object included;
     // only text and comment nodes are left out, as in the browser.
     get children() {
       return this._childNodes.filter((node) => !(node instanceof StubText || node instanceof StubComment));

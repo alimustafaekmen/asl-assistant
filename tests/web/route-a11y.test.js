@@ -180,8 +180,8 @@ test("the page has one banner, one main, the mode navigation and the details asi
   assert.equal(count("main"), 1);
   assert.equal(count('nav[aria-label="Mod"]'), 1);
   assert.equal(count("aside"), 1);
-  // A labelled section is a region landmark; the workspace inside <main>
-  // repeated main as a second, unhelpful one.
+  // A labelled section is a region landmark, so a labelled workspace inside
+  // <main> would repeat main as a second, unhelpful one.
   const workspace = page.app.evaluate('document.querySelector("[data-ui=workspace]")');
   assert.equal(workspace.getAttribute("aria-label"), null, "the workspace is not a second main landmark");
 });

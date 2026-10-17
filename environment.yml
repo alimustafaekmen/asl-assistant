@@ -8,5 +8,5 @@ dependencies:
   - pip
   - pip:
       - -r requirements-dev.txt
-      - -e ./asl-ml
+      - -e ./asl-features
       - -e ./asl-desktop

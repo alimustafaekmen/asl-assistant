@@ -87,9 +87,7 @@ async function appAnsweringAt(p) {
   return ctx;
 }
 
-// ---------------------------------------------------------------------------
 // Which results may be offered, and which may be appended
-// ---------------------------------------------------------------------------
 
 test("a result below the accept threshold cannot be appended, and its accept button stays disabled", async () => {
   const ctx = await appAnsweringAt(0.12);
@@ -172,9 +170,7 @@ test("a finished word recording in the coach is not offered for the transcript",
   assert.equal(acceptDisabled(app), true, "the transcript belongs to word mode; the coach does not offer accept");
 });
 
-// ---------------------------------------------------------------------------
 // Starting
-// ---------------------------------------------------------------------------
 
 test("a second start during the countdown does not restart it", async () => {
   const ctx = await bootedWordApp();
@@ -267,9 +263,7 @@ test("the record button rule treats a running recording as busy", async () => {
   assert.equal(sync(), false, "result: a new recording can be started");
 });
 
-// ---------------------------------------------------------------------------
 // Stopping, and moving away, during a recording
-// ---------------------------------------------------------------------------
 
 const LEAVES = {
   "the camera toggle": (app) => app.get("toggleCamera")(),
@@ -403,9 +397,7 @@ test("a coach switch to a letter target while the model computes discards the wo
   assert.deepEqual(buffers(app), EMPTY_BUFFERS);
 });
 
-// ---------------------------------------------------------------------------
 // Retry
-// ---------------------------------------------------------------------------
 
 test("retry is disabled while a recording runs and available on a finished result", async () => {
   const ctx = await bootedWordApp();
@@ -465,9 +457,7 @@ test("retry is unavailable when the camera is off", async () => {
   assert.equal(click(app, "retryWord"), false);
 });
 
-// ---------------------------------------------------------------------------
 // The motion buffers are empty after every way out of a recording
-// ---------------------------------------------------------------------------
 
 test("a finished recording leaves no frames, previous frame or visibility counts behind", async () => {
   const ctx = await bootedWordApp();

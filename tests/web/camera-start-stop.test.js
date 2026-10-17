@@ -100,7 +100,7 @@ test("a stop while the models load after a hand-tracking failure reports nothing
   await flush();
   camera.created("hand")[1].reject(new Error("offline"));
   await flush();
-  // The start now waits for the model download before it reports the failure.
+  // Here the start waits for the model download before it reports the failure.
   assert.equal(camera.onnx.pending.length, 1, "precondition: the letter model is loading");
 
   app.get("toggleCamera")();

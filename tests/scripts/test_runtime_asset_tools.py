@@ -1,8 +1,8 @@
 """What the runtime asset check reports when ONNX Runtime cannot be imported.
 
-The check used to print that the ONNX step was skipped and then "DEPLOY
-GUVENLI" with exit 0, so an environment that could not look at the models
-reported them as verified. A missing required tool is exit 2 under the
+A check that printed that the ONNX step was skipped and then "DEPLOY
+GUVENLI" with exit 0 would report models it could not look at as verified.
+A missing required tool is exit 2 under the
 repository's exit-code contract: the check did not run, which is neither a
 pass nor a contract failure. `--no-onnx` is the explicit way to leave it out.
 

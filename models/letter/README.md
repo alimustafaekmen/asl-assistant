@@ -1,5 +1,9 @@
 # Static letter model
 
+<sub>Location: [`asl-assistant`](../../README.md) / [`models`](../README.md) / `letter`</sub>
+
+<sub>Related: [`docs/models-and-data.md`](../../docs/models-and-data.md) · [`scripts/model_training/`](../../scripts/model_training/README.md)</sub>
+
 A LightGBM classifier that reads a 93-value hand feature vector and predicts one
 of 24 static letters. J and Z need motion and are not in the model, the label map
 or any deployed file.

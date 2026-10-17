@@ -3,9 +3,9 @@
 // The web app has no build step and no module system: index.html loads plain
 // <script> files that share one global scope. A vm context reproduces that
 // setup closely enough to exercise the app without a browser and without
-// adding a dependency. It also reproduces the failure mode that matters most
-// while modules are being split apart: declaring the same const/let in two
-// scripts throws a SyntaxError here exactly as it would in the browser.
+// adding a dependency. It also reproduces the failure a shared scope invites:
+// declaring the same const/let in two scripts throws a SyntaxError here
+// exactly as it would in the browser.
 //
 // Every script is evaluated in full, as the browser does, including the
 // bootstrap call at the end of app.js. The harness does not look for that
@@ -13,8 +13,8 @@
 // BOOTSTRAP_GLOBAL), so a comment or a reformat of that line changes nothing
 // here. With `boot: true` the real init() runs against the default boundary
 // fakes below and `app.ready` is its promise. Without it the call is observed
-// and recorded but not carried out, which is the state the older tests were
-// written against: modules declared, nothing started.
+// and recorded but not carried out, which is the state most unit tests want:
+// modules declared, nothing started.
 //
 // The document is built from the real index.html (static-dom.mjs): an id the
 // markup lacks is not found, and each element starts with the markup's
@@ -105,10 +105,8 @@ export function scriptsBeforeStylesheets() {
   return paths;
 }
 
-// ---------------------------------------------------------------------------
 // Default boundary fakes. Each stands in for a host API at the edge of the app,
 // never for an app module. A test replaces any of them through `globals`.
-// ---------------------------------------------------------------------------
 
 const CONTENT_TYPES = { ".json": "application/json", ".gz": "application/gzip", ".onnx": "application/octet-stream" };
 

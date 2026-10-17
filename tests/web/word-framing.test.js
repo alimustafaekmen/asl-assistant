@@ -2,10 +2,10 @@
 // the camera sees, including when it sees no hand.
 //
 // A word frame is recorded only with hand, face and shoulders in view, so the
-// user needs to know which of the three is missing. Before this, live
-// inference returned before the word branch on any frame without a hand: the
-// readout froze at its last state exactly when the hand was the problem, and
-// during the countdown, when framing can still be fixed, it never ran at all.
+// user needs to know which of the three is missing. If live inference
+// returned before the word branch on a frame without a hand, the readout would
+// freeze at its last state exactly when the hand is the problem, and during
+// the countdown, when framing can still be fixed, it would never run at all.
 //
 // Only the boundaries are faked: the ONNX session, MediaPipe's results and
 // the countdown clock (helpers/word-recording.mjs).

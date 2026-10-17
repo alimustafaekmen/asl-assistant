@@ -3,11 +3,9 @@
 //
 // A hidden tab gets no animation frames, so the recording would freeze
 // half-filled and resume minutes later with a gap the model never saw in
-// training, or the countdown would end while nobody was looking. Before
-// this, nothing listened for the page being hidden: the recording simply
-// waited in RECORDING. The camera itself is left as it is (whether a hidden
-// page also releases the camera is an open owner question); only the
-// recording ends.
+// training, or the countdown would end while nobody was looking. Only the
+// recording ends: the camera is left on, and these tests do not decide
+// whether a hidden page should release it too.
 //
 // Only the boundaries are faked: the ONNX session, MediaPipe's results, the
 // countdown clock and the document's visibility (helpers/web-app-context.mjs).

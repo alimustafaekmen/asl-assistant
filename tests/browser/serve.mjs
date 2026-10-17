@@ -1,8 +1,9 @@
 // A static file server for asl-web/ that behaves like the host it deploys to.
 //
-// Python's http.server reset about one page load in four under the burst of
-// classic-script requests the app makes, which made a booted page look broken.
-// node:http serves them concurrently and keeps the checks deterministic.
+// Python's http.server resets about one page load in four under the burst of
+// classic-script requests the app makes, which makes a booted page look
+// broken. node:http serves them concurrently and keeps the checks
+// deterministic.
 //
 // The response headers come from asl-web/_headers, the same file Netlify reads
 // on every deploy, so the page runs under the site's real Content Security
@@ -125,7 +126,7 @@ export async function startServer({ root: rootOption = WEB_ROOT, port = 0 } = {}
       }
     }
     // Every reload must see the files as they are on disk now: a check run
-    // after a mutation must not be answered from Chrome's cache.
+    // after a file changed must not be answered from Chrome's cache.
     response.setHeader("Cache-Control", "no-store");
 
     const published = file && stats && stats.isFile() && !file.endsWith(`${sep}_headers`);

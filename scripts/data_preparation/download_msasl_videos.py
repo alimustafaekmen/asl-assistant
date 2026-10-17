@@ -13,8 +13,8 @@ Examples:
 
 Outputs:
     data/raw/MS-ASL/videos/{class_id}_{word}/{split}_{idx}.mp4
-    data/raw/MS-ASL/download_state.json   (resume desteği)
-    data/raw/MS-ASL/download.log          (detaylı log)
+    data/raw/MS-ASL/download_state.json   (state for resuming)
+    data/raw/MS-ASL/download.log          (detailed log)
 """
 
 import argparse
@@ -276,7 +276,7 @@ def download_clip(
                 if size_kb < 1:
                     output_path.unlink(missing_ok=True)
                     return {"status": "error", "path": "", "reason": "empty_file"}
-                logger.debug(f"  ✅ {entry_id}: {size_kb:.0f} KB")
+                logger.debug(f"  OK {entry_id}: {size_kb:.0f} KB")
                 return {"status": "success", "path": str(output_path), "reason": "downloaded"}
 
             stderr = result.stderr.lower()
@@ -303,7 +303,7 @@ def download_clip(
             # Retry transient downloader failures with a short backoff.
             if attempt < max_retries:
                 wait = (attempt + 1) * 5
-                logger.debug(f"  ⏳ {entry_id}: Retry {attempt + 1}/{max_retries} ({wait}s)")
+                logger.debug(f"  {entry_id}: Retry {attempt + 1}/{max_retries} ({wait}s)")
                 time.sleep(wait)
                 continue
 
@@ -311,7 +311,7 @@ def download_clip(
 
         except subprocess.TimeoutExpired:
             if attempt < max_retries:
-                logger.debug(f"  ⏳ {entry_id}: Timeout, retry {attempt + 1}")
+                logger.debug(f"  {entry_id}: Timeout, retry {attempt + 1}")
                 time.sleep(5)
                 continue
             return {"status": "error", "path": "", "reason": "timeout"}
@@ -451,8 +451,8 @@ def download_all(
                 pct = completed_count / total_count * 100
                 logger.info(
                     f"[{completed_count}/{total_count}] {pct:.0f}%: "
-                    f"✅{stats['success']} ❌{stats['unavailable']} "
-                    f"🔞{stats['age_restricted']} ⚠️{stats['error']}"
+                    f"success={stats['success']} unavailable={stats['unavailable']} "
+                    f"age_restricted={stats['age_restricted']} error={stats['error']}"
                 )
 
     # Save the final state even when the last batch was smaller than ten.
@@ -495,7 +495,7 @@ def print_summary(
         s = class_success.get(cid, 0)
         t = class_total[cid]
         pct = s / t * 100 if t > 0 else 0
-        flag = " ⚠️ LOW" if s < 5 else ""
+        flag = " LOW" if s < 5 else ""
         logger.info(f"  {word_str:<15} (class {cid:<4}) {s:>5} / {t:<5} ({pct:5.1f}%){flag}")
         total_s += s
         total_t += t
@@ -507,7 +507,7 @@ def print_summary(
     logger.info(f"  {'TOPLAM':<15} {'':15} {total_s:>5} / {total_t:<5} ({pct:5.1f}%)")
 
     if low_words:
-        logger.info(f"\n⚠️ Düşük örnekli kelimeler: {', '.join(low_words)}")
+        logger.info(f"\nUYARI: Düşük örnekli kelimeler: {', '.join(low_words)}")
 
     # Report signer diversity for the exploratory dataset.
     signers = set()
@@ -579,10 +579,9 @@ def main() -> None:
 
     # Fail before loading metadata if the external downloader is unavailable.
     if not check_ytdlp():
-        logger.error("❌ yt-dlp kurulu değil! pip install yt-dlp")
+        logger.error("HATA: yt-dlp kurulu değil! pip install yt-dlp")
         sys.exit(1)
 
-    # Load the target subset metadata.
     logger.info("MS-ASL JSON'ları yükleniyor...")
     entries = load_msasl_entries()
     logger.info(f"  Hedef class sayısı: {len(TARGET_CLASS_IDS)}")
@@ -592,7 +591,6 @@ def main() -> None:
     signers = {e["signer_id"] for e in entries}
     logger.info(f"  Benzersiz signer: {len(signers)}")
 
-    # Run the resumable download.
     start_time = time.time()
     download_all(
         entries=entries,

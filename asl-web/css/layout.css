@@ -9,7 +9,7 @@
  * - laptop (1366x768 and up): stage, result, transcript and actions fit the
  *   window without scrolling; the side column holds supporting cards only.
  *
- * The legacy layer still styles .workspace and .side-panel, so the properties
+ * The legacy layer styles .workspace and .side-panel too, so the properties
  * it sets are reset here explicitly rather than left to chance.
  */
 
@@ -22,7 +22,7 @@
     background: var(--color-page);
   }
 
-  /* ── Top bar ──────────────────────────────────────────────────────── */
+  /* Top bar */
   .topbar {
     position: sticky;
     top: 0;
@@ -66,7 +66,7 @@
   }
   .topbar__links .navlink { justify-content: flex-start; }
 
-  /* ── Workspace ───────────────────────────────────────────────────── */
+  /* Workspace */
   .app-shell[data-view="app"] .workspace {
     display: block;
     width: auto;
@@ -207,13 +207,12 @@
     .topbar .modes__item { padding-inline: var(--sp-2); }
   }
 
-  /* ── Phone landscape (Tel-Yatay) ─────────────────────────────────────
-     The stage fills the height on the left; the mode switch, the result,
-     the transcript and the actions stand in a column on the right. There is
-     no top bar: its switch and "Diğer" lie over the column's first row, and
-     the brand is left out (the Harf tab does what the brand link does).
-     Narrower than a laptop only, so a short desktop window keeps the laptop
-     layout instead of a mix of both. */
+  /* Phone landscape: the stage fills the height on the left; the mode switch,
+     the result, the transcript and the actions stand in a column on the
+     right. There is no top bar: its switch and "Diğer" lie over the column's
+     first row, and the brand is left out (the Harf tab does what the brand
+     link does). Narrower than a laptop only, so a short desktop window keeps
+     the laptop layout instead of a mix of both. */
   @media (orientation: landscape) and (max-height: 32rem) and (max-width: 63.99rem) {
     .app-shell { position: relative; }
     .topbar {
@@ -296,9 +295,9 @@
     .stage:has(> .stage__empty:not([hidden])) + .plate :is(.signal, .plate__pct) { display: none; }
     .stage:has(> .stage__empty:not([hidden])) + .plate .plate__message { text-align: start; }
     /* Beside the ring there are 110 to 160 px: the level word on its own
-       line, the meter and percent under it (as in Tel-Yatay), then two lines
-       of message. That keeps the card about the ring's height, so the column
-       fits every tier; a longer message is cut off on screen, not in the DOM. */
+       line, the meter and percent under it, then two lines of message. That
+       keeps the card about the ring's height, so the column fits every tier;
+       a longer message is cut off on screen, not in the DOM. */
     .camera-column > .plate .plate__level { line-height: 1.25; }
     .stage:not([data-kind="word"]) + .plate .plate__decision { flex-basis: 100%; }
     .camera-column > .plate .plate__message {
@@ -324,7 +323,8 @@
     .camera-column > .stage { container: stage / inline-size; }
     .stage__top { inset: var(--sp-3) var(--sp-3) auto max(var(--sp-3), env(safe-area-inset-left)); }
     .stage__empty {
-      /* The top clears the chip; nothing lies over the bottom any more. */
+      /* The top clears the chip; the plate is beside the stage, so the
+         bottom keeps no room for it. */
       bottom: 0;
       padding: var(--size-stage-clear) var(--sp-6) var(--sp-6) max(var(--sp-6), env(safe-area-inset-left));
       gap: var(--sp-3);
@@ -375,7 +375,7 @@
     }
   }
 
-  /* ── Laptop ───────────────────────────────────────────────────────── */
+  /* Laptop */
   @media (min-width: 64rem) {
     .topbar {
       grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -394,7 +394,7 @@
 
     /* The popover becomes a plain row of links. No :popover-open in this
        list: a browser that does not know the pseudo-class drops the whole
-       rule, which left the laptop links unstyled there. The fallback's
+       rule, and the laptop links would be unstyled there. The fallback's
        data-open states are listed so they cannot hide or float the row. */
     .topbar__links.menu,
     .topbar__links.menu[data-open] {
@@ -469,8 +469,8 @@
     }
     .stage[data-plate-side="end"] + .plate { translate: calc(100cqw - 100% - 2 * var(--sp-4)) 0; }
     .stage__top { inset: var(--sp-4) var(--sp-4) auto; }
-    /* Laptop: the toast sits just above the transcript row, opposite the
-       plate, so it changes corner with it. */
+    /* The toast sits just above the transcript row, opposite the plate, so
+       it changes corner with it. */
     .toast { inset: auto var(--sp-4) var(--sp-4) auto; margin: 0; }
     .stage[data-plate-side="end"] .toast { inset: auto auto var(--sp-4) var(--sp-4); }
     /* Camera off: the plate is only the message line, centred under the
@@ -492,9 +492,9 @@
 }
 
 @layer utilities {
-  /* Mode visibility. Hide-only on purpose: the old rules revealed elements
-     with display: revert !important, which overrode every component's own
-     display (a flex card became a block). Hiding the other modes' parts
+  /* Mode visibility. Hide-only on purpose: revealing the current mode's
+     parts with display: revert !important would override every component's
+     own display (a flex card becomes a block). Hiding the other modes' parts
      leaves each component's layout to the component. */
   .app-shell[data-mode="letter"] .mode-only:not(.letter-only),
   .app-shell[data-mode="coach"] .mode-only:not(.coach-only),

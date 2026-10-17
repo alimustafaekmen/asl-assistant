@@ -2,7 +2,7 @@
 
 ``tests/web/fixtures/feature-golden.json`` is what the browser tests hold
 ``asl-web/js/ml/features.js`` to. If it were allowed to differ from Python, a
-change in ``asl_ml`` (a reordered group, a flipped flag, another scale
+change in ``asl_features`` (a reordered group, a flipped flag, another scale
 reference) could pass here and in the browser at once while the model's input
 contract broke. These tests rebuild the golden from the Python code and compare.
 """
@@ -59,7 +59,7 @@ def test_letter_inputs_are_unchanged(committed, rebuilt):
             np.testing.assert_allclose(old[slot], new[slot], rtol=0, atol=ATOL, err_msg=old["name"])
 
 
-def test_letter_vectors_match_what_asl_ml_computes_now(committed, rebuilt):
+def test_letter_vectors_match_what_asl_features_computes_now(committed, rebuilt):
     for old, new in zip(committed["letter"]["cases"], rebuilt["letter"]["cases"]):
         np.testing.assert_allclose(
             old["expect"], new["expect"], rtol=0, atol=ATOL, err_msg=f"{old['name']}: 93-D vector"

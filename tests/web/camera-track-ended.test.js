@@ -2,10 +2,10 @@
 //
 // A live track can end without the app asking: the user revokes the
 // permission, unplugs the camera, or another app takes it. The browser then
-// fires "ended" on the track; track.stop() never does. Until the app listens,
-// it keeps showing a live camera and running MediaPipe on a stream that
-// delivers nothing. It must release the camera as a stop does and tell the
-// user, on screen and to a screen reader, what happened.
+// fires "ended" on the track; track.stop() never does. An app that does not
+// listen for it keeps showing a live camera and running MediaPipe on a stream
+// that delivers nothing. It must release the camera as a stop does and tell
+// the user, on screen and to a screen reader, what happened.
 //
 // The track is faked at the camera boundary (helpers/fake-camera.mjs); end()
 // is the browser ending it.

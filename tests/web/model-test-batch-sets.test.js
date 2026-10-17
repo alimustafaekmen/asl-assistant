@@ -3,10 +3,10 @@
 // Not every bundled sample measures the model. The word sample a clone ships is
 // a made-up input that proves the pipeline runs end to end, and answering it
 // "correctly" says nothing about accuracy. The word samples cut from the
-// competition data exist only on the owner's computer, and the rules of that
-// competition forbid publishing them, so the panel has to say which samples
-// those are. ONNX Runtime and the network are faked; the manifest shapes are
-// the ones the app reads, and the fixtures are the real files.
+// competition data live only in an ignored local folder, because the rules of
+// that competition forbid publishing them, so the panel has to say which
+// samples those are. ONNX Runtime and the network are faked; the manifest
+// shapes are the ones the app reads, and the fixtures are the real files.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

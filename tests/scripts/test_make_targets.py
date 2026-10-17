@@ -1,9 +1,9 @@
 """The make targets run every step they promise, and fail when any step fails.
 
-The Makefile's gates were guarded by regexes over its text. Those passed with
-`node --check` turned into `|| true`, with the parity steps disabled, and with
-a `-` in front of the pytest step, because the words were still there. These
-tests run the real targets instead, with the external tools they call replaced
+A regex over the Makefile's text still matches after `node --check` becomes
+`|| true`, a parity step is disabled or the pytest step gains a `-` prefix,
+because the words are still there. These tests run the real targets instead,
+with the external tools they call replaced
 by recording stand-ins at the process boundary: the Python interpreter (which
 runs ruff, pytest, the validators and the parity scripts), `node`, `git` and
 the TypeScript checker. A stand-in exits 0 unless its command line contains
@@ -228,7 +228,7 @@ def _arguments(call: str) -> list[str]:
     return call.split(" | PYTHONPATH=", 1)[0].split()[1:]
 
 
-# ── health ──────────────────────────────────────────────────────────────
+# health
 
 
 def test_health_runs_every_step_and_reports_success(runs: dict[str, Run]) -> None:
@@ -257,7 +257,7 @@ def test_health_checks_the_syntax_of_every_web_script(runs: dict[str, Run]) -> N
 
 
 def test_health_runs_every_web_test_file(runs: dict[str, Run]) -> None:
-    """A narrowed glob dropped the consent and mask-polarity tests unnoticed."""
+    """A narrowed glob would drop test files, such as the consent tests, unnoticed."""
     (call,) = runs["health"].ran("node --test")
     expected = _files(PROJECT_ROOT / "tests" / "web", "*.test.js", "*.test.mjs")
 
@@ -270,7 +270,7 @@ def test_health_does_not_need_the_type_checker(runs: dict[str, Run]) -> None:
 
 
 def test_check_runs_health_and_the_type_checker(runs: dict[str, Run]) -> None:
-    """A JSDoc type error passed health; check is the gate that sees it."""
+    """health runs no type checker, so check is the gate that sees a JSDoc type error."""
     run = runs["check"]
 
     assert run.returncode == 0, run.output
@@ -281,7 +281,7 @@ def test_check_runs_health_and_the_type_checker(runs: dict[str, Run]) -> None:
         assert "Check OK" not in runs[scenario].output
 
 
-# ── validate, validate-full, deploy-check ───────────────────────────────
+# validate, validate-full, deploy-check
 
 
 def test_validate_checks_the_web_scripts_then_the_runtime_assets(runs: dict[str, Run]) -> None:
@@ -344,7 +344,7 @@ def test_parity_runs_both_feature_checks_and_fails_with_either(runs: dict[str, R
     assert runs["parity/letter"].returncode != 0
 
 
-# ── js-check, js-test, js-typecheck ─────────────────────────────────────
+# js-check, js-test, js-typecheck
 
 
 def test_a_syntax_error_fails_js_check(runs: dict[str, Run]) -> None:
@@ -370,7 +370,8 @@ def test_js_test_runs_every_test_file_and_nothing_else(runs: dict[str, Run]) -> 
     """Nested folders and .test.mjs count; helpers and fixtures are not tests.
 
     The helpers are already .mjs, so a new test written as .test.mjs is the
-    natural next file, and the glob skipped it: a failing one passed health.
+    natural next file; a glob that skipped it would let a failing one pass
+    health.
     """
     run = runs["js-test/test files"]
 
@@ -389,7 +390,7 @@ def test_js_typecheck_runs_the_checker_and_fails_with_it(runs: dict[str, Run]) -
     assert runs["js-typecheck/type error"].returncode != 0
 
 
-# ── the inner loop: quick, test-web, watch-web, test-py ─────────────────
+# the inner loop: quick, test-web, watch-web, test-py
 
 
 def test_quick_runs_lint_format_and_the_web_tests_only(runs: dict[str, Run]) -> None:
@@ -433,11 +434,11 @@ def test_test_py_narrows_to_a_file_and_a_keyword(runs: dict[str, Run]) -> None:
 
     assert default == _pytest_paths(runs["test"]), "without FILE it runs the fast suite"
     assert _arguments(call)[2:] == ["-rs", "tests/scripts/test_gzip_copies.py", "-k", "truncated"]
-    assert str(PROJECT_ROOT / "asl-ml" / "src") in call.split(" | PYTHONPATH=", 1)[1]
+    assert str(PROJECT_ROOT / "asl-features" / "src") in call.split(" | PYTHONPATH=", 1)[1]
     assert runs["test-py/failing"].returncode != 0
 
 
-# ── test, test-full ─────────────────────────────────────────────────────
+# test, test-full
 
 
 def _pytest_paths(run: Run) -> list[str]:
@@ -463,15 +464,15 @@ def test_make_test_runs_every_fast_test_with_the_source_packages_importable(
     assert not any(_covered(name, paths) for name in integration)
     (call,) = run.ran("-m pytest")
     pythonpath = call.split(" | PYTHONPATH=", 1)[1].split(os.pathsep)
-    assert str(PROJECT_ROOT / "asl-ml" / "src") in pythonpath
+    assert str(PROJECT_ROOT / "asl-features" / "src") in pythonpath
     assert str(PROJECT_ROOT / "asl-desktop" / "src") in pythonpath
 
 
 def test_make_test_runs_pytest_and_nothing_before_it(runs: dict[str, Run]) -> None:
     """pytest reports a missing package itself, as a failure.
 
-    The recipe once probed for the packages first and printed a warning
-    instead, so an environment without them ran no test and exited 0.
+    A recipe that probed for the packages first and printed a warning instead
+    would run no test in an environment without them, and exit 0.
     """
     assert [call.split(" | ")[0].split()[:3] for call in runs["test"].calls] == [
         ["python", "-m", "pytest"]
@@ -493,7 +494,7 @@ def test_make_test_full_runs_every_python_test(runs: dict[str, Run]) -> None:
 
 @pytest.mark.parametrize("scenario", ["test", "test-full", "health"])
 def test_pytest_prints_why_each_test_was_skipped(runs: dict[str, Run], scenario: str) -> None:
-    """Two lost model files once showed only as 2 skips becoming 4."""
+    """Without the reasons, missing model files show only as a skip count that grows."""
     (call,) = runs[scenario].ran("-m pytest")
 
     assert "-rs" in _arguments(call)
@@ -503,7 +504,7 @@ def test_a_failing_python_test_fails_make_test(runs: dict[str, Run]) -> None:
     assert runs["test/failing test"].returncode != 0
 
 
-# ── setup, doctor, git-hygiene ──────────────────────────────────────────
+# setup, doctor, git-hygiene
 
 
 def test_setup_installs_the_requirements_and_the_two_local_packages(runs: dict[str, Run]) -> None:
@@ -514,7 +515,7 @@ def test_setup_installs_the_requirements_and_the_two_local_packages(runs: dict[s
     assert run.calls[0].split(" | ")[0].endswith("setup_guard.py"), "the guard runs first"
     assert installs == [
         ["-m", "pip", "install", "-r", "requirements-dev.txt"],
-        ["-m", "pip", "install", "--no-deps", "-e", "./asl-ml"],
+        ["-m", "pip", "install", "--no-deps", "-e", "./asl-features"],
         ["-m", "pip", "install", "--no-deps", "-e", "./asl-desktop"],
     ]
 
