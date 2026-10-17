@@ -137,6 +137,8 @@ DATA_ARTIFACTS: tuple[ArtifactContract, ...] = (
     ArtifactContract(
         "letter_confusion.json", WEB_DATA_DIR / "letter_confusion.json", None, "json", 1
     ),
+    # The hand poses the camera-free letter demo plays, from a CC0 dataset.
+    ArtifactContract("demo-letters.json", WEB_DATA_DIR / "demo-letters.json", None, "json", 2),
 )
 
 # Reference imagery. These have no source outside the repository, so they carry
