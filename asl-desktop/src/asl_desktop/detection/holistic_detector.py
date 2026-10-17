@@ -13,6 +13,7 @@ import numpy as np
 from asl_features.config import MIN_DETECTION_CONFIDENCE, MIN_TRACKING_CONFIDENCE
 
 from asl_desktop.config import HOLISTIC_MODEL_COMPLEXITY
+from asl_desktop.detection.preview import mirrored_for_preview
 from asl_desktop.utils.landmark_smoother import LandmarkSmoother
 
 # Frozen face-landmark order used to train the desktop 25-word model.
@@ -198,16 +199,16 @@ class HolisticDetector:
 
         return smoothed, hands_detected
 
-    def draw_landmarks(self, frame: np.ndarray) -> np.ndarray:
-        """Draw the most recently detected holistic landmarks on ``frame``."""
+    def draw_landmarks(self, preview: np.ndarray) -> np.ndarray:
+        """Draw the landmarks found by the last ``detect`` on the mirrored preview."""
         if not self._last_results:
-            return frame
+            return preview
 
         # Draw the standard contour rather than only the selected feature points.
         if self._last_results.face_landmarks:
             self.mp_draw.draw_landmarks(
-                frame,
-                self._last_results.face_landmarks,
+                preview,
+                mirrored_for_preview(self._last_results.face_landmarks),
                 self.mp_holistic.FACEMESH_CONTOURS,
                 landmark_drawing_spec=None,
                 connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_contours_style(),
@@ -215,16 +216,16 @@ class HolisticDetector:
 
         if self._last_results.pose_landmarks:
             self.mp_draw.draw_landmarks(
-                frame,
-                self._last_results.pose_landmarks,
+                preview,
+                mirrored_for_preview(self._last_results.pose_landmarks),
                 self.mp_holistic.POSE_CONNECTIONS,
                 landmark_drawing_spec=self.mp_drawing_styles.get_default_pose_landmarks_style(),
             )
 
         if self._last_results.left_hand_landmarks:
             self.mp_draw.draw_landmarks(
-                frame,
-                self._last_results.left_hand_landmarks,
+                preview,
+                mirrored_for_preview(self._last_results.left_hand_landmarks),
                 self.mp_holistic.HAND_CONNECTIONS,
                 self.mp_draw.DrawingSpec(color=(0, 220, 100), thickness=2, circle_radius=3),
                 self.mp_draw.DrawingSpec(color=(255, 255, 255), thickness=1),
@@ -232,14 +233,14 @@ class HolisticDetector:
 
         if self._last_results.right_hand_landmarks:
             self.mp_draw.draw_landmarks(
-                frame,
-                self._last_results.right_hand_landmarks,
+                preview,
+                mirrored_for_preview(self._last_results.right_hand_landmarks),
                 self.mp_holistic.HAND_CONNECTIONS,
                 self.mp_draw.DrawingSpec(color=(0, 220, 100), thickness=2, circle_radius=3),
                 self.mp_draw.DrawingSpec(color=(255, 255, 255), thickness=1),
             )
 
-        return frame
+        return preview
 
     def close(self) -> None:
         if hasattr(self, "holistic") and self.holistic is not None:

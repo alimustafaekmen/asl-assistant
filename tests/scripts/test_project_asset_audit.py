@@ -25,7 +25,7 @@ def test_a_healthy_copy_passes_the_audit(checkout) -> None:
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert checkout.failures(result) == []
-    assert "TUM ESLESIYOR" in result.stdout
+    assert "ALL MATCH" in result.stdout
 
 
 def test_missing_local_datasets_do_not_fail_the_audit(checkout) -> None:
@@ -33,7 +33,7 @@ def test_missing_local_datasets_do_not_fail_the_audit(checkout) -> None:
     result = checkout.audit()
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "BULUNAMADI" in result.stdout
+    assert "NOT FOUND" in result.stdout
 
 
 def test_a_deploy_file_that_drifted_from_its_source_fails_the_audit(checkout) -> None:
@@ -67,7 +67,7 @@ def test_a_deleted_provenance_source_fails_the_audit(checkout) -> None:
     assert result.returncode == 1, result.stdout + result.stderr
     failed = checkout.failures(result)
     assert len(failed) == 1 and "letter_model.onnx" in failed[0], failed
-    assert "kaynak dosya yok" in failed[0], failed
+    assert "source file missing" in failed[0], failed
 
 
 def test_a_missing_reference_image_fails_the_audit(checkout) -> None:

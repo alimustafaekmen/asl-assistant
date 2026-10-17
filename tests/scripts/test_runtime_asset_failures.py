@@ -110,7 +110,7 @@ def test_a_healthy_copy_passes(checkout) -> None:
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert checkout.failures(result) == []
-    assert "DEPLOY GUVENLI" in result.stdout
+    assert "SAFE TO DEPLOY" in result.stdout
 
 
 def test_a_deploy_file_that_drifted_from_its_source_fails(checkout) -> None:
@@ -138,7 +138,7 @@ def test_a_deleted_provenance_source_fails(checkout) -> None:
     assert result.returncode == 1, result.stdout + result.stderr
     failed = checkout.failures(result)
     assert len(failed) == 1 and "letter_labels.json" in failed[0], failed
-    assert "kaynak dosya yok" in failed[0], failed
+    assert "source file missing" in failed[0], failed
 
 
 def test_a_deploy_json_that_does_not_parse_fails(checkout) -> None:
@@ -149,7 +149,7 @@ def test_a_deploy_json_that_does_not_parse_fails(checkout) -> None:
 
     assert result.returncode == 1, result.stdout + result.stderr
     failed = checkout.failures(result)
-    assert len(failed) == 1 and "per_word_stats.json: parse hatasi" in failed[0], failed
+    assert len(failed) == 1 and "per_word_stats.json: parse error" in failed[0], failed
 
 
 @pytest.mark.parametrize("temperature", [0, -1, 5])
@@ -162,7 +162,7 @@ def test_an_implausible_temperature_fails(checkout, temperature: float) -> None:
 
     assert result.returncode == 1, result.stdout + result.stderr
     failed = checkout.failures(result)
-    assert len(failed) == 1 and "T degeri makul degil" in failed[0], failed
+    assert len(failed) == 1 and "implausible T value" in failed[0], failed
 
 
 def test_a_missing_deploy_artifact_fails(checkout) -> None:
@@ -172,7 +172,7 @@ def test_a_missing_deploy_artifact_fails(checkout) -> None:
     result = checkout.check("--no-onnx")
 
     assert result.returncode == 1, result.stdout + result.stderr
-    assert checkout.failures(result) == ["✗ asl-web/assets/signs/word-25.png: BULUNAMADI"]
+    assert checkout.failures(result) == ["✗ asl-web/assets/signs/word-25.png: NOT FOUND"]
 
 
 FIXTURES = "asl-web/data/model-test-samples"
@@ -194,11 +194,11 @@ MODEL_TEST_FAULTS = {
         lambda c: _edit_json(
             c, f"{FIXTURES}/manifest.json", lambda m: m.update(schema_version="v0")
         ),
-        "schema_version gecersiz",
+        "schema_version invalid",
     ),
     "short letter fixture": (
         lambda c: _edit_json(c, f"{FIXTURES}/letters/letter-b.json", lambda f: f["features"].pop()),
-        "features uzunlugu 93",
+        "features length must be 93",
     ),
     "word mask of numbers": (
         lambda c: _edit_json(
@@ -206,7 +206,7 @@ MODEL_TEST_FAULTS = {
             f"{FIXTURES}/words/word-give-smoke.json",
             lambda f: f.update(mask=[int(v) for v in f["mask"]]),
         ),
-        "45 boolean mask",
+        "mask must be 45 booleans",
     ),
     "fixture the manifest does not list": (_unregistered_fixture, "manifest/file drift"),
 }
@@ -247,7 +247,7 @@ def test_a_missing_data_file_the_app_fetches_fails(checkout, fetched: str) -> No
     result = checkout.check("--no-onnx")
 
     assert result.returncode == 1, result.stdout + result.stderr
-    assert checkout.failures(result) == [f"✗ {fetched}: BULUNAMADI"]
+    assert checkout.failures(result) == [f"✗ {fetched}: NOT FOUND"]
 
 
 def test_a_truncated_deploy_artifact_fails(checkout) -> None:
@@ -258,7 +258,7 @@ def test_a_truncated_deploy_artifact_fails(checkout) -> None:
 
     assert result.returncode == 1, result.stdout + result.stderr
     failed = checkout.failures(result)
-    assert len(failed) == 1 and "letters.png: COK KUCUK" in failed[0], failed
+    assert len(failed) == 1 and "letters.png: TOO SMALL" in failed[0], failed
 
 
 def test_a_stand_in_word_model_with_the_contract_interface_passes(checkout) -> None:

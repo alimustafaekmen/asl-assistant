@@ -363,7 +363,9 @@ both implementations and requires a maximum absolute difference below `1e-4`.
 In the browser, one camera frame becomes the 93 letter features in this order:
 
 1. The [camera aspect step](#camera-aspect-step) rescales x and z of both hands.
-2. The hand with more visible landmarks is chosen (the right hand on a tie).
+2. The hand with more visible landmarks is chosen. With both hands in view
+   that is a tie, and the hand whose wrist is clearly higher (by more than a
+   tenth of the frame height) wins it; otherwise the right hand does.
    A chosen left hand is mirrored (`x` becomes `1 - x`, because MediaPipe
    reports `x` in `[0, 1]`) so it matches the right-hand training convention.
 3. The landmarks are smoothed with an exponential moving average (weight `0.6`
@@ -373,7 +375,9 @@ In the browser, one camera frame becomes the 93 letter features in this order:
 5. The 30 geometry features are appended.
 
 Mirroring and smoothing steady the live input; training uses neither. The
-desktop prototype does not mirror left hands.
+desktop prototype mirrors a left hand the same way. It runs the older
+MediaPipe Hands API, which names hands as if the image were a mirror, so on
+its unmirrored frame a left hand is the one labelled "Right".
 
 The ONNX export disables ZipMap, an ONNX output that wraps the probabilities
 in a list of label-to-probability maps, and exposes a plain probability tensor

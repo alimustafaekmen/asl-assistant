@@ -2,15 +2,14 @@
 
 [Live demo](https://asl-assistant.netlify.app/) · [Getting started](docs/getting-started.md) · [Documentation](docs/README.md) · [Technical report](TECHNICAL_REPORT.md) · [Türkçe](README.tr.md)
 
+**Live demo:** https://asl-assistant.netlify.app/
+
 ASL Assistant is a sign-language assistant that runs in the browser. It reads
 American Sign Language letters live from the camera and turns them into text,
 and it has an experimental mode for 50 isolated ASL words. Hand, face and pose
 landmarks are found with MediaPipe and classified with ONNX models, all inside
 the page: there is no application server, and the camera image never leaves the
 device. The interface is in Turkish.
-
-> The live demo runs an older build than this repository and does not yet show
-> the interface below.
 
 ![The letter screen on a laptop, light theme. A dark camera stage asks the visitor to show an ASL letter and offers buttons to open the camera or to try without one; side cards hold the most likely results, the letter reference and the keyboard shortcuts; the text strip and the Delete, Space and Add buttons sit below.](docs/assets/screenshots/letter-laptop.png)
 
@@ -178,12 +177,12 @@ question, from the browser architecture to the project's history.
   Its 99.35% comes from a split that shares signers with training; on hands it
   has never seen it measured 69%, weakest on the fist letters (M, N, T, S, E,
   A). See [Models and data](docs/models-and-data.md).
-- The word reference pictures in the app are being redrawn; until then, check a
-  handshape against a standard ASL dictionary.
+- The word reference pictures in the app have not yet been checked against an
+  ASL dictionary; when in doubt, compare a handshape with a standard one.
 - The Content Security Policy is report-only. It will be enforced once it has
   been read on the deployed site in a real browser.
 - The first visit needs a network connection: ONNX Runtime and MediaPipe come
-  from public CDNs, about 17 MB for a first letter session.
+  from public CDNs, about 15 MB for a first letter session.
 - The command that converted the letter model to ONNX is not in the repository.
 
 ## Future work

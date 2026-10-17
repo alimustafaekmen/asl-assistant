@@ -2,15 +2,14 @@
 
 [Canlı demo](https://asl-assistant.netlify.app/) · [Başlangıç rehberi](docs/getting-started.tr.md) · [Dokümantasyon](docs/README.md) · [Teknik rapor](TECHNICAL_REPORT.tr.md) · [English](README.md)
 
+**Canlı demo:** https://asl-assistant.netlify.app/
+
 ASL Assistant, tarayıcıda çalışan bir işaret dili asistanıdır. Amerikan İşaret
 Dili (ASL) harflerini kameradan canlı olarak tanır ve metne dönüştürür; 50
 izole ASL kelimesi için de deneysel bir modu vardır. El, yüz ve gövde
 landmark'ları MediaPipe ile bulunur ve ONNX modelleriyle sınıflandırılır. Bunun
 tamamı sayfanın içinde olur: uygulama sunucusu yoktur ve kamera görüntüsü
 cihazdan çıkmaz. Arayüz Türkçedir.
-
-> Canlı demo bu depodan daha eski bir sürümü çalıştırıyor; aşağıdaki arayüz
-> henüz yayında değil.
 
 ![Dizüstü bilgisayarda harf ekranı, açık tema. Koyu kamera alanı ziyaretçiden bir ASL harfi göstermesini istiyor ve Kamerayı aç ile Kamerasız dene düğmelerini sunuyor; yan kartlarda en olası sonuçlar, harf referansı ve klavye kısayolları var; altta metin şeridi ile Sil, Boşluk ve Ekle düğmeleri duruyor.](docs/assets/screenshots/letter-laptop.png)
 
@@ -182,12 +181,13 @@ geçmişine kadar hangi sorunun hangi belgede yanıtlandığını gösterir.
   %99,35'lik sonuç, eğitimle aynı kişileri paylaşan bir ayırmadan gelir;
   modelin hiç görmediği ellerde %69 ölçüldü, en zayıfı yumruk harfleri (M, N,
   T, S, E, A). Ayrıntı: [Models and data](docs/models-and-data.md).
-- Uygulamadaki kelime referans görselleri yeniden çiziliyor; o zamana kadar
-  bir el şeklini standart bir ASL sözlüğüyle karşılaştırın.
+- Uygulamadaki kelime referans görselleri henüz bir ASL sözlüğüyle
+  karşılaştırılmadı; emin olmadığınızda el şeklini standart bir sözlükle
+  karşılaştırın.
 - İçerik Güvenliği Politikası (CSP) yalnızca raporlama modunda. Yayındaki
   sitede gerçek bir tarayıcıda okunduktan sonra zorunlu hâle getirilecek.
 - İlk ziyaret ağ bağlantısı ister: ONNX Runtime ve MediaPipe herkese açık
-  CDN'lerden gelir; ilk harf oturumunda yaklaşık 17 MB.
+  CDN'lerden gelir; ilk harf oturumunda yaklaşık 15 MB.
 - Harf modelini ONNX'e dönüştüren komut depoda yok.
 
 ## Gelecek çalışmalar

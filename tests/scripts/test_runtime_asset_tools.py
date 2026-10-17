@@ -1,7 +1,7 @@
 """What the runtime asset check reports when ONNX Runtime cannot be imported.
 
-A check that printed that the ONNX step was skipped and then "DEPLOY
-GUVENLI" with exit 0 would report models it could not look at as verified.
+A check that printed that the ONNX step was skipped and then "SAFE TO
+DEPLOY" with exit 0 would report models it could not look at as verified.
 A missing required tool is exit 2 under the
 repository's exit-code contract: the check did not run, which is neither a
 pass nor a contract failure. `--no-onnx` is the explicit way to leave it out.
@@ -34,8 +34,8 @@ def test_a_missing_onnx_runtime_is_not_reported_as_verified(
     result = checkout.run(pythonpath=[without_onnxruntime])
 
     assert result.returncode == 2, result.stdout + result.stderr
-    assert "DEPLOY GUVENLI" not in result.stdout
-    assert "DOGRULANAMADI" in result.stdout
+    assert "SAFE TO DEPLOY" not in result.stdout
+    assert "NOT VERIFIED" in result.stdout
     assert checkout.failures(result) == []
 
 
@@ -45,7 +45,7 @@ def test_leaving_the_onnx_step_out_explicitly_still_passes(
     result = checkout.run("--no-onnx", pythonpath=[without_onnxruntime])
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "DEPLOY GUVENLI" in result.stdout
+    assert "SAFE TO DEPLOY" in result.stdout
 
 
 def test_a_contract_failure_outranks_a_step_that_could_not_run(

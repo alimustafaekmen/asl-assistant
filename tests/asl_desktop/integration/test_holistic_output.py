@@ -99,3 +99,29 @@ def test_missing_hand_uses_previous_hand_values_but_not_detection_flag():
     assert first is not None and first_detected is True
     assert second is not None and second_detected is False
     assert np.any(detector._last_right_hand != 0)
+
+
+def _pose_with_shoulders(left_shoulder_x: float, right_shoulder_x: float):
+    """Twenty-five pose landmarks with both shoulders at height 0.5."""
+    pose = _landmark_group(25, offset=0.3)
+    pose.landmark[11] = SimpleNamespace(x=left_shoulder_x, y=0.5, z=0.0)
+    pose.landmark[12] = SimpleNamespace(x=right_shoulder_x, y=0.5, z=0.0)
+    return pose
+
+
+def test_word_features_keep_each_hand_in_its_block_as_the_camera_saw_it():
+    """The desktop word model learned hands as Holistic reported them on
+    unmirrored video, seeing mirrored copies only as training augmentation.
+    The detector must neither swap the two hand blocks nor reflect a hand."""
+    right = _landmark_group(21, offset=0.1)
+    pose = _pose_with_shoulders(0.6, 0.4)
+    detector = _detector_for(_results(right=right, pose=pose))
+
+    keypoints, hands_detected = detector.detect(_frame())
+
+    assert hands_detected is True
+    raw = np.array([[p.x, p.y, p.z] for p in right.landmark], dtype=np.float32)
+    centre, width = np.array([0.5, 0.5, 0.0], dtype=np.float32), 0.2
+    hands = keypoints[: (NUM_RIGHT_HAND + NUM_LEFT_HAND) * 3].reshape(-1, 3)
+    np.testing.assert_allclose(hands[:NUM_RIGHT_HAND], (raw - centre) / width, atol=1e-5)
+    np.testing.assert_array_equal(hands[NUM_RIGHT_HAND:], 0.0)

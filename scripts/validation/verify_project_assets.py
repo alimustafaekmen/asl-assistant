@@ -48,7 +48,7 @@ from scripts.validation.contracts import (  # noqa: E402
 def check_provenance_hash_chain(root: Path) -> bool:
     """Check SHA-256 equality between deploy artifacts and documented sources."""
     print(f"\n{'─' * 60}")
-    print("  PROVENANCE HASH CHAIN (asl-web ↔ kaynak)")
+    print("  PROVENANCE HASH CHAIN (asl-web ↔ source)")
     print(f"{'─' * 60}")
 
     ok = True
@@ -56,19 +56,19 @@ def check_provenance_hash_chain(root: Path) -> bool:
     for check in compare_provenance(provenance_pairs(root)):
         label = check.name
         if check.status == "missing_deploy":
-            print(f"     ✗ {label:24} web dosyasi YOK: {check.deploy}")
+            print(f"     ✗ {label:24} web file MISSING: {check.deploy}")
         elif check.status == "missing_source":
-            print(f"     ✗ {label:24} kaynak dosya yok: {check.source}")
+            print(f"     ✗ {label:24} source file missing: {check.source}")
         elif check.status == "match":
-            print(f"     ✓ {label:24} {check.deploy_hash[:12]}... (web == kaynak)")
+            print(f"     ✓ {label:24} {check.deploy_hash[:12]}... (web == source)")
             continue
         else:
-            print(f"     ✗ {label:24} DRIFT: yeniden export gerekiyor")
+            print(f"     ✗ {label:24} DRIFT: export it again")
             print(f"         web:    {check.deploy_hash}")
-            print(f"         kaynak: {check.source_hash}")
+            print(f"         source: {check.source_hash}")
         ok = False
 
-    print(f"\n  Hash chain durumu: {'TUM ESLESIYOR' if ok else 'DRIFT: duzeltme gerekli'}")
+    print(f"\n  Hash chain: {'ALL MATCH' if ok else 'DRIFT: fix required'}")
     return ok
 
 
@@ -84,7 +84,7 @@ def _check_file(label: str, path: str, required: bool = True) -> bool:
     if os.path.exists(path):
         print(f"     {mark} {label:24} {_file_size(path):>9}  {path}")
         return True
-    suffix = "BULUNAMADI" if required else "opsiyonel yok"
+    suffix = "NOT FOUND" if required else "optional, absent"
     print(f"     {mark} {label:24} {suffix}")
     return not required
 
@@ -101,13 +101,13 @@ def _check_dense_label_map(label: str, path: str, expected_count: int) -> bool:
         expected = list(range(expected_count))
         ok = len(data) == expected_count and values == expected
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
-        print(f"     ✗ {label:24} okunamadı: {exc}")
+        print(f"     ✗ {label:24} unreadable: {exc}")
         return False
 
     if ok:
-        print(f"     ✓ {label:24} {expected_count} sınıf, indeksler 0..{expected_count - 1}")
+        print(f"     ✓ {label:24} {expected_count} classes, indices 0..{expected_count - 1}")
     else:
-        print(f"     ✗ {label:24} beklenen {expected_count} yoğun indeks, gelen={len(data)}")
+        print(f"     ✗ {label:24} expected {expected_count} dense indices, got {len(data)}")
     return ok
 
 
@@ -118,7 +118,7 @@ def check_web_runtime(root: Path) -> bool:
     web_data_dir = str(rebased(WEB_DATA_DIR, root))
     web_js_dir = rebased(WEB_JS_DIR, root)
     print(f"\n{'─' * 60}")
-    print("  AKTİF WEB RUNTIME (Netlify deploy)")
+    print("  ACTIVE WEB RUNTIME (Netlify deploy)")
     print(f"{'─' * 60}")
 
     required_files = [
@@ -143,7 +143,7 @@ def check_web_runtime(root: Path) -> bool:
     # would go stale whenever the layout changes.
     modules = sorted(web_js_dir.rglob("*.js"))
     if not modules:
-        print("  ✗ asl-web/js: JavaScript modulu bulunamadi")
+        print("  ✗ asl-web/js: no JavaScript module found")
         ok = False
     for module in modules:
         ok = _check_file(str(module.relative_to(web_dir)), str(module)) and ok
@@ -162,7 +162,7 @@ def check_web_runtime(root: Path) -> bool:
             try:
                 _load_json(path)
             except json.JSONDecodeError as exc:
-                print(f"       ✗ JSON parse hatası: {exc}")
+                print(f"       ✗ JSON parse error: {exc}")
                 ok = False
 
     ok = (
@@ -191,15 +191,15 @@ def check_web_runtime(root: Path) -> bool:
             real_frames = sum(1 for value in sample.get("mask", []) if value)
             sample_ok = features_len == 45 * 168 and mask_len == 45
             print(
-                f"     {'✓' if sample_ok else '✗'} test_sample şekli       "
-                f"features={features_len}, mask={mask_len}, gerçek={real_frames}/45"
+                f"     {'✓' if sample_ok else '✗'} test_sample shape       "
+                f"features={features_len}, mask={mask_len}, real={real_frames}/45"
             )
             ok = sample_ok and ok
         except (OSError, TypeError, json.JSONDecodeError) as exc:
-            print(f"     ✗ test_sample okunamadı: {exc}")
+            print(f"     ✗ test_sample unreadable: {exc}")
             ok = False
 
-    print(f"\n  Web runtime durumu: {'HAZIR' if ok else 'EKSİK/HATALI'}")
+    print(f"\n  Web runtime: {'READY' if ok else 'MISSING OR INVALID'}")
     return ok
 
 
@@ -217,7 +217,7 @@ def check_dataset(name: str, path: str, letter_subdir: bool = True):
     print(f"\n  {name}")
 
     if not os.path.isdir(path):
-        print(f"     ✗ BULUNAMADI: {path}")
+        print(f"     ✗ NOT FOUND: {path}")
         return False
 
     total_size = 0
@@ -226,8 +226,8 @@ def check_dataset(name: str, path: str, letter_subdir: bool = True):
             total_size += os.path.getsize(os.path.join(root, f))
 
     size_mb = total_size / (1024 * 1024)
-    print(f"     Yol:    {path}")
-    print(f"     Boyut:  {size_mb:.0f} MB")
+    print(f"     Path:   {path}")
+    print(f"     Size:   {size_mb:.0f} MB")
 
     if letter_subdir:
         # Resolve case-insensitive class directories.
@@ -256,16 +256,16 @@ def check_dataset(name: str, path: str, letter_subdir: bool = True):
                 letters_missing.append(letter)
 
         if letters_found:
-            print(f"     Statik model siniflari: {len(letters_found)}/24 bulundu (J/Z haric)")
-            print(f"     Görsel:  {min_count}–{max_count} / harf")
+            print(f"     Static model classes: {len(letters_found)}/24 found (J/Z excluded)")
+            print(f"     Images: {min_count}–{max_count} per letter")
 
             if letters_missing:
-                print(f"     Eksik:   {', '.join(letters_missing)}")
+                print(f"     Missing: {', '.join(letters_missing)}")
 
-            print(f"\n     {'Harf':>6} {'Sayı':>6}  {'Durum'}")
+            print(f"\n     {'Letter':>6} {'Count':>6}  {'Status'}")
             print(f"     {'─' * 25}")
             for letter, count in letters_found:
-                status = "✓" if count >= 30 else "⚠ az"
+                status = "✓" if count >= 30 else "⚠ few"
                 bar_len = min(count // 100, 20)
                 bar = "█" * bar_len
                 print(f"     {letter:>6} {count:>6}  {status} {bar}")
@@ -279,10 +279,10 @@ def check_dynamic_data(raw_dir: str):
     """Inspect optional local J/Z recordings used by the desktop experiment."""
     dynamic_dir = os.path.join(raw_dir, "dynamic")
 
-    print("\n  Dinamik Veriler (J/Z, opsiyonel legacy)")
+    print("\n  Dynamic data (J/Z, optional, legacy)")
 
     if not os.path.isdir(dynamic_dir):
-        print("     ○ Henüz veri toplanmadı; aktif web runtime için zorunlu değil")
+        print("     ○ No data collected yet; the active web runtime does not need it")
         print("     → python scripts/model_training/train_dynamic_jz_model.py collect")
         return False
 
@@ -290,26 +290,26 @@ def check_dynamic_data(raw_dir: str):
         sign_dir = os.path.join(dynamic_dir, sign)
         if os.path.isdir(sign_dir):
             npy_files = [f for f in os.listdir(sign_dir) if f.endswith(".npy")]
-            print(f"     [{sign}] {len(npy_files)} sekans")
+            print(f"     [{sign}] {len(npy_files)} sequences")
         else:
-            print(f"     [{sign}] ○ Veri yok")
+            print(f"     [{sign}] ○ No data")
 
     return True
 
 
 def check_models(root: str):
     """Public Python model source/provenance records."""
-    print("\n  Python model kaynaklari")
+    print("\n  Python model sources")
 
     model_files = [
-        ("Harf modeli", os.path.join(root, "models", "letter", "letter_model.pkl")),
-        ("Harf label map", os.path.join(root, "models", "letter", "letter_label_map.json")),
+        ("Letter model", os.path.join(root, "models", "letter", "letter_model.pkl")),
+        ("Letter label map", os.path.join(root, "models", "letter", "letter_label_map.json")),
         (
-            "J/Z modeli (ops.)",
+            "J/Z model (opt.)",
             os.path.join(root, "models", "letter", "dynamic_jz", "jz_model.pt"),
         ),
         (
-            "J/Z label map (ops.)",
+            "J/Z label map (opt.)",
             os.path.join(root, "models", "letter", "dynamic_jz", "jz_label_map.json"),
         ),
     ]
@@ -319,7 +319,7 @@ def check_models(root: str):
             size_kb = os.path.getsize(path) / 1024
             print(f"     ✓ {name:20} ({size_kb:.0f} KB)")
         else:
-            print(f"     ○ {name:20} aktif web runtime için zorunlu değil")
+            print(f"     ○ {name:20} not needed by the active web runtime")
 
 
 def report_local_data(raw_dir: str) -> None:
@@ -347,7 +347,7 @@ def report_local_data(raw_dir: str) -> None:
     ]
 
     print(f"\n{'─' * 60}")
-    print("  STATIK HARF VERİ KAYNAKLARI (aktif model: 24 sinif, J/Z haric)")
+    print("  STATIC LETTER DATA SOURCES (active model: 24 classes, J/Z excluded)")
     print(f"{'─' * 60}")
 
     for name, path in datasets:
@@ -356,35 +356,35 @@ def report_local_data(raw_dir: str) -> None:
     # Isolated-word source. Training ran in Kaggle; only a small fixture
     # subset may exist locally.
     print(f"\n{'─' * 60}")
-    print("  KELİME VERİ KAYNAĞI")
+    print("  WORD DATA SOURCE")
     print(f"{'─' * 60}")
     print("\n  Google Isolated Sign Language Recognition competition")
-    print("     25 ve 50 kelimelik modellerin tek kelime egitim kaynagidir.")
-    print("     Egitim Kaggle notebook ortaminda yapildi; tam parquet verisi repoda yoktur.")
+    print("     The isolated-word training source of the 25- and 50-word models.")
+    print("     Training ran in a Kaggle notebook; the full parquet data is not in the repository.")
     sample_subset = os.path.join(raw_dir, "asl-signs-sample-subset")
     if os.path.isdir(sample_subset):
-        print(f"     ✓ Lokal kucuk fixture subset'i: {sample_subset}")
+        print(f"     ✓ Small local fixture subset: {sample_subset}")
     else:
-        print("     ○ Lokal fixture subset'i yok (runtime icin zorunlu degil)")
+        print("     ○ No local fixture subset (the runtime does not need one)")
 
     print(f"\n{'─' * 60}")
-    print("  DİNAMİK VERİLER (J/Z)")
+    print("  DYNAMIC DATA (J/Z)")
     print(f"{'─' * 60}")
     check_dynamic_data(raw_dir)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Proje asset ve dataset raporu")
+    parser = argparse.ArgumentParser(description="Project asset and dataset report")
     parser.add_argument(
         "--root",
         type=Path,
         default=Path(PROJECT_ROOT),
-        help="Kontrol edilecek checkout koku (varsayilan: bu depo)",
+        help="root of the checkout to check (default: this repository)",
     )
     parser.add_argument(
         "--no-datasets",
         action="store_true",
-        help="data/raw altindaki yerel veri raporunu atla (sonuc kodunu etkilemez)",
+        help="leave out the local data report under data/raw (it never changes the exit status)",
     )
     return parser.parse_args(argv)
 
@@ -396,7 +396,7 @@ def main(argv: list[str] | None = None) -> int:
     raw_dir = str(rebased(RAW_DIR, root_path))
 
     print("=" * 60)
-    print("  ASL Assistant dataset kontrol raporu")
+    print("  ASL Assistant asset and dataset report")
     print("=" * 60)
 
     web_ok = check_web_runtime(root_path)
@@ -405,43 +405,43 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.no_datasets:
         print(f"\n{'─' * 60}")
-        print("  YEREL VERİ RAPORU atlandi (--no-datasets)")
+        print("  LOCAL DATA REPORT skipped (--no-datasets)")
         print(f"{'─' * 60}")
     else:
         report_local_data(raw_dir)
 
     print(f"\n{'─' * 60}")
-    print("  EĞİTİLMİŞ MODELLER")
+    print("  TRAINED MODELS")
     print(f"{'─' * 60}")
     check_models(root)
 
     print(f"\n{'═' * 60}")
-    print("  SONRAKİ ADIMLAR")
+    print("  NEXT STEPS")
     print(f"{'═' * 60}")
 
     letter_model = os.path.join(root, "models", "letter", "letter_model.pkl")
     jz_model = os.path.join(root, "models", "letter", "dynamic_jz", "jz_model.pt")
 
     if not os.path.exists(letter_model):
-        print("\n  1. Harf modeli eğitin:")
+        print("\n  1. Train the letter model:")
         print("     python scripts/model_training/train_static_letter_model.py")
         print(
-            "     python scripts/model_training/train_static_letter_model.py --max-images 500  # hızlı test"
+            "     python scripts/model_training/train_static_letter_model.py --max-images 500  # quick test"
         )
 
     if not os.path.exists(jz_model):
-        print("\n  2. Opsiyonel legacy J/Z modeli için:")
+        print("\n  2. For the optional legacy J/Z model:")
         print("     python scripts/model_training/train_dynamic_jz_model.py collect")
         print("     python scripts/model_training/train_dynamic_jz_model.py train")
 
     if web_ok:
-        print("\n  3. Aktif web demosunu çalıştırın:")
+        print("\n  3. Run the active web demo:")
         print("     cd asl-web")
         print("     python3 -m http.server 8080")
-        print("     # Tarayıcı: http://localhost:8080")
+        print("     # Browser: http://localhost:8080")
 
     if all(os.path.exists(p) for p in [letter_model]):
-        print("\n  4. Legacy Python masaüstü uygulama:")
+        print("\n  4. Legacy Python desktop app:")
         print("     python3 asl-desktop/main.py")
 
     print()

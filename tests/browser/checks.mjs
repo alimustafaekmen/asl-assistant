@@ -741,6 +741,32 @@ export const CHECKS = [
   },
 
   {
+    name: "model-test-labels",
+    summary: "Model Test's ranked results show whole word labels, not cut-off ones, on a laptop and a phone",
+    async run(ctx) {
+      const problems = [];
+      for (const [device, viewport] of [["laptop", LAPTOP], ["phone", { width: 390, height: 844, mobile: true }]]) {
+        const page = await openApp(ctx, { route: "test", viewport });
+        // Drawn by the panel's own renderer, so no model has to run: the
+        // longest word labels the word model has, then letters as a control.
+        const cut = await page.eval(`(() => {
+          ${IN_PAGE}
+          const draw = (task, labels) => {
+            setModelTestTask(task);
+            renderModelTestTop3(labels.map((label, i) => ({ label, confidence: 0.5 - i * 0.1 })));
+            return [...document.querySelectorAll("#modelTestTop3List .top3-row b")]
+              .filter((b) => !rendered(b) || b.scrollWidth > b.clientWidth + 1)
+              .map((b) => task + ": " + b.textContent + (rendered(b) ? " is cut off" : " is not rendered"));
+          };
+          return [...draw("word", ["toothbrush", "thankyou", "brother"]), ...draw("letter", ["A", "B", "C"])];
+        })()`);
+        problems.push(...cut.map((line) => `${device}: ${line}`));
+      }
+      return problems;
+    },
+  },
+
+  {
     name: "guided-actions",
     summary: "primary Model Test and reference actions are visible; advanced controls start collapsed",
     async run(ctx) {

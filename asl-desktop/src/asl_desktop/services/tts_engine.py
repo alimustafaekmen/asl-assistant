@@ -44,7 +44,7 @@ class TTSEngine:
             engine = pyttsx3.init()
         except Exception as e:
             # A missing driver raises ImportError, not only RuntimeError or OSError.
-            _logger.warning("TTS motoru baslatilamadi, ses kapali: %s", e)
+            _logger.warning("Speech engine failed to start; speech is off: %s", e)
             self._unavailable = True
             self._running = False
             return
@@ -62,7 +62,7 @@ class TTSEngine:
             except queue.Empty:
                 continue
             except Exception as e:
-                _logger.error("TTS konusma hatasi: %s", e)
+                _logger.error("Speech failed: %s", e)
 
         try:
             engine.stop()

@@ -147,7 +147,7 @@ only means nothing is remembered for the next visit.
 | Loop | Where | Runs | On each animation frame |
 |---|---|---|---|
 | Render loop | `renderLoop()` in `core/app.js` | From `init()`, for the whole visit | Draws the overlay, moves the laptop result plate away from a hand, and while the camera is on calls `realInference()` in `ml/live-inference.js` |
-| Detection loop | `_processFrame()` in `media/camera.js` | Only while the camera is on, one per camera session | Runs MediaPipe on the newest video frame and publishes the result as `latestMediaPipeResult` |
+| Detection loop | `_processFrame()` in `media/camera.js` | Only while the camera is on, one per camera session | Runs MediaPipe when the camera has presented a new frame (counted with `requestVideoFrameCallback`, or every animation frame where the browser lacks it, and at least every 200 ms), and publishes the result as `latestMediaPipeResult` |
 
 The loops meet only at `latestMediaPipeResult`. In a letter context the render
 loop runs inference at most every 120 ms, so the five-prediction smoothing
@@ -170,8 +170,8 @@ Letter mode and a single-letter coach target take this path.
    the fixed 321-value frame.
 4. **Build features.** `computeLetterFeatures()` in `ml/features.js` makes 93
    values. It corrects x and z for the camera's aspect ratio (the training
-   photos were square), takes the hand with more visible landmarks and mirrors
-   a left hand, smooths the landmarks over frames, normalizes the hand to 63
+   photos were square), takes the hand with more visible landmarks (on a tie,
+   the clearly raised one) and mirrors a left hand, smooths the landmarks over frames, normalizes the hand to 63
    values and adds 30 geometry values. Each step is described in
    [Models and data](models-and-data.md#browser-parity-and-export-boundary).
 5. **Classify.** `predictLetter()` in `ml/letter-model.js` runs the LightGBM

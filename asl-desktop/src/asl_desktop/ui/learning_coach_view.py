@@ -100,7 +100,7 @@ class LearningCoachView(ctk.CTkFrame):
                 with open(_hints_path, encoding="utf-8") as f:
                     self._letter_hints = json.load(f)
             except (FileNotFoundError, json.JSONDecodeError) as e:
-                _logger.warning("Harf ipuclari yuklenemedi: %s", e)
+                _logger.warning("Letter hints could not be loaded: %s", e)
 
         # Optional external reference videos.
         self._video_links, self._alphabet_video_url = load_video_links(
@@ -386,7 +386,7 @@ class LearningCoachView(ctk.CTkFrame):
                     self._ref_ctk_img_word = img
                 self._ref_image_label.configure(image=img, text="")
             except Exception as e:
-                _logger.warning("Referans görsel yüklenemedi: %s", e)
+                _logger.warning("Reference image could not be loaded: %s", e)
                 self._ref_image_label.configure(text="Görsel açılamadı", image=None)
         else:
             self._ref_image_label.configure(text=f"{path} bulunamadı", image=None)
@@ -512,21 +512,22 @@ class LearningCoachView(ctk.CTkFrame):
                 text="Yapmanızı bekliyorum...", text_color=ACCENT_WARNING
             )
 
-    def _process_frame(self, frame):
+    def _process_frame(self, frame, preview):
+        """Detect on the captured ``frame``; draw and return the mirrored ``preview``."""
         if not self._selected_word:
-            return frame
+            return preview
 
         if self._mode == "word":
             if not self._word_loaded:
-                return frame
+                return preview
 
             # Keep the landmark overlay active in every word-recording state.
             try:
                 keypoints, hands_detected = self._holistic_detector.detect(frame)
-                frame = self._holistic_detector.draw_landmarks(frame)
+                preview = self._holistic_detector.draw_landmarks(preview)
             except Exception as e:
-                _logger.warning("Koç Frame işleme (word): %s", e)
-                return frame
+                _logger.warning("Coach frame processing failed (word): %s", e)
+                return preview
 
             now = time.time()
             # Idle: show the camera without collecting frames.
@@ -578,8 +579,8 @@ class LearningCoachView(ctk.CTkFrame):
                     )
                     self._hint_label.configure(text="")
                     # Mark active recording with a red frame border.
-                    h, w = frame.shape[:2]
-                    cv2.rectangle(frame, (4, 4), (w - 4, h - 4), (0, 0, 255), 3)
+                    h, w = preview.shape[:2]
+                    cv2.rectangle(preview, (4, 4), (w - 4, h - 4), (0, 0, 255), 3)
                 else:
                     # Run a single prediction when the sequence is complete.
                     result = self._word_classifier.predict_sequence(self._word_record_buffer)
@@ -600,13 +601,14 @@ class LearningCoachView(ctk.CTkFrame):
                         self._hazirim_btn.grid(row=2, column=0, sticky="ew", pady=(2, 4))
         else:
             if not self._letter_loaded:
-                return frame
+                return preview
             try:
-                keypoints, frame = self._hand_detector.detect_and_draw(frame)
+                keypoints = self._hand_detector.detect(frame)
+                preview = self._hand_detector.draw_landmarks(preview)
                 hands_detected = keypoints is not None
             except Exception as e:
-                _logger.warning("Koç Frame işleme (letter): %s", e)
-                return frame
+                _logger.warning("Coach frame processing failed (letter): %s", e)
+                return preview
 
             if not hands_detected or keypoints is None:
                 self._confidence_progress.set(0)
@@ -614,12 +616,12 @@ class LearningCoachView(ctk.CTkFrame):
                 self._hint_label.configure(
                     text=self._letter_hints.get(self._selected_word.upper(), "")
                 )
-                return frame
+                return preview
 
             pred_lbl, conf, top3 = self._letter_classifier.predict(keypoints)
             self._update_score(pred_lbl, float(conf), top3)
 
-        return frame
+        return preview
 
     def _update_score(self, predicted: str, conf: float, top3: list) -> None:
         # Recover the target probability from top-3 when it is not top-1.

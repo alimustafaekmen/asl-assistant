@@ -40,4 +40,4 @@ def test_a_real_run_without_onnxruntime_says_how_to_install_it() -> None:
     result = run_without_onnxruntime()
 
     assert result.returncode == 1
-    assert "onnxruntime kurulu değil" in result.stdout
+    assert "onnxruntime is not installed" in result.stdout

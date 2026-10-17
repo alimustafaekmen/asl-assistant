@@ -531,8 +531,8 @@ function computeLetterFeatures(frame321d, aspect = 1) {
  * The training data is right-handed, so a dominant left hand is mirrored into
  * the right-hand convention before normalization. MediaPipe x is in [0, 1],
  * so the mirror is 1 - x rather than the word path's negation, and a missing
- * landmark stays at zero instead of being mirrored to x = 1. This mirroring is
- * a web-runtime policy and differs from the desktop prototype.
+ * landmark stays at zero instead of being mirrored to x = 1. The desktop
+ * prototype mirrors a left hand too, from its own MediaPipe API's labels.
  *
  * The more visible hand wins. MediaPipe reports all 21 landmarks of any hand
  * it finds, so with both hands in view that is a tie, and the clearly raised

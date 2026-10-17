@@ -382,8 +382,8 @@ def download_all(
         to_download = limited
 
     logger.info(
-        f"İndirilecek: {len(to_download)} video "
-        f"(atlanıyor: {stats['skipped']}, toplam: {stats['total']})"
+        f"To download: {len(to_download)} videos "
+        f"(skipped: {stats['skipped']}, total: {stats['total']})"
     )
 
     if dry_run:
@@ -392,13 +392,13 @@ def download_all(
         for e in to_download:
             key = f"{e['class_id']}_{e['ms_class']}"
             class_counts[key] = class_counts.get(key, 0) + 1
-        logger.info("\n[DRY RUN] İndirilecek video dağılımı:")
+        logger.info("\n[DRY RUN] Videos to download per class:")
         for key in sorted(class_counts.keys()):
             logger.info(f"  {key}: {class_counts[key]}")
         return stats
 
     if not to_download:
-        logger.info("İndirilecek yeni video yok.")
+        logger.info("No new videos to download.")
         return stats
 
     # Download clips concurrently while updating one shared state file.
@@ -482,9 +482,9 @@ def print_summary(
                 class_success[cid] = class_success.get(cid, 0) + 1
 
     logger.info("\n" + "=" * 60)
-    logger.info("KELIME BAZINDA İNDİRME ÖZETİ")
+    logger.info("DOWNLOAD SUMMARY BY WORD")
     logger.info("=" * 60)
-    logger.info(f"{'Kelime':<15} {'MS-ASL Class':<15} {'Başarılı':>8} {'Toplam':>8} {'Oran':>8}")
+    logger.info(f"{'Word':<15} {'MS-ASL class':<15} {'Success':>8} {'Total':>8} {'Rate':>8}")
     logger.info("-" * 60)
 
     total_s = 0
@@ -506,10 +506,10 @@ def print_summary(
 
     logger.info("-" * 60)
     pct = total_s / total_t * 100 if total_t > 0 else 0
-    logger.info(f"  {'TOPLAM':<15} {'':15} {total_s:>5} / {total_t:<5} ({pct:5.1f}%)")
+    logger.info(f"  {'TOTAL':<15} {'':15} {total_s:>5} / {total_t:<5} ({pct:5.1f}%)")
 
     if low_words:
-        logger.info(f"\nUYARI: Düşük örnekli kelimeler: {', '.join(low_words)}")
+        logger.info(f"\nWARNING: Words with few clips: {', '.join(low_words)}")
 
     # Report signer diversity for the exploratory dataset.
     signers = set()
@@ -518,55 +518,55 @@ def print_summary(
             sid = info.get("signer_id", -1)
             if sid >= 0:
                 signers.add(sid)
-    logger.info(f"\nBenzersiz signer: {len(signers)}")
-    logger.info("Google ASL Signs: 21 signer")
-    logger.info(f"MS-ASL eklendikten sonra: 21 + {len(signers)} = {21 + len(signers)}+ signer")
+    logger.info(f"\nUnique signers: {len(signers)}")
+    logger.info("Google ASL Signs: 21 signers")
+    logger.info(f"With MS-ASL added: 21 + {len(signers)} = {21 + len(signers)}+ signers")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="MS-ASL veri setinden 50 kelime videosu indir",
+        description="Download the 50 word videos from the MS-ASL dataset",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=DEFAULT_VIDEO_DIR,
-        help=f"Video çıktı dizini (varsayılan: {DEFAULT_VIDEO_DIR})",
+        help=f"Video output directory (default: {DEFAULT_VIDEO_DIR})",
     )
     parser.add_argument(
         "--workers",
         type=int,
         default=3,
-        help="Paralel indirme thread sayısı (varsayılan: 3)",
+        help="Number of parallel download threads (default: 3)",
     )
     parser.add_argument(
         "--retry-failed",
         action="store_true",
-        help="Daha önce başarısız olanları tekrar dene",
+        help="Retry downloads that failed before",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="İndirmeden ne indirileceğini göster",
+        help="Show what would be downloaded without downloading",
     )
     parser.add_argument(
         "--max-per-word",
         type=int,
         default=0,
-        help="Kelime başına max indirme (test için, 0=sınırsız)",
+        help="Maximum downloads per word (for testing, 0 = no limit)",
     )
     parser.add_argument(
         "--state-file",
         type=Path,
         default=DEFAULT_STATE_FILE,
-        help="State dosyası yolu",
+        help="State file path",
     )
     parser.add_argument(
         "--log-file",
         type=Path,
         default=DEFAULT_LOG_FILE,
-        help="Log dosyası yolu",
+        help="Log file path",
     )
     return parser.parse_args()
 
@@ -576,22 +576,22 @@ def main() -> None:
     logger = setup_logging(args.log_file)
 
     logger.info("=" * 60)
-    logger.info("MS-ASL Video İndirme Başlıyor")
+    logger.info("MS-ASL video download")
     logger.info("=" * 60)
 
     # Fail before loading metadata if the external downloader is unavailable.
     if not check_ytdlp():
-        logger.error("HATA: yt-dlp kurulu değil! pip install yt-dlp")
+        logger.error("ERROR: yt-dlp is not installed. Install it with: pip install yt-dlp")
         sys.exit(1)
 
-    logger.info("MS-ASL JSON'ları yükleniyor...")
+    logger.info("Loading the MS-ASL JSON files...")
     entries = load_msasl_entries()
-    logger.info(f"  Hedef class sayısı: {len(TARGET_CLASS_IDS)}")
-    logger.info(f"  Toplam entry: {len(entries)}")
+    logger.info(f"  Target classes: {len(TARGET_CLASS_IDS)}")
+    logger.info(f"  Total entries: {len(entries)}")
 
     # Report source signer coverage before downloading.
     signers = {e["signer_id"] for e in entries}
-    logger.info(f"  Benzersiz signer: {len(signers)}")
+    logger.info(f"  Unique signers: {len(signers)}")
 
     start_time = time.time()
     download_all(
@@ -607,7 +607,7 @@ def main() -> None:
     elapsed = time.time() - start_time
 
     if not args.dry_run:
-        logger.info(f"\nİndirme tamamlandı: {elapsed:.0f} saniye ({elapsed / 60:.1f} dakika)")
+        logger.info(f"\nDownload finished: {elapsed:.0f} s ({elapsed / 60:.1f} min)")
 
         # Summarize the state written by the download loop.
         state = load_state(args.state_file)

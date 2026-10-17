@@ -98,7 +98,7 @@ def extract_landmarks(
                     break
 
             if letter_dir is None:
-                print(f"  [{letter}] Klasör bulunamadı")
+                print(f"  [{letter}] Folder not found")
                 stats[letter] = {"found": 0, "missed": 0, "total_images": 0}
                 continue
 
@@ -156,8 +156,8 @@ def extract_landmarks(
             elapsed = time.time() - letter_start
             hit_rate = found / (found + missed) * 100 if (found + missed) > 0 else 0
             print(
-                f"  [{letter}] {found} landmark, "
-                f"{missed} el bulunamadı ({hit_rate:.0f}% başarı)  "
+                f"  [{letter}] {found} landmark sets, "
+                f"{missed} without a hand ({hit_rate:.0f}% detected)  "
                 f"[{elapsed:.0f}s]"
             )
 
@@ -168,57 +168,59 @@ def extract_landmarks(
 
     elapsed = time.time() - overall_start
     total_seen = total_found + total_missed
-    print(f"\n  Toplam: {total_found} örnek, {len(letters)} sınıf, {elapsed:.0f}s")
+    print(f"\n  Total: {total_found} samples, {len(letters)} classes, {elapsed:.0f}s")
     if total_seen:
-        print(f"  Başarı oranı: {total_found}/{total_seen} ({total_found / total_seen * 100:.1f}%)")
+        print(
+            f"  Detection rate: {total_found}/{total_seen} ({total_found / total_seen * 100:.1f}%)"
+        )
     else:
-        print("  Başarı oranı: hesaplanamadı (görüntü bulunamadı)")
-    print(f"  Kayıt: {output_csv}")
+        print("  Detection rate: not available (no images found)")
+    print(f"  Saved: {output_csv}")
 
     return stats
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Görsellerden MediaPipe Landmark CSV Çıkarma",
+        description="Extract MediaPipe hand landmarks from images into a CSV",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--input",
         required=True,
-        help="Harf klasörlerinin bulunduğu kök dizin",
+        help="Root directory that holds one folder per letter",
     )
     parser.add_argument(
         "--output",
         required=True,
-        help="Çıktı CSV dosyası yolu",
+        help="Output CSV file path",
     )
     parser.add_argument(
         "--max-per-class",
         type=int,
         default=0,
-        help="Sınıf başına max görsel sayısı (0=sınırsız)",
+        help="Maximum images per class (0 = no limit)",
     )
     parser.add_argument(
         "--include-jz",
         action="store_true",
-        help="J ve Z harflerini de dahil et (varsayılan: sadece statik harfler)",
+        help="Include the letters J and Z (default: static letters only)",
     )
     args = parser.parse_args()
 
     if not os.path.isdir(args.input):
-        print(f"HATA: Girdi klasörü bulunamadı: {args.input}")
+        print(f"ERROR: Input folder not found: {args.input}")
         sys.exit(1)
 
     letters = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ") if args.include_jz else STATIC_LETTERS
 
     print("=" * 60)
-    print("  Landmark Çıkarma")
+    print("  Landmark extraction")
     print("=" * 60)
-    print(f"  Girdi:     {args.input}")
-    print(f"  Çıktı:     {args.output}")
-    print(f"  Max/sınıf: {'sınırsız' if args.max_per_class == 0 else args.max_per_class}")
-    print(f"  Harfler:   {len(letters)} ({', '.join(letters)})")
+    print(f"  Input:       {args.input}")
+    print(f"  Output:      {args.output}")
+    print(f"  Max/class:   {'no limit' if args.max_per_class == 0 else args.max_per_class}")
+    print(f"  Letters:     {len(letters)} ({', '.join(letters)})")
     print()
 
     stats = extract_landmarks(
@@ -228,15 +230,15 @@ def main():
         letters=letters,
     )
 
-    print(f"\n{'─' * 50}")
-    print(f"  {'Harf':>5}  {'Bulunan':>8}  {'Kaçan':>6}  {'Başarı':>7}")
-    print(f"{'─' * 50}")
+    print(f"\n{'-' * 50}")
+    print(f"  {'Letter':>6}  {'Found':>8}  {'Missed':>6}  {'Rate':>7}")
+    print(f"{'-' * 50}")
     for letter, s in sorted(stats.items()):
         total = s["found"] + s["missed"]
         rate = s["found"] / total * 100 if total > 0 else 0
-        flag = "  düşük" if rate < 80 else ""
-        print(f"  {letter:>5}  {s['found']:>8}  {s['missed']:>6}  {rate:>6.1f}%{flag}")
-    print(f"{'─' * 50}")
+        flag = "  low" if rate < 80 else ""
+        print(f"  {letter:>6}  {s['found']:>8}  {s['missed']:>6}  {rate:>6.1f}%{flag}")
+    print(f"{'-' * 50}")
 
 
 if __name__ == "__main__":

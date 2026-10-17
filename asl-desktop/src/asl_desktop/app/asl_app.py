@@ -209,11 +209,11 @@ class ASLApp(ctk.CTk):
                 try:
                     self._current_view.stop()
                 except Exception as exc:
-                    _logger.warning("View stop sirasinda hata: %s", exc)
+                    _logger.warning("Error while stopping a view: %s", exc)
             try:
                 self._current_view.destroy()
             except Exception as exc:
-                _logger.warning("View destroy sirasinda hata: %s", exc)
+                _logger.warning("Error while destroying a view: %s", exc)
             self._current_view = None
 
     def _on_close(self) -> None:

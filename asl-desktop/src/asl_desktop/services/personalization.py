@@ -39,10 +39,10 @@ class PersonalizedKNN:
                 with np.load(path, allow_pickle=False) as data:
                     templates = {letter: data[letter] for letter in data.files}
             except (ValueError, OSError) as e:
-                _logger.warning("KNN profilleri okunamadi, sablon yok sayildi: %s", e)
+                _logger.warning("KNN profiles could not be read; templates ignored: %s", e)
                 return
             self.templates.update(templates)
-            _logger.info("KNN profilleri yuklendi: %d harf", len(self.templates))
+            _logger.info("KNN profiles loaded: %d letters", len(self.templates))
 
     def save_templates(self) -> None:
         """Persist all in-memory templates."""

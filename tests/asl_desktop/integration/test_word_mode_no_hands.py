@@ -93,7 +93,7 @@ def test_buffer_fills_only_when_add_frame_called():
 
     for i in range(1, 6):
         clf.add_frame(fake_kp)
-        assert len(clf._frame_buffer) == i, f"{i}. frame sonrasi buffer {i} olmali"
+        assert len(clf._frame_buffer) == i, f"the buffer should hold {i} frames after frame {i}"
 
     assert clf.buffer_progress > 0.0
 
@@ -111,7 +111,7 @@ def test_buffer_reset_clears_all_frames():
 
     clf.reset_buffer()
 
-    assert len(clf._frame_buffer) == 0, "reset_buffer() sonrasi buffer bos olmali"
+    assert len(clf._frame_buffer) == 0, "the buffer should be empty after reset_buffer()"
     assert clf.buffer_progress == 0.0
 
 
@@ -121,6 +121,6 @@ def test_no_prediction_without_model():
     # _loaded is False (no model), so add_frame() returns early.
     fake_kp = np.zeros(WORD_FEATURE_DIM, dtype=np.float32)
     result = clf.add_frame(fake_kp)
-    assert result is None, "Modelsiz durumda tahmin yapilmamali"
+    assert result is None, "no prediction should be made without a model"
     # It leaves the buffer untouched as well.
     assert len(clf._frame_buffer) == 0

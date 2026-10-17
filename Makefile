@@ -7,8 +7,8 @@
 # macOS, Linux, Git Bash and WSL run `make` directly. Native Windows shells
 # ship no make.
 #
-# Messages and `make help` are Turkish, like the product UI. Code and comments
-# are English.
+# Messages and `make help` are English, like the code and comments. Only the
+# product UI is Turkish.
 
 
 # Interpreter
@@ -90,51 +90,51 @@ NOTEBOOK_ARTIFACTS ?= \
 
 help:
 	@echo ""
-	@echo "ASL Assistant: make hedefleri"
-	@echo "=============================="
+	@echo "ASL Assistant: make targets"
+	@echo "==========================="
 	@echo ""
 	@echo "Start here"
-	@echo "  make help              Bu listeyi gösterir"
-	@echo "  make doctor            Aktif Python ortamını kontrol eder (hiçbir şey kurmaz)"
-	@echo "  make setup             Bağımlılıkları aktif ortama kurar (önce 'make doctor')"
-	@echo "  make web               Web uygulamasını yerelde açar (http://localhost:8080; farklı port: PORT=8081)"
-	@echo "  make health            Düzenleme sonrası hızlı sağlık kapısı (npm gerekmez)"
+	@echo "  make help              Show this list"
+	@echo "  make doctor            Check the active Python environment (installs nothing)"
+	@echo "  make setup             Install the dependencies into the active environment (run 'make doctor' first)"
+	@echo "  make web               Serve the web app locally (http://localhost:8080; another port: PORT=8081)"
+	@echo "  make health            Fast health gate to run after an edit (no npm needed)"
 	@echo ""
 	@echo "Everyday"
-	@echo "  make quick             En hızlı döngü: lint + format-check + js-test"
-	@echo "  make test              Hızlı Python testleri"
-	@echo "  make test-full         Tüm Python testleri (entegrasyon dahil; MediaPipe gerekir)"
-	@echo "  make test-py           Tek pytest dosyası ve/veya -k deseni (FILE=... K=...)"
-	@echo "  make js-test           Web testlerinin tümü (node --test)"
-	@echo "  make test-web          Tek web test dosyası ve/veya test adı (FILE=... NAME=...)"
-	@echo "  make watch-web         Dosya değiştikçe web testlerini yeniden çalıştırır (FILE=...)"
-	@echo "  make format            Python kaynaklarını Ruff ile biçimlendirir"
-	@echo "  make desktop           Eski masaüstü prototipini başlatır (kamera + GUI gerekir)"
+	@echo "  make quick             Fastest loop: lint + format-check + js-test"
+	@echo "  make test              Fast Python tests"
+	@echo "  make test-full         All Python tests, integration included (needs MediaPipe)"
+	@echo "  make test-py           One pytest file and/or a -k pattern (FILE=... K=...)"
+	@echo "  make js-test           All web tests (node --test)"
+	@echo "  make test-web          One web test file and/or test name (FILE=... NAME=...)"
+	@echo "  make watch-web         Rerun the web tests whenever a file changes (FILE=...)"
+	@echo "  make format            Format the Python sources with Ruff"
+	@echo "  make desktop           Start the legacy desktop prototype (needs a camera and a GUI)"
 	@echo ""
 	@echo "Checks"
-	@echo "  make lint              Python sözdizimi, adlar ve import düzeni (Ruff)"
-	@echo "  make format-check      Python biçimini değiştirmeden denetler"
-	@echo "  make js-check          Web JavaScript dosyalarının sözdizimi (Node gerekir)"
-	@echo "  make js-typecheck      JSDoc tür sözleşmeleri (bir kez 'npm ci' gerekir)"
-	@echo "  make parity            Python ile JavaScript arasında harf ve kelime özellik eşitliği"
-	@echo "  make validate          JS sözdizimi + web runtime dosyaları, hash zinciri, ONNX girdi/çıktıları"
-	@echo "  make validate-full     validate + proje dosya denetimi ve yerel veri raporu"
-	@echo "  make notebook-check    Notebook, model ve sonuç dosyaları yerinde mi?"
-	@echo "  make git-hygiene       .gitignore ile eşleşen izlenen dosya var mı?"
-	@echo "  make check             Commit öncesi: health + js-typecheck (npm ci gerekir)"
-	@echo "  make browser-check     Gerçek Chrome ile CSS ve sayfa kontrolleri (OFFLINE=1: CDN'siz)"
+	@echo "  make lint              Python syntax, names and import order (Ruff)"
+	@echo "  make format-check      Check the Python formatting without changing it"
+	@echo "  make js-check          Syntax of the web JavaScript files (needs Node)"
+	@echo "  make js-typecheck      JSDoc type contracts (needs 'npm ci' once)"
+	@echo "  make parity            Letter and word feature parity between Python and JavaScript"
+	@echo "  make validate          JS syntax + web runtime files, hash chain, ONNX inputs and outputs"
+	@echo "  make validate-full     validate + the project asset audit and the local data report"
+	@echo "  make notebook-check    Check that the notebook, model and result files are in place"
+	@echo "  make git-hygiene       Check that no tracked file matches .gitignore"
+	@echo "  make check             Before a commit: health + js-typecheck (needs npm ci)"
+	@echo "  make browser-check     CSS and page checks in real Chrome (OFFLINE=1: no CDN)"
 	@echo ""
 	@echo "Deploy"
-	@echo "  make deploy-check      Her yüklemeden önce: validate + asl-web/ dosya envanteri"
+	@echo "  make deploy-check      Before every upload: validate + the asl-web/ file inventory"
 	@echo ""
 	@echo "Data and models"
-	@echo "  make model-test-fixtures   İsteğe bağlı: indirilmiş Kaggle alt kümesinden Model Test örnekleri"
+	@echo "  make model-test-fixtures   Optional: Model Test samples from a downloaded Kaggle subset"
 	@echo ""
 	@echo "Maintenance"
-	@echo "  make clean             Yalnızca önbellekleri siler; veri ve modellere dokunmaz"
+	@echo "  make clean             Delete caches only; data and models are left alone"
 	@echo ""
-	@echo "Başka bir Python yorumlayıcısı için herhangi bir hedefe PYTHON=/yol/python ekleyin."
-	@echo "Windows PowerShell/cmd'de make yoktur; elle komutlar: docs/getting-started.md"
+	@echo "Add PYTHON=/path/to/python to any target to use another interpreter."
+	@echo "Windows PowerShell and cmd have no make; the plain commands are in docs/getting-started.md"
 	@echo ""
 
 doctor:
@@ -143,23 +143,23 @@ doctor:
 setup:
 	@$(PYTHON) $(TOOLING_DIR)/setup_guard.py
 	@echo ""
-	@echo "── Aktif ortama kurulum ──────────────────"
+	@echo "── Setup in the active environment ───────"
 	@echo ""
 	$(PIP) install -r $(REQS_DEV)
 	$(PIP) install --no-deps -e $(ASL_FEATURES_DIR)
 	$(PIP) install --no-deps -e $(ASL_DESKTOP_DIR)
 	@echo ""
-	@echo "Kurulum tamam. Doğrulama: make doctor"
+	@echo "Setup done. To check it: make doctor"
 	@echo ""
 
 # The web app is static files, so the standard library's server is enough.
 web:
 	@echo ""
-	@echo "── Web uygulaması başlatılıyor ───────────"
+	@echo "── Starting the web app ──────────────────"
 	@echo "URL    : http://localhost:$(PORT)"
-	@echo "Klasör : $(WEB_DIR)/"
-	@echo "Not    : Python ML paketleri gerekmez; yalnızca statik dosyalar sunulur."
-	@echo "Durdur : Ctrl+C"
+	@echo "Folder : $(WEB_DIR)/"
+	@echo "Note   : no Python ML package is needed; only static files are served."
+	@echo "Stop   : Ctrl+C"
 	@echo ""
 	cd $(WEB_DIR) && $(PYTHON) -m http.server $(PORT)
 
@@ -169,7 +169,7 @@ web:
 health: lint format-check js-check js-test
 	@echo ""
 	@echo "── Project health gate ───────────────────"
-	@echo "Kapsam: Git hygiene + JS syntax + JS modül testleri + runtime assets + provenance + parity + fast tests"
+	@echo "Scope: Git hygiene + JS syntax + JS module tests + runtime assets + provenance + parity + fast tests"
 	@echo ""
 	@$(MAKE) --no-print-directory git-hygiene
 	$(PYTHON) $(CHECK_RUNTIME)
@@ -196,19 +196,19 @@ test-py:
 	PYTHONPATH="$(TEST_PYTHONPATH):$$PYTHONPATH" $(PYTEST) $(or $(FILE),$(TEST_FAST)) $(if $(K),-k "$(K)")
 
 js-test:
-	@command -v node >/dev/null 2>&1 || { echo "HATA: Node.js bulunamadı; JavaScript testleri çalıştırılamaz."; exit 1; }
-	@test -n "$(JS_TEST_FILES)" || { echo "HATA: tests/web altında JavaScript testi bulunamadı."; exit 1; }
+	@command -v node >/dev/null 2>&1 || { echo "ERROR: Node.js not found; the JavaScript tests cannot run."; exit 1; }
+	@test -n "$(JS_TEST_FILES)" || { echo "ERROR: no JavaScript test found under tests/web."; exit 1; }
 	node --test $(JS_TEST_FILES)
 
 # The inner loop. FILE narrows a run to one test file (or several, space
 # separated) and NAME or K to the tests whose names match; without them these
 # run what js-test and test run.
 test-web:
-	@command -v node >/dev/null 2>&1 || { echo "HATA: Node.js bulunamadı; JavaScript testleri çalıştırılamaz."; exit 1; }
+	@command -v node >/dev/null 2>&1 || { echo "ERROR: Node.js not found; the JavaScript tests cannot run."; exit 1; }
 	node --test $(if $(NAME),--test-name-pattern="$(NAME)") $(or $(FILE),$(JS_TEST_FILES))
 
 watch-web:
-	@command -v node >/dev/null 2>&1 || { echo "HATA: Node.js bulunamadı; JavaScript testleri çalıştırılamaz."; exit 1; }
+	@command -v node >/dev/null 2>&1 || { echo "ERROR: Node.js not found; the JavaScript tests cannot run."; exit 1; }
 	node --test --watch $(if $(NAME),--test-name-pattern="$(NAME)") $(or $(FILE),$(JS_TEST_FILES))
 
 format:
@@ -217,9 +217,9 @@ format:
 # The desktop app is the earlier prototype; the product is asl-web/.
 desktop:
 	@echo ""
-	@echo "── Masaüstü prototipi (eski sürüm) ───────"
-	@echo "Not    : Ürün asl-web/ klasörüdür; bu yalnızca bir prototiptir."
-	@echo "Şart   : Kamera izni ve GUI (CustomTkinter) ortamı."
+	@echo "── Desktop prototype (legacy) ────────────"
+	@echo "Note   : the product is asl-web/; this is only a prototype."
+	@echo "Needs  : camera permission and a GUI (CustomTkinter) session."
 	@echo ""
 	$(PYTHON) $(DESKTOP_ENTRY)
 
@@ -235,21 +235,21 @@ format-check:
 # node --check takes one file, so the checks run eight at a time. xargs exits
 # non-zero when any of them fails, and printf before it cannot fail.
 js-check:
-	@command -v node >/dev/null 2>&1 || { echo "HATA: Node.js bulunamadı; JavaScript kontrolü çalıştırılamaz."; exit 1; }
-	@test -n "$(JS_FILES)" || { echo "HATA: $(WEB_DIR)/js altında JavaScript dosyası bulunamadı."; exit 1; }
+	@command -v node >/dev/null 2>&1 || { echo "ERROR: Node.js not found; the JavaScript check cannot run."; exit 1; }
+	@test -n "$(JS_FILES)" || { echo "ERROR: no JavaScript file found under $(WEB_DIR)/js."; exit 1; }
 	@printf '%s\n' $(JS_FILES) | xargs -n 1 -P 8 node --check
-	@echo "JavaScript syntax kontrolü tamamlandı ($$(printf '%s\n' $(JS_FILES) | wc -l | tr -d ' ') dosya)."
+	@echo "JavaScript syntax check passed ($$(printf '%s\n' $(JS_FILES) | wc -l | tr -d ' ') files)."
 
 js-typecheck:
-	@command -v node >/dev/null 2>&1 || { echo "HATA: Node.js bulunamadı; tip kontrolü çalıştırılamaz."; exit 1; }
+	@command -v node >/dev/null 2>&1 || { echo "ERROR: Node.js not found; the type check cannot run."; exit 1; }
 	@test -x "$(TSC)" || { \
-		echo "HATA: TypeScript kurulu değil."; \
-		echo "  Bu yalnız geliştirici aracıdır; proje-yerel kurulum: npm ci"; \
-		echo "  Web uygulaması ve 'make health' bu paketi gerektirmez."; \
+		echo "ERROR: TypeScript is not installed."; \
+		echo "  It is a developer tool only; install it into the project with: npm ci"; \
+		echo "  The web app and 'make health' do not need it."; \
 		exit 1; \
 	}
 	$(TSC) --project $(TS_WEB_CONFIG)
-	@echo "JSDoc tip kontrolü tamamlandı (checkJs, no-emit, $(TS_WEB_CONFIG))."
+	@echo "JSDoc type check passed (checkJs, no-emit, $(TS_WEB_CONFIG))."
 
 parity:
 	$(PYTHON) $(WORD_PARITY)
@@ -267,30 +267,30 @@ validate-full: validate
 # Without this, a missing file shows only as `make` exiting 1.
 notebook-check:
 	@echo ""
-	@echo "── Notebook/provenance kontrolü ───────────"
+	@echo "── Notebook and provenance check ─────────"
 	@missing=0; \
 	for path in $(NOTEBOOK_ARTIFACTS); do \
-		[ -e "$$path" ] || { echo "Eksik: $$path"; missing=1; }; \
+		[ -e "$$path" ] || { echo "Missing: $$path"; missing=1; }; \
 	done; \
 	[ "$$missing" -eq 0 ] || exit 1
-	@echo "Kritik notebook, model ve sonuç dosyaları yerinde."
+	@echo "The key notebook, model and result files are in place."
 
 # Compares against .gitignore and the repository's own exclude list, so it
 # also catches a file that was added before its ignore rule.
 git-hygiene:
 	@echo ""
-	@echo "── Git ignore / index hijyeni ────────────"
+	@echo "── Git ignore and index hygiene ──────────"
 	@if ! command -v git >/dev/null 2>&1 || ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
-		echo "Not: Git bilgisi yok, izlenen-ama-ignore-edilen dosya denetimi atlandı."; \
+		echo "Note: no Git information; the check for tracked but ignored files was skipped."; \
 	else \
 		tracked_ignored="$$(git ls-files -ci --exclude-standard | while IFS= read -r path; do [ -e "$$path" ] && printf '%s\n' "$$path"; done)"; \
 		if [ -n "$$tracked_ignored" ]; then \
-			echo "HATA: .gitignore ile eşleşen izlenen dosyalar var:"; \
+			echo "ERROR: tracked files match .gitignore:"; \
 			printf '%s\n' "$$tracked_ignored"; \
-			echo "Çözüm: dosya politikasını doğrulayın; gerekiyorsa dizinden çıkarın (git rm --cached)."; \
+			echo "Fix: check the file policy; if needed, remove them from the index (git rm --cached)."; \
 			exit 1; \
 		fi; \
-		echo "Ignore edilmesi gereken izlenen dosya yok."; \
+		echo "No tracked file matches .gitignore."; \
 	fi
 
 # The gate before a commit.
@@ -302,7 +302,7 @@ check: health js-typecheck
 # close control. It needs Chrome, so it stays out of health; without Chrome the
 # runner exits 2 and so does this target.
 browser-check:
-	@command -v node >/dev/null 2>&1 || { echo "HATA: Node.js bulunamadı; tarayıcı kontrolleri çalıştırılamaz."; exit 1; }
+	@command -v node >/dev/null 2>&1 || { echo "ERROR: Node.js not found; the browser checks cannot run."; exit 1; }
 	node tests/browser/run.mjs $(if $(OFFLINE),--offline)
 
 
@@ -324,17 +324,17 @@ deploy-check: js-check
 # folder under asl-web/data/model-test-samples/.
 model-test-fixtures:
 	@test -f "$(KAGGLE_DIR)/train.csv" || { \
-		echo "HATA: $(KAGGLE_DIR)/train.csv bulunamadı."; \
-		echo "  Kaggle alt kümesi depoda yoktur. Yarışma kurallarını kabul edip Kaggle"; \
-		echo "  kimlik bilgilerinizi ayarladıktan sonra indirin:"; \
+		echo "ERROR: $(KAGGLE_DIR)/train.csv not found."; \
+		echo "  The Kaggle subset is not in the repository. Accept the competition rules,"; \
+		echo "  set up your Kaggle credentials, then download it:"; \
 		echo "  $(PYTHON) scripts/evaluation/download_kaggle_sample_subset.py --output $(KAGGLE_DIR) --samples-per-word $(SAMPLES_PER_WORD)"; \
-		echo "  Ayrıntı: docs/getting-started.md (Export Model Test fixtures)"; \
+		echo "  Details: docs/getting-started.md (Export Model Test fixtures)"; \
 		exit 1; \
 	}
 	@echo ""
-	@echo "── Model Test kelime örnekleri ────────────"
-	@echo "Kaggle alt kümesi : $(KAGGLE_DIR)"
-	@echo "Kelime başına     : $(SAMPLES_PER_WORD)"
+	@echo "── Model Test word samples ───────────────"
+	@echo "Kaggle subset    : $(KAGGLE_DIR)"
+	@echo "Samples per word : $(SAMPLES_PER_WORD)"
 	$(PYTHON) scripts/evaluation/export_model_test_word_samples.py --kaggle-dir $(KAGGLE_DIR) --samples-per-word $(SAMPLES_PER_WORD)
 
 
@@ -342,11 +342,11 @@ model-test-fixtures:
 
 clean:
 	@echo ""
-	@echo "── Önbellek temizliği ─────────────────────"
+	@echo "── Cache cleanup ─────────────────────────"
 	@find . \( -path './.git' -o -path './.venv*' \) -prune -o -type d \( -name '__pycache__' -o -name '.pytest_cache' -o -name '*.egg-info' \) -exec rm -rf {} + 2>/dev/null || true
 	@find . \( -path './.git' -o -path './.venv*' \) -prune -o -type f \( -name '*.pyc' -o -name '*.pyo' -o -name '.DS_Store' \) -delete 2>/dev/null || true
-	@echo "Silindi   : proje önbellekleri, *.egg-info, *.py[co], .DS_Store"
+	@echo "Deleted : project caches, *.egg-info, *.py[co], .DS_Store"
 	@echo ""
-	@echo "Korunan   : data/, models/, asl-web/models/, asl-web/data/,"
-	@echo "            notebooks/, .venv*, .git/, .gitignore, README'ler"
+	@echo "Kept    : data/, models/, asl-web/models/, asl-web/data/,"
+	@echo "          notebooks/, .venv*, .git/, .gitignore, the READMEs"
 	@echo ""

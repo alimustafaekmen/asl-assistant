@@ -31,54 +31,54 @@ def block_message(reason: str, facts: EnvironmentFacts) -> str:
     """The refusal a user sees, naming what is wrong and how to fix it."""
     if reason == "apple_clt":
         return (
-            "[BLOCK] Apple CommandLineTools Python ile setup CALISTIRILAMAZ.\n"
+            "[BLOCK] setup CANNOT RUN with Apple's CommandLineTools Python.\n"
             f"  sys.executable = {facts.executable}\n"
-            "  Bu Python ile editable install basarisiz olur veya yanlis environment kirlenir.\n"
-            "  Cozum:\n"
+            "  With this Python the editable install fails or pollutes the wrong environment.\n"
+            "  Fix:\n"
             "    Conda    : conda activate YOUR_ENV_NAME && make setup\n"
             "    venv     : python3 -m venv .venv && source .venv/bin/activate && make setup\n"
             "    Override : make setup PYTHON=$CONDA_PREFIX/bin/python"
         )
     if reason == "base":
         return (
-            "[BLOCK] Conda/Miniforge base Python ile setup CALISTIRILAMAZ.\n"
+            "[BLOCK] setup CANNOT RUN with the conda/Miniforge base Python.\n"
             f"  sys.executable    = {facts.executable}\n"
-            f"  CONDA_DEFAULT_ENV = {facts.conda_default_env or '(bos)'}\n"
-            f"  CONDA_PREFIX      = {facts.conda_prefix or '(bos)'}\n"
+            f"  CONDA_DEFAULT_ENV = {facts.conda_default_env or '(empty)'}\n"
+            f"  CONDA_PREFIX      = {facts.conda_prefix or '(empty)'}\n"
             "\n"
-            "  Bu proje icin izole ortam kullan:\n"
-            "    conda activate YOUR_ENV_NAME  # kendi ortam adinizi kullanin\n"
+            "  Use an isolated environment for this project:\n"
+            "    conda activate YOUR_ENV_NAME  # use your own environment name\n"
             "    make doctor\n"
             "    make setup\n"
             "\n"
-            "  Eger conda aktif oldugu halde yanlis Python goruluyorsa:\n"
+            "  If the wrong Python shows up although conda is active:\n"
             "    make doctor PYTHON=$CONDA_PREFIX/bin/python\n"
             "    make setup  PYTHON=$CONDA_PREFIX/bin/python\n"
             "\n"
-            "  Yeni venv:\n"
+            "  A new venv:\n"
             "    python3 -m venv .venv\n"
             "    source .venv/bin/activate\n"
             "    make setup\n"
         )
     if reason == "conda":
         return (
-            "[BLOCK] Conda aktif ama secilen Python conda ortaminda degil.\n"
+            "[BLOCK] conda is active but the chosen Python is not in its environment.\n"
             f"  CONDA_PREFIX   = {facts.conda_prefix}\n"
             f"  sys.executable = {facts.executable}\n"
-            "  Cozum: make setup PYTHON=$CONDA_PREFIX/bin/python"
+            "  Fix: make setup PYTHON=$CONDA_PREFIX/bin/python"
         )
     return (
-        "[BLOCK] venv aktif ama secilen Python venv icinde degil.\n"
+        "[BLOCK] a venv is active but the chosen Python is not inside it.\n"
         f"  VIRTUAL_ENV    = {facts.virtual_env}\n"
         f"  sys.executable = {facts.executable}\n"
-        "  Cozum: make setup PYTHON=$VIRTUAL_ENV/bin/python"
+        "  Fix: make setup PYTHON=$VIRTUAL_ENV/bin/python"
     )
 
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv:
-        print(f"setup-guard: beklenmeyen argüman: {' '.join(argv)}", file=sys.stderr)
+        print(f"setup-guard: unexpected argument: {' '.join(argv)}", file=sys.stderr)
         return 2
 
     facts = describe_current()
@@ -86,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
     if reason:
         print(block_message(reason, facts))
         return 2
-    print(f"[OK] Hedef Python ortami: {facts.executable}")
+    print(f"[OK] Target Python environment: {facts.executable}")
     return 0
 
 

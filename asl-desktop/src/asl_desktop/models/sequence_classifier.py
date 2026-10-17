@@ -249,7 +249,11 @@ class SequenceClassifier:
             label = f"{'Bi-' if bidirectional else ''}LSTM"
 
         _logger.info(
-            "Mimari: %s (in=%d, hidden=%d, layers=%d)", label, input_size, hidden_size, num_layers
+            "Architecture: %s (in=%d, hidden=%d, layers=%d)",
+            label,
+            input_size,
+            hidden_size,
+            num_layers,
         )
         return model
 
@@ -257,12 +261,12 @@ class SequenceClassifier:
         """Load the selected checkpoint and label map."""
         if not os.path.exists(self._model_path):
             _logger.info(
-                "%s modeli henuz egitilmedi: %s", self.model_type.upper(), self._model_path
+                "%s model is not trained yet: %s", self.model_type.upper(), self._model_path
             )
             return False
         if not os.path.exists(self._label_map_path):
             _logger.info(
-                "%s label map bulunamadi: %s", self.model_type.upper(), self._label_map_path
+                "%s label map not found: %s", self.model_type.upper(), self._label_map_path
             )
             return False
 
@@ -286,7 +290,7 @@ class SequenceClassifier:
         self.model.eval()
 
         self._loaded = True
-        _logger.info("%s modeli yuklendi: %d sinif", self.model_type.upper(), num_classes)
+        _logger.info("%s model loaded: %d classes", self.model_type.upper(), num_classes)
         return True
 
     def add_frame(self, keypoints: np.ndarray) -> tuple[str, float] | None:

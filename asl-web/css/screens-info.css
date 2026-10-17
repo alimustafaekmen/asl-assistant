@@ -105,6 +105,9 @@
   .mt__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
   .mt__actions .btn { flex: 1 1 10rem; }
   .mt .panel > .btn { justify-self: start; }
+  /* Word results need the word screen's wider label column. */
+  .mt .model-test-top3[data-task="word"] .top3-row { grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr) 3rem; }
+  .mt .model-test-top3[data-task="word"] .top3-row b { font-size: var(--fs-md); }
 
   .mt__steps { display: flex; flex-wrap: wrap; gap: var(--sp-2); font-size: var(--fs-xs); }
   .mt__steps span {

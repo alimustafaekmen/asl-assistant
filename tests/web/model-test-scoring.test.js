@@ -111,7 +111,7 @@ test("the model is given the fixture's own 93 features and the top three are lis
   const rows = app.evaluate("Array.from(els.modelTestTop3List.children, (row) => row.textContent)");
   assert.equal(rows.length, 3, "three ranked rows");
   assert.match(rows[0], /^#1G/);
-  assert.match(rows[0], /90%$/);
+  assert.match(rows[0], /%90$/);
   assert.match(text(app, "modelTestResultNote"), /Top-3: 1\. G %90 /);
 });
 

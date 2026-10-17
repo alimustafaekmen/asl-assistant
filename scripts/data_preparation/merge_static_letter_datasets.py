@@ -55,23 +55,23 @@ def load_and_merge(csv_paths: list) -> pd.DataFrame:
     dfs = []
     for path in csv_paths:
         if not os.path.exists(path):
-            print(f"  Atlandı (yok): {path}")
+            print(f"  Skipped (missing): {path}")
             continue
         df = pd.read_csv(path)
         if len(df) == 0 or "label" not in df.columns:
-            print(f"  Atlandı (boş veya geçersiz): {os.path.basename(path)}")
+            print(f"  Skipped (empty or invalid): {os.path.basename(path)}")
             continue
         n = len(df)
         classes = df["label"].nunique()
-        print(f"  {os.path.basename(path)}: {n} örnek, {classes} sınıf")
+        print(f"  {os.path.basename(path)}: {n} samples, {classes} classes")
         dfs.append(df)
 
     if not dfs:
-        print("HATA: Hiç CSV yüklenemedi!")
+        print("ERROR: No CSV file could be loaded.")
         sys.exit(1)
 
     combined = pd.concat(dfs, ignore_index=True)
-    print(f"\n  Birleştirilmiş: {len(combined)} örnek, {combined['label'].nunique()} sınıf")
+    print(f"\n  Merged: {len(combined)} samples, {combined['label'].nunique()} classes")
     return combined
 
 
@@ -82,8 +82,8 @@ def filter_static(df: pd.DataFrame) -> pd.DataFrame:
     df = df[df["label"].isin(static)].copy()
     removed = before - len(df)
     if removed > 0:
-        print(f"  J/Z filtrelendi: {removed} örnek çıkarıldı")
-    print(f"  Statik: {len(df)} örnek, {df['label'].nunique()} sınıf")
+        print(f"  J/Z filtered out: {removed} samples removed")
+    print(f"  Static: {len(df)} samples, {df['label'].nunique()} classes")
     return df
 
 
@@ -94,7 +94,7 @@ def remove_duplicates(df: pd.DataFrame) -> pd.DataFrame:
     df = df.drop_duplicates(subset=feature_cols, keep="first")
     removed = before - len(df)
     if removed > 0:
-        print(f"  Duplikat temizlendi: {removed} örnek çıkarıldı")
+        print(f"  Duplicates removed: {removed} samples")
     return df
 
 
@@ -121,7 +121,7 @@ def remove_anomalies(df: pd.DataFrame) -> pd.DataFrame:
 
     removed = before - len(df)
     if removed > 0:
-        print(f"  Anomali temizlendi: {removed} örnek çıkarıldı")
+        print(f"  Anomalies removed: {removed} samples")
     return df
 
 
@@ -131,10 +131,10 @@ def balance_classes(df: pd.DataFrame, max_per_class: int = 0) -> pd.DataFrame:
     min_count = counts.min()
     max_count = counts.max()
 
-    print("\n  Dengeleme öncesi:")
+    print("\n  Before balancing:")
     print(f"    Min: {counts.idxmin()} = {min_count}")
     print(f"    Max: {counts.idxmax()} = {max_count}")
-    print(f"    Oran: {max_count / min_count:.1f}x dengesizlik")
+    print(f"    Ratio: {max_count / min_count:.1f}x imbalance")
 
     if max_per_class > 0:
         target = min(min_count, max_per_class)
@@ -148,9 +148,9 @@ def balance_classes(df: pd.DataFrame, max_per_class: int = 0) -> pd.DataFrame:
         sampled.append(group.sample(n, random_state=42))
     balanced = pd.concat(sampled, ignore_index=True)
 
-    print("\n  Dengeleme sonrası:")
-    print(f"    Sınıf başına: {target} örnek")
-    print(f"    Toplam: {len(balanced)} örnek")
+    print("\n  After balancing:")
+    print(f"    Per class: {target} samples")
+    print(f"    Total: {len(balanced)} samples")
     return balanced
 
 
@@ -174,7 +174,7 @@ def split_train_test(df: pd.DataFrame, test_ratio: float = 0.15) -> tuple:
         actual_ratio = max(test_ratio, n_classes / n_total + 0.01)
         if actual_ratio != test_ratio:
             print(
-                f"  UYARI: Test oranı {test_ratio:.2f} → {actual_ratio:.2f} ayarlandı (min {n_classes} test)"
+                f"  WARNING: Test ratio raised from {test_ratio:.2f} to {actual_ratio:.2f} (at least {n_classes} test samples)"
             )
         X_train, X_test, y_train, y_test = sklearn_split(
             X,
@@ -185,7 +185,7 @@ def split_train_test(df: pd.DataFrame, test_ratio: float = 0.15) -> tuple:
         )
     else:
         # Tiny datasets cannot satisfy stratification constraints.
-        print(f"  UYARI: Dataset çok küçük ({min_class_count}/sınıf), stratify kapalı")
+        print(f"  WARNING: Dataset too small ({min_class_count} per class), stratification off")
         actual_ratio = min(test_ratio, 0.3)
         X_train, X_test, y_train, y_test = sklearn_split(
             X,
@@ -200,8 +200,8 @@ def split_train_test(df: pd.DataFrame, test_ratio: float = 0.15) -> tuple:
     test_df = pd.DataFrame(X_test, columns=feature_cols)
     test_df.insert(0, "label", y_test)
 
-    print(f"\n  Train: {len(train_df)} örnek")
-    print(f"  Test:  {len(test_df)} örnek")
+    print(f"\n  Train: {len(train_df)} samples")
+    print(f"  Test:  {len(test_df)} samples")
     return train_df, test_df
 
 
@@ -214,8 +214,8 @@ def save_class_distribution(df: pd.DataFrame, title: str, output_path: str):
     fig, ax = plt.subplots(figsize=(14, 6))
     colors = ["#4CAF50" if c >= counts.median() else "#FF9800" for c in counts.values]
     ax.bar(counts.index, counts.values, color=colors, alpha=0.85)
-    ax.set_xlabel("Harf", fontsize=12)
-    ax.set_ylabel("Örnek Sayısı", fontsize=12)
+    ax.set_xlabel("Letter", fontsize=12)
+    ax.set_ylabel("Samples", fontsize=12)
     ax.set_title(title, fontsize=14)
 
     # Label every bar for use in static documentation.
@@ -227,51 +227,51 @@ def save_class_distribution(df: pd.DataFrame, title: str, output_path: str):
         color="gray",
         linestyle="--",
         alpha=0.5,
-        label=f"Medyan: {int(counts.median())}",
+        label=f"Median: {int(counts.median())}",
     )
     ax.legend()
     plt.tight_layout()
     fig.savefig(output_path, dpi=150)
     plt.close(fig)
-    print(f"  Grafik → {output_path}")
+    print(f"  Chart -> {output_path}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Dataset Birleştirme, Dengeleme ve Bölme",
+        description="Merge, clean, balance and split the letter landmark CSV files",
     )
     parser.add_argument(
         "--inputs",
         nargs="+",
         default=None,
-        help="Birleştirilecek CSV dosyaları (varsayılan: data/processed/ altındaki tüm CSV'ler)",
+        help="CSV files to merge (default: every landmark CSV under data/processed/)",
     )
     parser.add_argument(
         "--max-per-class",
         type=int,
         default=0,
-        help="Sınıf başına max örnek (0=min sınıfa göre dengele)",
+        help="Maximum samples per class (0 = balance down to the smallest class)",
     )
     parser.add_argument(
         "--test-ratio",
         type=float,
         default=0.15,
-        help="Test seti oranı (varsayılan: 0.15)",
+        help="Test set ratio (default: 0.15)",
     )
     parser.add_argument(
         "--include-jz",
         action="store_true",
-        help="J/Z harflerini dahil et (varsayılan: filtrele)",
+        help="Keep the letters J and Z (default: filter them out)",
     )
     parser.add_argument(
         "--no-balance",
         action="store_true",
-        help="Dengeleme yapma (sınıf ağırlığı modelde ayarlanır)",
+        help="Skip balancing (class weights are set in the model instead)",
     )
     args = parser.parse_args()
 
     print("=" * 60)
-    print("  Dataset Birleştirme ve Hazırlama")
+    print("  Dataset merge and preparation")
     print("=" * 60)
 
     # Resolve explicit inputs or discover raw landmark CSV files.
@@ -287,68 +287,68 @@ def main():
             ]
         )
         if not csv_paths:
-            print("HATA: data/processed/ altında *_landmarks.csv bulunamadı!")
-            print("  Önce çıkarma yapın:")
+            print("ERROR: No *_landmarks.csv file found under data/processed/.")
+            print("  Run the extraction first:")
             print(
                 '  python scripts/data_preparation/extract_static_letter_landmarks.py --input "data/raw/ASL Alphabet/asl_alphabet_train/asl_alphabet_train" --output "data/processed/asl_alphabet_landmarks.csv"'
             )
             sys.exit(1)
 
-    print("\n── Adım 1: CSV Yükleme ──")
+    print("\nStep 1: Load CSV files")
     df = load_and_merge(csv_paths)
 
     # Apply the published 24-letter class contract by default.
-    print("\n── Adım 2: J/Z Filtreleme ──")
+    print("\nStep 2: Filter J/Z")
     if not args.include_jz:
         df = filter_static(df)
     else:
-        print("  J/Z dahil edildi.")
+        print("  J/Z kept.")
 
-    print("\n── Adım 3: Temizlik ──")
+    print("\nStep 3: Clean")
     df = remove_duplicates(df)
     df = remove_anomalies(df)
 
     # Preserve the cleaned, pre-balanced merged dataset.
     combined_path = os.path.join(PROCESSED_DATA_DIR, "combined_landmarks.csv")
     df.to_csv(combined_path, index=False)
-    print(f"\n  Birleştirilmiş → {combined_path}")
+    print(f"\n  Merged -> {combined_path}")
 
-    print("\n── Adım 4: Dengeleme ──")
+    print("\nStep 4: Balance")
     if not args.no_balance:
         df = balance_classes(df, args.max_per_class)
     else:
-        print("  Dengeleme atlandı.")
+        print("  Balancing skipped.")
 
-    print("\n── Adım 5: Train/Test Bölme ──")
+    print("\nStep 5: Train/test split")
     train_df, test_df = split_train_test(df, args.test_ratio)
 
     train_path = os.path.join(PROCESSED_DATA_DIR, "train_landmarks.csv")
     test_path = os.path.join(PROCESSED_DATA_DIR, "test_landmarks.csv")
     train_df.to_csv(train_path, index=False)
     test_df.to_csv(test_path, index=False)
-    print(f"  Train → {train_path}")
-    print(f"  Test  → {test_path}")
+    print(f"  Train -> {train_path}")
+    print(f"  Test  -> {test_path}")
 
-    print("\n── Adım 6: Görselleştirme ──")
+    print("\nStep 6: Charts")
     save_class_distribution(
         train_df,
-        f"Eğitim Seti Sınıf Dağılımı ({len(train_df)} örnek)",
+        f"Training set class distribution ({len(train_df)} samples)",
         os.path.join(DOCS_ASSETS_DIR, "static-letter-class-distribution-train.png"),
     )
     save_class_distribution(
         df,
-        f"Birleştirilmiş Dataset Sınıf Dağılımı ({len(df)} örnek)",
+        f"Merged dataset class distribution ({len(df)} samples)",
         os.path.join(DOCS_ASSETS_DIR, "static-letter-class-distribution.png"),
     )
 
-    print(f"\n{'═' * 60}")
-    print("  TAMAMLANDI!")
-    print(f"  Sınıf sayısı:   {train_df['label'].nunique()}")
-    print(f"  Train:          {len(train_df)} örnek")
-    print(f"  Test:           {len(test_df)} örnek")
-    print(f"  Sınıf başına:   ~{len(train_df) // train_df['label'].nunique()}")
-    print(f"{'═' * 60}")
-    print("\n  Sonraki adım:")
+    print(f"\n{'=' * 60}")
+    print("  Done.")
+    print(f"  Classes:        {train_df['label'].nunique()}")
+    print(f"  Train:          {len(train_df)} samples")
+    print(f"  Test:           {len(test_df)} samples")
+    print(f"  Per class:      ~{len(train_df) // train_df['label'].nunique()}")
+    print(f"{'=' * 60}")
+    print("\n  Next step:")
     print(
         "    python scripts/model_training/train_static_letter_model.py --from-csv --full-comparison"
     )

@@ -72,9 +72,9 @@
  */
 
 // Where ONNX Runtime Web fetches its worker and WASM files. It must be the
-// directory of the ort.min.js that index.html loads, whose version is pinned
-// there with SRI: a JavaScript and WASM pair from two versions fails at the
-// first model load. Both model adapters read this one value.
+// directory of the ort.wasm.min.js that index.html loads, whose version is
+// pinned there with SRI: a JavaScript and WASM pair from two versions fails at
+// the first model load. Both model adapters read this one value.
 /** @type {string} */
 const ORT_WASM_PATHS = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/";
 

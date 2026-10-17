@@ -89,7 +89,7 @@ class TranslationView(ctk.CTkFrame):
 
         if not self._letter_loaded:
             self._logger.warning(
-                "Harf modeli yuklenemedi: python scripts/model_training/train_static_letter_model.py"
+                "Letter model could not be loaded: python scripts/model_training/train_static_letter_model.py"
             )
 
         # Modes: static letters with optional J/Z, or the legacy word model.
@@ -509,7 +509,8 @@ class TranslationView(ctk.CTkFrame):
         self._top3_label.configure(text="")
         self._buffer_progress_label.configure(text="")
 
-    def _process_frame(self, frame):
+    def _process_frame(self, frame, preview):
+        """Detect on the captured ``frame``; draw and return the mirrored ``preview``."""
         self._fps_count += 1
         now = time.time()
         if now - self._fps_time >= 1.0:
@@ -523,22 +524,23 @@ class TranslationView(ctk.CTkFrame):
 
         try:
             if self._mode == "letter":
-                keypoints, frame = self._detector.detect_and_draw(frame)
+                keypoints = self._detector.detect(frame)
+                preview = self._detector.draw_landmarks(preview)
                 hands_detected = True if keypoints is not None else False
             else:
                 keypoints, hands_detected = self._holistic_detector.detect(frame)
-                frame = self._holistic_detector.draw_landmarks(frame)
+                preview = self._holistic_detector.draw_landmarks(preview)
         except Exception as e:
-            self._logger.warning("Frame isleme hatasi (detect_and_draw): %s", e, exc_info=True)
-            return frame
+            self._logger.warning("Frame processing failed: %s", e, exc_info=True)
+            return preview
 
         is_moving = self._motion_tracker.update(keypoints)
 
         if keypoints is not None:
             if self._mode == "letter":
-                frame = self._process_letter_mode(keypoints, frame, is_moving)
+                preview = self._process_letter_mode(keypoints, preview, is_moving)
             else:
-                frame = self._process_word_mode(keypoints, frame, is_moving, hands_detected)
+                preview = self._process_word_mode(keypoints, preview, is_moving, hands_detected)
         else:
             # Clear temporal state as soon as the hand leaves the frame.
             self._dwell_counter = 0
@@ -556,7 +558,7 @@ class TranslationView(ctk.CTkFrame):
                 self._word_classifier.reset_buffer()
                 self._buffer_progress_label.configure(text="Kelime: ░░░░░░░░░░ 0%")
 
-        return frame
+        return preview
 
     def _process_letter_mode(self, keypoints, frame, is_moving):
         """Run static-letter inference and optional dynamic J/Z recognition."""

@@ -54,33 +54,33 @@ def find_file(paths, name):
         if os.path.exists(p):
             print(f"  {name}: {p} ({os.path.getsize(p) / 1024:.1f} KB)")
             return p
-    print(f"  HATA: {name} BULUNAMADI! Aranan yollar:")
+    print(f"  ERROR: {name} not found. Paths searched:")
     for p in paths:
         print(f"    - {p}")
     sys.exit(1)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Web ONNX test_sample.json uretici")
+    parser = argparse.ArgumentParser(description="Generate the web word model's test_sample.json")
     parser.add_argument(
         "--allow-model-source",
         action="store_true",
-        help="asl-web kopyasi yoksa models/word/web-50 kaynagini okumaya izin ver.",
+        help="Read the models/word/web-50 source when the asl-web copy is missing.",
     )
     parser.add_argument(
         "--write-notebooks",
         action="store_true",
-        help="test_sample.json dosyasini notebooks/word_50_results altina da yaz.",
+        help="Also write test_sample.json under notebooks/word_50_results.",
     )
     args = parser.parse_args()
 
     print("=" * 60)
-    print("  test_sample.json Üretici")
+    print("  test_sample.json generator")
     print("=" * 60)
     print()
 
     # Resolve a complete model contract before loading ONNX Runtime.
-    print("Dosyalar aranıyor...")
+    print("Looking for the files...")
     model_paths = WEB_WORD_MODEL_PATHS + (
         SOURCE_WORD_MODEL_PATHS if args.allow_model_source else []
     )
@@ -96,11 +96,11 @@ def main():
     try:
         import onnxruntime as ort
     except ImportError:
-        print("onnxruntime kurulu değil. Kurulum sonrası tekrar çalıştır:")
+        print("onnxruntime is not installed. Install it, then run this again:")
         print(f"  {sys.executable} -m pip install onnxruntime")
         sys.exit(1)
 
-    print("ONNX model yükleniyor...")
+    print("Loading the ONNX model...")
     session = ort.InferenceSession(model_path)
 
     print("  Inputs:")
@@ -118,7 +118,7 @@ def main():
     with open(labels_path) as f:
         word_to_idx = json.load(f)
     idx_to_word = {int(v): k for k, v in word_to_idx.items()}
-    print(f"Kelime sayısı: {len(word_to_idx)}")
+    print(f"Words: {len(word_to_idx)}")
 
     # Load the calibration temperature used by browser inference.
     with open(temp_path) as f:
@@ -136,13 +136,13 @@ def main():
     mask = np.zeros((1, 45), dtype=bool)
     mask[0, :actual_frames] = True
 
-    print("Test input oluşturuldu:")
+    print("Test input created:")
     print(f"  features shape: {features.shape}")
     print(f"  mask shape: {mask.shape}")
-    print(f"  Gerçek frame: {actual_frames}/45")
+    print(f"  Real frames: {actual_frames}/45")
     print()
 
-    print("ONNX inference çalıştırılıyor...")
+    print("Running ONNX inference...")
     feeds = {input_names[0]: features, input_names[1]: mask}
     results = session.run(output_names, feeds)
     logits = results[0][0]  # (50,)
@@ -154,13 +154,13 @@ def main():
 
     # Store top-three results for a human-readable smoke check.
     top3_idx = np.argsort(probs)[-3:][::-1]
-    print("\nPython ONNX sonucu (top-3):")
+    print("\nPython ONNX result (top 3):")
     for rank, idx in enumerate(top3_idx, 1):
         word = idx_to_word.get(idx, f"idx_{idx}")
         print(f"  {rank}. {word}: {probs[idx] * 100:.2f}%")
 
     expected_word = idx_to_word[top3_idx[0]]
-    print(f"\nBeklenen kelime: {expected_word}")
+    print(f"\nExpected word: {expected_word}")
     print()
 
     test_sample = {
@@ -188,10 +188,10 @@ def main():
         with open(web_path, "w") as f:
             json.dump(test_sample, f, indent=2)
         written_path = web_path
-        print(f"Kaydedildi: {web_path}")
-        print(f"  Boyut: {os.path.getsize(web_path) / 1024:.1f} KB")
+        print(f"Saved: {web_path}")
+        print(f"  Size: {os.path.getsize(web_path) / 1024:.1f} KB")
     else:
-        print(f"  UYARI: {web_data_dir} bulunamadı, kaydedilemedi")
+        print(f"  WARNING: {web_data_dir} not found; the web copy was not saved")
 
     if args.write_notebooks:
         results_dir = os.path.join(PROJECT_ROOT, "notebooks", "word_50_results")
@@ -199,18 +199,18 @@ def main():
         results_path = os.path.join(results_dir, "test_sample.json")
         with open(results_path, "w") as f:
             json.dump(test_sample, f, indent=2)
-        print(f"Notebooks kopyası yazıldı: {results_path}")
+        print(f"Notebook copy written: {results_path}")
         if written_path is None:
             written_path = results_path
 
     if written_path is None:
-        print("  HATA: Yazılacak hedef bulunamadı.")
+        print("  ERROR: no folder to write the fixture to.")
         sys.exit(1)
 
     # Reload the saved fixture and independently reproduce its result.
     print()
     print("=" * 60)
-    print("  DOĞRULAMA")
+    print("  VERIFICATION")
     print("=" * 60)
     print()
 
@@ -225,16 +225,16 @@ def main():
     logits2 = results2[0][0]
 
     max_diff = np.max(np.abs(logits - logits2))
-    print(f"JSON save/load sonrası max logit farkı: {max_diff:.2e}")
-    print(f"  {'BAŞARILI' if max_diff < 1e-6 else 'HATA: FARK ÇOK BÜYÜK!'}")
+    print(f"Max logit difference after the JSON save and load: {max_diff:.2e}")
+    print(f"  {'PASSED' if max_diff < 1e-6 else 'ERROR: the difference is too large'}")
 
     print()
     print("─" * 60)
-    print("Web tarafında doğrulama:")
-    print("  1. localhost:8080 aç")
-    print("  2. Kamerasız dene ekranında Kelime modeli > Tümünü çalıştır")
-    print("  3. Beklenen kelime ile ONNX sonucunu karşılaştır")
-    print(f"  4. Beklenen: {expected_word} ({probs[top3_idx[0]] * 100:.1f}%)")
+    print("To check it in the browser:")
+    print("  1. Open localhost:8080 (make web)")
+    print('  2. On the "Kamerasız dene" screen, choose "Kelime modeli", then "Tümünü çalıştır"')
+    print("  3. Compare the browser's ONNX result with the expected word")
+    print(f"  4. Expected: {expected_word} ({probs[top3_idx[0]] * 100:.1f}%)")
     print("─" * 60)
 
 

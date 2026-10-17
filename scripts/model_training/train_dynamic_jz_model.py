@@ -35,7 +35,6 @@ import sys
 import time
 
 import cv2
-import mediapipe as mp
 import numpy as np
 import torch
 import torch.nn as nn
@@ -70,36 +69,33 @@ from asl_desktop.config import (
     TRAIN_EPOCHS,
     TRAIN_LR,
 )
+from asl_desktop.detection.hand_detector import HandDetector
 from asl_features.config import (
     HAND_LANDMARK_DIM,
-    MIN_DETECTION_CONFIDENCE,
-    MIN_TRACKING_CONFIDENCE,
-    NUM_HANDS,
 )
-from asl_features.landmarks import normalize_landmarks
 
 # Local recording directory; raw sequences remain outside Git.
 DYNAMIC_DIR = str(DYNAMIC_DATA_DIR)
 
 
-# Turkish camera instructions shown by the interactive collector.
+# Camera instructions shown by the interactive collector.
 SIGN_INSTRUCTIONS = {
     "J": [
-        "J HARFI NASIL YAPILIR:",
-        "1. Serceyi yukari kaldirin (I pozisyonu)",
-        "2. Havada J seklinde bir kavis cizin",
-        "3. Hareket asagi dogru biter",
+        "HOW TO SIGN J:",
+        "1. Raise the little finger (I handshape)",
+        "2. Draw a J-shaped curve in the air",
+        "3. The movement ends downward",
         "",
-        "Ipucu: Sakin ve net hareket yapin",
+        "Tip: move calmly and clearly",
     ],
     "Z": [
-        "Z HARFI NASIL YAPILIR:",
-        "1. Isaret parmagini uzatin",
-        "2. Havada Z seklinde cizin:",
-        "   sola → saga asagi capraz → sola",
-        "3. Hareket sola dogru biter",
+        "HOW TO SIGN Z:",
+        "1. Extend the index finger",
+        "2. Draw a Z in the air:",
+        "   left -> diagonal down to the right -> left",
+        "3. The movement ends toward the left",
         "",
-        "Ipucu: Zigzag yapar gibi dusunun",
+        "Tip: think of it as a zigzag",
     ],
 }
 
@@ -138,6 +134,23 @@ def _draw_progress_bar(
     cv2.rectangle(frame, (0, h - y_offset), (bar_width, h), (b, g, r), -1)
 
 
+def capture_frame(
+    detector: HandDetector, frame: np.ndarray
+) -> tuple[np.ndarray | None, np.ndarray]:
+    """Detect on one camera frame as captured and return ``(keypoints, preview)``.
+
+    The keypoints are the ones the desktop app feeds its J/Z model: the same
+    HandDetector, on the unmirrored frame, so the recorded hand shape is the
+    one the model is shown live. Only the preview is mirrored, with the
+    landmarks drawn where the hand appears in it.
+    """
+    keypoints = detector.detect(frame)
+    preview = cv2.flip(frame, 1)
+    if keypoints is not None:
+        detector.draw_landmarks(preview)
+    return keypoints, preview
+
+
 def collect_dynamic_data(
     signs: list[str] = None,
     sequences_per_sign: int = 30,
@@ -157,41 +170,35 @@ def collect_dynamic_data(
     signs = signs or ["J", "Z"]
 
     print("\n" + "=" * 60)
-    print("  J/Z veri toplama: rehberli surum")
+    print("  J/Z data collection: guided version")
     print("=" * 60)
-    print(f"\n  Harfler:       {signs}")
-    print(f"  Kayit/harf:    {sequences_per_sign}")
-    print(f"  Frame/kayit:   {frames_per_sequence}")
-    print(f"  Geri sayim:    {COUNTDOWN_SECONDS}s")
-    print(f"  Min el orani:  {MIN_HAND_DETECTION_RATIO:.0%}")
-    print(f"  Kayit dizini:  {DYNAMIC_DIR}")
+    print(f"\n  Letters:       {signs}")
+    print(f"  Takes/letter:  {sequences_per_sign}")
+    print(f"  Frames/take:   {frames_per_sequence}")
+    print(f"  Countdown:     {COUNTDOWN_SECONDS}s")
+    print(f"  Min hand ratio: {MIN_HAND_DETECTION_RATIO:.0%}")
+    print(f"  Output folder: {DYNAMIC_DIR}")
 
-    hands = mp.solutions.hands.Hands(
-        static_image_mode=False,
-        max_num_hands=NUM_HANDS,
-        min_detection_confidence=MIN_DETECTION_CONFIDENCE,
-        min_tracking_confidence=MIN_TRACKING_CONFIDENCE,
-    )
-    mp_draw = mp.solutions.drawing_utils
+    detector = HandDetector()
 
     cap = cv2.VideoCapture(CAMERA_INDEX)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
 
     if not cap.isOpened():
-        print("HATA: Kamera acilamadi!")
+        print("ERROR: Could not open the camera.")
         return
 
-    print("\n  Kontroller:")
-    print("    SPACE  → Geri sayimi baslat")
-    print("    R      → Son kaydi sil ve tekrarla")
-    print("    S      → Sonraki harfe gec")
-    print("    Q/ESC  → Cik")
-    print("\n  Hazir oldugunuzda SPACE'e basin...")
+    print("\n  Controls:")
+    print("    SPACE  - start the countdown")
+    print("    R      - delete the last take and repeat it")
+    print("    S      - skip to the next letter")
+    print("    Q/ESC  - quit")
+    print("\n  Press SPACE when you are ready...")
 
     total_saved = 0
     total_rejected = 0
-    win_name = "J/Z Veri Toplama"
+    win_name = "J/Z data collection"
 
     for sign in signs:
         sign_dir = os.path.join(DYNAMIC_DIR, sign.upper())
@@ -202,9 +209,9 @@ def collect_dynamic_data(
         target = sequences_per_sign + existing
         seq_idx = existing
 
-        instructions = SIGN_INSTRUCTIONS.get(sign, [f"{sign} hareketi yapin"])
+        instructions = SIGN_INSTRUCTIONS.get(sign, [f"Sign {sign}"])
 
-        print(f"\n  ─── {sign} harfi ({seq_idx}/{target}) ───")
+        print(f"\n  Letter {sign} ({seq_idx}/{target})")
 
         # Capture states: idle, countdown, recording, checking, and pause.
         state = "idle"
@@ -219,21 +226,14 @@ def collect_dynamic_data(
             if not ret:
                 break
 
-            frame = cv2.flip(frame, 1)
+            keypoints, frame = capture_frame(detector, frame)
             h, w = frame.shape[:2]
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            results = hands.process(rgb)
-
-            hand_visible = results.multi_hand_landmarks is not None
-
-            if hand_visible:
-                for hand_lm in results.multi_hand_landmarks:
-                    mp_draw.draw_landmarks(frame, hand_lm, mp.solutions.hands.HAND_CONNECTIONS)
+            hand_visible = keypoints is not None
 
             cv2.rectangle(frame, (0, 0), (w, 90), (30, 30, 30), -1)
             cv2.putText(
                 frame,
-                f"'{sign}' harfi   Kayit: {seq_idx}/{target}",
+                f"Letter '{sign}'   Take: {seq_idx}/{target}",
                 (15, 30),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.8,
@@ -245,7 +245,7 @@ def collect_dynamic_data(
             if hand_visible:
                 cv2.putText(
                     frame,
-                    "El: ALGILANDI",
+                    "Hand: DETECTED",
                     (15, 60),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.6,
@@ -256,7 +256,7 @@ def collect_dynamic_data(
             else:
                 cv2.putText(
                     frame,
-                    "El bulunamadi. Elinizi gosterin.",
+                    "No hand found. Show your hand.",
                     (15, 60),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.6,
@@ -279,7 +279,7 @@ def collect_dynamic_data(
                 )
                 cv2.putText(
                     frame,
-                    "SPACE ile baslat",
+                    "Press SPACE to start",
                     (w // 2 - 170, h // 2),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     1.0,
@@ -319,7 +319,7 @@ def collect_dynamic_data(
                     )
                     cv2.putText(
                         frame,
-                        "HAZIRLANIN!",
+                        "GET READY!",
                         (w // 2 - 130, h // 2 + 80),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         1.0,
@@ -347,18 +347,14 @@ def collect_dynamic_data(
             # Recording: collect a fixed-length sequence.
             elif state == "recording":
                 if hand_visible:
-                    lms = []
-                    for lm in results.multi_hand_landmarks[0].landmark:
-                        lms.extend([lm.x, lm.y, lm.z])
-                    kp = normalize_landmarks(np.array(lms, dtype=np.float32))
-                    frame_buffer.append(kp)
+                    frame_buffer.append(keypoints)
                     detected_frames += 1
 
                 progress = len(frame_buffer) / frames_per_sequence
 
                 cv2.putText(
                     frame,
-                    "KAYIT",
+                    "RECORDING",
                     (w // 2 - 80, h // 2 - 20),
                     cv2.FONT_HERSHEY_DUPLEX,
                     2.0,
@@ -369,7 +365,7 @@ def collect_dynamic_data(
 
                 cv2.putText(
                     frame,
-                    f"{len(frame_buffer)}/{frames_per_sequence} frame",
+                    f"{len(frame_buffer)}/{frames_per_sequence} frames",
                     (w // 2 - 90, h // 2 + 30),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.8,
@@ -400,19 +396,19 @@ def collect_dynamic_data(
                     seq_idx += 1
                     total_saved += 1
                     last_quality_msg = (
-                        f"Kayit {seq_idx}/{target} BASARILI (el: {detection_ratio:.0%})"
+                        f"Take {seq_idx}/{target} ACCEPTED (hand: {detection_ratio:.0%})"
                     )
                     print(
-                        f"    Kayit {seq_idx}/{target} BASARILI (el algilama: {detection_ratio:.0%})"
+                        f"    Take {seq_idx}/{target} accepted (hand detection: {detection_ratio:.0%})"
                     )
                     state = "pause"
                     pause_start = time.time()
                 else:
                     # Reject low-visibility recordings without incrementing count.
                     total_rejected += 1
-                    last_quality_msg = f"Reddedildi: el {detection_ratio:.0%} algilandi (min {MIN_HAND_DETECTION_RATIO:.0%}). Tekrar deneyin!"
+                    last_quality_msg = f"Rejected: hand seen in {detection_ratio:.0%} of frames (min {MIN_HAND_DETECTION_RATIO:.0%}). Try again."
                     print(
-                        f"    Reddedildi (el algilama: {detection_ratio:.0%} < {MIN_HAND_DETECTION_RATIO:.0%})"
+                        f"    Rejected (hand detection: {detection_ratio:.0%} < {MIN_HAND_DETECTION_RATIO:.0%})"
                     )
                     state = "idle"
 
@@ -427,7 +423,7 @@ def collect_dynamic_data(
                 if remaining > 0:
                     cv2.putText(
                         frame,
-                        "BASARILI!",
+                        "ACCEPTED!",
                         (w // 2 - 120, h // 2),
                         cv2.FONT_HERSHEY_DUPLEX,
                         2.0,
@@ -437,7 +433,7 @@ def collect_dynamic_data(
                     )
                     cv2.putText(
                         frame,
-                        f"Sonraki kayit: {remaining:.1f}s",
+                        f"Next take: {remaining:.1f}s",
                         (w // 2 - 130, h // 2 + 50),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.8,
@@ -451,7 +447,7 @@ def collect_dynamic_data(
 
             cv2.putText(
                 frame,
-                "SPACE:Baslat  R:Tekrarla  S:Atla  Q:Cik",
+                "SPACE:Start  R:Redo  S:Skip  Q:Quit",
                 (15, h - 10),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.45,
@@ -469,7 +465,7 @@ def collect_dynamic_data(
                     countdown_start = time.time()
                     last_quality_msg = ""
                 else:
-                    last_quality_msg = "Once elinizi kameraya gosterin!"
+                    last_quality_msg = "Show your hand to the camera first."
 
             elif key == ord("r"):
                 # Delete the latest accepted recording and repeat it.
@@ -479,35 +475,35 @@ def collect_dynamic_data(
                         os.remove(last_path)
                         seq_idx -= 1
                         total_saved -= 1
-                        last_quality_msg = f"Son kayit silindi. Tekrar: {seq_idx}/{target}"
-                        print(f"    Kayit {seq_idx + 1} silindi, tekrar")
+                        last_quality_msg = f"Last take deleted. Redo: {seq_idx}/{target}"
+                        print(f"    Take {seq_idx + 1} deleted, redoing it")
                 state = "idle"
                 frame_buffer = []
 
             elif key == ord("s"):
-                print(f"    → {sign} atlandi")
+                print(f"    Skipped {sign}")
                 break
 
             elif key in (ord("q"), 27):
                 cap.release()
                 cv2.destroyAllWindows()
-                hands.close()
-                print(f"\n  Cikildi. Kaydedilen: {total_saved}, Reddedilen: {total_rejected}")
+                detector.close()
+                print(f"\n  Quit. Saved: {total_saved}, rejected: {total_rejected}")
                 return
 
         cv2.destroyAllWindows()
 
     cap.release()
     cv2.destroyAllWindows()
-    hands.close()
+    detector.close()
 
-    print("\n  ═══════════════════════════════════════")
-    print("  Veri toplama tamamlandi!")
-    print(f"  Kaydedilen:  {total_saved}")
-    print(f"  Reddedilen:  {total_rejected}")
-    print(f"  Kayit dizini: {DYNAMIC_DIR}")
-    print("  ═══════════════════════════════════════")
-    print("\n  Sonraki adim: python scripts/model_training/train_dynamic_jz_model.py train")
+    print("\n  " + "=" * 39)
+    print("  Data collection finished.")
+    print(f"  Saved:       {total_saved}")
+    print(f"  Rejected:    {total_rejected}")
+    print(f"  Output folder: {DYNAMIC_DIR}")
+    print("  " + "=" * 39)
+    print("\n  Next step: python scripts/model_training/train_dynamic_jz_model.py train")
 
 
 from asl_desktop.models.sequence_classifier import SignLanguageLSTM
@@ -526,7 +522,7 @@ def load_jz_data():
     for sign, idx in label_map.items():
         sign_dir = os.path.join(DYNAMIC_DIR, sign)
         if not os.path.isdir(sign_dir):
-            print(f"  UYARI: {sign_dir} bulunamadı")
+            print(f"  WARNING: {sign_dir} not found")
             continue
 
         npy_files = sorted([f for f in os.listdir(sign_dir) if f.endswith(".npy")])
@@ -548,9 +544,9 @@ def load_jz_data():
                     X_list.append(padded)
                 y_list.append(idx)
             else:
-                print(f"  UYARI: Beklenmeyen boyut: {f} → {seq.shape}")
+                print(f"  WARNING: Unexpected shape: {f} -> {seq.shape}")
 
-        print(f"  [{sign}] {sum(1 for label in y_list if label == idx)} sekans yüklendi")
+        print(f"  [{sign}] {sum(1 for label in y_list if label == idx)} sequences loaded")
 
     X = np.array(X_list, dtype=np.float32)
     y = np.array(y_list, dtype=np.int64)
@@ -567,20 +563,20 @@ def train_jz_model(
     """Train and evaluate the optional J/Z desktop LSTM."""
 
     print("\n" + "=" * 60)
-    print("  J/Z LSTM Modeli Eğitimi")
+    print("  J/Z LSTM model training")
     print("=" * 60)
 
     X, y, label_map = load_jz_data()
 
     if len(X) < 10:
-        print(f"\nHATA: Yeterli veri yok! ({len(X)} sekans)")
+        print(f"\nERROR: Not enough data ({len(X)} sequences).")
         print(
-            "  Önce veri toplayın: python scripts/model_training/train_dynamic_jz_model.py collect"
+            "  Collect data first: python scripts/model_training/train_dynamic_jz_model.py collect"
         )
         return
 
-    print(f"\n  Toplam: {len(X)} sekans")
-    print(f"  Cihaz: {DEVICE}")
+    print(f"\n  Total: {len(X)} sequences")
+    print(f"  Device: {DEVICE}")
 
     # Preserve class ratios across train, validation, and test splits.
     X_train, X_temp, y_train, y_temp = train_test_split(
@@ -614,7 +610,7 @@ def train_jz_model(
     ).to(DEVICE)
 
     params = sum(p.numel() for p in model.parameters())
-    print(f"  Model parametreleri: {params:,}")
+    print(f"  Model parameters: {params:,}")
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -698,28 +694,30 @@ def train_jz_model(
         json.dump(label_map, f, indent=2)
 
     print(f"\n{'=' * 60}")
-    print("  J/Z Modeli Tamamlandı!")
-    print(f"  Test doğruluk: {test_acc:.1%}")
+    print("  J/Z model finished.")
+    print(f"  Test accuracy: {test_acc:.1%}")
     print(f"  Model: {JZ_MODEL_PATH}")
     print(f"{'=' * 60}")
-    print("\n  Not: Final 50 kelime modeli notebooks/word_50_training.ipynb kaydından üretilir.")
+    print("\n  Note: the final 50-word model is produced by notebooks/word_50_training.ipynb.")
 
 
 def build_parser() -> argparse.ArgumentParser:
     """The command line, separate from main() so other scripts can check commands against it."""
     parser = argparse.ArgumentParser(
-        description="J/Z dinamik harf: veri toplama ve LSTM eğitimi",
+        description="Dynamic letters J and Z: data collection and LSTM training",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "action",
         choices=["collect", "train", "all"],
-        help="collect: veri topla, train: model eğit, all: ikisini de yap",
+        help="collect: record data, train: train the model, all: do both",
     )
     parser.add_argument(
-        "--sequences", type=int, default=30, help="Harf başına sekans sayısı (varsayılan: 30)"
+        "--sequences", type=int, default=30, help="Sequences to record per letter (default: 30)"
     )
-    parser.add_argument("--epochs", type=int, default=TRAIN_EPOCHS, help="Eğitim epoch sayısı")
+    parser.add_argument(
+        "--epochs", type=int, default=TRAIN_EPOCHS, help="Number of training epochs"
+    )
     parser.add_argument("--lr", type=float, default=TRAIN_LR)
     return parser
 

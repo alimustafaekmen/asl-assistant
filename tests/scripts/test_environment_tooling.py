@@ -84,7 +84,7 @@ def test_doctor_fails_when_an_installed_package_cannot_be_imported(doctor_runs) 
     result = doctor_runs["broken import"]
 
     assert result.returncode != 0, "a broken import must not report success"
-    assert "bozuk" in result.stdout, result.stdout
+    assert "import fails" in result.stdout, result.stdout
 
 
 def _run_setup_guard(**env_overrides: str) -> subprocess.CompletedProcess[str]:
@@ -133,5 +133,5 @@ def test_doctor_rejects_an_unexpected_argument_as_a_usage_error(capsys) -> None:
 
     assert doctor.main(["--fix"]) == 2
     captured = capsys.readouterr()
-    assert "beklenmeyen" in captured.err
+    assert "unexpected" in captured.err
     assert captured.out == "", "nothing is diagnosed after a usage error"

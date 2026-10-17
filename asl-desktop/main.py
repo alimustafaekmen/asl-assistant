@@ -49,7 +49,7 @@ def warmup_camera():
     from asl_desktop.config import CAMERA_INDEX
 
     logger = logging.getLogger("ASL")
-    logger.info("Kamera izni kontrol ediliyor...")
+    logger.info("Checking camera access...")
 
     cap = cv2.VideoCapture(CAMERA_INDEX)
 
@@ -66,15 +66,17 @@ def warmup_camera():
         ret, _ = cap.read()
         cap.release()
         if ret:
-            logger.info("Kamera erisilebilir.")
+            logger.info("The camera is available.")
             return True
         else:
-            logger.warning("Kamera acildi ama frame alinamadi; izin var, birazdan duzelebilir.")
+            logger.warning(
+                "The camera opened but returned no frame; access is granted, so it may recover."
+            )
             return True  # The device opened; a missing first frame may be transient.
     else:
         logger.error(
-            "Kamera acilamadi! macOS Sistem Ayarlari → Gizlilik → Kamera'dan "
-            "Terminal/IDE'ye izin verin ve tekrar deneyin."
+            "The camera could not be opened. On macOS, allow your terminal or IDE in "
+            "System Settings → Privacy & Security → Camera and try again."
         )
         return False
 
@@ -84,21 +86,21 @@ def main():
     setup_logging()
     logger = logging.getLogger("ASL")
 
-    logger.info("ASL Sign Language Assistant baslatiliyor...")
+    logger.info("Starting ASL Sign Language Assistant...")
 
     # Report the selected PyTorch device when the optional dependency is usable.
     try:
         from asl_desktop.config import DEVICE
 
-        logger.info(f"PyTorch cihaz: {DEVICE}")
+        logger.info(f"PyTorch device: {DEVICE}")
     except Exception as e:
-        logger.warning(f"PyTorch cihaz tespiti basarisiz: {e}")
+        logger.warning(f"PyTorch device detection failed: {e}")
 
     if not warmup_camera():
-        logger.error("Kamera erisilemedi. Uygulama kapatiliyor.")
-        print("\n  HATA: Kamera erisilemedi!")
-        print("  macOS: Sistem Ayarlari → Gizlilik ve Guvenlik → Kamera")
-        print("  Terminal uygulamaniza (veya IDE) kamera izni verin.\n")
+        logger.error("The camera is unavailable. Exiting.")
+        print("\n  ERROR: The camera is unavailable.")
+        print("  macOS: System Settings → Privacy & Security → Camera")
+        print("  Allow camera access for your terminal app (or IDE).\n")
         sys.exit(1)
 
     # The UI is imported only once the camera has opened; see warmup_camera.
@@ -106,15 +108,15 @@ def main():
         from asl_desktop.app.asl_app import ASLApp
 
         app = ASLApp()
-        logger.info("Uygulama hazir. Arayuz aciliyor...")
+        logger.info("Ready. Opening the window...")
         app.mainloop()
     except KeyboardInterrupt:
-        logger.info("Kullanici tarafindan sonlandirildi.")
+        logger.info("Stopped by the user.")
     except Exception as e:
-        logger.error(f"Uygulama hatasi: {e}", exc_info=True)
+        logger.error(f"Application error: {e}", exc_info=True)
         sys.exit(1)
 
-    logger.info("Uygulama kapatildi.")
+    logger.info("Application closed.")
 
 
 if __name__ == "__main__":

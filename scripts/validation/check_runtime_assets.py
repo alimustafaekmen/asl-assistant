@@ -109,19 +109,19 @@ def check_file_existence_and_size(root: Path) -> bool:
     file. Source files are checked by their content in check_web_sources(),
     because a size floor on source only forbids it getting smaller.
     """
-    print("\n[1/6] Dosya mevcudiyet + minimum boyut kontrolu")
+    print("\n[1/6] Required files and minimum sizes")
     ok = True
     for artifact in ALL_ARTIFACTS:
         abs_path = rebased(artifact.deploy_path, root)
         rel_path = relative(abs_path, root)
         min_kb = artifact.min_size_kb
         if not os.path.exists(abs_path):
-            _fail(f"{rel_path}: BULUNAMADI")
+            _fail(f"{rel_path}: NOT FOUND")
             ok = False
             continue
         actual_kb = _file_kb(abs_path)
         if actual_kb < min_kb:
-            _fail(f"{rel_path}: COK KUCUK ({actual_kb:.1f} KB < {min_kb} KB)")
+            _fail(f"{rel_path}: TOO SMALL ({actual_kb:.1f} KB < {min_kb} KB)")
             ok = False
         else:
             _ok(f"{rel_path}: {actual_kb:.1f} KB")
@@ -162,7 +162,7 @@ def find_web_source_issues(web_dir: Path) -> WebSourceCheck:
     """
     index_html = web_dir / "index.html"
     if not index_html.is_file() or index_html.stat().st_size == 0:
-        return WebSourceCheck([f"{relative(index_html)}: bos veya bulunamadi"], 0, 0)
+        return WebSourceCheck([f"{relative(index_html)}: empty or not found"], 0, 0)
     html = index_html.read_text(encoding="utf-8")
 
     issues: list[str] = []
@@ -178,24 +178,24 @@ def find_web_source_issues(web_dir: Path) -> WebSourceCheck:
     for href in links:
         target = web_dir / href.split("?", 1)[0].removeprefix("./")
         if not target.is_file() or target.stat().st_size == 0:
-            issues.append(f"{relative(target)}: index.html referansi bos veya eksik")
+            issues.append(f"{relative(target)}: referenced by index.html but empty or missing")
 
     on_disk = {
         str(path.relative_to(web_dir)).replace(os.sep, "/")
         for path in (web_dir / "js").rglob("*.js")
     }
     if not on_disk:
-        issues.append("asl-web/js: JavaScript modulu bulunamadi")
+        issues.append("asl-web/js: no JavaScript module found")
         return WebSourceCheck(issues, 0, len(stylesheets))
 
     for name in sorted(name for name in on_disk if (web_dir / name).stat().st_size == 0):
-        issues.append(f"asl-web/{name}: BOS")
+        issues.append(f"asl-web/{name}: EMPTY")
 
     loaded = {src for src in _loaded_local_scripts(html) if src.startswith("js/")}
     for name in sorted(loaded - on_disk):
-        issues.append(f"asl-web/{name}: index.html yukluyor ama dosya yok")
+        issues.append(f"asl-web/{name}: index.html loads it but the file is missing")
     for name in sorted(on_disk - loaded):
-        issues.append(f"asl-web/{name}: dosya var ama index.html yuklemiyor")
+        issues.append(f"asl-web/{name}: the file exists but index.html does not load it")
 
     return WebSourceCheck(issues, len(on_disk), len(stylesheets))
 
@@ -206,14 +206,14 @@ def check_web_sources(root: Path) -> bool:
     for issue in result.issues:
         _fail(issue)
     if not result.issues:
-        _ok(f"asl-web/js: {result.modules} modul, tamami index.html tarafindan yukleniyor")
-        _ok(f"asl-web/css: {result.stylesheets} stylesheet referansi cozuldu")
+        _ok(f"asl-web/js: {result.modules} modules, all loaded by index.html")
+        _ok(f"asl-web/css: {result.stylesheets} stylesheet references resolved")
     return not result.issues
 
 
 def check_json_schemas(root: Path) -> bool:
     """Validate parseability and core schemas for deploy JSON files."""
-    print("\n[2/6] JSON sema kontrolu")
+    print("\n[2/6] JSON schemas")
     ok = True
     web_data_dir = rebased(WEB_DATA_DIR, root)
 
@@ -229,14 +229,14 @@ def check_json_schemas(root: Path) -> bool:
     for filename, schema in schemas.items():
         path = os.path.join(web_data_dir, filename)
         if not os.path.exists(path):
-            _fail(f"{filename}: yok")
+            _fail(f"{filename}: missing")
             ok = False
             continue
         try:
             with open(path, encoding="utf-8") as handle:
                 data = json.load(handle)
         except json.JSONDecodeError as exc:
-            _fail(f"{filename}: parse hatasi {exc}")
+            _fail(f"{filename}: parse error {exc}")
             ok = False
             continue
 
@@ -246,15 +246,15 @@ def check_json_schemas(root: Path) -> bool:
             indices = sorted(int(v) for v in data.values())
             if len(data) != expect or indices != list(range(expect)):
                 _fail(
-                    f"{filename}: dense {expect} eleman bekleniyor; len={len(data)}, indices={indices[:5]}..."
+                    f"{filename}: expected {expect} dense entries; len={len(data)}, indices={indices[:5]}..."
                 )
                 ok = False
             else:
-                _ok(f"{filename}: dense {expect} sinif (0..{expect - 1})")
+                _ok(f"{filename}: {expect} dense classes (0..{expect - 1})")
         elif kind == "temperature":
             t = data.get("T") or data.get("temperature")
             if not isinstance(t, (int, float)) or not 0 < t < 5:
-                _fail(f"temperature.json: T degeri makul degil ({t})")
+                _fail(f"temperature.json: implausible T value ({t})")
                 ok = False
             else:
                 _ok(f"temperature.json: T={t}")
@@ -263,46 +263,48 @@ def check_json_schemas(root: Path) -> bool:
             mask = data.get("mask", [])
             expected_word = data.get("expected_word")
             if len(features) != 45 * 168:
-                _fail(f"test_sample.json: features uzunlugu 7560 olmali, {len(features)}")
+                _fail(f"test_sample.json: features length must be 7560, got {len(features)}")
                 ok = False
             elif len(mask) != 45:
-                _fail(f"test_sample.json: mask uzunlugu 45 olmali, {len(mask)}")
+                _fail(f"test_sample.json: mask length must be 45, got {len(mask)}")
                 ok = False
             elif not expected_word:
-                _fail("test_sample.json: expected_word eksik")
+                _fail("test_sample.json: expected_word missing")
                 ok = False
             else:
                 real_frames = sum(1 for v in mask if v)
                 _ok(
-                    f"test_sample.json: features={len(features)}, mask={len(mask)} (gercek={real_frames}/45), expected={expected_word}"
+                    f"test_sample.json: features={len(features)}, mask={len(mask)} (real={real_frames}/45), expected={expected_word}"
                 )
         elif kind == "stats":
             if not isinstance(data, dict) or len(data) < 1:
-                _fail("per_word_stats.json: bos veya yanlis tip")
+                _fail("per_word_stats.json: empty or of the wrong type")
                 ok = False
             else:
                 sample_key = next(iter(data))
                 fields = data[sample_key]
                 missing = [k for k in ("f1", "difficulty") if k not in fields]
                 if missing:
-                    _fail(f"per_word_stats.json: '{sample_key}' kayitinda eksik alan: {missing}")
+                    _fail(f"per_word_stats.json: entry '{sample_key}' lacks fields: {missing}")
                     ok = False
                 else:
                     _ok(
-                        f"per_word_stats.json: {len(data)} kelime stat (ornek '{sample_key}': f1={fields['f1']}, difficulty={fields['difficulty']})"
+                        f"per_word_stats.json: stats for {len(data)} words (example '{sample_key}': f1={fields['f1']}, difficulty={fields['difficulty']})"
                     )
         elif kind == "pairs":
             if not isinstance(data, list) or len(data) < 1:
-                _fail("confusion_pairs.json: bos veya yanlis tip")
+                _fail("confusion_pairs.json: empty or of the wrong type")
                 ok = False
             else:
                 sample = data[0]
                 if not all(k in sample for k in ("word_a", "word_b")):
-                    _fail(f"confusion_pairs.json: ilk eleman 'word_a'/'word_b' icermiyor: {sample}")
+                    _fail(
+                        f"confusion_pairs.json: the first entry lacks 'word_a'/'word_b': {sample}"
+                    )
                     ok = False
                 else:
                     _ok(
-                        f"confusion_pairs.json: {len(data)} cift (ornek: {sample['word_a']} ↔ {sample['word_b']})"
+                        f"confusion_pairs.json: {len(data)} pairs (example: {sample['word_a']} ↔ {sample['word_b']})"
                     )
 
     return ok
@@ -310,24 +312,24 @@ def check_json_schemas(root: Path) -> bool:
 
 def check_model_test_fixtures(root: Path) -> bool:
     """Validate the deployable fixture registry and every referenced sample."""
-    print("\n[3/6] Model Test fixture paketi")
+    print("\n[3/6] Model Test fixtures")
     web_dir = rebased(WEB_DIR, root)
     web_data_dir = rebased(WEB_DATA_DIR, root)
     manifest_path = os.path.join(web_data_dir, "model-test-samples", "manifest.json")
     if not os.path.exists(manifest_path):
-        _fail("model-test-samples/manifest.json: yok")
+        _fail("model-test-samples/manifest.json: missing")
         return False
 
     try:
         with open(manifest_path, encoding="utf-8") as handle:
             manifest = json.load(handle)
     except (OSError, json.JSONDecodeError) as exc:
-        _fail(f"Model Test manifest parse hatasi: {exc}")
+        _fail(f"Model Test manifest parse error: {exc}")
         return False
 
     ok = True
     if manifest.get("schema_version") != "asl-model-test-manifest-v1":
-        _fail("Model Test manifest schema_version gecersiz")
+        _fail("Model Test manifest schema_version invalid")
         ok = False
 
     # Word fixtures exported from the Google competition data stay in the
@@ -339,16 +341,16 @@ def check_model_test_fixtures(root: Path) -> bool:
             with open(local_path, encoding="utf-8") as handle:
                 local_words = json.load(handle).get("words")
         except (OSError, json.JSONDecodeError, AttributeError) as exc:
-            _fail(f"Model Test local manifest okunamadi: {exc}")
+            _fail(f"Model Test local manifest unreadable: {exc}")
             return False
         if not isinstance(local_words, list) or not isinstance(manifest.get("words"), list):
-            _fail("Model Test local manifest 'words' listesi eksik")
+            _fail("Model Test local manifest lacks a 'words' list")
             return False
         manifest = {**manifest, "words": manifest["words"] + local_words}
         _warn(
-            "model-test-samples/local/ mevcut: asl-web/ oldugu gibi yuklenirse yarisma "
-            "verisinden turetilmis fixture'lar yayinlanir; deploy oncesi bu klasoru cikarin "
-            "(make deploy-check bu klasor varken basarisiz olur)"
+            "model-test-samples/local/ is present: uploading asl-web/ as it is would publish "
+            "fixtures derived from competition data; move this folder out before a deploy "
+            "(make deploy-check fails while it is there)"
         )
 
     registered: set[str] = set()
@@ -358,7 +360,7 @@ def check_model_test_fixtures(root: Path) -> bool:
     for section, expected_task in expected_tasks.items():
         entries = manifest.get(section)
         if not isinstance(entries, list):
-            _fail(f"Model Test manifest '{section}' listesi eksik")
+            _fail(f"Model Test manifest lacks a '{section}' list")
             ok = False
             continue
 
@@ -366,11 +368,11 @@ def check_model_test_fixtures(root: Path) -> bool:
             sample_id = entry.get("id") if isinstance(entry, dict) else None
             raw_path = entry.get("path") if isinstance(entry, dict) else None
             if not isinstance(sample_id, str) or not isinstance(raw_path, str):
-                _fail(f"Model Test {section}: id/path gecersiz")
+                _fail(f"Model Test {section}: invalid id/path")
                 ok = False
                 continue
             if sample_id in registered_ids or raw_path in registered:
-                _fail(f"Model Test duplicate kayit: {sample_id} / {raw_path}")
+                _fail(f"Model Test duplicate entry: {sample_id} / {raw_path}")
                 ok = False
                 continue
 
@@ -378,7 +380,7 @@ def check_model_test_fixtures(root: Path) -> bool:
             registered.add(raw_path)
             rel_path = raw_path.removeprefix("./")
             if not rel_path.startswith("data/model-test-samples/") or ".." in rel_path.split("/"):
-                _fail(f"Model Test guvensiz/gecersiz path: {raw_path}")
+                _fail(f"Model Test unsafe or invalid path: {raw_path}")
                 ok = False
                 continue
 
@@ -387,20 +389,20 @@ def check_model_test_fixtures(root: Path) -> bool:
                 with open(sample_path, encoding="utf-8") as handle:
                     sample = json.load(handle)
             except (OSError, json.JSONDecodeError) as exc:
-                _fail(f"Model Test sample okunamadi: {raw_path} ({exc})")
+                _fail(f"Model Test sample unreadable: {raw_path} ({exc})")
                 ok = False
                 continue
 
             features = sample.get("features")
             expected_len = 93 if expected_task == "letter" else 45 * 168
             if sample.get("schema_version") != "asl-sample-v1":
-                _fail(f"{raw_path}: schema_version gecersiz")
+                _fail(f"{raw_path}: schema_version invalid")
                 ok = False
             if sample.get("task") != expected_task:
-                _fail(f"{raw_path}: task={sample.get('task')}, beklenen={expected_task}")
+                _fail(f"{raw_path}: task={sample.get('task')}, expected={expected_task}")
                 ok = False
             if not isinstance(features, list) or len(features) != expected_len:
-                _fail(f"{raw_path}: features uzunlugu {expected_len} olmali")
+                _fail(f"{raw_path}: features length must be {expected_len}")
                 ok = False
             if expected_task == "word":
                 mask = sample.get("mask")
@@ -409,7 +411,7 @@ def check_model_test_fixtures(root: Path) -> bool:
                     or len(mask) != 45
                     or not all(isinstance(v, bool) for v in mask)
                 ):
-                    _fail(f"{raw_path}: 45 boolean mask bekleniyor")
+                    _fail(f"{raw_path}: mask must be 45 booleans")
                     ok = False
 
     fixture_root = os.path.join(web_data_dir, "model-test-samples")
@@ -422,12 +424,12 @@ def check_model_test_fixtures(root: Path) -> bool:
     if actual != registered:
         _fail(
             "Model Test manifest/file drift: "
-            f"kayitsiz={sorted(actual - registered)}, eksik={sorted(registered - actual)}"
+            f"unregistered={sorted(actual - registered)}, missing={sorted(registered - actual)}"
         )
         ok = False
 
     if ok:
-        _ok(f"Model Test: {len(registered)} fixture, manifest ve semalar uyumlu")
+        _ok(f"Model Test: {len(registered)} fixtures, manifest and schemas agree")
     return ok
 
 
@@ -442,20 +444,20 @@ def find_gzip_drift(pairs: Iterable[tuple[str, Path, Path]]) -> list[str]:
     issues: list[str] = []
     for name, compressed, raw in pairs:
         if not compressed.is_file():
-            issues.append(f"{name}: bulunamadi ({relative(compressed)})")
+            issues.append(f"{name}: not found ({relative(compressed)})")
             continue
         if not raw.is_file():
-            issues.append(f"{name}: acilmis hali {relative(raw)} yok")
+            issues.append(f"{name}: its uncompressed file {relative(raw)} is missing")
             continue
         try:
             with gzip.open(compressed, "rb") as handle:
                 data = handle.read()
         except (OSError, EOFError, zlib.error) as exc:
-            issues.append(f"{name}: gzip olarak acilamadi ({exc})")
+            issues.append(f"{name}: cannot be read as gzip ({exc})")
             continue
         if data != raw.read_bytes():
             issues.append(
-                f"{name}: {relative(raw)} ile ayni degil"
+                f"{name}: differs from {relative(raw)}"
                 f" → gzip -9 -n -c {relative(raw)} > {relative(compressed)}"
             )
     return issues
@@ -498,21 +500,21 @@ def compare_provenance(pairs: Iterable[tuple[str, Path, Path]]) -> list[Provenan
 
 def check_provenance(root: Path) -> bool:
     """Verify that deploy artifacts match their documented source copies."""
-    print("\n[4/6] Provenance hash chain (asl-web ↔ kaynak)")
+    print("\n[4/6] Provenance hash chain (asl-web ↔ source)")
     ok = True
     for check in compare_provenance(provenance_pairs(root)):
         label = check.name
         if check.status == "missing_deploy":
-            _fail(f"{label}: web dosyasi yok")
+            _fail(f"{label}: web file missing")
         elif check.status == "missing_source":
-            _fail(f"{label}: kaynak dosya yok ({relative(check.source, root)})")
+            _fail(f"{label}: source file missing ({relative(check.source, root)})")
         elif check.status == "match":
-            _ok(f"{label}: {check.deploy_hash[:16]}... (web == kaynak)")
+            _ok(f"{label}: {check.deploy_hash[:16]}... (web == source)")
             continue
         else:
             _fail(f"{label}: DRIFT")
             print(f"      web   : {check.deploy_hash}")
-            print(f"      kaynak: {check.source_hash}")
+            print(f"      source: {check.source_hash}")
             print(f"      → cp {check.source} {check.deploy}")
         ok = False
 
@@ -523,13 +525,13 @@ def check_provenance(root: Path) -> bool:
         ok = False
     else:
         for name, _, raw in gzip_pairs(root):
-            _ok(f"{name}: acildiginda {relative(raw, root)} ile birebir ayni")
+            _ok(f"{name}: decompresses to exactly {relative(raw, root)}")
     return ok
 
 
 def check_export_manifest(root: Path) -> bool:
     """Validate the original Kaggle bundle manifest against curated paths."""
-    print("\n[5/6] Word export manifesti")
+    print("\n[5/6] Word export manifest")
     notebooks_results = rebased(NOTEBOOKS_RESULTS, root)
     word_model_dir = rebased(WORD_MODEL_DIR, root)
     manifest_path = os.path.join(notebooks_results, "manifest.json")
@@ -537,17 +539,17 @@ def check_export_manifest(root: Path) -> bool:
         with open(manifest_path, encoding="utf-8") as handle:
             manifest = json.load(handle)
     except (OSError, json.JSONDecodeError) as exc:
-        _fail(f"word_50_results/manifest.json okunamadi: {exc}")
+        _fail(f"word_50_results/manifest.json unreadable: {exc}")
         return False
 
     entries = manifest.get("files")
     if not isinstance(entries, list):
-        _fail("Word export manifest 'files' listesi eksik")
+        _fail("Word export manifest lacks a 'files' list")
         return False
 
     ok = True
     if manifest.get("num_files") != len(entries) + 1:
-        _fail("Word export num_files, manifest haric entry sayisiyla uyusmuyor")
+        _fail("Word export num_files is not the entry count plus the manifest itself")
         ok = False
 
     renamed = {
@@ -560,26 +562,26 @@ def check_export_manifest(root: Path) -> bool:
     for entry in entries:
         filename = entry.get("filename") if isinstance(entry, dict) else None
         if not isinstance(filename, str):
-            _fail("Word export manifest filename gecersiz")
+            _fail("Word export manifest has an invalid filename")
             ok = False
             continue
         path = renamed.get(filename, os.path.join(notebooks_results, filename))
         if not os.path.isfile(path) and filename.endswith(".png"):
             path = os.path.join(notebooks_results, "figures", filename)
         if not os.path.isfile(path):
-            _fail(f"Word export hedefi yok: {filename}")
+            _fail(f"Word export target missing: {filename}")
             ok = False
             continue
         if os.path.getsize(path) != entry.get("size_bytes"):
-            _fail(f"Word export boyut uyusmazligi: {filename}")
+            _fail(f"Word export size mismatch: {filename}")
             ok = False
             continue
         if _sha256(path) != entry.get("sha256"):
-            _fail(f"Word export hash uyusmazligi: {filename}")
+            _fail(f"Word export hash mismatch: {filename}")
             ok = False
 
     if ok:
-        _ok(f"Word export: {len(entries)} dosyanin boyut ve SHA-256 degeri uyumlu")
+        _ok(f"Word export: size and SHA-256 match for {len(entries)} files")
     return ok
 
 
@@ -596,13 +598,13 @@ def check_onnx_contracts(root: Path, verbose: bool = False) -> bool:
     Raises ToolMissing when ONNX Runtime cannot be imported: the models were
     not looked at, which must not read as their contracts having held.
     """
-    print("\n[6/6] ONNX I/O sozlesmesi")
+    print("\n[6/6] ONNX I/O contract")
     web_models_dir = rebased(WEB_MODELS_DIR, root)
     web_data_dir = rebased(WEB_DATA_DIR, root)
     try:
         import onnxruntime as ort  # type: ignore
     except ImportError as exc:
-        raise ToolMissing(f"onnxruntime ice aktarilamadi ({exc})") from exc
+        raise ToolMissing(f"onnxruntime cannot be imported ({exc})") from exc
 
     ok = True
 
@@ -611,7 +613,7 @@ def check_onnx_contracts(root: Path, verbose: bool = False) -> bool:
     # wrong length.
     word_path = os.path.join(web_models_dir, "word_model.onnx")
     if not os.path.exists(word_path):
-        _fail("word_model.onnx yok")
+        _fail("word_model.onnx missing")
         return False
     sess = ort.InferenceSession(word_path)
     if verbose:
@@ -640,7 +642,7 @@ def check_onnx_contracts(root: Path, verbose: bool = False) -> bool:
             f"word_model SHAPE MISMATCH: inputs={list(zip(in_names, in_shapes, in_types))}, outputs={list(zip(out_names, out_shapes, out_types))}"
         )
         print(
-            "      Beklenen: input tensor(float)[N,45,168] + mask tensor(bool)[N,45]"
+            "      Expected: input tensor(float)[N,45,168] + mask tensor(bool)[N,45]"
             " → output tensor(float)[N,50]"
         )
         ok = False
@@ -648,7 +650,7 @@ def check_onnx_contracts(root: Path, verbose: bool = False) -> bool:
     # Letter model: one 93D engineered feature vector.
     letter_path = os.path.join(web_models_dir, "letter_model.onnx")
     if not os.path.exists(letter_path):
-        _fail("letter_model.onnx yok")
+        _fail("letter_model.onnx missing")
         return False
     sess2 = ort.InferenceSession(letter_path)
     if verbose:
@@ -676,7 +678,7 @@ def check_onnx_contracts(root: Path, verbose: bool = False) -> bool:
             f"letter_model SHAPE MISMATCH: inputs={list(zip(in_names2, in_shapes2))}, outputs={list(zip(out_names2, out_shapes2, out_types2))}"
         )
         print(
-            "      Beklenen: input(N,93) → label tensor(int64)[N] + probabilities tensor(float)[N,24]"
+            "      Expected: input(N,93) → label tensor(int64)[N] + probabilities tensor(float)[N,24]"
         )
         ok = False
 
@@ -685,7 +687,7 @@ def check_onnx_contracts(root: Path, verbose: bool = False) -> bool:
     if word_ok:
         ok = check_word_smoke_inference(sess, in_names, out_names, web_data_dir) and ok
     else:
-        _warn("offline test atlandi: word_model arayuzu sozlesmeye uymuyor")
+        _warn("offline test skipped: the word_model interface breaks its contract")
 
     return ok
 
@@ -709,12 +711,12 @@ def check_word_smoke_inference(session, in_names, out_names, web_data_dir: Path)
         features = np.array(sample["features"], dtype=np.float32).reshape(1, 45, 168)
         mask = np.array([sample["mask"]], dtype=bool)
         if mask.shape != (1, 45):
-            raise ValueError(f"mask uzunlugu 45 olmali, {mask.shape[-1]}")
+            raise ValueError(f"mask length must be 45, got {mask.shape[-1]}")
         T = float(sample.get("temperature", 1.0))
         if not T > 0:
-            raise ValueError(f"temperature pozitif olmali, {T}")
+            raise ValueError(f"temperature must be positive, got {T}")
     except (OSError, json.JSONDecodeError, AttributeError, KeyError, TypeError, ValueError) as exc:
-        _fail(f"offline test calistirilamadi: {exc}")
+        _fail(f"offline test could not run: {exc}")
         return False
 
     logits = session.run(out_names, {in_names[0]: features, in_names[1]: mask})[0][0]
@@ -779,8 +781,8 @@ def find_deploy_inventory_issues(web_dir: Path, ignored: Iterable[Path] = ()) ->
         if directory.is_dir():
             rel = directory.relative_to(web_dir).as_posix()
             found[f"{rel}/"] = (
-                f"{label}/{rel}/: yalniz yerel, yayinlanmaz (yarisma verisinden turetilmis "
-                "fixture'lar); yuklemeden once klasoru asl-web/ disina tasiyin"
+                f"{label}/{rel}/: local only, never published (fixtures derived from "
+                "competition data); move the folder out of asl-web/ before the upload"
             )
 
     for folder, dirs, names in os.walk(web_dir):
@@ -790,11 +792,11 @@ def find_deploy_inventory_issues(web_dir: Path, ignored: Iterable[Path] = ()) ->
             files += 1
             rel = PurePosixPath((folder_path / name).relative_to(web_dir).as_posix())
             if name == ".DS_Store":
-                reason = "macOS Finder bilgisi; make clean siler"
+                reason = "macOS Finder metadata; make clean removes it"
             elif any(part.startswith(".") for part in rel.parts):
-                reason = "gizli dosya; site bunu yayinlamaz"
+                reason = "hidden file; the site does not publish it"
             elif not _shipped_kind(rel):
-                reason = "yayin izin listesinde yok (contracts.DEPLOY_ALLOWED_ENDINGS)"
+                reason = "not in the publish allowlist (contracts.DEPLOY_ALLOWED_ENDINGS)"
             else:
                 continue
             found.setdefault(str(rel), f"{label}/{rel}: {reason}")
@@ -803,7 +805,7 @@ def find_deploy_inventory_issues(web_dir: Path, ignored: Iterable[Path] = ()) ->
         if any(directory in path.parents for directory in forbidden):
             continue
         rel = path.relative_to(web_dir).as_posix()
-        found.setdefault(rel, f"{label}/{rel}: Git bu dosyayi yok sayiyor; yuklenmemeli")
+        found.setdefault(rel, f"{label}/{rel}: Git ignores this file; it must not be uploaded")
 
     return DeployInventory([found[key] for key in sorted(found)], files)
 
@@ -834,38 +836,38 @@ def git_ignored_files(root: Path) -> list[Path] | None:
 
 def check_deploy_inventory(root: Path) -> bool:
     """Report what an upload of asl-web/ from this working tree would carry."""
-    print("\n[deploy] Yuklenecek klasorun envanteri (asl-web/)")
+    print("\n[deploy] Inventory of the folder to upload (asl-web/)")
     web_dir = rebased(WEB_DIR, root)
     ignored = git_ignored_files(root)
     if ignored is None:
-        _warn("Git calisma agaci degil: yalniz izin listesi uygulandi")
+        _warn("not a Git working tree: only the allowlist was applied")
     result = find_deploy_inventory_issues(web_dir, ignored or ())
     for issue in result.issues:
         _fail(issue)
     if not result.issues:
-        _ok(f"asl-web/: {result.files} dosya, tamami yayinlanacak turden")
+        _ok(f"asl-web/: {result.files} files, all of a published kind")
     return not result.issues
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse the explicit runtime-validation switches."""
-    parser = argparse.ArgumentParser(description="asl-web/ runtime sağlik kontrolu")
+    parser = argparse.ArgumentParser(description="Runtime asset check of asl-web/")
     parser.add_argument(
-        "--verbose", "-v", action="store_true", help="ONNX girdi/cikti ayrintilarini da yaz"
+        "--verbose", "-v", action="store_true", help="also print the ONNX inputs and outputs"
     )
     parser.add_argument(
-        "--no-onnx", action="store_true", help="ONNX kontrolunu atla (sadece dosya/json/hash)"
+        "--no-onnx", action="store_true", help="skip the ONNX check (files, JSON and hashes only)"
     )
     parser.add_argument(
         "--deploy",
         action="store_true",
-        help="Yuklemeden once: asl-web/ altindaki her dosyayi izin listesine karsi denetle",
+        help="before an upload: check every file under asl-web/ against the allowlist",
     )
     parser.add_argument(
         "--root",
         type=Path,
         default=PROJECT_ROOT,
-        help="Kontrol edilecek checkout koku (varsayilan: bu depo)",
+        help="root of the checkout to check (default: this repository)",
     )
     return parser.parse_args(argv)
 
@@ -890,7 +892,7 @@ def main(argv: list[str] | None = None) -> int:
             onnx_ok = check_onnx_contracts(root, args.verbose)
         except ToolMissing as exc:
             unverified = str(exc)
-            _warn(f"{unverified}: ONNX sozlesmesi DOGRULANAMADI")
+            _warn(f"{unverified}: ONNX contract NOT VERIFIED")
     inventory_ok = check_deploy_inventory(root) if args.deploy else True
 
     print("\n" + "=" * 60)
@@ -898,37 +900,37 @@ def main(argv: list[str] | None = None) -> int:
         file_ok and json_ok and fixtures_ok and hash_ok and export_ok and onnx_ok and inventory_ok
     )
     if not overall:
-        print("  SONUC: \033[31m✗ DUZELTME GEREKLI\033[0m")
+        print("  RESULT: \033[31m✗ FIX REQUIRED\033[0m")
     elif unverified:
-        print("  SONUC: \033[33m⚠ DOGRULANAMADI\033[0m (ONNX adimi calisamadi)")
+        print("  RESULT: \033[33m⚠ NOT VERIFIED\033[0m (the ONNX step could not run)")
     else:
-        print("  SONUC: \033[32m✓ DEPLOY GUVENLI\033[0m")
+        print("  RESULT: \033[32m✓ SAFE TO DEPLOY\033[0m")
     print("=" * 60 + "\n")
 
     if not overall:
-        print("Sonraki adimlar:")
+        print("Next steps:")
         if not file_ok:
-            print("  - Eksik/kucuk dosyalar: source dosyadan yeniden kopyala")
+            print("  - Missing or truncated files: copy them again from their source")
         if not json_ok:
-            print("  - JSON sema hatasi: docs/models-and-data.md kontrol et")
+            print("  - JSON schema error: see docs/models-and-data.md")
         if not fixtures_ok:
-            print("  - Model Test manifest/fixture paketini yeniden export et")
+            print("  - Export the Model Test manifest and fixtures again")
         if not hash_ok:
-            print(
-                "  - Hash drift: notebook/script yeniden calistirilmis olabilir, source'tan kopyala"
-            )
+            print("  - Hash drift: a notebook or script may have run again; copy from the source")
         if not export_ok:
-            print("  - Word export manifesti ile curated dosyalari yeniden eslestir")
+            print("  - Bring the curated files back in line with the word export manifest")
         if not onnx_ok:
-            print("  - ONNX shape mismatch: model yeniden export edilmis ama web kopyasi eski")
+            print("  - ONNX shape mismatch: the model was exported again but the web copy is old")
         if not inventory_ok:
-            print("  - Deploy envanteri: listelenen dosyalari asl-web/ disina tasi, sonra yukle")
+            print("  - Deploy inventory: move the listed files out of asl-web/, then upload")
         print()
         return 1
 
     if unverified:
-        print("Sonraki adim:")
-        print("  - pip install -r requirements-dev.txt; ONNX'i bilerek atlamak icin --no-onnx")
+        print("Next step:")
+        print(
+            "  - pip install -r requirements-dev.txt; to leave ONNX out on purpose, pass --no-onnx"
+        )
         print()
         return 2
 

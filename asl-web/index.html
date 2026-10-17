@@ -102,8 +102,11 @@
                     <li class="mode-only letter-only coach-only" data-icon="info">24 ASL harfi · J ve Z hareketli olduğu için yok</li>
                     <li class="mode-only word-only" data-icon="info">50 kelime · deneysel; el, yüz ve omuzlar görünmeli</li>
                     <li data-icon="info">ASL (Amerikan İşaret Dili), TİD değil</li>
-                    <li class="mode-only letter-only coach-only" data-icon="info">İlk açılışta yaklaşık 17 MB indirilir</li>
-                    <li class="mode-only word-only" data-icon="info">İlk açılışta daha fazla veri iner; Wi-Fi önerilir</li>
+                    <!-- Measured with an empty cache: the first camera start fetches about
+                         15 MB (hand model, MediaPipe and ONNX Runtime WASM, letter model);
+                         word mode adds pose, face and the word model, up to 24 MB in all. -->
+                    <li class="mode-only letter-only coach-only" data-icon="info">İlk kamera açılışında yaklaşık 15 MB iner; sonraki açılışlarda inmez</li>
+                    <li class="mode-only word-only" data-icon="info">İlk kamera açılışında en fazla 24 MB iner; Wi-Fi önerilir</li>
                   </ul>
                 </div>
 
@@ -698,7 +701,7 @@
                 <li>Kamerayı açın; tarayıcı sorduğunda izin verin.</li>
               </ol>
               <p class="qr__phone-step">Diğer telefonun kamerasını koda tutun ve çıkan bağlantıya dokunun.</p>
-              <p class="qr__fact" data-icon="info">İlk açılışta yaklaşık 17 MB indirilir; Wi-Fi önerilir.</p>
+              <p class="qr__fact" data-icon="info">Kamerayı ilk açtığınızda yaklaşık 15 MB (kelime modunda en fazla 24 MB) indirilir; sonraki açılışlarda yeniden indirilmez. Mobil veride Wi-Fi önerilir.</p>
             </div>
             <figure class="qr__tile">
               <div id="qrCanvas" class="qr__canvas" role="img" aria-label="ASL Assistant canlı demo QR kodu"></div>
@@ -744,7 +747,7 @@
     </div>
 
     <!-- ONNX Runtime Web and the kjua QR encoder, pinned: a version change needs a new integrity hash. -->
-    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js" integrity="sha384-viYmIzsXdPb1ErOTdWrs+j0B4FjltSSGeHvt08cedBpoO5xvp3qMRSo05NZTuuzh" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.wasm.min.js" integrity="sha384-epp8GDQUoLKx5qHa6SoDHKv7fSHILsEYk4uEsHdPRBztXEIVWCe/lhhrQJUBMZcf" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/kjua@0.9.0/dist/kjua.min.js" integrity="sha384-ayVM0To8wzK2eG/sCNqF3XW4aHfJBsYEneUeObYWVZCnBZbscaz45eTQaxEowih9" crossorigin="anonymous"></script>
 
     <!-- MediaPipe Tasks Vision is not loaded here: js/media/camera.js imports its ES module bundle on the first camera start. -->

@@ -49,10 +49,10 @@ class LetterClassifier:
     ) -> bool:
         """Load the model, label map, and optional metadata."""
         if not os.path.exists(model_path):
-            _logger.warning("Model bulunamadi: %s", model_path)
+            _logger.warning("Model not found: %s", model_path)
             return False
         if not os.path.exists(label_map_path):
-            _logger.warning("Label map bulunamadi: %s", label_map_path)
+            _logger.warning("Label map not found: %s", label_map_path)
             return False
 
         self.model = joblib.load(model_path)
@@ -68,10 +68,10 @@ class LetterClassifier:
             self._use_features = meta.get("feature_engineering", False)
             num_features = meta.get("num_features", 63)
             _logger.info(
-                "Harf modeli yuklendi: %d sinif, %dD, FE=%s",
+                "Letter model loaded: %d classes, %dD, FE=%s",
                 len(self.label_map),
                 num_features,
-                "acik" if self._use_features else "kapali",
+                "on" if self._use_features else "off",
             )
         else:
             self._use_features = False
@@ -79,12 +79,12 @@ class LetterClassifier:
                 test_input = np.zeros(63, dtype=np.float32).reshape(1, -1)
                 self.model.predict(test_input)
                 _logger.info(
-                    "Harf modeli yuklendi: %d sinif (metadata yok, 63D)", len(self.label_map)
+                    "Letter model loaded: %d classes (no metadata, 63D)", len(self.label_map)
                 )
             except Exception:
                 self._use_features = True
                 _logger.info(
-                    "Harf modeli yuklendi: %d sinif (metadata yok, FE=acik varsayildi)",
+                    "Letter model loaded: %d classes (no metadata, FE assumed on)",
                     len(self.label_map),
                 )
 

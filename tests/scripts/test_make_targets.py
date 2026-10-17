@@ -351,7 +351,7 @@ def test_a_syntax_error_fails_js_check(runs: dict[str, Run]) -> None:
     run = runs["js-check/syntax error"]
 
     assert run.returncode != 0, run.output
-    assert "syntax kontrolü tamamlandı" not in run.output
+    assert "syntax check passed" not in run.output
 
 
 @pytest.mark.parametrize("target", ["js-check", "js-test"])
@@ -359,7 +359,7 @@ def test_the_web_checks_fail_and_say_so_without_node(runs: dict[str, Run], targe
     run = runs[f"{target}/no node"]
 
     assert run.returncode != 0, run.output
-    assert "Node.js bulunamadı" in run.output
+    assert "Node.js not found" in run.output
 
 
 def test_a_failing_web_test_fails_js_test(runs: dict[str, Run]) -> None:

@@ -22,6 +22,6 @@ def open_web_link(url: str) -> bool:
     if not url:
         return False
     if urlparse(url.strip()).scheme.lower() not in _ALLOWED_SCHEMES:
-        _logger.warning("Web olmayan baglanti acilmadi: %r", url)
+        _logger.warning("Refused to open a link that is not a web address: %r", url)
         return False
     return bool(webbrowser.open(url.strip()))

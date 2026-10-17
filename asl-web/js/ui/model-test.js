@@ -59,6 +59,8 @@ function isLocalModelTestItem(item) {
  * @property {string} source
  * @property {string} shapeLabel Human-readable input shape.
  * @property {string} maskLabel Human-readable mask summary.
+ * @property {boolean} synthetic Made up to prove the pipeline runs: shown as a
+ *   check, never scored against its expected label.
  */
 
 /**
@@ -159,6 +161,8 @@ function setModelTestTask(task) {
   queryElements("[data-model-test-task]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.modelTestTask === state.modelTestTask);
   });
+  // The ranked list is styled for the model's labels: words need more room.
+  if (els.modelTestTop3List) els.modelTestTop3List.dataset.task = next;
   renderModelTestSampleOptions();
   updateModelTestDomainHelp();
 }
@@ -218,6 +222,7 @@ function loadPublishedModelTestManifest() {
       };
     }
     renderModelTestSampleOptions();
+    updateModelTestDomainHelp();
   })();
   return _modelTestManifestLoad;
 }
@@ -237,6 +242,7 @@ function loadLocalModelTestFixtures() {
     if (!state.modelTestManifest) return;
     await appendLocalWordFixtures(state.modelTestManifest);
     renderModelTestSampleOptions();
+    updateModelTestDomainHelp();
   })();
   return _localModelTestFixturesLoad;
 }
@@ -300,12 +306,15 @@ function renderModelTestSampleOptions() {
   items.forEach((item) => {
     const option = document.createElement("option");
     option.value = item.path;
-    const conf = Number.isFinite(Number(item.confidence))
+    // A made-up sample's expected confidence is the model's old answer to
+    // random numbers, so it is not shown as something to expect.
+    const conf = Number.isFinite(Number(item.confidence)) && item.kind !== MODEL_TEST_SYNTHETIC_KIND
       ? ` · beklenen %${Math.round(Number(item.confidence) * 100)}`
       : "";
     option.textContent = `${item.title || item.label || item.id}${conf}`;
     option.dataset.sampleId = item.id || "";
     option.dataset.label = item.expected_label || item.label || "";
+    option.dataset.kind = item.kind || "";
     if (isLocalModelTestItem(item)) option.dataset.local = "true";
     els.modelTestSampleSelect.appendChild(option);
   });
@@ -343,7 +352,7 @@ async function loadPreferredModelTestSample(task) {
     return;
   }
 
-  await loadModelTestSampleFromUrl(sample.path, sample.title || sample.label || sample.id);
+  await loadModelTestSampleFromUrl(sample.path, sample.title || sample.label || sample.id, sample.kind);
 }
 
 /**
@@ -374,9 +383,16 @@ function updateModelTestDomainHelp() {
       ? "Kelime modeli, 45 kareden oluşan kısa bir hareket dizisine bakıp 50 kelimeden birini seçer."
       : "Harf modeli, tek bir el duruşuna bakıp 24 harften birini seçer.";
   }
-  // Run-all runs the selected model, so the line under it names that model.
+  // Run-all runs the selected model, so the line under it names that model,
+  // and it promises a count only when some sample is a real recording.
   if (els.modelTestBatchHint) {
-    els.modelTestBatchHint.textContent = `${isWord ? "Kelime" : "Harf"} modelinin hazır örneklerini sırayla çalıştırır ve kaçının doğru olduğunu sayar.`;
+    const model = isWord ? "Kelime" : "Harf";
+    const countable = getModelTestManifestItems().some((item) => item.kind !== MODEL_TEST_SYNTHETIC_KIND);
+    els.modelTestBatchHint.textContent = countable
+      ? `${model} modelinin hazır örneklerini sırayla çalıştırır ve kaçının doğru olduğunu sayar.`
+      : isWord
+        ? "Kelime modelinin hazır örneğini çalıştırır. Gerçek kelime kayıtları yarışma kuralları gereği paylaşılamadığından doğruluk sayılmaz."
+        : `${model} modelinin hazır örneklerini çalıştırır; hepsi uydurma olduğundan doğruluk sayılmaz.`;
   }
 }
 
@@ -387,7 +403,7 @@ async function loadSelectedModelTestSample() {
     showModelTestError("Bu domain için hazır fixture bulunamadı.");
     return;
   }
-  await loadModelTestSampleFromUrl(option.value, option.textContent.trim());
+  await loadModelTestSampleFromUrl(option.value, option.textContent.trim(), option.dataset.kind);
 }
 
 /**
@@ -395,14 +411,15 @@ async function loadSelectedModelTestSample() {
  *
  * @param {string} url Fixture path relative to asl-web/.
  * @param {string} [displayName] Label for the status line; falls back to the URL.
+ * @param {string} [kind] The manifest's kind for the fixture, if it has one.
  * @returns {Promise<void>} Resolves after reporting a fetch or validation
  *   failure to the user.
  */
-async function loadModelTestSampleFromUrl(url, displayName) {
+async function loadModelTestSampleFromUrl(url, displayName, kind) {
   try {
     if (els.modelTestSampleStatus) els.modelTestSampleStatus.textContent = "Örnek yükleniyor";
     updateModelTestProcess("loading");
-    setModelTestSample(await fetchModelTestJson(url, displayName), displayName || url);
+    setModelTestSample(await fetchModelTestJson(url, displayName), displayName || url, kind);
   } catch (err) {
     showModelTestError(describeModelTestError(err));
     console.error(err);
@@ -607,12 +624,13 @@ function describeModelTestError(err) {
  *
  * @param {unknown} rawSample Parsed JSON, not yet trusted.
  * @param {string} sourceName Where it came from, for the status line.
+ * @param {string} [kind] The manifest's kind for the fixture, if it has one.
  * @returns {void}
  * @throws {Error} When validation rejects the fixture; callers report the
  *   message to the user.
  */
-function setModelTestSample(rawSample, sourceName) {
-  const sample = normalizeModelTestSample(rawSample, sourceName);
+function setModelTestSample(rawSample, sourceName, kind) {
+  const sample = normalizeModelTestSample(rawSample, sourceName, kind);
   state.modelTestSample = sample;
   // A run still waiting for its model belongs to the sample it started with.
   _modelTestSampleEpoch += 1;
@@ -623,22 +641,25 @@ function setModelTestSample(rawSample, sourceName) {
   if (els.modelTestFileName) els.modelTestFileName.textContent = sourceName || sample.source || "Yüklenen JSON";
   if (els.runModelTestSample) {
     els.runModelTestSample.disabled = false;
-    els.runModelTestSample.textContent = "Seçili Örneği Tekrar Çalıştır";
+    els.runModelTestSample.textContent = "Seçili örneği yeniden çalıştır";
   }
   if (els.modelTestTaskLabel) els.modelTestTaskLabel.textContent = sample.task === "word" ? "Kelime modeli" : "Harf modeli";
   if (els.modelTestSourceLabel) els.modelTestSourceLabel.textContent = sample.source || sourceName || "JSON fixture";
   if (els.modelTestSchemaLabel) els.modelTestSchemaLabel.textContent = sample.schemaVersion;
   if (els.modelTestShapeLabel) els.modelTestShapeLabel.textContent = sample.shapeLabel;
   if (els.modelTestMaskLabel) els.modelTestMaskLabel.textContent = sample.maskLabel;
-  if (els.modelTestExpectedLabel) els.modelTestExpectedLabel.textContent = sample.expectedLabel || "Referans yok";
+  if (els.modelTestExpectedLabel) {
+    els.modelTestExpectedLabel.textContent = (!sample.synthetic && sample.expectedLabel) || "Referans yok";
+  }
   clearModelTestResult();
   if (els.modelTestMatchBadge) {
     els.modelTestMatchBadge.textContent = "Çalıştırılmadı";
     els.modelTestMatchBadge.dataset.match = "unknown";
   }
   if (els.modelTestResultNote) {
-    els.modelTestResultNote.textContent =
-      sample.task === "word"
+    els.modelTestResultNote.textContent = sample.synthetic
+      ? "Bu örnek gerçek bir işaret kaydı değil; modelin çalıştığını göstermek için rastgele üretildi."
+      : sample.task === "word"
         ? "Kelime örneği 45 frame hareket bilgisinden hazırlanmıştır. Model çalıştırıldığında tahmin ve top-3 burada görünecek."
         : "Harf örneği tek el pozundan hazırlanmıştır. Model çalıştırıldığında tahmin ve top-3 burada görünecek.";
   }
@@ -654,13 +675,15 @@ function setModelTestSample(rawSample, sourceName) {
  *
  * @param {unknown} rawSample
  * @param {string} [sourceName] Fallback source label.
+ * @param {string} [kind] The manifest's kind; a fixture may also carry its own.
  * @returns {ModelTestSample} A validated, discriminated fixture.
  * @throws {Error} With a Turkish message naming what was wrong.
  */
-function normalizeModelTestSample(rawSample, sourceName) {
+function normalizeModelTestSample(rawSample, sourceName, kind) {
   if (!isRecord(rawSample)) {
     throw modelTestFixtureError("not-object", "Fixture JSON object olmalı");
   }
+  const synthetic = (kind || rawSample.kind) === MODEL_TEST_SYNTHETIC_KIND;
 
   const inferredTask = rawSample.task || (Array.isArray(rawSample.mask) ? "word" : "letter");
   const task = inferredTask === "word" ? "word" : "letter";
@@ -708,6 +731,7 @@ function normalizeModelTestSample(rawSample, sourceName) {
       source: String(rawSample.source || rawSample.dataset || sourceName || "word fixture"),
       shapeLabel: "45 × 168 = 7560 float",
       maskLabel: `${realFrames}/45 real frame`,
+      synthetic,
     };
   }
 
@@ -728,6 +752,7 @@ function normalizeModelTestSample(rawSample, sourceName) {
     source: String(rawSample.source || rawSample.dataset || sourceName || "letter fixture"),
     shapeLabel: "93 float",
     maskLabel: "Yok",
+    synthetic,
   };
 }
 
@@ -840,7 +865,7 @@ async function executeModelTestRun(epoch) {
     }
     if (els.runModelTestSample) {
       els.runModelTestSample.disabled = true;
-      els.runModelTestSample.textContent = "Model Çalışıyor";
+      els.runModelTestSample.textContent = "Model çalışıyor";
     }
     updateModelTestProcess("running");
 
@@ -872,7 +897,7 @@ async function executeModelTestRun(epoch) {
   } finally {
     if (!stale() && els.runModelTestSample) {
       els.runModelTestSample.disabled = false;
-      els.runModelTestSample.textContent = "Seçili Örneği Tekrar Çalıştır";
+      els.runModelTestSample.textContent = "Seçili örneği yeniden çalıştır";
     }
   }
 }
@@ -886,7 +911,9 @@ async function executeModelTestRun(epoch) {
  * @returns {void}
  */
 function renderModelTestResult(sample, result, elapsed) {
-  const expected = sample.expectedLabel || "";
+  // A made-up sample's expected label is the model's own earlier answer to
+  // random numbers: matching it proves the pipeline ran, not that it is right.
+  const expected = sample.synthetic ? "" : sample.expectedLabel || "";
   const matched = expected ? result.label === expected : null;
   const alternatives = result.alternatives?.length
     ? result.alternatives
@@ -894,8 +921,9 @@ function renderModelTestResult(sample, result, elapsed) {
   if (els.modelTestSampleStatus) els.modelTestSampleStatus.textContent = "Tamamlandı";
   updateModelTestProcess("done");
   if (els.modelTestMatchBadge) {
-    els.modelTestMatchBadge.textContent =
-      matched === null ? "Referans yok" : matched ? "Eşleşti" : "Eşleşmedi";
+    els.modelTestMatchBadge.textContent = sample.synthetic
+      ? "Çalışma kontrolü"
+      : matched === null ? "Referans yok" : matched ? "Eşleşti" : "Eşleşmedi";
     els.modelTestMatchBadge.dataset.match = matched === null ? "unknown" : matched ? "yes" : "no";
   }
   if (els.modelTestExpectedLabel) els.modelTestExpectedLabel.textContent = expected || "Referans yok";
@@ -904,7 +932,13 @@ function renderModelTestResult(sample, result, elapsed) {
   if (els.modelTestLatency) els.modelTestLatency.textContent = `${elapsed.toFixed(0)} ms`;
   renderModelTestTop3(alternatives);
 
-  if (els.modelTestResultNote) {
+  if (els.modelTestResultNote && sample.synthetic) {
+    els.modelTestResultNote.textContent =
+      "Bu örnek gerçek bir işaret kaydı değil; modelin tarayıcıda çalıştığını göstermek için rastgele üretildi, bu yüzden doğruluk ölçmez." +
+      (sample.task === "word"
+        ? " Gerçek kelime kayıtları yarışma kuralları gereği paylaşılamıyor; kelime modunu kamerayla deneyebilirsiniz."
+        : "");
+  } else if (els.modelTestResultNote) {
     const topText = formatTopPredictions(alternatives);
     const matchText =
       matched === null
@@ -941,7 +975,7 @@ function renderModelTestTop3(items) {
     fill.style.width = `${pct}%`;
     bar.appendChild(fill);
     const confidence = document.createElement("span");
-    confidence.textContent = `${pct}%`;
+    confidence.textContent = `%${pct}`;
     row.append(rank, label, bar, confidence);
     els.modelTestTop3List.appendChild(row);
   });

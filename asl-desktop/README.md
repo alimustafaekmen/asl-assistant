@@ -41,9 +41,15 @@ normalization (including the correction for the webcam's non-square frame) and
 the 93D features. Values shared with training (the 21 landmarks, the 24
 letters, augmentation defaults) come from `asl_features.config`. Paths, camera
 behaviour, thresholds, colours and the 25-word model settings live in
-`asl_desktop.config`; the browser has its own JavaScript configuration. The two
-apps do not run identical inference: for letters the web app mirrors a
-detected left hand, and the desktop app does not.
+`asl_desktop.config`; the browser has its own JavaScript configuration.
+
+The detectors read the camera frame as captured, as the models' training
+landmarks were extracted; only the picture on screen is mirrored. The letter
+model was trained on right hands, so both apps mirror a left hand into the
+right-hand shape before normalizing it. They tell the hands apart through
+different MediaPipe APIs, which name them the opposite way round on an
+unmirrored frame, so each app keeps its own label convention
+(`USERS_LEFT_HAND_LABEL` in `detection/hand_detector.py` here).
 
 The word path is the 25-class BiGRU with attention pooling, fed 30 frames of 321
 holistic landmark values, from `models/word/desktop-25/`. It does not load the

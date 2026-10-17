@@ -59,7 +59,7 @@ does, so a duplicated global or a file that `index.html` forgets fails a test.
 | Module | Responsibility |
 |---|---|
 | `core/theme-boot.js` | Theme resolution before the first paint: saved choice, else the system scheme; the theme-color metas |
-| `core/config.js` | Runtime configuration, letter/word label lists, difficulty sets, reference assets, and `ORT_WASM_PATHS`, the ONNX Runtime directory both model adapters use (it must match the `ort.min.js` in `index.html`) |
+| `core/config.js` | Runtime configuration, letter/word label lists, difficulty sets, reference assets, and `ORT_WASM_PATHS`, the ONNX Runtime directory both model adapters use (it must match the `ort.wasm.min.js` in `index.html`) |
 | `core/runtime.js` | Shared mutable state, DOM registry, canvas context, word recording buffers |
 | `core/app.js` | Bootstrap, event wiring, hash routing, camera start/stop, render loop, debug API |
 | `media/camera.js` | MediaPipe task lifecycle, GPU/CPU fallback, frame detection loop |

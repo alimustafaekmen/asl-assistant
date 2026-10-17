@@ -21,13 +21,17 @@ _logger = logging.getLogger("ASL.Camera")
 class CameraWidget(ctk.CTkFrame):
     """Display camera frames and optionally process each frame.
 
-    The callback receives a BGR frame and must return the frame to display. It
-    can add landmarks, prediction text, or other overlays.
+    The callback receives two BGR images: ``frame``, as the camera captured
+    it, and ``preview``, its mirror image, which is what the user sees. It
+    runs detection on ``frame``, draws landmarks, text and other overlays on
+    ``preview``, and returns the image to display. The models were trained on
+    landmarks from unmirrored images, so detecting on the preview would give
+    them the other hand's shape; drawing on ``frame`` would mirror any text.
 
     Example:
-        def process_frame(frame):
-            # Add overlays or run inference here.
-            return frame
+        def process_frame(frame, preview):
+            # Run inference on frame; draw overlays on preview.
+            return preview
 
         camera = CameraWidget(parent, callback=process_frame)
         camera.start()
@@ -72,7 +76,7 @@ class CameraWidget(ctk.CTkFrame):
                 self._cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_ANY)
 
         if not self._cap.isOpened():
-            _logger.error("Kamera acilamadi; izni kontrol edin")
+            _logger.error("The camera could not be opened; check camera access")
             self.image_label.configure(
                 text="❌ Kamera açılamadı!\n\nmacOS Sistem Ayarları → Gizlilik ve Güvenlik → Kamera\nTerminal / IDE izni verin."
             )
@@ -104,12 +108,14 @@ class CameraWidget(ctk.CTkFrame):
         ret, frame = self._cap.read()
         if ret:
             self._fail_count = 0
-            frame = cv2.flip(frame, 1)  # Mirror the preview for natural interaction.
+            # Only the picture on screen is mirrored, so the user moves as in
+            # a mirror; the callback detects on the frame as captured.
+            preview = cv2.flip(frame, 1)
 
             if self.callback:
-                frame = self.callback(frame)
+                preview = self.callback(frame, preview)
 
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            rgb = cv2.cvtColor(preview, cv2.COLOR_BGR2RGB)
             img = Image.fromarray(rgb)
             img = img.resize(
                 (self.display_width, self.display_height),

@@ -1,7 +1,9 @@
 """MediaPipe hand detection for the desktop letter pipeline.
 
-The detector extracts and normalizes one 21-landmark hand, applies temporal
-smoothing, and can draw the detected landmarks on the input frame.
+The detector extracts and normalizes one 21-landmark hand from the camera
+frame as captured, mirrors a left hand into the right-hand shape the letter
+model knows, applies temporal smoothing, and can draw the detected landmarks
+on the mirrored preview.
 """
 
 import logging
@@ -13,9 +15,31 @@ from asl_features.config import MIN_DETECTION_CONFIDENCE, MIN_TRACKING_CONFIDENC
 from asl_features.landmarks import normalize_landmarks, to_square_units
 
 from asl_desktop.config import LANDMARK_QUALITY_THRESHOLD
+from asl_desktop.detection.preview import mirrored_for_preview
 from asl_desktop.utils.landmark_smoother import LandmarkSmoother
 
 _logger = logging.getLogger("ASL.HandDetector")
+
+# The handedness label mp.solutions.hands gives the user's LEFT hand on the
+# unmirrored camera frame the detector reads. The legacy solution assumes a
+# mirrored selfie image, so it names hands the other way round: on unmirrored
+# photos of right hands, the letter model's training images, it said "Left"
+# for 139 of 146 (measured 2026-10-17). The web app's Tasks API names them as
+# they are, so this value belongs to the legacy solution only.
+USERS_LEFT_HAND_LABEL = "Right"
+
+
+def _as_right_hand(landmarks: np.ndarray) -> np.ndarray:
+    """Reflect a left hand into the right hand it mirrors.
+
+    The letter model was trained on right hands only. A left hand fed as it is
+    scored about 49% on unseen signers, and 79% mirrored (measured
+    2026-10-17). Any vertical line serves as the mirror, because
+    normalization then centres the hand on its wrist.
+    """
+    coords = landmarks.reshape(-1, 3).copy()
+    coords[:, 0] = 1.0 - coords[:, 0]
+    return coords.reshape(-1)
 
 
 class HandDetector:
@@ -23,7 +47,8 @@ class HandDetector:
 
     Example:
         with HandDetector() as det:
-            keypoints, frame = det.detect_and_draw(frame)
+            keypoints = det.detect(frame)
+            preview = det.draw_landmarks(preview)
     """
 
     def __init__(self, static_mode: bool = False, smoothing_alpha: float = 0.6):
@@ -46,8 +71,12 @@ class HandDetector:
         if self._last_results.multi_hand_landmarks:
             # Reject low-confidence detections before smoothing them into state.
             handedness_score = 1.0
+            handedness_label = None
             if self._last_results.multi_handedness:
-                handedness_score = self._last_results.multi_handedness[0].classification[0].score
+                handedness = self._last_results.multi_handedness[0].classification[0]
+                handedness_score = handedness.score
+                # Without a label the hand is taken as it comes, as before.
+                handedness_label = getattr(handedness, "label", None)
             if handedness_score < LANDMARK_QUALITY_THRESHOLD:
                 self._smoother.reset()
                 return None
@@ -59,6 +88,8 @@ class HandDetector:
             # frame is not square, so the hand is put back into square units.
             height, width = frame.shape[:2]
             square = to_square_units(np.array(lms, dtype=np.float32), width, height)
+            if handedness_label == USERS_LEFT_HAND_LABEL:
+                square = _as_right_hand(square)
             normalized = normalize_landmarks(square)
             if normalized is not None and not np.all(normalized == 0):
                 return self._smoother.smooth(normalized)
@@ -66,24 +97,18 @@ class HandDetector:
         self._smoother.reset()
         return None
 
-    def draw_landmarks(self, frame: np.ndarray) -> np.ndarray:
-        """Draw landmarks produced by the most recent ``detect`` call."""
+    def draw_landmarks(self, preview: np.ndarray) -> np.ndarray:
+        """Draw the hands found by the last ``detect`` on the mirrored preview."""
         if self._last_results and self._last_results.multi_hand_landmarks:
             for h in self._last_results.multi_hand_landmarks:
                 self.mp_draw.draw_landmarks(
-                    frame,
-                    h,
+                    preview,
+                    mirrored_for_preview(h),
                     self.mp_hands.HAND_CONNECTIONS,
                     self.mp_draw.DrawingSpec(color=(0, 220, 100), thickness=2, circle_radius=3),
                     self.mp_draw.DrawingSpec(color=(255, 255, 255), thickness=1),
                 )
-        return frame
-
-    def detect_and_draw(self, frame: np.ndarray) -> tuple[np.ndarray | None, np.ndarray]:
-        """Extract keypoints and draw their overlay in one call."""
-        keypoints = self.detect(frame)
-        frame = self.draw_landmarks(frame)
-        return keypoints, frame
+        return preview
 
     @property
     def hand_detected(self) -> bool:

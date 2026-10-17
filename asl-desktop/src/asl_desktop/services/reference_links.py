@@ -28,7 +28,7 @@ def load_video_links(paths: Iterable[str | os.PathLike]) -> tuple[dict[str, str]
             words = dict(data.get("words", {}))
             alphabet = str(data.get("alphabet_video", ""))
         except (OSError, ValueError, AttributeError, TypeError) as e:
-            _logger.warning("Video linkleri yuklenemedi (%s): %s", path, e)
+            _logger.warning("Video links could not be loaded (%s): %s", path, e)
             continue
         return words, alphabet
     return {}, ""

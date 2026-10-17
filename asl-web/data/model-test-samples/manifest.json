@@ -225,7 +225,7 @@
     {
       "id": "word-give-smoke",
       "label": "give",
-      "title": "Kelime give (smoke)",
+      "title": "Kelime modeli çalışma kontrolü",
       "path": "./data/model-test-samples/words/word-give-smoke.json",
       "expected_label": "give",
       "source": "notebooks/word_50_results/test_sample.json",

@@ -56,7 +56,7 @@ def test_an_empty_module_is_reported(tmp_path: Path) -> None:
 
     issues = find_web_source_issues(web).issues
 
-    assert any("app.js" in issue and "BOS" in issue for issue in issues), issues
+    assert any("app.js" in issue and "EMPTY" in issue for issue in issues), issues
 
 
 def test_a_module_index_html_does_not_load_is_reported(tmp_path: Path) -> None:
@@ -69,7 +69,7 @@ def test_a_module_index_html_does_not_load_is_reported(tmp_path: Path) -> None:
 
     issues = find_web_source_issues(web).issues
 
-    assert any("orphan.js" in issue and "yuklemiyor" in issue for issue in issues), issues
+    assert any("orphan.js" in issue and "does not load it" in issue for issue in issues), issues
 
 
 def test_a_module_index_html_loads_but_is_missing_is_reported(tmp_path: Path) -> None:
@@ -82,7 +82,7 @@ def test_a_module_index_html_loads_but_is_missing_is_reported(tmp_path: Path) ->
 
     issues = find_web_source_issues(web).issues
 
-    assert any("gone.js" in issue and "dosya yok" in issue for issue in issues), issues
+    assert any("gone.js" in issue and "file is missing" in issue for issue in issues), issues
 
 
 def test_an_unresolved_stylesheet_reference_is_reported(tmp_path: Path) -> None:
@@ -99,7 +99,7 @@ def test_a_tree_with_no_modules_is_reported(tmp_path: Path) -> None:
 
     issues = find_web_source_issues(web).issues
 
-    assert any("JavaScript modulu bulunamadi" in issue for issue in issues), issues
+    assert any("no JavaScript module found" in issue for issue in issues), issues
 
 
 @pytest.mark.parametrize("missing", ["index.html", None])

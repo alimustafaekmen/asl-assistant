@@ -62,7 +62,7 @@ try:
     LGBM_AVAILABLE = True
 except ImportError:
     LGBM_AVAILABLE = False
-    print("UYARI: LightGBM bulunamadı, SVM kullanılacak")
+    print("WARNING: LightGBM not found, falling back to SVM")
     from sklearn.svm import SVC
 
 
@@ -246,7 +246,7 @@ def extract_all_keypoints(dataset_dir: str, max_per_class: int = 0) -> tuple:
                 break
 
         if letter_dir is None:
-            print(f"  [{letter}] Klasör bulunamadı")
+            print(f"  [{letter}] Folder not found")
             stats[letter] = {"found": 0, "missed": 0}
             continue
 
@@ -286,7 +286,7 @@ def extract_all_keypoints(dataset_dir: str, max_per_class: int = 0) -> tuple:
 
         stats[letter] = {"found": found, "missed": missed}
         elapsed = time.time() - t_start
-        print(f"  [{letter}] {found} keypoint, {missed} el bulunamadı  ({elapsed:.0f}s)")
+        print(f"  [{letter}] {found} keypoints, {missed} without a hand  ({elapsed:.0f}s)")
 
     hands.close()
 
@@ -294,7 +294,7 @@ def extract_all_keypoints(dataset_dir: str, max_per_class: int = 0) -> tuple:
     y_str = np.array(all_y)
 
     total = sum(s["found"] for s in stats.values())
-    print(f"\n  Toplam: {total} örnek, {len(set(all_y))} sınıf")
+    print(f"\n  Total: {total} samples, {len(set(all_y))} classes")
 
     return X, y_str, stats
 
@@ -305,7 +305,7 @@ def augment_data(
     multiplier: int = AUGMENTATION_MULTIPLIER,
 ) -> tuple:
     """Augment raw 63D landmarks with noise, rotation, and scale changes."""
-    print(f"\n  Augmentation ({multiplier}x) uygulanıyor...")
+    print(f"\n  Augmenting ({multiplier}x)...")
 
     aug_X_list = []
     aug_y_list = []
@@ -338,7 +338,7 @@ def augment_data(
         X_aug = X
         y_aug = y
 
-    print(f"  {X.shape[0]} → {X_aug.shape[0]} örnek")
+    print(f"  {X.shape[0]} -> {X_aug.shape[0]} samples")
     return X_aug, y_aug
 
 
@@ -351,9 +351,9 @@ def apply_feature_engineering(X_raw: np.ndarray) -> np.ndarray:
     Returns:
         Engineered features with shape ``(N, 93)``.
     """
-    print(f"\n  Feature engineering uygulanıyor ({X_raw.shape[0]} örnek)...")
+    print(f"\n  Engineering features ({X_raw.shape[0]} samples)...")
     X_features = np.array([extract_features(row) for row in X_raw])
-    print(f"  {X_raw.shape[1]}D → {X_features.shape[1]}D")
+    print(f"  {X_raw.shape[1]}D -> {X_features.shape[1]}D")
     return X_features
 
 
@@ -378,15 +378,15 @@ def train_single_model(
         y_external_str,
     )
 
-    print(f"\n  Sınıf sayısı: {len(label_map)}")
-    print(f"  Toplam örnek: {len(y_train) + len(y_test)}")
-    print(f"  Özellik boyutu: {X.shape[1]}")
+    print(f"\n  Classes: {len(label_map)}")
+    print(f"  Total samples: {len(y_train) + len(y_test)}")
+    print(f"  Feature size: {X.shape[1]}")
     print(f"  Train: {len(y_train)}, Test: {len(y_test)} ({evaluation_source})")
 
     model = _create_model(model_type)
     model_name = _model_display_name(model_type)
 
-    print(f"\n  {model_name} eğitiliyor...")
+    print(f"\n  Training {model_name}...")
     t0 = time.time()
     if model_type == "xgboost":
         model.fit(X_train, y_train, verbose=False)
@@ -407,9 +407,9 @@ def train_single_model(
     target_names = [inv_map[i] for i in sorted(inv_map.keys())]
 
     print(f"\n{'=' * 50}")
-    print(f"  TEST DOĞRULUĞU: {acc:.4f} ({acc * 100:.1f}%)")
-    print(f"  Eğitim süresi:  {train_time:.1f}s")
-    print(f"  Inference:      {inference_ms:.3f}ms/tahmin")
+    print(f"  TEST ACCURACY: {acc:.4f} ({acc * 100:.1f}%)")
+    print(f"  Training time:  {train_time:.1f}s")
+    print(f"  Inference:      {inference_ms:.3f}ms/prediction")
     print(f"{'=' * 50}")
     print(
         classification_report(
@@ -424,11 +424,11 @@ def train_single_model(
     # Persist the fitted Python model and label contract.
     os.makedirs(os.path.dirname(LETTER_MODEL_PATH), exist_ok=True)
     joblib.dump(model, LETTER_MODEL_PATH)
-    print(f"  Model → {LETTER_MODEL_PATH}")
+    print(f"  Model -> {LETTER_MODEL_PATH}")
 
     with open(LETTER_LABEL_MAP_PATH, "w") as f:
         json.dump(label_map, f, indent=2)
-    print(f"  Label map → {LETTER_LABEL_MAP_PATH}")
+    print(f"  Label map -> {LETTER_LABEL_MAP_PATH}")
 
     # Record the training configuration and key metrics.
     metadata = {
@@ -448,7 +448,7 @@ def train_single_model(
     meta_path = os.path.splitext(LETTER_MODEL_PATH)[0] + "_meta.json"
     with open(meta_path, "w") as f:
         json.dump(metadata, f, indent=2, ensure_ascii=False)
-    print(f"  Metadata → {meta_path}")
+    print(f"  Metadata -> {meta_path}")
 
     # Export the primary error-analysis figure.
     _save_confusion_matrix(y_test, y_pred, target_names, acc)
@@ -478,9 +478,9 @@ def train_full_comparison(
     inv_map = {v: k for k, v in label_map.items()}
     target_names = [inv_map[i] for i in sorted(inv_map.keys())]
 
-    print(f"\n  Sınıf sayısı: {len(label_map)}")
-    print(f"  Toplam örnek: {len(y_train) + len(y_test)}")
-    print(f"  Özellik boyutu: {X.shape[1]}")
+    print(f"\n  Classes: {len(label_map)}")
+    print(f"  Total samples: {len(y_train) + len(y_test)}")
+    print(f"  Feature size: {X.shape[1]}")
     print(f"  Train: {len(y_train)}, Test: {len(y_test)} ({evaluation_source})")
 
     # Four conventional estimators and one compact neural baseline.
@@ -493,14 +493,14 @@ def train_full_comparison(
     ]
 
     print(f"\n{'=' * 60}")
-    print("  MODEL KARŞILAŞTIRMASI (5 model, 5-fold CV)")
+    print("  MODEL COMPARISON (5 models, 5-fold CV)")
     print(f"{'=' * 60}")
 
     results = {}
     all_models = {}
 
     for model_key, model_name in model_configs:
-        print(f"\n  ── {model_name} ──")
+        print(f"\n  {model_name}")
         model = _create_model(model_key)
 
         t0 = time.time()
@@ -520,7 +520,7 @@ def train_full_comparison(
         inference_ms = (time.time() - t0) / n_test * 1000
 
         # Cross-validation accuracy on the training split.
-        print("    5-fold CV hesaplanıyor...")
+        print("    Running 5-fold CV...")
         cv_scores = cross_val_score(model, X_train, y_train, cv=5, scoring="accuracy", n_jobs=-1)
 
         # Per-class F1 for comparison and visualization.
@@ -542,10 +542,10 @@ def train_full_comparison(
         all_models[model_name] = model
 
         print(f"    Accuracy:  {acc:.4f} ({acc * 100:.1f}%)")
-        print(f"    CV:        {cv_scores.mean():.4f} ± {cv_scores.std():.4f}")
-        print(f"    Eğitim:    {train_time:.1f}s")
-        print(f"    Inference: {inference_ms:.3f}ms/tahmin")
-        print(f"    En zayıf:  {min_f1_class} (F1={min_f1:.3f})")
+        print(f"    CV:        {cv_scores.mean():.4f} +/- {cv_scores.std():.4f}")
+        print(f"    Training:  {train_time:.1f}s")
+        print(f"    Inference: {inference_ms:.3f}ms/prediction")
+        print(f"    Weakest:   {min_f1_class} (F1={min_f1:.3f})")
 
     # The winner is chosen by held-out accuracy, not by the CV mean.
     best_name = max(results, key=lambda k: results[k]["accuracy"])
@@ -554,7 +554,7 @@ def train_full_comparison(
     best_pred = results[best_name]["y_pred"]
 
     print(f"\n{'=' * 60}")
-    print(f"  KAZANAN: {best_name} (Accuracy: {best_acc:.4f})")
+    print(f"  WINNER: {best_name} (accuracy: {best_acc:.4f})")
     print(f"{'=' * 60}")
     print(
         classification_report(
@@ -571,11 +571,11 @@ def train_full_comparison(
     os.makedirs(DOCS_ASSETS_DIR, exist_ok=True)
 
     joblib.dump(best_model, LETTER_MODEL_PATH)
-    print(f"\n  Model → {LETTER_MODEL_PATH}")
+    print(f"\n  Model -> {LETTER_MODEL_PATH}")
 
     with open(LETTER_LABEL_MAP_PATH, "w") as f:
         json.dump(label_map, f, indent=2)
-    print(f"  Label map → {LETTER_LABEL_MAP_PATH}")
+    print(f"  Label map -> {LETTER_LABEL_MAP_PATH}")
 
     # Store the complete winning-model summary.
     metadata = {
@@ -597,7 +597,7 @@ def train_full_comparison(
     meta_path = os.path.splitext(LETTER_MODEL_PATH)[0] + "_meta.json"
     with open(meta_path, "w") as f:
         json.dump(metadata, f, indent=2, ensure_ascii=False)
-    print(f"  Metadata → {meta_path}")
+    print(f"  Metadata -> {meta_path}")
 
     # Export comparison and error-analysis figures.
     _save_confusion_matrix(y_test, best_pred, target_names, best_acc)
@@ -650,7 +650,7 @@ def _create_model(model_type: str):
             patience=10,
         )
     else:
-        raise ValueError(f"Bilinmeyen model tipi: {model_type}")
+        raise ValueError(f"Unknown model type: {model_type}")
 
 
 def _model_display_name(model_type: str) -> str:
@@ -678,14 +678,14 @@ def _save_confusion_matrix(y_test, y_pred, target_names, accuracy):
         yticklabels=target_names,
         ax=ax,
     )
-    ax.set_xlabel("Tahmin", fontsize=12)
-    ax.set_ylabel("Gerçek", fontsize=12)
-    ax.set_title(f"Confusion matrix (doğruluk {accuracy:.1%})", fontsize=14)
+    ax.set_xlabel("Predicted", fontsize=12)
+    ax.set_ylabel("Actual", fontsize=12)
+    ax.set_title(f"Confusion matrix (accuracy {accuracy:.1%})", fontsize=14)
     plt.tight_layout()
     cm_path = os.path.join(LETTER_MODELS_DIR, "static_letter_confusion_matrix.png")
     fig.savefig(cm_path, dpi=150)
     plt.close(fig)
-    print(f"  Confusion matrix → {cm_path}")
+    print(f"  Confusion matrix -> {cm_path}")
 
 
 def _save_model_comparison_chart(results: dict):
@@ -699,8 +699,8 @@ def _save_model_comparison_chart(results: dict):
     width = 0.35
 
     # Accuracy uses the left axis.
-    bars1 = ax1.bar(x - width / 2, accuracies, width, label="Doğruluk", color="#2196F3", alpha=0.8)
-    ax1.set_ylabel("Doğruluk", color="#2196F3", fontsize=12)
+    bars1 = ax1.bar(x - width / 2, accuracies, width, label="Accuracy", color="#2196F3", alpha=0.8)
+    ax1.set_ylabel("Accuracy", color="#2196F3", fontsize=12)
     ax1.set_ylim(min(accuracies) - 0.02, 1.01)
     ax1.tick_params(axis="y", labelcolor="#2196F3")
 
@@ -719,13 +719,13 @@ def _save_model_comparison_chart(results: dict):
     # Inference latency uses the right axis.
     ax2 = ax1.twinx()
     ax2.bar(x + width / 2, inf_times, width, label="Inference (ms)", color="#FF9800", alpha=0.8)
-    ax2.set_ylabel("Inference Süresi (ms)", color="#FF9800", fontsize=12)
+    ax2.set_ylabel("Inference time (ms)", color="#FF9800", fontsize=12)
     ax2.tick_params(axis="y", labelcolor="#FF9800")
 
     ax1.set_xlabel("Model", fontsize=12)
     ax1.set_xticks(x)
     ax1.set_xticklabels(names, fontsize=11)
-    ax1.set_title("Model karşılaştırması: doğruluk ve inference süresi", fontsize=14)
+    ax1.set_title("Model comparison: accuracy and inference time", fontsize=14)
 
     # Merge legends from both axes.
     lines1, labels1 = ax1.get_legend_handles_labels()
@@ -736,7 +736,7 @@ def _save_model_comparison_chart(results: dict):
     path = os.path.join(DOCS_ASSETS_DIR, "static-letter-model-comparison.png")
     fig.savefig(path, dpi=150)
     plt.close(fig)
-    print(f"  Model karşılaştırma → {path}")
+    print(f"  Model comparison -> {path}")
 
 
 def _save_class_f1_chart(f1_scores: list, target_names: list, model_name: str):
@@ -746,11 +746,11 @@ def _save_class_f1_chart(f1_scores: list, target_names: list, model_name: str):
     colors = ["#F44336" if f < 0.9 else "#FF9800" if f < 0.95 else "#4CAF50" for f in f1_scores]
     bars = ax.bar(target_names, f1_scores, color=colors, alpha=0.85)
 
-    ax.set_xlabel("Harf", fontsize=12)
+    ax.set_xlabel("Letter", fontsize=12)
     ax.set_ylabel("F1-Score", fontsize=12)
-    ax.set_title(f"Sınıf bazlı F1-score ({model_name})", fontsize=14)
+    ax.set_title(f"Per-class F1 score ({model_name})", fontsize=14)
     ax.set_ylim(min(f1_scores) - 0.05, 1.02)
-    ax.axhline(y=0.95, color="gray", linestyle="--", alpha=0.5, label="%95 eşiği")
+    ax.axhline(y=0.95, color="gray", linestyle="--", alpha=0.5, label="95% threshold")
     ax.legend()
 
     # Label classes below the reference threshold.
@@ -770,13 +770,13 @@ def _save_class_f1_chart(f1_scores: list, target_names: list, model_name: str):
     path = os.path.join(DOCS_ASSETS_DIR, "static-letter-class-f1.png")
     fig.savefig(path, dpi=150)
     plt.close(fig)
-    print(f"  F1-score chart → {path}")
+    print(f"  F1 score chart -> {path}")
 
 
 def _save_feature_importance(model, n_features: int):
     """Save the top Random Forest feature importances when available."""
     if not hasattr(model, "feature_importances_"):
-        print("  Feature importance atlandı (model desteklemiyor)")
+        print("  Feature importance skipped (the model does not support it)")
         return
 
     importances = model.feature_importances_
@@ -831,13 +831,13 @@ def _save_feature_importance(model, n_features: int):
     ax.barh(range(top_k), top_values[::-1], color="#2196F3", alpha=0.85)
     ax.set_yticks(range(top_k))
     ax.set_yticklabels(top_names[::-1], fontsize=9)
-    ax.set_xlabel("Önem Skoru", fontsize=12)
-    ax.set_title(f"Top {top_k} Özellik Önem Sırası (Random Forest)", fontsize=14)
+    ax.set_xlabel("Importance score", fontsize=12)
+    ax.set_title(f"Top {top_k} feature importances (Random Forest)", fontsize=14)
     plt.tight_layout()
     path = os.path.join(DOCS_ASSETS_DIR, "static-letter-feature-importance.png")
     fig.savefig(path, dpi=150)
     plt.close(fig)
-    print(f"  Feature importance → {path}")
+    print(f"  Feature importance -> {path}")
 
 
 def _save_tsne(X_test, y_test, target_names):
@@ -849,7 +849,7 @@ def _save_tsne(X_test, y_test, target_names):
     X_sub = X_test[indices]
     y_sub = y_test[indices]
 
-    print(f"  t-SNE hesaplanıyor ({n_samples} örnek)...")
+    print(f"  Computing t-SNE ({n_samples} samples)...")
     tsne = TSNE(n_components=2, random_state=42, perplexity=30, max_iter=1000)
     X_2d = tsne.fit_transform(X_sub)
 
@@ -878,14 +878,14 @@ def _save_tsne(X_test, y_test, target_names):
                 bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.7),
             )
 
-    ax.set_title("t-SNE: ASL Harflerinin Özellik Uzayında Dağılımı", fontsize=14)
+    ax.set_title("t-SNE: ASL letters in feature space", fontsize=14)
     ax.set_xlabel("t-SNE 1")
     ax.set_ylabel("t-SNE 2")
     plt.tight_layout()
     path = os.path.join(DOCS_ASSETS_DIR, "static-letter-tsne.png")
     fig.savefig(path, dpi=150)
     plt.close(fig)
-    print(f"  t-SNE → {path}")
+    print(f"  t-SNE -> {path}")
 
 
 def _save_comparison_csv(results: dict):
@@ -908,68 +908,68 @@ def _save_comparison_csv(results: dict):
     df = pd.DataFrame(rows)
     path = os.path.join(LETTER_MODELS_DIR, "letter_model_comparison.csv")
     df.to_csv(path, index=False)
-    print(f"  Karşılaştırma CSV → {path}")
+    print(f"  Comparison CSV -> {path}")
     print(f"\n{df.to_string(index=False)}")
 
 
 def next_step_hint() -> str:
     """The text printed after training, naming the follow-up command."""
     return (
-        "\n  Sonraki adım (isteğe bağlı): J ve Z hareketli harflerdir, bu modelde yoktur."
-        "\n  Kamera ile veri toplayıp eğitmek için:"
+        "\n  Next step (optional): J and Z are motion letters and are not in this model."
+        "\n  To collect data with a camera and train them:"
         "\n    python scripts/model_training/train_dynamic_jz_model.py all"
     )
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="ASL harf modeli: tek komutla eğitim",
+        description="ASL letter model: train with a single command",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Örnekler:
-  python scripts/model_training/train_static_letter_model.py                          # Varsayılan
-  python scripts/model_training/train_static_letter_model.py --max-images 500         # Hızlı test
-  python scripts/model_training/train_static_letter_model.py --full-comparison         # 5 model
-  python scripts/model_training/train_static_letter_model.py --no-features             # FE kapalı
-  python scripts/model_training/train_static_letter_model.py --model xgboost           # Sadece XGBoost
+Examples:
+  python scripts/model_training/train_static_letter_model.py                          # Default
+  python scripts/model_training/train_static_letter_model.py --max-images 500         # Quick test
+  python scripts/model_training/train_static_letter_model.py --full-comparison         # 5 models
+  python scripts/model_training/train_static_letter_model.py --no-features             # Feature engineering off
+  python scripts/model_training/train_static_letter_model.py --model xgboost           # XGBoost only
         """,
     )
     parser.add_argument(
-        "--max-images", type=int, default=0, help="Harf başına max görsel (0=sınırsız)"
+        "--max-images", type=int, default=0, help="Maximum images per letter (0 = no limit)"
     )
     parser.add_argument(
         "--model",
         choices=["rf", "xgboost", "lgbm_or_svm", "mlp", "conv1d"],
         default="rf",
-        help="Model tipi (varsayılan: rf, --full-comparison ile kullanılmaz)",
+        help="Model type (default: rf, not used with --full-comparison)",
     )
     parser.add_argument(
         "--full-comparison",
         action="store_true",
-        help="5 modeli karşılaştır + tüm görselleştirmeler",
+        help="Compare the 5 models and write all charts",
     )
     parser.add_argument(
-        "--no-features", action="store_true", help="Feature engineering olmadan eğit (63D)"
+        "--no-features", action="store_true", help="Train without feature engineering (63D)"
     )
-    parser.add_argument("--no-augment", action="store_true", help="Augmentation uygulama")
+    parser.add_argument("--no-augment", action="store_true", help="Skip augmentation")
     parser.add_argument(
-        "--dataset", type=str, default=None, help="Dataset klasörü (otomatik bulunur)"
+        "--dataset", type=str, default=None, help="Dataset folder (found automatically by default)"
     )
     parser.add_argument(
         "--from-csv",
         action="store_true",
-        help="Önceden hazırlanmış CSV'den yükle (extract_static_letter_landmarks + merge_static_letter_datasets)",
+        help="Load a prepared CSV (from extract_static_letter_landmarks + merge_static_letter_datasets)",
     )
     parser.add_argument(
-        "--train-csv", type=str, default=None, help="Eğitim CSV dosyası (--from-csv ile)"
+        "--train-csv", type=str, default=None, help="Training CSV file (with --from-csv)"
     )
     parser.add_argument(
-        "--test-csv", type=str, default=None, help="Test CSV dosyası (--from-csv ile, opsiyonel)"
+        "--test-csv", type=str, default=None, help="Test CSV file (with --from-csv, optional)"
     )
     args = parser.parse_args()
 
     print("=" * 60)
-    print("  ASL Harf Modeli Eğitimi")
+    print("  ASL letter model training")
     print("=" * 60)
 
     use_features = not args.no_features
@@ -984,22 +984,22 @@ def main():
         test_csv = args.test_csv
 
         if not os.path.exists(train_csv):
-            print(f"\nHATA: CSV bulunamadı: {train_csv}")
-            print("  Önce dataset hazırlığını yapın:")
+            print(f"\nERROR: CSV not found: {train_csv}")
+            print("  Prepare the dataset first:")
             print(
                 '  python scripts/data_preparation/extract_static_letter_landmarks.py --input "data/raw/ASL Alphabet/asl_alphabet_train/asl_alphabet_train" --output "data/processed/asl_alphabet_landmarks.csv"'
             )
             print("  python scripts/data_preparation/merge_static_letter_datasets.py")
             sys.exit(1)
 
-        print("\n  Mod:           CSV'den yükleme")
+        print("\n  Source:        prepared CSV")
         print(f"  Train CSV:     {train_csv}")
         if test_csv:
             print(f"  Test CSV:      {test_csv}")
-        print(f"  Feature Eng.:  {'Açık' if use_features else 'Kapalı'}")
-        print(f"  Augmentation:  {'Kapalı' if args.no_augment else f'{AUGMENTATION_MULTIPLIER}x'}")
+        print(f"  Feature eng.:  {'on' if use_features else 'off'}")
+        print(f"  Augmentation:  {'off' if args.no_augment else f'{AUGMENTATION_MULTIPLIER}x'}")
         print(
-            f"  Mod:           {'Tam Karşılaştırma (5 model)' if args.full_comparison else args.model.upper()}"
+            f"  Model:         {'full comparison (5 models)' if args.full_comparison else args.model.upper()}"
         )
 
         import pandas as _pd
@@ -1007,94 +1007,92 @@ def main():
         train_df = _pd.read_csv(train_csv)
         y_str = train_df["label"].values
         X = train_df.drop(columns=["label"]).values.astype(np.float32)
-        print(f"\n  Yüklendi: {len(X)} örnek, {len(set(y_str))} sınıf, {X.shape[1]}D")
+        print(f"\n  Loaded: {len(X)} samples, {len(set(y_str))} classes, {X.shape[1]}D")
 
         if test_csv and not os.path.exists(test_csv):
-            print(f"\nHATA: Test CSV bulunamadı: {test_csv}")
+            print(f"\nERROR: Test CSV not found: {test_csv}")
             sys.exit(1)
 
         if test_csv:
             test_df = _pd.read_csv(test_csv)
             y_external_str = test_df["label"].values
             X_external = test_df.drop(columns=["label"]).values.astype(np.float32)
-            print(f"  Test CSV: {len(test_df)} örnek yüklendi ({test_csv})")
+            print(f"  Test CSV: {len(test_df)} samples loaded ({test_csv})")
 
         # Augment only the raw landmark rows.
         if use_augment:
-            print(f"\n{'─' * 60}")
+            print(f"\n{'-' * 60}")
             print("  Augmentation")
-            print(f"{'─' * 60}")
+            print(f"{'-' * 60}")
             X, y_str = augment_data(X, y_str)
         else:
-            print("  Augmentation atlandı.")
+            print("  Augmentation skipped.")
 
     else:
         # Otherwise discover an image dataset and extract landmarks.
         if args.dataset:
-            ds_name = "Kullanıcı belirtti"
+            ds_name = "given on the command line"
             ds_path = args.dataset
         else:
             ds_name, ds_path, ds_size = find_dataset()
 
         if not ds_path or not os.path.isdir(ds_path):
-            print("\nHATA: Dataset bulunamadı!")
-            print("  Beklenen konumlar:")
+            print("\nERROR: Dataset not found.")
+            print("  Expected locations:")
             for name, path, _ in DATASET_CANDIDATES:
-                exists = "[var]" if os.path.isdir(path) else "[yok]"
+                exists = "[found]" if os.path.isdir(path) else "[missing]"
                 print(f"    {exists} {name}: {path}")
-            print("\n  Dataset'i data/raw/ altına indirin.")
-            print("\n  Alternatif: Önceden hazırlanmış CSV ile:")
+            print("\n  Download the dataset into data/raw/.")
+            print("\n  Alternative: use a prepared CSV:")
             print("    python scripts/model_training/train_static_letter_model.py --from-csv")
             sys.exit(1)
 
         print(f"\n  Dataset:          {ds_name}")
-        print(f"  Yol:              {ds_path}")
-        print(f"  Max görsel:       {'sınırsız' if args.max_images == 0 else args.max_images}")
-        print(f"  Feature Eng.:     {'Açık' if use_features else 'Kapalı'}")
+        print(f"  Path:             {ds_path}")
+        print(f"  Max images:       {'no limit' if args.max_images == 0 else args.max_images}")
+        print(f"  Feature eng.:     {'on' if use_features else 'off'}")
+        print(f"  Augmentation:     {'off' if args.no_augment else f'{AUGMENTATION_MULTIPLIER}x'}")
         print(
-            f"  Augmentation:     {'Kapalı' if args.no_augment else f'{AUGMENTATION_MULTIPLIER}x'}"
-        )
-        print(
-            f"  Mod:              {'Tam Karşılaştırma (5 model)' if args.full_comparison else args.model.upper()}"
+            f"  Model:            {'full comparison (5 models)' if args.full_comparison else args.model.upper()}"
         )
 
-        print(f"\n{'─' * 60}")
-        print("  Adım 1/4: Görsellerden keypoint çıkarımı")
-        print(f"{'─' * 60}")
+        print(f"\n{'-' * 60}")
+        print("  Step 1/4: Extract keypoints from images")
+        print(f"{'-' * 60}")
 
         t0 = time.time()
         X, y_str, stats = extract_all_keypoints(ds_path, args.max_images)
         t1 = time.time()
-        print(f"\n  Süre: {t1 - t0:.0f} saniye")
+        print(f"\n  Time: {t1 - t0:.0f} s")
 
         if len(X) == 0:
-            print("\nHATA: Hiç keypoint çıkarılamadı!")
+            print("\nERROR: No keypoints could be extracted.")
             sys.exit(1)
 
         # Augment raw landmarks before feature engineering.
-        print(f"\n{'─' * 60}")
-        print("  Adım 2/4: Augmentation")
-        print(f"{'─' * 60}")
+        print(f"\n{'-' * 60}")
+        print("  Step 2/4: Augmentation")
+        print(f"{'-' * 60}")
 
         if use_augment:
             X, y_str = augment_data(X, y_str)
         else:
-            print("  Augmentation atlandı.")
+            print("  Augmentation skipped.")
 
-    print(f"\n{'─' * 60}")
-    print("  Adım 3/4: Feature Engineering")
-    print(f"{'─' * 60}")
+    print(f"\n{'-' * 60}")
+    print("  Step 3/4: Feature engineering")
+    print(f"{'-' * 60}")
 
     if use_features:
         X = apply_feature_engineering(X)
         if X_external is not None:
             X_external = apply_feature_engineering(X_external)
     else:
-        print("  Feature engineering atlandı (63D ham koordinatlar kullanılacak).")
+        print("  Feature engineering skipped (using the raw 63D coordinates).")
 
-    print(f"\n{'─' * 60}")
-    print("  Adım 4/4: Model eğitimi ve değerlendirme")
-    print(f"{'─' * 60}")
+    print(f"\n{'-' * 60}")
+    print("  Step 4/4: Model training and evaluation")
+    print(f"{'-' * 60}")
 
     if args.full_comparison:
         model, label_map, acc, results = train_full_comparison(
@@ -1118,13 +1116,13 @@ def main():
 
     t_total = time.time() - t0
 
-    print(f"\n{'═' * 60}")
-    print("  TAMAMLANDI!")
-    print(f"  Doğruluk:    {acc:.1%}")
-    print(f"  Özellikler:  {X.shape[1]}D ({'feature engineering' if use_features else 'ham'})")
-    print(f"  Süre:        {t_total / 60:.1f} dakika")
+    print(f"\n{'=' * 60}")
+    print("  Done.")
+    print(f"  Accuracy:    {acc:.1%}")
+    print(f"  Features:    {X.shape[1]}D ({'feature engineering' if use_features else 'raw'})")
+    print(f"  Time:        {t_total / 60:.1f} min")
     print(f"  Model:       {LETTER_MODEL_PATH}")
-    print(f"{'═' * 60}")
+    print(f"{'=' * 60}")
     print(next_step_hint())
 
 

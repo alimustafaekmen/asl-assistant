@@ -38,12 +38,12 @@ from scripts.tooling.environment import (  # noqa: E402
 
 def _package_line(check: ImportCheck) -> str:
     if check.status == "missing":
-        return f"  X {check.name} yok"
+        return f"  X {check.name} missing"
     if check.status == "broken":
-        return f"  X {check.name} import bozuk ({check.error})"
+        return f"  X {check.name} installed but the import fails ({check.error})"
     if check.version:
         return f"  + {check.name} {check.version}"
-    return f"  + {check.name} (kurulu, surum okunamadi)"
+    return f"  + {check.name} (installed, version unknown)"
 
 
 def _warnings(facts: EnvironmentFacts) -> list[list[str]]:
@@ -52,9 +52,9 @@ def _warnings(facts: EnvironmentFacts) -> list[list[str]]:
     if is_apple_command_line_tools(facts):
         blocks.append(
             [
-                "UYARI: Apple CommandLineTools Python kullaniliyor.",
-                '  Bu Python ile "make setup" CALISTIRILAMAZ (guard tarafindan engellenir).',
-                "  Cozum:",
+                "WARNING: this is Apple's CommandLineTools Python.",
+                '  "make setup" CANNOT RUN with this Python (the setup guard blocks it).',
+                "  Fix:",
                 "    Conda : conda activate YOUR_ENV_NAME && make setup",
                 "    venv  : python3 -m venv .venv && source .venv/bin/activate && make setup",
                 "    Override: make setup PYTHON=$CONDA_PREFIX/bin/python",
@@ -63,39 +63,39 @@ def _warnings(facts: EnvironmentFacts) -> list[list[str]]:
     if is_conda_base(facts):
         blocks.append(
             [
-                "UYARI: Conda/Miniforge base Python kullaniliyor.",
-                '  Bu proje icin "make setup" base ortamiyla onerilmez ve default olarak BLOKLANIR.',
-                "  Sebep: base ortami bircok proje tarafindan paylasilir, kolay kirlenir.",
-                "  Proje ortamini aktive et:",
-                "    conda activate YOUR_ENV_NAME  # kendi ortam adinizi kullanin",
-                "  veya yeni venv:",
+                "WARNING: this is the conda/Miniforge base Python.",
+                '  "make setup" into the base environment is not recommended and is BLOCKED by default.',
+                "  Why: the base environment is shared by many projects and is easily polluted.",
+                "  Activate the project environment:",
+                "    conda activate YOUR_ENV_NAME  # use your own environment name",
+                "  or create a venv:",
                 "    python3 -m venv .venv && source .venv/bin/activate && make setup",
             ]
         )
     if facts.conda_prefix and facts.conda_prefix not in facts.executable:
         blocks.append(
             [
-                "UYARI: Conda aktif ($CONDA_PREFIX dolu) ama secilen Python conda ortaminda DEGIL.",
+                "WARNING: conda is active ($CONDA_PREFIX is set) but the chosen Python is NOT in its environment.",
                 f"  CONDA_PREFIX   = {facts.conda_prefix}",
                 f"  sys.executable = {facts.executable}",
-                "  Cozum: make doctor PYTHON=$CONDA_PREFIX/bin/python",
+                "  Fix: make doctor PYTHON=$CONDA_PREFIX/bin/python",
             ]
         )
     if facts.virtual_env and facts.virtual_env not in facts.executable:
         blocks.append(
             [
-                "UYARI: venv aktif ($VIRTUAL_ENV dolu) ama secilen Python venv icinde DEGIL.",
+                "WARNING: a venv is active ($VIRTUAL_ENV is set) but the chosen Python is NOT inside it.",
                 f"  VIRTUAL_ENV    = {facts.virtual_env}",
                 f"  sys.executable = {facts.executable}",
-                "  Cozum: make doctor PYTHON=$VIRTUAL_ENV/bin/python",
+                "  Fix: make doctor PYTHON=$VIRTUAL_ENV/bin/python",
             ]
         )
     if facts.system == "Windows":
         blocks.append(
             [
-                "NOT: Windows algilandi.",
-                "  Makefile Git Bash / WSL / make saglayan terminalde calisir.",
-                "  PowerShell/cmd icin manuel komutlar: docs/getting-started.md",
+                "NOTE: Windows detected.",
+                "  The Makefile runs in Git Bash, WSL or another terminal that provides make.",
+                "  The plain commands for PowerShell and cmd: docs/getting-started.md",
             ]
         )
     return blocks
@@ -107,24 +107,24 @@ def _next_step(state: str, facts: EnvironmentFacts, faults: list[str]) -> list[s
 
     if state == "apple_clt":
         return [
-            "  Hatali Python secilmis: Apple CommandLineTools Python.",
+            "  The wrong Python is selected: Apple's CommandLineTools Python.",
             "",
-            "Cozum:",
+            "Fix:",
             "  conda activate YOUR_ENV_NAME",
             "  make doctor",
             "",
-            "Eger hala yanlissa:",
+            "If it is still wrong:",
             "  make doctor PYTHON=$CONDA_PREFIX/bin/python",
         ]
     if state == "base":
         return [
-            "  Conda/Miniforge base ortam kullaniliyor. Bu proje icin ONERILMEZ.",
+            "  The conda/Miniforge base environment is in use. It is NOT RECOMMENDED for this project.",
             "",
-            "Cozum:",
+            "Fix:",
             "  conda activate YOUR_ENV_NAME",
             "  make doctor",
             "",
-            "Veya yeni venv:",
+            "Or create a venv:",
             "  python3 -m venv .venv && source .venv/bin/activate",
             "  make doctor",
         ]
@@ -132,61 +132,61 @@ def _next_step(state: str, facts: EnvironmentFacts, faults: list[str]) -> list[s
         which = active_environment_mismatch(facts)
         variable = "$CONDA_PREFIX" if which == "conda" else "$VIRTUAL_ENV"
         return [
-            "  Aktif ortam ile secilen Python uyusmuyor.",
+            "  The active environment and the chosen Python do not match.",
             "",
-            "Cozum:",
+            "Fix:",
             f"  make doctor PYTHON={variable}/bin/python",
         ]
     if state == "basic_missing":
         return [
-            "  Bazi temel paketler eksik (pytest/onnxruntime/numpy).",
+            "  Some basic packages are missing (pytest/onnxruntime/numpy).",
             "",
-            "Sonraki adim:",
+            "Next step:",
             "  make setup",
             "  make doctor",
         ]
     if state == "basic_broken":
         return [
-            "  Temel paketler bulundu ancak en az biri import edilemiyor.",
+            "  The basic packages were found, but at least one cannot be imported.",
             *faults,
             "",
-            "Paket kurulumu veya native kutuphane uyumunu kontrol edin.",
+            "Check the package installation and the native library compatibility.",
         ]
     if state == "needs_setup":
         lines = [
-            f"  Ortam dogru gorunuyor (conda env: {label}), ama proje paketleri kurulmamis."
+            f"  The environment looks right (conda env: {label}), but the project packages are not installed."
             if label
-            else "  Ortam dogru gorunuyor, ama proje paketleri kurulmamis.",
+            else "  The environment looks right, but the project packages are not installed.",
             "",
-            "Sonraki adim:",
+            "Next step:",
             "  make setup",
             "  make doctor",
             "",
-            "Web demo icin (proje paketleri gerekmez):",
+            "For the web demo (no project package needed):",
             "  make web",
         ]
         return lines
     if state == "project_broken":
         return [
-            "  Proje paketleri bulundu ancak import edilemiyor.",
+            "  The project packages were found but cannot be imported.",
             *faults,
             "",
-            "Sonraki adim: make setup; sonra make doctor",
+            "Next step: make setup, then make doctor",
         ]
 
-    ready = "  + Python ortami hazir."
+    ready = "  + The Python environment is ready."
     if label:
-        ready = f"  + Python ortami hazir (conda env: {label})."
+        ready = f"  + The Python environment is ready (conda env: {label})."
     elif facts.virtual_env:
-        ready = "  + Python ortami hazir (venv aktif)."
+        ready = "  + The Python environment is ready (venv active)."
     return [
         ready,
         "",
-        "Gunluk komutlar:",
-        "  make web                # web demoyu localde ac",
-        "  make validate           # asset/model/data saglik kontrolu",
-        "  make test               # hizli unit testler",
-        "  make validate-full      # kapsamli asset kontrolu",
+        "Everyday commands:",
+        "  make web                # serve the web demo locally",
+        "  make validate           # asset, model and data health check",
+        "  make test               # fast unit tests",
+        "  make validate-full      # full asset audit",
     ]
 
 
@@ -209,9 +209,9 @@ def build_report(
         f"Platform string : {facts.platform_string}",
         "",
         "── Environment ───────────────────────────",
-        f"CONDA_PREFIX      : {facts.conda_prefix or '(bos)'}",
-        f"CONDA_DEFAULT_ENV : {facts.conda_default_env or '(bos)'}",
-        f"VIRTUAL_ENV       : {facts.virtual_env or '(bos)'}",
+        f"CONDA_PREFIX      : {facts.conda_prefix or '(empty)'}",
+        f"CONDA_DEFAULT_ENV : {facts.conda_default_env or '(empty)'}",
+        f"VIRTUAL_ENV       : {facts.virtual_env or '(empty)'}",
         "",
         "── Python ────────────────────────────────",
         f"PYTHON (Make var) : {facts.make_python_var or '(unknown)'}",
@@ -227,20 +227,20 @@ def build_report(
             lines.extend(block)
             lines.append("")
     else:
-        lines.append("Ortam uyarisi yok.")
+        lines.append("No environment warning.")
         lines.append("")
 
-    lines.append("── Paket import kontrolu ────────────────")
+    lines.append("── Package imports ───────────────────────")
     lines.append("")
-    lines.append("Temel paketler (validation/test icin gerekli):")
+    lines.append("Basic packages (validation and the tests need them):")
     lines.extend(_package_line(check) for check in basic)
     lines.append("")
-    lines.append("Proje paketleri (editable install; make setup kurar):")
+    lines.append("Project packages (editable installs; make setup installs them):")
     for check in project:
         line = _package_line(check)
-        lines.append(f"{line} -> make setup gerekli" if check.status == "missing" else line)
+        lines.append(f"{line} -> run make setup" if check.status == "missing" else line)
     lines.append("")
-    lines.append("── Durum ozeti ───────────────────────────")
+    lines.append("── Summary ───────────────────────────────")
     lines.append("")
 
     faulty = [_package_line(check) for check in (*basic, *project) if check.status == "broken"]
@@ -252,7 +252,7 @@ def build_report(
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv:
-        print(f"doctor: beklenmeyen argüman: {' '.join(argv)}", file=sys.stderr)
+        print(f"doctor: unexpected argument: {' '.join(argv)}", file=sys.stderr)
         return 2
 
     facts = describe_current()

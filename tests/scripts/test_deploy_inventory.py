@@ -148,7 +148,7 @@ def test_the_local_fixture_folder_fails_the_deploy_check(checkout) -> None:
     result = checkout.check("--deploy")
 
     assert result.returncode == 1, result.stdout + result.stderr
-    assert "DEPLOY GUVENLI" not in result.stdout
+    assert "SAFE TO DEPLOY" not in result.stdout
     failed = checkout.failures(result)
     assert len(failed) == 1 and "model-test-samples/local" in failed[0], failed
 
@@ -160,7 +160,7 @@ def test_the_local_fixture_folder_only_warns_in_a_development_run(checkout) -> N
     result = checkout.check()
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "model-test-samples/local/ mevcut" in result.stdout
+    assert "model-test-samples/local/ is present" in result.stdout
 
 
 @pytest.mark.parametrize("stray", ["asl-web/.env", "asl-web/private/a.txt", "asl-web/.DS_Store"])

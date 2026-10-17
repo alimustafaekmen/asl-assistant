@@ -565,7 +565,7 @@ def validate_outputs(output_dir: Path, logger: logging.Logger) -> dict:
     Returns:
         Counts of the files read and the ones that did not hold a usable clip.
     """
-    logger.info("\n[VALIDATE] Mevcut parquet dosyalarını kontrol ediyorum...")
+    logger.info("\n[VALIDATE] Checking the existing parquet files...")
     parquet_count = 0
     bad_count = 0
     for pq in sorted(output_dir.rglob("*.parquet")):
@@ -574,13 +574,13 @@ def validate_outputs(output_dir: Path, logger: logging.Logger) -> dict:
             frames = df["frame"].nunique()
             types = set(df["type"].unique())
             if frames < 5 or "right_hand" not in types and "left_hand" not in types:
-                logger.warning(f"  UYARI: {pq.name}: {frames} frame, types={types}")
+                logger.warning(f"  WARNING: {pq.name}: {frames} frames, types={types}")
                 bad_count += 1
             parquet_count += 1
         except Exception as e:
-            logger.error(f"  HATA: {pq.name}: {e}")
+            logger.error(f"  ERROR: {pq.name}: {e}")
             bad_count += 1
-    logger.info(f"Toplam parquet: {parquet_count}, sorunlu: {bad_count}")
+    logger.info(f"Parquet files: {parquet_count}, invalid: {bad_count}")
     return {"validated": parquet_count, "invalid": bad_count}
 
 
@@ -598,10 +598,10 @@ def extract_all(
 
     # Index local clips and their source metadata independently.
     video_files = find_video_files(video_dir)
-    logger.info(f"Bulunan video dosyası: {len(video_files)}")
+    logger.info(f"Video files found: {len(video_files)}")
 
     entry_metadata = load_msasl_entries_for_extraction(msasl_dir)
-    logger.info(f"Hedef entry metadata: {len(entry_metadata)}")
+    logger.info(f"Target entry metadata: {len(entry_metadata)}")
 
     # Track run-level and per-class outcomes.
     stats = {
@@ -630,7 +630,7 @@ def extract_all(
         meta_info = entry_metadata.get(entry_id)
         if meta_info is None:
             stats["no_metadata"] += 1
-            logger.debug(f"  {entry_id}: Metadata bulunamadı, atlanıyor")
+            logger.debug(f"  {entry_id}: No metadata found, skipping")
             continue
 
         cid = meta_info["class_id"]
@@ -642,7 +642,7 @@ def extract_all(
         try:
             df, meta = process_video(video_path, box, use_crop=use_crop, logger=logger)
         except Exception as e:
-            logger.error(f"  HATA: {entry_id}: exception: {e}")
+            logger.error(f"  ERROR: {entry_id}: exception: {e}")
             state["failed"][entry_id] = {"reason": str(e)[:200]}
             stats["rejected"] += 1
             reject_reasons["exception"] = reject_reasons.get("exception", 0) + 1
@@ -657,7 +657,7 @@ def extract_all(
             state["failed"][entry_id] = {"reason": reason, **meta}
             reason_key = reason.split(" ")[0] if " " in reason else reason
             reject_reasons[reason_key] = reject_reasons.get(reason_key, 0) + 1
-            logger.debug(f"  {entry_id} reddedildi: {reason}")
+            logger.debug(f"  {entry_id} rejected: {reason}")
             continue
 
         # Persist one narrow-format Parquet file per accepted clip.
@@ -741,11 +741,11 @@ def generate_csv(
     # Report the resulting vocabulary and signer coverage.
     unique_words = df["sign"].nunique() if len(df) > 0 else 0
     unique_signers = df["participant_id"].nunique() if len(df) > 0 else 0
-    logger.info(f"\nCSV oluşturuldu: {csv_path}")
-    logger.info(f"   Satır: {len(df)}")
-    logger.info(f"   Benzersiz kelime: {unique_words}")
-    logger.info(f"   Benzersiz signer: {unique_signers}")
-    logger.info("   (eat/food çift satır dahil)")
+    logger.info(f"\nCSV written: {csv_path}")
+    logger.info(f"   Rows: {len(df)}")
+    logger.info(f"   Unique words: {unique_words}")
+    logger.info(f"   Unique signers: {unique_signers}")
+    logger.info("   (includes the duplicated eat/food rows)")
 
     return csv_path
 
@@ -813,9 +813,9 @@ def generate_metadata(
 
     # Print a compact human-readable coverage table.
     logger.info("\n" + "=" * 65)
-    logger.info("KELIME BAZINDA EXTRACTION ÖZETİ")
+    logger.info("EXTRACTION SUMMARY BY WORD")
     logger.info("=" * 65)
-    logger.info(f"{'Kelime':<15} {'Parquet':>8} {'Ort.Frame':>10} {'Signer':>8}")
+    logger.info(f"{'Word':<15} {'Parquet':>8} {'Avg frames':>10} {'Signers':>8}")
     logger.info("-" * 65)
 
     for word in sorted(word_stats.keys()):
@@ -831,45 +831,45 @@ def generate_metadata(
     for ws in word_stats.values():
         total_signers |= ws["signers"]
     logger.info("-" * 65)
-    logger.info(f"  {'TOPLAM':<15} {total_parquets:>5}                  {len(total_signers):>5}")
+    logger.info(f"  {'TOTAL':<15} {total_parquets:>5}                  {len(total_signers):>5}")
 
     if failed_stats:
-        logger.info("\nReddedilme sebepleri:")
+        logger.info("\nRejection reasons:")
         for reason, count in sorted(failed_stats.items(), key=lambda x: -x[1]):
             logger.info(f"  {reason}: {count}")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="MS-ASL videolarından MediaPipe landmark çıkar",
+        description="Extract MediaPipe landmarks from the downloaded MS-ASL videos",
     )
     parser.add_argument(
         "--video-dir",
         type=Path,
         default=DEFAULT_VIDEO_DIR,
-        help=f"Video giriş dizini (varsayılan: {DEFAULT_VIDEO_DIR})",
+        help=f"Video input directory (default: {DEFAULT_VIDEO_DIR})",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=DEFAULT_OUTPUT_DIR,
-        help=f"Landmark çıktı dizini (varsayılan: {DEFAULT_OUTPUT_DIR})",
+        help=f"Landmark output directory (default: {DEFAULT_OUTPUT_DIR})",
     )
     parser.add_argument(
         "--no-crop",
         action="store_true",
-        help="Bounding box cropping'i devre dışı bırak",
+        help="Disable bounding-box cropping",
     )
     parser.add_argument(
         "--validate-only",
         action="store_true",
-        help="Mevcut parquet dosyalarını doğrula (extraction yapma)",
+        help="Validate the existing parquet files without extracting",
     )
     parser.add_argument(
         "--min-hand-ratio",
         type=float,
         default=MIN_HAND_FRAME_RATIO,
-        help=f"Minimum el tespit oranı (varsayılan: {MIN_HAND_FRAME_RATIO})",
+        help=f"Minimum hand detection ratio (default: {MIN_HAND_FRAME_RATIO})",
     )
     parser.add_argument(
         "--state-file",
@@ -896,16 +896,16 @@ def main() -> int:
         return 1 if stats["invalid"] else 0
 
     logger.info("=" * 60)
-    logger.info("MS-ASL Landmark Extraction Başlıyor")
+    logger.info("MS-ASL landmark extraction")
     logger.info("=" * 60)
-    logger.info(f"  Video dizini: {args.video_dir}")
-    logger.info(f"  Çıktı dizini: {args.output_dir}")
-    logger.info(f"  Crop: {'KAPALI' if args.no_crop else 'AÇIK'}")
-    logger.info(f"  Min el oranı: {MIN_HAND_FRAME_RATIO:.0%}")
-    logger.info(f"  Landmark yapısı: {NUM_LANDMARKS} landmark × 3 = {NUM_FEATURES}D")
+    logger.info(f"  Video directory: {args.video_dir}")
+    logger.info(f"  Output directory: {args.output_dir}")
+    logger.info(f"  Crop: {'off' if args.no_crop else 'on'}")
+    logger.info(f"  Min hand ratio: {MIN_HAND_FRAME_RATIO:.0%}")
+    logger.info(f"  Landmark layout: {NUM_LANDMARKS} landmarks x 3 = {NUM_FEATURES}D")
     logger.info(
-        f"  Kalite filtreleri: frame[{MIN_FRAMES}-{MAX_FRAMES}], "
-        f"el≥{MIN_HAND_FRAME_RATIO:.0%}, outlier Z>{OUTLIER_Z_THRESHOLD}"
+        f"  Quality filters: frames {MIN_FRAMES}-{MAX_FRAMES}, "
+        f"hand ratio >= {MIN_HAND_FRAME_RATIO:.0%}, outlier Z > {OUTLIER_Z_THRESHOLD}"
     )
 
     start_time = time.time()
@@ -920,10 +920,10 @@ def main() -> int:
     )
 
     elapsed = time.time() - start_time
-    logger.info(f"\nExtraction tamamlandı: {elapsed:.0f}s ({elapsed / 60:.1f} dk)")
+    logger.info(f"\nExtraction finished: {elapsed:.0f} s ({elapsed / 60:.1f} min)")
     logger.info(
-        f"  İşlenen: {stats['processed']}, Başarılı: {stats['success']}, "
-        f"Reddedilen: {stats['rejected']}, Atlanan: {stats['skipped']}"
+        f"  Processed: {stats['processed']}, succeeded: {stats['success']}, "
+        f"rejected: {stats['rejected']}, skipped: {stats['skipped']}"
     )
 
     # Build the notebook-compatible index.
