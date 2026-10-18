@@ -411,6 +411,73 @@
   .stage__close { display: none; }
   .stage:has(> .stage__empty[hidden]) .stage__close { display: inline-flex; }
 
+  /* The camera-free demo (js/media/demo-source.js), while the stage's
+     data-demo names its phase. Its stop takes the close button's place at
+     the right of the top row; the card says which word the recorded hand
+     spells, with the letter on the stage marked, and what to do. The card
+     takes a row of its own under the top row, and on a laptop it stands
+     between the chip and the stop. The overlay draws the hand in the room
+     the card and the plate leave, so the card is kept short: one row of
+     progress, two lines of text. */
+  .stage[data-demo] .stage__top { flex-wrap: wrap; }
+  .stage-demo__stop { margin-inline-start: auto; }
+  .stage-demo {
+    flex: 0 0 100%;
+    order: 3;
+    display: grid;
+    gap: var(--sp-2);
+    max-width: 32rem;
+    padding: var(--sp-3);
+    border: 1px solid var(--stage-line);
+    border-radius: var(--r-m);
+    background: var(--stage-plate);
+    color: var(--stage-text);
+  }
+  .stage-demo__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    min-width: 0;
+  }
+  .stage-demo__progress {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-3);
+    min-width: 0;
+    margin: 0;
+  }
+  .stage-demo__word {
+    display: inline-flex;
+    gap: 0.2em;
+    font-size: var(--fs-xl);
+    font-weight: var(--fw-heavy);
+    line-height: 1;
+  }
+  /* The letter on the stage: the lock colour and an underline, so it is not
+     told by colour alone; the letters still to come are dimmed. */
+  .stage-demo__word > [data-state="current"] {
+    color: var(--stage-lock);
+    text-decoration: underline 3px;
+    text-underline-offset: 5px;
+  }
+  .stage-demo__word > [data-state="next"] { color: var(--stage-text-2); }
+  .stage-demo__count { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--stage-text-2); }
+  .stage-demo__text {
+    margin: 0;
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+    color: var(--stage-text);
+    text-wrap: pretty;
+  }
+  .stage-demo__skip { flex: none; min-height: 40px; padding-inline: var(--sp-3); font-size: var(--fs-sm); }
+  .stage-demo__camera { justify-self: start; }
+  .stage[data-demo="done"] .stage-demo__text { font-size: var(--fs-md); font-weight: var(--fw-semibold); }
+  /* At the end there is no reading left: the plate keeps only its message
+     line, as with the camera off. */
+  .stage[data-demo="done"] + .plate .plate__visual,
+  .stage[data-demo="done"] + .plate .plate__level { display: none; }
+
   /* Caption plate: the one place the current result lives. With the camera
      off only its message line shows, so loading and errors are never off
      screen. It is the stage's next sibling, so it reads the stage's state

@@ -80,13 +80,16 @@ const HAND_CONNECTIONS = [
  * @param {number} width Canvas width in CSS pixels.
  * @param {number} height Canvas height in CSS pixels.
  * @param {HTMLVideoElement | null} [videoEl] Source video, for the cover crop.
+ * @param {VideoCoverRect | null} [frameRect] Where the landmarks' image sits
+ *   in the box when no video is shown behind them, as for the demo's
+ *   recorded square; the video's cover rectangle otherwise.
  * @returns {void}
  */
-function drawLandmarks(ctx, result, width, height, videoEl = null) {
+function drawLandmarks(ctx, result, width, height, videoEl = null, frameRect = null) {
   if (!result) return;
   ctx.save();
 
-  const videoRect = _getVideoCoverRect(videoEl, width, height);
+  const videoRect = frameRect ?? _getVideoCoverRect(videoEl, width, height);
   /**
    * @param {NormalizedLandmark} pt Normalized against the original frame.
    * @returns {{x: number, y: number}} Canvas coordinates, already mirrored.

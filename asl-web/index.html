@@ -141,6 +141,20 @@
                 <span class="stage-chip" id="latencyBadge">Hazır</span>
                 <span class="visually-hidden" id="modeBadge">Harf Modu</span>
                 <button class="btn btn--stage stage__close" type="button" id="cameraToggle" data-icon="camera-off">Kamerayı kapat</button>
+                <!-- The camera-free demo (js/media/demo-source.js): the word
+                     the recorded hand spells, with the letter on the stage
+                     marked, what to do, and, at the end, the camera. Its stop
+                     follows it and takes the close button's place. -->
+                <section class="stage-demo" id="demoPanel" tabindex="-1" aria-labelledby="demoTitle" hidden>
+                  <h2 class="visually-hidden" id="demoTitle">Kamerasız örnek</h2>
+                  <div class="stage-demo__head">
+                    <p class="stage-demo__progress"><span class="stage-demo__word" id="demoWord" lang="en"></span> <span class="stage-demo__count num" id="demoCount"></span></p>
+                    <button class="btn btn--stage stage-demo__skip" type="button" id="demoSkip" data-icon="skip">Atlayın</button>
+                  </div>
+                  <p class="stage-demo__text" id="demoText"></p>
+                  <button class="btn btn--stage-primary stage-demo__camera" type="button" id="demoCamera" data-trigger="camera" data-icon="camera" hidden>Kamerayı açın</button>
+                </section>
+                <button class="btn btn--stage stage-demo__stop" type="button" id="demoStop" data-icon="x" hidden>Durdurun</button>
                 <!-- Word recording readout, at the top of the stage where the
                      head is and no sign is made. Shown from the countdown to
                      the end of the recording (css/screens-word.css). -->
@@ -764,6 +778,7 @@
     <script src="js/ml/word-model.js?v=12"></script>
     <script src="js/media/overlay.js?v=12"></script>
     <script src="js/media/camera.js?v=12"></script>
+    <script src="js/media/demo-source.js?v=12"></script>
     <script src="js/ml/live-inference.js?v=12"></script>
     <script src="js/ui/prediction.js?v=12"></script>
     <script src="js/ui/plate-side.js?v=12"></script>

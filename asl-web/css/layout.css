@@ -191,6 +191,16 @@
     @container stage (max-height: 20rem) {
       .stage__problem .stage__cta > .btn--stage { display: none; }
     }
+    /* A short stage leaves the demo's hand little room between its card and
+       the plate, so the card takes the top row itself: the chip gives way
+       (the card says what is playing), and the stop keeps only its icon, as
+       the coach's close does; its label stays for screen readers. */
+    @container stage (max-height: 36rem) {
+      .stage[data-demo] .stage-chip { display: none; }
+      .stage-demo { flex: 1 1 0; order: 0; min-width: 0; }
+      .stage-demo__text { font-size: var(--fs-xs); }
+      .stage-demo__stop { width: var(--size-target); min-height: var(--size-target); padding: 0; gap: 0; font-size: 0; }
+    }
   }
   /* A short laptop window: the same steps, by the window's height. */
   @media (min-width: 64rem) and (max-height: 46rem) {
@@ -322,6 +332,15 @@
     /* The stage. Its top row clears a notch on the left. */
     .camera-column > .stage { container: stage / inline-size; }
     .stage__top { inset: var(--sp-3) var(--sp-3) auto max(var(--sp-3), env(safe-area-inset-left)); }
+    /* The stage is short here: the demo's card shares the top row with the
+       chip, and the stop keeps only its icon; on the narrowest stage the
+       chip gives way, as on a short upright phone. */
+    .stage-demo { flex: 1 1 0; order: 0; min-width: 0; }
+    .stage-demo__text { font-size: var(--fs-xs); }
+    .stage-demo__stop { width: var(--size-target); min-height: var(--size-target); padding: 0; gap: 0; font-size: 0; }
+    @container stage (max-width: 23.75rem) {
+      .stage[data-demo] .stage-chip { display: none; }
+    }
     .stage__empty {
       /* The top clears the chip; the plate is beside the stage, so the
          bottom keeps no room for it. */
@@ -469,6 +488,9 @@
     }
     .stage[data-plate-side="end"] + .plate { translate: calc(100cqw - 100% - 2 * var(--sp-4)) 0; }
     .stage__top { inset: var(--sp-4) var(--sp-4) auto; }
+    /* The demo's card in the top row, centred over the hand it explains. */
+    .stage-demo { flex: 0 1 34rem; order: 0; max-width: none; margin-inline: auto; }
+    .stage-demo__stop { margin-inline-start: 0; }
     /* The toast sits just above the transcript row, opposite the plate, so
        it changes corner with it. */
     .toast { inset: auto var(--sp-4) var(--sp-4) auto; margin: 0; }

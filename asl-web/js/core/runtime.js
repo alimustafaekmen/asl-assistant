@@ -96,6 +96,16 @@
  * @property {boolean} hintOpen Whether the hint for this target has been opened.
  */
 
+/**
+ * Where the camera-free letter demo is.
+ *
+ * "off": not running. "loading": the recording is being fetched. "playing":
+ * recorded frames are published to the live pipeline. "done": every letter
+ * has been added or skipped, and the stage offers the camera.
+ *
+ * @typedef {"off" | "loading" | "playing" | "done"} DemoPhase
+ */
+
 /** Which published model a Model Test fixture runs against. @typedef {"letter" | "word"} ModelTask */
 
 /** Modes the QR demo link can deep-link into. @typedef {"letter" | "word" | "test"} QrTarget */
@@ -166,6 +176,7 @@
  * @typedef {Object} AppState
  * @property {AppMode} mode
  * @property {boolean} cameraOn
+ * @property {DemoPhase} demo The camera-free demo; it never runs beside the camera.
  * @property {MediaStream | null} stream
  * @property {string} transcript
  * @property {string} prediction Current top label, or "?" when there is none.
@@ -212,6 +223,17 @@
  */
 function isRecord(value) {
   return typeof value === "object" && value !== null;
+}
+
+/**
+ * Whether a source is publishing frames to the live pipeline: the camera, or
+ * the camera-free demo while it plays. The render loop's inference, the
+ * overlay and live inference itself run only then.
+ *
+ * @returns {boolean}
+ */
+function framesLive() {
+  return state.cameraOn || state.demo === "playing";
 }
 
 /**
@@ -338,6 +360,7 @@ function optionalElement(id, type) {
 const state = {
   mode: "letter",
   cameraOn: false,
+  demo: "off",
   stream: null,
   transcript: "",
   prediction: "?",
@@ -390,6 +413,15 @@ const els = {
   cameraStatus: requireElement("cameraStatus"),
   controlBar: requireElement("controlBar"),
   cameraToggle: document.getElementById("cameraToggle"),
+  // The camera-free demo's panel on the stage. Optional: without it the demo
+  // still plays, with nothing to say what it spells.
+  demoPanel: document.getElementById("demoPanel"),
+  demoWord: document.getElementById("demoWord"),
+  demoCount: document.getElementById("demoCount"),
+  demoText: document.getElementById("demoText"),
+  demoSkip: optionalElement("demoSkip", HTMLButtonElement),
+  demoStop: optionalElement("demoStop", HTMLButtonElement),
+  demoCamera: optionalElement("demoCamera", HTMLButtonElement),
   recordWord: optionalElement("recordWord", HTMLButtonElement),
   retryWord: optionalElement("retryWord", HTMLButtonElement),
   cancelWord: optionalElement("cancelWord", HTMLButtonElement),

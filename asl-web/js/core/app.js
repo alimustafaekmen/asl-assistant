@@ -278,6 +278,16 @@ function bindEvents() {
     await toggleCamera();
     afterCameraStart(event);
   });
+  // The camera-free demo's stop hides with it, so a keyboard user's focus
+  // goes to the stage's camera start, which is back in view. Its end action
+  // is one of the camera triggers above. The demo's functions are read when
+  // pressed, not when bound: a page that could not fetch the demo still
+  // binds everything else.
+  els.demoStop?.addEventListener("click", (event) => {
+    stopDemo();
+    if (event.detail === 0) cameraStarts[0]?.focus();
+  });
+  els.demoSkip?.addEventListener("click", () => skipDemoLetter());
   els.recordWord?.addEventListener("click", startWordRecording);
   els.retryWord?.addEventListener("click", retryWordRecording);
   els.appendWordResult?.addEventListener("click", appendWordResultToTranscript);
@@ -309,8 +319,12 @@ function bindEvents() {
   // After a coach success the next target comes up on its own; reaching for
   // the coach's buttons or leaving the page stays on the target instead.
   els.controlBar.addEventListener("focusin", () => stayOnCoachTarget());
+  // A page in the background shows nobody the demo, so it stops rather than
+  // play on unseen.
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") stayOnCoachTarget();
+    if (document.visibilityState !== "hidden") return;
+    stayOnCoachTarget();
+    if (typeof stopDemo === "function") stopDemo();
   });
   els.coachLettersOnly?.addEventListener("click", () => setCoachTargetType("letter"));
   els.coachWordsOnly?.addEventListener("click", () => setCoachTargetType("word"));
@@ -618,6 +632,10 @@ function setMode(mode, options = {}) {
   if (options.syncHash !== false && window.location.hash !== `#${mode}`) {
     window.history.replaceState(null, "", `#${mode}`);
   }
+  // Every route change ends the demo, the letter screen's own included: it
+  // is the same release the camera gets on the information screens. Guarded,
+  // so a page that could not fetch the demo still switches screens.
+  if (typeof stopDemo === "function") stopDemo();
   const shell = els.appShell || queryUi("app-shell");
   if (shell) { shell.dataset.view = "app"; shell.dataset.mode = mode; }
   if (typeof resetSmoother === "function") resetSmoother();
@@ -954,6 +972,8 @@ async function toggleCamera() {
   }
   // A start is already waiting for the permission prompt.
   if (_cameraStartAttempt) return;
+  // The camera and the demo never run together; the camera wins.
+  if (typeof stopDemo === "function") stopDemo();
 
   // Camera APIs require HTTPS, except on localhost; a browser hides them on
   // an insecure page. A secure page without them is an old browser.
@@ -1116,9 +1136,9 @@ function renderLoop(now) {
   // On a laptop, the result plate steps aside from a hand under it.
   if (typeof updatePlateSide === "function") updatePlateSide(now);
 
-  // live-inference.js reads the frame camera.js published; it no-ops until
-  // MediaPipe has produced landmark data.
-  if (state.cameraOn && typeof realInference === "function" && isInferenceDue(now)) {
+  // live-inference.js reads the frame camera.js or the demo published; it
+  // no-ops until one has produced landmark data.
+  if (framesLive() && typeof realInference === "function" && isInferenceDue(now)) {
     // Only a letter tick moves the throttle, so the first letter frame after a
     // word context runs at once.
     if (isLetterContext()) state.lastTick = now;
@@ -1230,11 +1250,14 @@ function drawOverlay() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cssWidth, cssHeight);
 
-  if (!state.cameraOn) return;
+  if (!framesLive()) return;
 
   if (typeof drawLandmarks === "function" && typeof latestMediaPipeResult !== "undefined") {
     try {
-      drawLandmarks(ctx, latestMediaPipeResult, cssWidth, cssHeight, els.video);
+      // The demo's recorded square has no video behind it to cover; it is
+      // drawn in the room the demo's card and the plate leave on the stage.
+      const frameRect = state.demo === "playing" ? demoFrameRect(cssWidth, cssHeight, rect) : null;
+      drawLandmarks(ctx, latestMediaPipeResult, cssWidth, cssHeight, els.video, frameRect);
     } catch (err) {
       // Overlay rendering is optional; inference should continue if it fails.
     }

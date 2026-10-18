@@ -55,6 +55,9 @@
  * @property {LandmarkList | null} poseLandmarks
  * @property {LandmarkList | null} faceLandmarks
  * @property {number} timestamp Frame timestamp in milliseconds.
+ * @property {number} [aspect] Width over height of the image the landmarks
+ *   were measured in, for a source that knows it: the demo's recorded square
+ *   says 1. The camera leaves it out, and its video's size is read instead.
  */
 
 // The MediaPipe Tasks surface below describes only the members this adapter

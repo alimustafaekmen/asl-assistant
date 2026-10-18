@@ -217,8 +217,9 @@ function _observeShoulderFallback(raw321d) {
 /**
  * Run one inference pass against the latest MediaPipe frame.
  *
- * Called from the render loop. Returns without doing anything when the camera
- * is off, no frame has been published, or a model call is already in flight:
+ * Called from the render loop. Returns without doing anything when neither
+ * the camera nor the demo is publishing frames, no frame has been published,
+ * or a model call is already in flight:
  * frames are dropped rather than queued, so a slow model cannot build a
  * backlog.
  *
@@ -231,7 +232,7 @@ function _observeShoulderFallback(raw321d) {
  *   released.
  */
 async function realInference(now) {
-  if (typeof state === "undefined" || !state.cameraOn) return;
+  if (typeof state === "undefined" || !framesLive()) return;
   // A word recording's clock runs on every tick, before any frame is looked
   // at: a recording nobody is in front of is the one that has to end.
   if (state.wordState === "RECORDING" && typeof checkWordRecordingClock === "function") {
@@ -287,7 +288,7 @@ async function realInference(now) {
     // A coach target letter takes the same path as letter mode: the same
     // features, motion gate, smoothing and diagnostics.
     if (letterContext) {
-      const f93 = computeLetterFeatures(raw, _videoAspect());
+      const f93 = computeLetterFeatures(raw, _frameAspect(latestMediaPipeResult));
 
       // The motion gate is off unless CONFIG.LETTER_MOTION_GATE_ENABLED. When
       // on, it skips a frame whose hand moved more than the threshold since
@@ -524,6 +525,19 @@ function _videoAspect() {
   const width = els.video?.videoWidth || 0;
   const height = els.video?.videoHeight || 0;
   return width > 0 && height > 0 ? width / height : 1;
+}
+
+/**
+ * The width over height of the image a frame's landmarks were measured in:
+ * what the frame says, else the camera video's. The demo's recording is a
+ * square photograph while the hidden video may still report the last
+ * camera's size, so the frame's own word comes first.
+ *
+ * @param {MediaPipeFrameResult} result
+ * @returns {number}
+ */
+function _frameAspect(result) {
+  return result.aspect !== undefined && result.aspect > 0 ? result.aspect : _videoAspect();
 }
 
 /**

@@ -30,6 +30,9 @@ function appendCurrentLetter() {
   if (state.confidence < CONFIG.LETTER_THRESHOLD) return;
   if (appendTranscriptToken(state.prediction, { debounceKey: `letter:${state.prediction}` })) {
     announce(`${state.prediction} eklendi`);
+    // The demo moves to its next letter only when the user has added the
+    // one it shows.
+    if (typeof noteDemoLetterAdded === "function") noteDemoLetterAdded(state.prediction);
   }
 }
 
