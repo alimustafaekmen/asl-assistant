@@ -77,7 +77,8 @@ The dataset is read from `data/raw/American Sign Language Dataset` (`--dataset`
 overrides it), and the result goes to `asl-web/data/demo-letters.json`
 (`--output`). The script exits 1 when no candidate word is read at 0.9 or more
 under jitter, and 2 when the task file, the dataset or a package is missing.
-The dataset is one of the letter model's training sources, so the 1.0 the
-script reports for each pose is not an accuracy figure.
+The dataset is one of the letter model's training sources (the chosen
+photographs are in its training split), so the 1.0 the script reports for
+each pose is not an accuracy figure.
 `tests/scripts/test_demo_letters.py` checks the written file against the
 deployed model; run the export again after a letter model change.

@@ -64,7 +64,7 @@ so any Python 3 will do and no package needs installing.
 5. To see the app read letters without a camera, press **Örneği izleyin**
    (watch the example). A recorded hand spells FLY; add each letter with Space
    or **Ekle** (add) when the result shows it. The model reads these poses at
-   100% because their photographs come from one of its training sources, so
+   100% because their photographs are in its training data, so
    the demo shows how the app works, not how accurate it is.
 6. To check the models on stored inputs, open Model Test: go to `#test`, or
    follow **modeli örnek dosyalarla test edin (Model Test)** at the foot of

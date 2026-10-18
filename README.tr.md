@@ -85,9 +85,9 @@ ayrımın iki tarafında da bulunabilir, bu yüzden %99,35 yeni bir kişi için
 başarıyı büyük olasılıkla olduğundan yüksek gösterir. Kelime sonucu, ayrılmış
 kişilerin izole işaretleri içindir, sürekli işaretleşme için değil; canlı
 güven çoğu zaman çok daha düşüktür. Örnekteki %100 de bir sonuç değildir: üç
-el duruşu, harf modelinin eğitim kaynaklarından birindeki fotoğraflardan
-gelir; bu yüzden örnek uygulamanın nasıl çalıştığını gösterir, ne kadar doğru
-olduğunu değil. Özellik sırası, ONNX sözleşmeleri ve değerlendirmenin tam
+el duruşunun fotoğrafları harf modelinin eğitim verisinde yer alır; bu
+yüzden örnek uygulamanın nasıl çalıştığını gösterir, ne kadar doğru olduğunu
+değil. Özellik sırası, ONNX sözleşmeleri ve değerlendirmenin tam
 kapsamı [Models and data](docs/models-and-data.md) belgesindedir.
 
 ## Teknolojiler ve araçlar

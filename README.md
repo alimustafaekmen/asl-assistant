@@ -82,9 +82,8 @@ from merged image datasets, so near-identical frames of the same person can
 sit on both sides of it; 99.35% probably overstates accuracy for a new signer.
 The word figure is for isolated signs from held-out signers, not continuous
 signing, and live confidence is often much lower. The demo's 100% is not a
-result either: its three poses come from photographs in one of the letter
-model's training sources, so the demo shows how the app works, not how
-accurate it is. [Models and data](docs/models-and-data.md) has the feature
+result either: its three photographs are in the letter model's training
+split, so the demo shows how the app works, not how accurate it is. [Models and data](docs/models-and-data.md) has the feature
 order, the ONNX contracts and the full evaluation scope.
 
 ## Technologies and tools

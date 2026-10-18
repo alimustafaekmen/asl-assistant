@@ -65,8 +65,8 @@ paket kurulmaz.
 5. Uygulamanın harfleri kamerasız nasıl okuduğunu görmek için **Örneği
    izleyin** düğmesine basın. Kayıtlı bir el FLY kelimesini heceler; sonuç
    kartı bir harfi gösterdiğinde onu Space ya da **Ekle** ile ekleyin. Model bu
-   duruşları %100 ile okur, çünkü fotoğrafları eğitim kaynaklarından birinden
-   gelir; bu yüzden örnek, uygulamanın nasıl çalıştığını gösterir, ne kadar
+   duruşları %100 ile okur, çünkü fotoğrafları eğitim verisinde yer alır;
+   bu yüzden örnek, uygulamanın nasıl çalıştığını gösterir, ne kadar
    doğru olduğunu değil.
 6. Modelleri saklanmış girdilerle denetlemek için Model Test'i açın: `#test`
    adresine gidin ya da **Nasıl çalışır** sayfasının sonundaki **modeli örnek

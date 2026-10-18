@@ -573,8 +573,8 @@ runs MediaPipe Hand Landmarker, the browser's `hand_landmarker.task` in video
 mode, on the CC0 [American Sign Language Dataset](#static-letter-model),
 keeps right hands, and for each letter keeps the pose the deployed letter
 model reads most surely under seeded jitter. Only letters outside the model's
-known confusion groups are candidates. The photographs come from one of the
-letter model's training sources, so the model reads each pose at 1.0: the demo
+known confusion groups are candidates. The three photographs are in the
+letter model's training split, so the model reads each pose at 1.0: the demo
 shows how the app works and is not an evaluation. The file holds landmarks
 only; the photographs stay in the local `data/raw/`.
 [`test_demo_letters.py`](../tests/scripts/test_demo_letters.py) fails when
