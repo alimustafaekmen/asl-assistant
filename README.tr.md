@@ -11,27 +11,27 @@ landmark'ları MediaPipe ile bulunur ve ONNX modelleriyle sınıflandırılır. 
 tamamı sayfanın içinde olur: uygulama sunucusu yoktur ve kamera görüntüsü
 cihazdan çıkmaz. Arayüz Türkçedir.
 
-![Dizüstü bilgisayarda harf ekranı, açık tema. Koyu kamera alanı ziyaretçiden bir ASL harfi göstermesini istiyor ve Kamerayı aç ile Kamerasız dene düğmelerini sunuyor; yan kartlarda en olası sonuçlar, harf referansı ve klavye kısayolları var; altta metin şeridi ile Sil, Boşluk ve Ekle düğmeleri duruyor.](docs/assets/screenshots/letter-laptop.png)
+![Dizüstü bilgisayarda harf ekranı, açık tema. Koyu kamera alanı ziyaretçiden bir ASL harfi göstermesini istiyor ve Kamerayı aç ile Örneği izleyin düğmelerini sunuyor; yan kartlarda en olası sonuçlar, harf referansı ve klavye kısayolları var; altta metin şeridi ile Sil, Boşluk ve Ekle düğmeleri duruyor.](docs/assets/screenshots/letter-laptop.png)
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone.png" width="240" alt="Telefonda harf ekranı, açık tema: Kamerayı aç düğmesiyle kamera alanı, altında metin şeridi ile Sil, Boşluk ve Ekle düğmeleri."><br><sub>Telefonda harf ekranı</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone.png" width="240" alt="Telefonda harf ekranı, açık tema: Kamerayı aç ve Örneği izleyin düğmeleriyle kamera alanı, altında metin şeridi ile Sil, Boşluk ve Ekle düğmeleri."><br><sub>Telefonda harf ekranı</sub></td>
     <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone-dark.png" width="240" alt="Aynı harf ekranı, telefonda koyu temada."><br><sub>Koyu tema</sub></td>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/camera-help-phone.png" width="240" alt="Kamera izni reddedildikten sonra kamera alanı: “Kamera izni verilmedi” başlığı, Yeniden dene ve Kamerasız dene düğmeleri, iPhone Safari ve Chrome için açılmış adım adım yardım."><br><sub>Kamera izni reddedildiğinde yardım</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/camera-help-phone.png" width="240" alt="Kamera izni reddedildikten sonra kamera alanı: “Kamera izni verilmedi” başlığı, Yeniden dene ve Örneği izleyin düğmeleri, iPhone Safari ve Chrome için açılmış adım adım yardım."><br><sub>Kamera izni reddedildiğinde yardım</sub></td>
   </tr>
 </table>
 
 <table>
   <tr>
     <td align="center" width="50%"><img src="docs/assets/screenshots/word-laptop.png" width="100%" alt="Dizüstü bilgisayarda kelime ekranı: kamera alanı ziyaretçiyi, ancak onayladıktan sonra metne eklenecek bir ASL kelimesi kaydetmeye çağırıyor; yan kartlarda sonuçlar, kelime referansı, önce denenecek kelimeler ve aranabilir 50 kelimelik liste var; alt çubukta kaydetme, yeniden kaydetme ve metne ekleme düğmeleri duruyor."><br><sub>Kelime ekranı (deneysel)</sub></td>
-    <td align="center" width="50%"><img src="docs/assets/screenshots/model-test-laptop.png" width="100%" alt="Bütün harf örnekleri çalıştırıldıktan sonra Model Test: 24 örnekten 24'ünün doğru olduğunu ve medyan sürenin 0,5 ms olduğunu söyleyen bir özet, örneklerin eğitim verisinin ayrılmış kümesinden geldiğini belirten bir not ve örnek, beklenen etiket, tahmin, güven, süre ve sonuç sütunlarından oluşan bir tablo."><br><sub>Harf örnekleri gerçekten çalıştırıldıktan sonra Model Test</sub></td>
+    <td align="center" width="50%"><img src="docs/assets/screenshots/demo-laptop.png" width="100%" alt="Dizüstü bilgisayarda kamerasız örnek: koyu kamera alanında landmark'larıyla çizilmiş kayıtlı bir el; üstündeki kart FLY kelimesini gösteriyor, sıradaki harf L işaretli (2/3) ve ziyaretçiden harfi Ekle'ye dokunarak ya da Space tuşuyla eklemesini istiyor; sonuç kartı %100 ile L okuyor, en olası sonuçlarda L ilk sırada, metin şeridinde de F var."><br><sub>Kayıtlı bir eli okuyan kamerasız örnek</sub></td>
   </tr>
 </table>
 
-Ekran görüntüleri kamerasız bir headless Chrome'da alındı; bu yüzden hiçbir
-ekranda canlı tanıma yok. Model Test sonuçları, depodaki harf örneklerinin
-yayımlanan modelden gerçekten geçirilmesiyle elde edildi; neyi ölçtükleri
-[Nasıl çalışır](#nasıl-çalışır) bölümünde.
+Ekran görüntüleri kamerasız bir headless Chrome'da alındı. Kamerasız örnekten
+alınan görüntüdeki sonuç, kayıtlı elin yayımlanan harf modelinden gerçekten
+geçirilmesiyle elde edildi; neden %100 okunduğu [Nasıl çalışır](#nasıl-çalışır)
+bölümünde.
 
 ## Neler yapar?
 
@@ -40,8 +40,9 @@ yayımlanan modelden gerçekten geçirilmesiyle elde edildi; neyi ölçtükleri
 | Harf | 24 statik ASL harfini kameradan canlı tanır. Space gösterilen harfi metne ekler, Enter boşluk bırakır, Backspace siler. Metin kopyalanabilir ya da sesli okunabilir. Ana mod budur. |
 | Kelime (deneysel) | Tek bir izole işareti kaydeder ve 50 kelime içinden en olası üçünü gösterir. Siz onaylamadan metne hiçbir şey eklenmez. |
 | Koç (erken aşamada) | Seçilen bir harf ya da kelimeyle pratik. Harf, sabit tutulduğunda sayılır; ilerleme cihazda saklanır. |
-| Model Test (*Kamerasız dene*) | Depodaki örnekleri kamera olmadan aynı modellerden geçirir, tek tek ya da hepsini birden; tahmini, güveni ve süreyi gösterir. |
-| QR (*Telefonda aç*) | Yayındaki harf, kelime ya da Model Test ekranını telefonda açan bir QR kodu. |
+| Kamerasız örnek (*Örneği izleyin*) | Harf ekranında, FLY kelimesini heceleyen kayıtlı bir eli kamera karesiyle aynı yoldan geçirir: kamera alanında çizilen landmark'lar, harf özellikleri, harf modeli, yumuşatma ve sonuç kartı. Her harfi siz Space ya da *Ekle* ile eklersiniz; sonunda örnek kamerayı açmayı önerir. Yalnızca harf modelini yükler. |
+| Model Test (geliştiriciler için) | Depodaki örnekleri kamera olmadan modellerden geçirir, tek tek ya da hepsini birden; tahmini, güveni ve süreyi gösterir. `#test` adresindedir, proje sayfasından bağlantı verilir. |
+| QR (*Telefonda aç*) | Yayındaki harf ya da kelime ekranını telefonda açan bir QR kodu. |
 | Proje (*Nasıl çalışır*) | Modellerin ve sınırlarının kısa özeti. |
 
 ## Nasıl çalışır
@@ -64,7 +65,8 @@ derleme adımı yoktur ve `asl-web/` içindeki dosyalar yayımlanan dosyaların
 kendisidir. ONNX Runtime ve QR kütüphanesi jsDelivr'dan bütünlük (SRI)
 hash'leriyle, MediaPipe jsDelivr'dan, landmark modelleri Google Cloud
 Storage'dan gelir. `asl-web/models/` içindeki modeller yalnızca bir şey onlara
-ihtiyaç duyduğunda iner; kamerayı hiç açmayan bir ziyaretçi hiç model indirmez.
+ihtiyaç duyduğunda iner; ne kamerayı ne de örneği açan bir ziyaretçi hiç model
+indirmez.
 
 Kayıtlı sonuçlar, [`asl-web/data/model-card.json`](asl-web/data/model-card.json) dosyasından:
 
@@ -82,10 +84,11 @@ veri setlerinden rastgele seçildi; aynı kişinin neredeyse aynı kareleri
 ayrımın iki tarafında da bulunabilir, bu yüzden %99,35 yeni bir kişi için
 başarıyı büyük olasılıkla olduğundan yüksek gösterir. Kelime sonucu, ayrılmış
 kişilerin izole işaretleri içindir, sürekli işaretleşme için değil; canlı
-güven çoğu zaman çok daha düşüktür. Model Test ekran görüntüsündeki 24'te 24,
-her harf için ayrılmış bir satırla yapılan bir regresyon kontrolüdür, bir
-değerlendirme değildir. Özellik sırası, ONNX sözleşmeleri ve değerlendirmenin
-tam kapsamı [Models and data](docs/models-and-data.md) belgesindedir.
+güven çoğu zaman çok daha düşüktür. Örnekteki %100 de bir sonuç değildir: üç
+el duruşu, harf modelinin eğitim kaynaklarından birindeki fotoğraflardan
+gelir; bu yüzden örnek uygulamanın nasıl çalıştığını gösterir, ne kadar doğru
+olduğunu değil. Özellik sırası, ONNX sözleşmeleri ve değerlendirmenin tam
+kapsamı [Models and data](docs/models-and-data.md) belgesindedir.
 
 ## Teknolojiler ve araçlar
 
@@ -136,8 +139,9 @@ make web               # asl-web/ klasörünü http://localhost:8080 adresinde s
 ```
 
 Kamera `localhost` ya da HTTPS üzerinde çalışır, `file://` ile açılan bir
-sayfada çalışmaz. Modelleri kamerasız denemek için **Kamerasız dene** (Model
-Test) ekranını açın.
+sayfada çalışmaz. Uygulamanın harfleri kamerasız nasıl okuduğunu görmek için
+harf ekranında **Örneği izleyin** düğmesine basın. Depodaki örnekleri çalıştıran
+Model Test `#test` adresindedir.
 
 Kod üzerinde çalışmak için (Python 3.12 ve Node 24; Conda dosyası ikisini
 birden kurmanın bir yoludur):
@@ -230,7 +234,7 @@ listelenir.
 | Model | Kaynak | Koşullar |
 |---|---|---|
 | Harf | [ASL Alphabet](https://www.kaggle.com/datasets/grassknoted/asl-alphabet), Akash Nagaraj, 2018, [doi:10.34740/KAGGLE/DSV/29550](https://doi.org/10.34740/KAGGLE/DSV/29550) | GPL-2.0 (sağlayıcının etiketi) |
-| Harf | [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset), Ayush Thakur | CC0 1.0 |
+| Harf; örnekteki el duruşları | [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset), Ayush Thakur | CC0 1.0 |
 | Harf | [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) ile ilişkili yerel `ASL_SemCom` görsel alt kümesi (54.961 landmark satırının 1.580'i) | Kaydedilmemiş; görseller dağıtılmaz |
 | Kelime | [Google - Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs) yarışma verisi (Kaggle, 2023); sağlayıcılar Deaf Professional Arts Network ve Georgia Institute of Technology | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), yarışma kurallarına tabi |
 
@@ -241,7 +245,11 @@ Yayımlanan modeller yalnızca öğrenilmiş parametreleri içerir; görselleri,
 kayıtları ya da landmark tablolarını içermez. 24 Model Test harf örneği,
 ayrılmış landmark satırlarından alınmış tekil 93 özellikli vektörlerdir: 23'ü
 ASL Alphabet'ten, K örneği `ASL_SemCom` alt kümesinden gelir
-([ayrıntılar](docs/models-and-data.md#model-test-fixture-contract)).
+([ayrıntılar](docs/models-and-data.md#model-test-fixture-contract)). Kamerasız
+örnekteki üç el duruşu (`asl-web/data/demo-letters.json`), uygulamanın
+kullandığı el modelinin (MediaPipe Hand Landmarker) American Sign Language
+Dataset'teki üç fotoğrafta bulduğu landmark'lardır; fotoğrafların kendisi depoda
+yoktur.
 
 Yarışma kuralları verinin her amaçla kullanılmasına izin verir (madde 7.A),
 ama yeniden dağıtılmasını yasaklar (madde 7.B); ikisi çatıştığında kurallar

@@ -62,11 +62,18 @@ paket kurulmaz.
    verir.
 4. **Kamerayı aç** düğmesine basıp kameraya izin verin, sonra kameraya bir
    harf gösterin.
-5. Modelleri kamerasız denetlemek için **Kamerasız dene** ekranını açıp
-   **Tümünü çalıştır** düğmesine basın. Bu, harf modelini 24 fixture
-   (saklanmış test girdisi) üzerinde çalıştırır ve kaçının doğru çıktığını
-   sayar.
-6. Kelime modelini denetlemek için aynı ekranda **Başka model, başka örnek ya
+5. Uygulamanın harfleri kamerasız nasıl okuduğunu görmek için **Örneği
+   izleyin** düğmesine basın. Kayıtlı bir el FLY kelimesini heceler; sonuç
+   kartı bir harfi gösterdiğinde onu Space ya da **Ekle** ile ekleyin. Model bu
+   duruşları %100 ile okur, çünkü fotoğrafları eğitim kaynaklarından birinden
+   gelir; bu yüzden örnek, uygulamanın nasıl çalıştığını gösterir, ne kadar
+   doğru olduğunu değil.
+6. Modelleri saklanmış girdilerle denetlemek için Model Test'i açın: `#test`
+   adresine gidin ya da **Nasıl çalışır** sayfasının sonundaki **modeli örnek
+   dosyalarla test edin (Model Test)** bağlantısını izleyin. **Tümünü
+   çalıştır** düğmesine basın. Bu, harf modelini 24 fixture (saklanmış test
+   girdisi) üzerinde çalıştırır ve kaçının doğru çıktığını sayar.
+7. Kelime modelini denetlemek için aynı ekranda **Başka model, başka örnek ya
    da kendi dosyanız** bölümünü açın, **Kelime modeli**ni seçin ve yeniden
    **Tümünü çalıştır** düğmesine basın. Hazır gelen tek kelime örneği 0.0760
    güvenle (ekranda %7,6) `give` sonucunu vermeli ve **Çalışma kontrolü**
@@ -87,7 +94,7 @@ Bilmeniz gerekenler:
 - İlk yükleme için internet gerekir. ONNX Runtime, QR kütüphanesi ve el, poz
   ve yüz modelleriyle birlikte MediaPipe herkese açık CDN'lerden gelir.
   Uygulamanın `asl-web/models/` içindeki kendi modelleri ise yalnızca bir şeye
-  gerektiğinde, örneğin kamera açıldığında indirilir.
+  gerektiğinde, örneğin kamera ya da kamerasız örnek açıldığında indirilir.
 
 ## Python ortamını kurmak
 
@@ -351,7 +358,7 @@ kullanmak için herhangi bir hedefe `PYTHON=/path/to/python` ekleyin.
 | `make notebook-check` | Kelime modeli notebook'larının, modellerin ve sonuç dosyalarının yerinde olduğunu denetler. | Hiçbir şey |
 | `make git-hygiene` | `.gitignore` ile eşleşen izlenen dosya varsa başarısız olur. | Git |
 | `make check` | Commit öncesi kapı: `make health` ve `make js-typecheck`. | Python ortamı, Node, `npm ci` |
-| `make browser-check` | Node testlerinin yapamadığı denetimleri gerçek bir headless Chrome'da yapar: CSS katmanları, gizli öğeler, moda özgü denetimler, azaltılmış hareket, koyu tema, yatay taşma ve kameranın bırakılması. `OFFLINE=1`, CDN kütüphanelerini yükleyen tek denetimi atlar. | Node, Chrome ya da Chromium |
+| `make browser-check` | Node testlerinin yapamadığı denetimleri gerçek bir headless Chrome'da yapar: CSS katmanları, gizli öğeler, moda özgü denetimler, azaltılmış hareket, koyu tema, yatay taşma, kameranın bırakılması ve kamerasız örnek. `OFFLINE=1`, CDN kütüphanelerini yükleyen iki denetimi atlar. | Node, Chrome ya da Chromium |
 | `make deploy-check` | Her yüklemeden önceki adım: JavaScript sözdizimi, çalışma zamanı dosya denetimi ve `asl-web/` içindeki her dosyanın listesi. Sitenin yayınlamadığı her dosyada başarısız olur. | Python ortamı, Node |
 | `make model-test-fixtures` | İsteğe bağlı: indirilmiş Kaggle alt kümesinden Model Test kelime fixture'larını dışa aktarır. Alt küme yoksa indirme komutunu yazıp durur. | Python ortamı, Kaggle alt kümesi |
 | `make clean` | Önbellekleri (`__pycache__`, `.pytest_cache`, `*.egg-info`, `*.pyc`) ve `.DS_Store` dosyalarını siler. Veri, model, notebook ve ortamlara dokunmaz. | Hiçbir şey |
@@ -415,8 +422,9 @@ temizler:
 
 1. `make check` çalıştırın; Chrome kuruluysa `make browser-check` de.
 2. Uygulamayı `make web` ile sunun ve elle doğrulayın: model hazırlığı,
-   çevrimdışı örnek, kameranın açılıp kapanması, harf ekleme, kelime kaydı ve
-   `#letter`, `#word`, `#test` bağlantıları.
+   kamerasız örnek, `#test` üzerindeki çevrimdışı fixture'lar, kameranın
+   açılıp kapanması, harf ekleme, kelime kaydı ve `#letter`, `#word`, `#test`
+   bağlantıları (QR ekranı ilk ikisine bağlantı verir).
 3. `asl-web/data/model-test-samples/local/` klasörü varsa onu `asl-web/`
    dışına taşıyın ya da silin; `make model-test-fixtures` onu yeniden
    üretebilir. Klasör, yayımlanmaması gereken, yarışma verisinden türetilmiş
@@ -459,9 +467,10 @@ yayın klasörünü seçer.
 
 Sayfa açıldığında hiçbir model istenmez; bu yüzden tarayıcının Network
 panelinde model isteği ancak bir modele ihtiyaç duyulduğunda görünür: kamera
-başlatıldığında, kelime kaydında ya da bir Model Test çalıştırmasında. Harf
-modu harf modelini, kelime modu kelime modelini yükler. Öğrenme Koçu harf
-modelini yükler; kelime modelini yalnızca kelimelere geçildiğinde ekler.
+ya da kamerasız örnek başlatıldığında, kelime kaydında ya da bir Model Test
+çalıştırmasında. Harf modu ve kamerasız örnek harf modelini, kelime modu
+kelime modelini yükler. Öğrenme Koçu harf modelini yükler; kelime modelini
+yalnızca kelimelere geçildiğinde ekler.
 
 `make validate` çalıştırın, bunlardan birini tetikleyin ve tarayıcının Network
 ile Console panellerine bakın. Harf modeli `models/letter_model.onnx.gz`,

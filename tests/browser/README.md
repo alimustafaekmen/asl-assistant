@@ -115,9 +115,9 @@ have no stage style of their own and render like a kind no CSS names.
 ## Why it is not in `make health`
 
 `make health` must run in a fresh clone with the Python environment alone, and
-fast enough to run after every edit. These checks need Chrome, and the camera
-check needs the network, so they are a separate gate: run them before a deploy
-and after any change to `index.html` or the CSS.
+fast enough to run after every edit. These checks need Chrome, and the `camera`
+and `demo-model` checks need the network, so they are a separate gate: run
+them before a deploy and after any change to `index.html` or the CSS.
 `tests/scripts/test_make_targets.py` checks that `make browser-check` runs this
 runner and fails with it, and that `make health` never starts a browser.
 

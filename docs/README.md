@@ -39,7 +39,7 @@ files.
 | [`scripts/`](../scripts/README.md) | The command-line tools around the models, their common commands and exit codes. |
 | [`scripts/data_preparation/`](../scripts/data_preparation/README.md) | Turning downloaded image and video datasets into landmark tables. |
 | [`scripts/model_training/`](../scripts/model_training/README.md) | Training the letter model, the split it uses, and the experimental J and Z trainer. |
-| [`scripts/evaluation/`](../scripts/evaluation/README.md) | Exporting feature goldens and Model Test fixtures; none of it is an accuracy measurement. |
+| [`scripts/evaluation/`](../scripts/evaluation/README.md) | Exporting feature goldens, Model Test fixtures and the demo's hand poses; none of it is an accuracy measurement. |
 | [`scripts/validation/`](../scripts/validation/README.md) | The checks that deployed files match their sources and that the ONNX models accept and return what the JavaScript expects. |
 | [`scripts/tooling/`](../scripts/tooling/README.md) | The environment diagnosis behind `make doctor` and `make setup`. |
 | [`tests/`](../tests/README.md) | The four test layers and what each `make` gate runs. |

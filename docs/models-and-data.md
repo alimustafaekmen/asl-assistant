@@ -558,6 +558,7 @@ All of these files live in `asl-web/data/`:
 | `test_sample.json` | Word smoke fixture, used when the fixture manifest cannot be read | 7560 features and 45 mask values |
 | `letter_test_sample.json` | Letter fixture, used when the fixture manifest cannot be read; a copy of the A fixture | `asl-sample-v1`, 93 features |
 | `model-test-samples/manifest.json` | Fixture index | `asl-model-test-manifest-v1` |
+| `demo-letters.json` | Hand poses the camera-free demo plays | `asl-demo-letters-v1`: the word (FLY), its source and extractor, and per letter one right hand of 21 points, x and y in 0..1 of a square image |
 
 Label maps use `{label: integer_index}` objects. Indices must be unique, dense,
 and start at zero. Sorting or rebuilding a map independently from its model can
@@ -565,6 +566,19 @@ silently change every output meaning.
 
 Letter curriculum and confusion files are hand-curated teaching references.
 They are not model outputs and play no part in runtime gating.
+
+`demo-letters.json` is written by
+[`export_demo_letters.py`](../scripts/evaluation/export_demo_letters.py). It
+runs MediaPipe Hand Landmarker, the browser's `hand_landmarker.task` in video
+mode, on the CC0 [American Sign Language Dataset](#static-letter-model),
+keeps right hands, and for each letter keeps the pose the deployed letter
+model reads most surely under seeded jitter. Only letters outside the model's
+known confusion groups are candidates. The photographs come from one of the
+letter model's training sources, so the model reads each pose at 1.0: the demo
+shows how the app works and is not an evaluation. The file holds landmarks
+only; the photographs stay in the local `data/raw/`.
+[`test_demo_letters.py`](../tests/scripts/test_demo_letters.py) fails when
+the deployed model reads a pose below 0.9 or as another letter.
 
 ## Model Test fixture contract
 
@@ -679,7 +693,8 @@ Noncommercial License 1.0.0; the terms of their training data also apply. The
 3. If the letter model changed, regenerate
    `asl-web/models/letter_model.onnx.gz` with the command in the
    [validation notes](../scripts/validation/README.md).
-4. Regenerate affected deterministic fixtures.
+4. Regenerate affected deterministic fixtures, and after a letter model
+   change the demo poses (`export_demo_letters.py`).
 5. Update the fixture manifest when paths change.
 6. Run `make health` and inspect every provenance result.
 7. Test offline fixture inference and the relevant camera mode in a browser.

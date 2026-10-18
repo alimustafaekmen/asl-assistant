@@ -12,7 +12,7 @@ them runs inside the web app, and `asl-web/` never imports them.
 scripts/
 ├── data_preparation/   landmark extraction from images and videos, CSV merge and split
 ├── model_training/     static-letter training and an experimental J/Z trainer
-├── evaluation/         Kaggle subset download, Model Test fixture and feature golden export
+├── evaluation/         Kaggle subset download, Model Test fixture, demo pose and feature golden export
 ├── validation/         runtime asset, provenance, ONNX and project asset checks
 └── tooling/            Python environment diagnosis behind `make doctor` and `make setup`
 ```

@@ -230,7 +230,7 @@ From the repository root:
 ```bash
 make health          # lint, format, JS syntax and node tests, validation, Python tests
 make check           # health plus the JSDoc type check (needs `npm ci` once)
-make browser-check   # headless Chrome: cascade, layout, camera stop (OFFLINE=1 skips the CDN)
+make browser-check   # headless Chrome: cascade, layout, camera stop, demo (OFFLINE=1 skips the CDN checks)
 make web             # serve this folder at http://localhost:8080
 ```
 

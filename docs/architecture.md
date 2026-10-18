@@ -124,7 +124,7 @@ way the browser does.
 | Folder | Files | What they do |
 |---|---|---|
 | `core/` | `theme-boot.js`, `config.js`, `runtime.js`, `app.js` | Theme before the first paint; settings and label lists; shared state and the element registry; startup, routing, camera start and stop, the render loop and the `window.aslDebug` console helper |
-| `media/` | `camera.js`, `overlay.js` | The MediaPipe tasks and the detection loop; the landmarks drawn over the video |
+| `media/` | `camera.js`, `demo-source.js`, `overlay.js` | The MediaPipe tasks and the detection loop; the camera-free demo, which plays a recorded hand as a second frame source; the landmarks drawn over the video or the demo's square |
 | `ml/` | `landmarks.js`, `features.js`, `gating.js`, `hold.js`, `letter-model.js`, `word-model.js`, `live-inference.js` | The 321-value landmark frame; letter and word features; letter smoothing and word feedback data; hold detection for the coach; the two ONNX sessions; running them on live frames |
 | `services/` | `benchmark.js` | Latency measurements shown in the debug panel |
 | `ui/` | `prediction.js`, `plate-side.js`, `toast.js`, `transcript.js`, `word-flow.js`, `coach.js`, `reference.js`, `qr.js`, `model-test.js` | The result plate and messages; the transcript; the word recording flow; the coach; reference images; the QR and Model Test screens |
@@ -146,8 +146,15 @@ only means nothing is remembered for the next visit.
 
 | Loop | Where | Runs | On each animation frame |
 |---|---|---|---|
-| Render loop | `renderLoop()` in `core/app.js` | From `init()`, for the whole visit | Draws the overlay, moves the laptop result plate away from a hand, and while the camera is on calls `realInference()` in `ml/live-inference.js` |
+| Render loop | `renderLoop()` in `core/app.js` | From `init()`, for the whole visit | Draws the overlay, moves the laptop result plate away from a hand, and while the camera is on or the demo plays calls `realInference()` in `ml/live-inference.js` |
 | Detection loop | `_processFrame()` in `media/camera.js` | Only while the camera is on, one per camera session | Runs MediaPipe when the camera has presented a new frame (counted with `requestVideoFrameCallback`, or every animation frame where the browser lacks it, and at least every 200 ms), and publishes the result as `latestMediaPipeResult` |
+
+The camera-free demo takes the detection loop's place without the camera:
+a timer in `media/demo-source.js` publishes the recorded hand of
+`data/demo-letters.json` to `latestMediaPipeResult` about every 50 ms. Its
+frames say aspect 1, because the recording holds square photographs, and the
+overlay draws that square in the room the demo's card and the plate leave on
+the stage.
 
 The loops meet only at `latestMediaPipeResult`. In a letter context the render
 loop runs inference at most every 120 ms, so the five-prediction smoothing
@@ -285,13 +292,16 @@ diagram is in the
 | `#letter` | Letter translation (Harf) | yes | letter |
 | `#word` | Word practice (Kelime, marked experimental) | yes | word |
 | `#coach` | Learning coach (Koç) | yes | letter, and word while the coach is on words |
-| `#test` | Model Test (Kamerasız dene) | no | the model of the sample being run |
+| `#test` | Model Test, for developers, linked from the project page | no | the model of the sample being run |
 | `#project` | Project summary (Nasıl çalışır) | no | none |
-| `#qr` | QR demo (Telefonda aç) | no | none |
+| `#qr` | QR code (Telefonda aç) | no | none |
 
 `setMode()` in `core/app.js` applies a route. An unknown hash opens letter
 mode. There is no separate home screen: the brand link stops the camera and
-opens the letter screen, whose empty stage explains the app.
+opens the letter screen, whose empty stage explains the app. The camera-free
+demo has no route either: **Örneği izleyin** (watch the example), on the
+stage of every camera screen, in the camera problem and on the project page,
+opens the letter screen and plays it there.
 
 ## Camera lifecycle
 
@@ -309,7 +319,9 @@ banner asks the visitor to reload.
 `ensureLetterModel()` and `ensureWordModel()` load a model once and give
 every caller the same promise. A failed load is forgotten, so the next need
 retries. A need is the camera starting, a mode change while the camera is on,
-a word recording, or a Model Test run; a live frame never starts a load.
+a demo start, a word recording, or a Model Test run; a live frame never
+starts a load. A demo start loads the letter model only: it imports no
+MediaPipe and asks for no camera.
 
 The letter model downloads as `letter_model.onnx.gz` (2.16 MB) and is
 decompressed in the page with `DecompressionStream`; the raw
@@ -350,9 +362,15 @@ The camera stops when:
 
 - the visitor presses the camera button again;
 - the visitor opens the brand link, `#test`, `#project` or `#qr`;
+- the visitor starts the camera-free demo;
 - the browser ends a track, for example when the permission is revoked or
   the camera is unplugged. This is handled like a stop, and the stage says
   the camera was lost.
+
+The demo stops, through `stopDemo()`, its one way out, when the visitor
+presses its stop, starts the camera, changes mode or route (the brand link
+included), or the page is hidden. Each of these ends its frame timer, so a
+restart leaves one timer; `tests/web/demo-lifecycle.test.js` holds this.
 
 Switching between letter, word and coach keeps the camera on and loads the
 model the new mode needs. Hiding a screen is never the same as releasing the
@@ -422,6 +440,8 @@ What can go wrong while the app runs:
 | The GPU cannot run a task | Nothing: that task runs on the CPU | `_createWithFallback()` in `media/camera.js` |
 | The pose or face task fails | Letters still work; a word recording is refused with a message | `_loadOptionalHolisticLandmarkers()`, `startWordRecording()` |
 | A model download fails | The message line says which model is missing; the next need retries | `loadModelsWithStatus()`, `ensureLetterModel()`, `ensureWordModel()` |
+| The demo recording cannot be fetched or is malformed | The stage goes back to rest and the message line says the example could not be loaded; the next start fetches it again | `startDemo()`, `loadDemoRecording()` in `media/demo-source.js` |
+| The letter model cannot load during the demo | The hand plays on and the message line says letter recognition could not load | `startDemo()` |
 | The gzip copy cannot be used | Nothing: the raw letter model loads instead | `loadLetterModel()` |
 | The runtime rejects a mask type | Nothing: the next type is tried | `predictWord()` |
 | A recording cannot fill | It ends after the timeouts above, with the reason | `checkWordRecordingClock()` |
@@ -457,8 +477,11 @@ model path, check by hand in a real browser, on a phone as well as a laptop:
 2. Space adds a letter only once the plate is confident.
 3. Record a word, retry, and cancel one; the word reaches the text only after
    you accept it.
-4. The Model Test runs the bundled samples without a camera.
-5. The QR screen's links open the right screens.
+4. **Örneği izleyin** plays the recorded hand: the plate reads F, L and Y in
+   turn, each letter reaches the text only when you add it, and the end
+   offers the camera. Starting the camera stops the demo.
+5. Model Test (`#test`) runs the bundled samples without a camera.
+6. The QR screen's links open the right screens.
 
 The checks before and after an upload are in
 [Getting started](getting-started.md#static-deployment).

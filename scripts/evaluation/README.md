@@ -4,15 +4,16 @@
 
 <sub>Related: [`asl-web/data/model-test-samples/words/`](../../asl-web/data/model-test-samples/words/README.md) · [`docs/models-and-data.md` › Model Test fixture contract](../../docs/models-and-data.md#model-test-fixture-contract) · [`tests/`](../../tests/README.md)</sub>
 
-Scripts that produce small, reviewable inputs for tests and for the browser's
-Model Test panel. They do not train or replace a model, and none of their output
-is an accuracy measurement.
+Scripts that produce small, reviewable inputs for tests, the browser's Model
+Test panel and its camera-free demo. They do not train or replace a model, and
+none of their output is an accuracy measurement.
 
 | Script | Purpose |
 |---|---|
 | `export_feature_goldens.py` | Write `tests/web/fixtures/feature-golden.json`: synthetic hands and short word sequences together with the Python 93D and 168D features computed from them |
 | `download_kaggle_sample_subset.py` | Download `train.csv` and a handful of landmark Parquet files from the Google Isolated Sign Language Recognition competition, one or more per word of the 50-word vocabulary |
 | `export_model_test_word_samples.py` | Rebuild the 168D word input from those Parquet files, run the deployed word model on it, and write `asl-sample-v1` fixtures plus a manifest for the Model Test panel |
+| `export_demo_letters.py` | Find right-hand landmarks in the CC0 American Sign Language Dataset with MediaPipe Hand Landmarker, keep the pose per letter the deployed letter model reads most surely, and write `asl-web/data/demo-letters.json` for the camera-free demo |
 
 ## Feature goldens
 
@@ -63,3 +64,20 @@ gives the schema.
 The fixtures are regression and demonstration samples. They are not the
 complete signer-independent test partition and must not be reported as the
 notebook's accuracy or macro-F1.
+
+## Hand poses for the camera-free demo
+
+```bash
+python scripts/evaluation/export_demo_letters.py --task hand_landmarker.task
+```
+
+`--task` is the browser's hand model, published at
+`https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`.
+The dataset is read from `data/raw/American Sign Language Dataset` (`--dataset`
+overrides it), and the result goes to `asl-web/data/demo-letters.json`
+(`--output`). The script exits 1 when no candidate word is read at 0.9 or more
+under jitter, and 2 when the task file, the dataset or a package is missing.
+The dataset is one of the letter model's training sources, so the 1.0 the
+script reports for each pose is not an accuracy figure.
+`tests/scripts/test_demo_letters.py` checks the written file against the
+deployed model; run the export again after a letter model change.

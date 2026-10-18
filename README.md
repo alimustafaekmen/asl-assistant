@@ -11,27 +11,26 @@ landmarks are found with MediaPipe and classified with ONNX models, all inside
 the page: there is no application server, and the camera image never leaves the
 device. The interface is in Turkish.
 
-![The letter screen on a laptop, light theme. A dark camera stage asks the visitor to show an ASL letter and offers buttons to open the camera or to try without one; side cards hold the most likely results, the letter reference and the keyboard shortcuts; the text strip and the Delete, Space and Add buttons sit below.](docs/assets/screenshots/letter-laptop.png)
+![The letter screen on a laptop, light theme. A dark camera stage asks the visitor to show an ASL letter and offers two buttons, Kamerayı aç (open the camera) and Örneği izleyin (watch the example); side cards hold the most likely results, the letter reference and the keyboard shortcuts; the text strip and the Delete, Space and Add buttons sit below.](docs/assets/screenshots/letter-laptop.png)
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone.png" width="240" alt="The letter screen on a phone, light theme: the camera stage with the open-camera button, then the text strip and the Delete, Space and Add buttons."><br><sub>Letter screen on a phone</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone.png" width="240" alt="The letter screen on a phone, light theme: the camera stage with the Kamerayı aç and Örneği izleyin buttons, then the text strip and the Delete, Space and Add buttons."><br><sub>Letter screen on a phone</sub></td>
     <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone-dark.png" width="240" alt="The same letter screen on a phone in the dark theme."><br><sub>Dark theme</sub></td>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/camera-help-phone.png" width="240" alt="The camera stage after the camera permission was refused: the title says camera permission was not given, with Retry and Try without camera buttons and expanded step-by-step help for iPhone Safari and Chrome."><br><sub>Help after a refused camera permission</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/camera-help-phone.png" width="240" alt="The camera stage after the camera permission was refused: the title says camera permission was not given, with the Yeniden dene (retry) and Örneği izleyin buttons and expanded step-by-step help for iPhone Safari and Chrome."><br><sub>Help after a refused camera permission</sub></td>
   </tr>
 </table>
 
 <table>
   <tr>
     <td align="center" width="50%"><img src="docs/assets/screenshots/word-laptop.png" width="100%" alt="The word screen on a laptop: the camera stage invites the visitor to record an ASL word that is added only after they accept it; side cards hold the results, the word reference, words to try first and the searchable 50-word list; the dock holds the record, retry and add buttons."><br><sub>Word screen (experimental)</sub></td>
-    <td align="center" width="50%"><img src="docs/assets/screenshots/model-test-laptop.png" width="100%" alt="Model Test after running every letter sample: a summary saying 24 of 24 samples were correct with a median time of 0.5 ms, a note that these samples come from the training data's held-out split, and a table of sample, expected label, prediction, confidence, time and result."><br><sub>Model Test after a real run of the letter samples</sub></td>
+    <td align="center" width="50%"><img src="docs/assets/screenshots/demo-laptop.png" width="100%" alt="The camera-free demo on a laptop: a recorded hand drawn in landmarks on the dark stage; a card above it spells FLY with L marked as the current letter, 2 of 3, and asks the visitor to add the letter with Ekle or Space; the result card reads L at 100%, the most likely results list L first, and the text strip already holds F."><br><sub>The camera-free demo reading a recorded hand</sub></td>
   </tr>
 </table>
 
-The screenshots come from headless Chrome without a camera, so no screen shows
-live recognition. The Model Test results are a real run of the bundled letter
-samples through the published model; what they measure is explained under
-[How it works](#how-it-works).
+The screenshots come from headless Chrome without a camera. The demo
+screenshot is a real run of the published letter model on the recorded hand;
+why it reads 100% is explained under [How it works](#how-it-works).
 
 ## What it does
 
@@ -40,8 +39,9 @@ samples through the published model; what they measure is explained under
 | Letter (*Harf*) | Recognises 24 static ASL letters from the camera, live. Space adds the shown letter to the text, Enter adds a space, Backspace deletes. The text can be copied or read aloud. This is the main mode. |
 | Word (*Kelime*, experimental) | Records one isolated sign and shows the three most likely of 50 words. Nothing reaches the text until you accept the result. |
 | Coach (*Koç*, early) | Practice with a chosen letter or word. A letter counts when it is held steadily; progress is kept on the device. |
-| Model Test (*Kamerasız dene*) | Runs bundled samples through the same models without a camera, one at a time or all together, and shows the prediction, confidence and time. |
-| QR (*Telefonda aç*) | A QR code that opens the hosted letter, word or Model Test screen on a phone. |
+| Camera-free demo (*Örneği izleyin*) | On the letter screen, plays a recorded hand spelling FLY through the path a camera frame takes: the landmarks drawn on the stage, the letter features, the letter model, the smoothing and the result card. You add each letter with Space or *Ekle*, and at the end the demo offers the camera. It loads the letter model only. |
+| Model Test (for developers) | Runs bundled samples through the models without a camera, one at a time or all together, and shows the prediction, confidence and time. It is at `#test`, linked from the project page. |
+| QR (*Telefonda aç*) | A QR code that opens the hosted letter or word screen on a phone. |
 | Project (*Nasıl çalışır*) | A short summary of the models and their limits. |
 
 ## How it works
@@ -64,7 +64,7 @@ or build step, and the files in `asl-web/` are the files that are deployed.
 ONNX Runtime and the QR library come from jsDelivr with integrity hashes,
 MediaPipe from jsDelivr and its landmark models from Google Cloud Storage. The
 models in `asl-web/models/` download only when something needs them, so a
-visitor who never opens the camera downloads none.
+visitor who opens neither the camera nor the demo downloads none.
 
 The recorded results, from [`asl-web/data/model-card.json`](asl-web/data/model-card.json):
 
@@ -81,10 +81,11 @@ Read the two figures with their caveats. The letter split was drawn at random
 from merged image datasets, so near-identical frames of the same person can
 sit on both sides of it; 99.35% probably overstates accuracy for a new signer.
 The word figure is for isolated signs from held-out signers, not continuous
-signing, and live confidence is often much lower. The 24 of 24 in the Model
-Test screenshot is a regression check on one held-out row per letter, not an
-evaluation. [Models and data](docs/models-and-data.md) has the feature order,
-the ONNX contracts and the full evaluation scope.
+signing, and live confidence is often much lower. The demo's 100% is not a
+result either: its three poses come from photographs in one of the letter
+model's training sources, so the demo shows how the app works, not how
+accurate it is. [Models and data](docs/models-and-data.md) has the feature
+order, the ONNX contracts and the full evaluation scope.
 
 ## Technologies and tools
 
@@ -132,8 +133,10 @@ To run the app, any static file server will do; nothing needs installing:
 make web               # serves asl-web/ at http://localhost:8080
 ```
 
-The camera works on `localhost` or HTTPS, not from a `file://` page. To check
-the models without a camera, open **Kamerasız dene** (Model Test).
+The camera works on `localhost` or HTTPS, not from a `file://` page. To see
+the app read letters without a camera, press **Örneği izleyin** (watch the
+example) on the letter screen. Model Test, which runs the bundled samples, is
+at `#test`.
 
 To work on the code (Python 3.12 and Node 24; the Conda file is one way to get
 both):
@@ -222,7 +225,7 @@ the [data workspace](data/README.md) lists what stays out of Git.
 | Model | Source | Terms |
 |---|---|---|
 | Letters | [ASL Alphabet](https://www.kaggle.com/datasets/grassknoted/asl-alphabet), Akash Nagaraj, 2018, [doi:10.34740/KAGGLE/DSV/29550](https://doi.org/10.34740/KAGGLE/DSV/29550) | GPL-2.0, as labelled by the provider |
-| Letters | [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset), Ayush Thakur | CC0 1.0 |
+| Letters; the demo's hand poses | [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset), Ayush Thakur | CC0 1.0 |
 | Letters | A local `ASL_SemCom` image subset associated with [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) (1,580 of 54,961 landmark rows) | Not recorded; the images are not redistributed |
 | Words | [Google - Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs) competition data (Kaggle, 2023), provided by the Deaf Professional Arts Network and the Georgia Institute of Technology | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), subject to the competition rules |
 
@@ -233,7 +236,10 @@ features. The published models contain learned parameters only, not the
 images, recordings or landmark tables. The 24 Model Test letter samples are
 single 93-feature vectors from held-out landmark rows: 23 from ASL Alphabet and
 the K sample from the `ASL_SemCom` subset
-([details](docs/models-and-data.md#model-test-fixture-contract)).
+([details](docs/models-and-data.md#model-test-fixture-contract)). The camera-free
+demo's three hand poses, in `asl-web/data/demo-letters.json`, are the landmarks
+that the hand model the app runs (MediaPipe Hand Landmarker) finds in three
+American Sign Language Dataset photographs; the photographs are not included.
 
 The competition rules allow the data to be used for any purpose (section 7.A)
 but forbid redistributing it (section 7.B), and they prevail over its CC BY 4.0

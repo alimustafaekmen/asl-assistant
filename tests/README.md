@@ -54,7 +54,7 @@ that names a file the repository tracks means that file is missing.
 |---|---|---|
 | `make health` | lint, format check, JS syntax, web tests, git hygiene, the runtime asset check, the project asset audit without the dataset report, the notebook, model and result presence check, word and letter feature parity, the fast pytest suite | the type check (it needs `npm ci`), the desktop integration tests, letter model parity, the browser checks |
 | `make check` | `make health`, then `make js-typecheck`; the gate before a commit | the desktop integration tests, the browser checks |
-| `make browser-check` | the headless-Chrome checks (`OFFLINE=1` skips the one that needs the CDNs) | everything else; it needs Chrome and exits 2 without it |
+| `make browser-check` | the headless-Chrome checks (`OFFLINE=1` skips the two that need the CDNs, `camera` and `demo-model`) | everything else; it needs Chrome and exits 2 without it |
 | `make test-full` | every Python test, the desktop integration tests included | anything outside pytest: the web tests, validators, parity and the type check |
 | `make validate` | JS syntax and the runtime asset check | the project audit |
 | `make validate-full` | `make validate` and the project asset audit with its dataset report | pytest |
@@ -95,7 +95,9 @@ the target.
 - `scripts` runs the real validators, parity commands and make targets against
   disposable copies of the checkout with one thing broken, and reads the exit
   code. A validator that has only seen a healthy tree has not been shown to
-  detect anything.
+  detect anything. `test_demo_letters.py` scores the camera-free demo's hand
+  poses with the deployed letter model, so a model update that stops reading
+  one fails here.
 
 Fixtures are fixed values, not unseeded random numbers, and model adapters use
 small deterministic fakes instead of loading large or platform-specific
@@ -164,11 +166,13 @@ another copy of `features.js`.
 
 Headless Chrome covers what Node cannot: the cascade layer order, `[hidden]`
 and the mode-only rules, the dark theme, reduced motion, horizontal overflow
-from 320 px up, and, with the fake camera, that a stop leaves no live track.
+from 320 px up, with the fake camera that a stop leaves no live track, and
+that the camera-free demo draws the recorded hand where it can be seen. With
+the network, the real letter model reads that hand and writes `FLY`.
 
 ```bash
 make browser-check              # needs Chrome or Chromium
-make browser-check OFFLINE=1    # skips the one check that loads MediaPipe and ONNX Runtime from CDNs
+make browser-check OFFLINE=1    # skips camera and demo-model, which load MediaPipe or ONNX Runtime from CDNs
 ```
 
 Run them before a deploy and after any change to `index.html` or the CSS.

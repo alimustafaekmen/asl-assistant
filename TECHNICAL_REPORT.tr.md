@@ -33,7 +33,9 @@ ASL Assistant, Amerikan İşaret Dili'ni (ASL) bir web kamerasından, tamamen ta
 | Harf (`#letter`) | 24 statik parmak alfabesi harfini (J ve Z hariç) okur ve metin oluşturur | Ana mod |
 | Kelime (`#word`) | Tek bir izole işaret için 50 kelime içinden en olası üçünü sunar; kullanıcının onaylaması gerekir | Deneysel |
 | Koç (`#coach`) | Harf ya da kelime ister ve puanlar | Erken aşamada |
-| Model Test, QR, Proje | Paketle gelen fixture'ları çalıştırır, bağlantı paylaşır, projeyi anlatır | Bilgi ekranları |
+| Kamerasız örnek (`#letter` üzerinde) | FLY kelimesini heceleyen kayıtlı bir eli canlı harf pipeline'ından geçirir; her harfi kullanıcı ekler | Kamerası olmayan ziyaretçiler için |
+| Model Test (`#test`) | Paketle gelen fixture'ları kamera olmadan modellerden geçirir | Geliştirici aracı; proje sayfasından bağlantı verilir |
+| QR, Proje | Bağlantı paylaşır, projeyi anlatır | Bilgi ekranları |
 
 | Ölçüt | Değer | Not |
 |---|---|---|
@@ -101,6 +103,7 @@ flowchart LR
 flowchart TD
   CAM["getUserMedia<br/>ideal 1280x720, facingMode user"] --> DET["Algılama döngüsü (camera.js)<br/>kamera karesi başına bir kez;<br/>HandLandmarker her zaman,<br/>Pose + Face yalnızca kelime bağlamlarında"]
   DET --> RES["latestMediaPipeResult"]
+  DEMO["Kamerasız örnek (demo-source.js)<br/>50 ms'de bir kayıtlı sağ el, en-boy 1"] --> RES
   RES --> L321["landmarks.js<br/>321-D holistic kare"]
   L321 --> SPLIT{"Bağlam"}
   SPLIT -- "harf, koç harfi<br/>(120 ms'de bir)" --> LF["features.js<br/>en-boy düzeltmesi, el seçimi, aynalama,<br/>EMA, normalizasyon, 93-D"]
@@ -114,6 +117,8 @@ flowchart TD
 ```
 
 Harf bağlamları çıkarımı en fazla 120 ms'de bir çalıştırır; böylece beş tahminlik yumuşatma penceresi yaklaşık 600 ms'lik işaretlemeyi kapsar. Kelime bağlamları kayıt sırasında her karede çalışır. Bir model çağrısı sürerken gelen kare kuyruğa alınmaz, atılır.
+
+Kamerasız örnek, `media/demo-source.js`, sahte bir kamera değil, ikinci bir kare kaynağıdır. Kayıtlı eli, tohumlu küçük bir titremeyle saniyede yaklaşık 20 kez `latestMediaPipeResult` içine yayımlar ve her kareyi kare biçimli (en-boy 1) olarak işaretler, çünkü kayıt kare fotoğraflardan gelir. Ne kamera ne de MediaPipe başlatılır; `landmarks.js` ve sonrası değişmeden çalışır.
 
 ### 2.3 Masaüstü prototipi
 
@@ -129,7 +134,7 @@ Tarayıcı, düz `<script>` dosyalarını [`asl-web/index.html`](asl-web/index.h
 
 ### 3.2 Modül sınırları ve DOM sözleşmesi
 
-Script'ler `core/` (durum, yönlendirme, kamerayı başlatma ve durdurma, çizim döngüsü), `media/` (MediaPipe görevleri, algılama döngüsü, overlay), `ml/` (özellikler, ONNX oturumları, yumuşatma), `services/` ve `ui/` klasörlerindedir; [`asl-web/js/README.md`](asl-web/js/README.md) onları yükleme sırasıyla listeler. Script'ler öğeleri yalnızca `id` ya da bir `data-ui` kancasıyla bulur, hiçbir zaman bir stil sınıfıyla bulmaz; böylece bir yeniden tasarımda sınıflar serbestçe değişebilir, bir id'yi yeniden adlandırmak ise testlerin fark ettiği bir davranış değişikliğidir. Çizim fonksiyonları görünümü durumdan yeniden kurar; dinleyici, zamanlayıcı, fetch ya da model oturumu başlatmaz.
+Script'ler `core/` (durum, yönlendirme, kamerayı başlatma ve durdurma, çizim döngüsü), `media/` (MediaPipe görevleri, algılama döngüsü, kamerasız örnek, overlay), `ml/` (özellikler, ONNX oturumları, yumuşatma), `services/` ve `ui/` klasörlerindedir; [`asl-web/js/README.md`](asl-web/js/README.md) onları yükleme sırasıyla listeler. Script'ler öğeleri yalnızca `id` ya da bir `data-ui` kancasıyla bulur, hiçbir zaman bir stil sınıfıyla bulmaz; böylece bir yeniden tasarımda sınıflar serbestçe değişebilir, bir id'yi yeniden adlandırmak ise testlerin fark ettiği bir davranış değişikliğidir. Çizim fonksiyonları görünümü durumdan yeniden kurar; dinleyici, zamanlayıcı, fetch ya da model oturumu başlatmaz.
 
 ### 3.3 Kelime kayıt durum makinesi
 
@@ -151,20 +156,21 @@ Bir kare yalnızca el, gövde ve yüz görünürken sayılır. Dolmayan bir kay�
 
 ### 3.4 Yaşam döngüsü ve onay değişmezleri
 
-**Onay.** Bir kelime sonucu açık bir onay olmadan metne asla eklenmez. Bir kelime tahmininden metne giden tek yol `appendWordResultToTranscript()` fonksiyonudur; bu fonksiyon modu ve durumu, sonucun en son kayda ait olduğunu ve daha önce onaylanmadığını, güveninin de en az 0,15 olduğunu yeniden denetler. 0,15'in altındaki sonuç "Emin olunamadı" diye görünür ve onaylanamaz; ilk iki sonuç arasındaki fark 0,08'in altındaysa "Kontrol ederek ekleyin" yazar. Onaylanan bir kelime geri alınabilir. Harfler de yalnızca kullanıcı tarafından eklenir: Space, yumuşatılmış güveni en az 0,60 olan o anki harfi ekler. Tek harfli kısayol yoktur (WCAG 2.1.4).
+**Onay.** Bir kelime sonucu açık bir onay olmadan metne asla eklenmez. Bir kelime tahmininden metne giden tek yol `appendWordResultToTranscript()` fonksiyonudur; bu fonksiyon modu ve durumu, sonucun en son kayda ait olduğunu ve daha önce onaylanmadığını, güveninin de en az 0,15 olduğunu yeniden denetler. 0,15'in altındaki sonuç "Emin olunamadı" diye görünür ve onaylanamaz; ilk iki sonuç arasındaki fark 0,08'in altındaysa "Kontrol ederek ekleyin" yazar. Onaylanan bir kelime geri alınabilir. Harfler de yalnızca kullanıcı tarafından eklenir, kamerasız örnekte de: Space, yumuşatılmış güveni en az 0,60 olan o anki harfi ekler. Tek harfli kısayol yoktur (WCAG 2.1.4).
 
-**Yaşam döngüsü.** Bir kamera ekranından çıkmak kamerayı serbest bırakır: marka bağlantısı ile `#test`, `#project` ve `#qr` ekranları her kamera izini (track) durdurur, kare geri çağrılarını iptal eder, MediaPipe görevlerini kapatır ve süren kaydı bırakır. Bir kamera başlatması birkaç kez bekler (izin, ilk kare, MediaPipe, her model) ve bu beklemelerin herhangi birinde bir durdurma gelebilir. Başlatma her beklemeden sonra bir başlatma belirtecini (start token) ve bir nesil sayacını (generation counter) yeniden denetler; böylece durdurma başlatmayı iptal eder ve o ana kadar oluşturulanı kapatır. Kamera yeniden açıldığında tam olarak bir algılama döngüsü ve bir görev takımı çalışır.
+**Yaşam döngüsü.** Bir kamera ekranından çıkmak kamerayı serbest bırakır: marka bağlantısı ile `#test`, `#project` ve `#qr` ekranları her kamera izini (track) durdurur, kare geri çağrılarını iptal eder, MediaPipe görevlerini kapatır ve süren kaydı bırakır. Bir kamera başlatması birkaç kez bekler (izin, ilk kare, MediaPipe, her model) ve bu beklemelerin herhangi birinde bir durdurma gelebilir. Başlatma her beklemeden sonra bir başlatma belirtecini (start token) ve bir nesil sayacını (generation counter) yeniden denetler; böylece durdurma başlatmayı iptal eder ve o ana kadar oluşturulanı kapatır. Kamera yeniden açıldığında tam olarak bir algılama döngüsü ve bir görev takımı çalışır. Kamerasız örnek hiçbir zaman kamerayla birlikte çalışmaz: başlaması kamerayı durdurur; bir kamera başlatması, herhangi bir mod ya da rota değişikliği ve sayfanın gizlenmesi de örneği durdurur ve kareleri yayımlayan tek zamanlayıcısını bitirir.
 
 **Rotalar.** `#letter`, `#word`, `#coach`, `#test`, `#project`, `#qr`; başka herhangi bir hash, başlangıç ekranı işini de gören harf modunu açar.
 
 ### 3.5 İhtiyaç anında yükleme ve boyutlar
 
-`init()` hiçbir model yüklemez. Bir model ona ilk ihtiyaç duyulduğunda yüklenir: onu çalıştıran modda kamera başlatıldığında, bir kelime kaydında ya da bir Model Test çalıştırmasında. Canlı kareler hiçbir zaman yükleme başlatmaz; başarısız bir yükleme bir sonraki ihtiyaçta yeniden denenir. Yüklemenin beklemesinin nedeni barındırma hizmetinin bant genişliği kotasının sınırlı olmasıdır; iki modeli önceden yüklemek, kamerayı açsın açmasın her ziyaretçiye yaklaşık 15 MB'a mal oluyordu.
+`init()` hiçbir model yüklemez. Bir model ona ilk ihtiyaç duyulduğunda yüklenir: onu çalıştıran modda kamera başlatıldığında, kamerasız örnek başlatıldığında (yalnızca harf modeli), bir kelime kaydında ya da bir Model Test çalıştırmasında. Canlı kareler hiçbir zaman yükleme başlatmaz; başarısız bir yükleme bir sonraki ihtiyaçta yeniden denenir. Yüklemenin beklemesinin nedeni barındırma hizmetinin bant genişliği kotasının sınırlı olmasıdır; iki modeli önceden yüklemek, kamerayı açsın açmasın her ziyaretçiye yaklaşık 15 MB'a mal oluyordu.
 
 | Adım | İndirilen |
 |---|---|
 | Sayfayı açmak | yaklaşık 0,35 MB |
 | Harf modunda ilk kamera başlatma | yaklaşık 15 MB: MediaPipe el modeli 7,8 MB, MediaPipe WebAssembly 2,6 MB, ONNX Runtime WebAssembly 2,4 MB, harf modeli 2,2 MB |
+| Kamera açılmadan ilk örnek başlatma | yaklaşık 4,6 MB: ONNX Runtime WebAssembly 2,4 MB, harf modeli 2,2 MB; MediaPipe'tan hiçbir şey |
 | Kelime modu da açılınca | toplam en çok 24 MB |
 | İkinci ziyaret | hiçbir şey; her şey önbellekte |
 
@@ -212,7 +218,7 @@ CSS **cascade layer**'ları (`@layer`), seçici özgüllüğünden bağımsız o
 | Kaynak | Kullanım | Kullanılan satır ya da kayıt | Koşullar |
 |---|---|---:|---|
 | [ASL Alphabet](https://www.kaggle.com/datasets/grassknoted/asl-alphabet) (Akash Nagaraj, 2018, doi:10.34740/KAGGLE/DSV/29550) | Harfler, ana kaynak | 52.419 landmark satırı | Sağlayıcının etiketine göre GPL-2.0 |
-| [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset) (Ayush Thakur) | Harfler, daha çok kişi | 962 satır | CC0 1.0 |
+| [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset) (Ayush Thakur) | Harfler, daha çok kişi; kamerasız örneğin üç el duruşu | 962 satır | CC0 1.0 |
 | [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) ile ilişkili `ASL_SemCom` alt kümesi | Harfler; test satırları görülmemiş kaynak olarak kullanılır | 1.580 satır (eğitim); 122 satır (test, birleştirmeye alınmadı) | Kaydedilmemiş; görseller yerelde kalır |
 | [Google Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs) (Deaf Professional Arts Network, Georgia Institute of Technology) | Kelimeler, yayımlanan iki kelime modeli | 21 kişinin 250 işaretlik 94.477 kaydı; 50 kelimelik model için 19.299 | CC BY 4.0, yarışma kurallarına tabi |
 
@@ -281,6 +287,8 @@ Fixture, Model Test ekranının kamera olmadan çalıştırdığı, beklenen eti
 - **24 harf fixture'ı**, her harf için bir tane; her biri ayrılmış kümeden bir satırın 93 özelliğidir ve hiçbiri yarışma verisinden gelmez.
 - **Bir sentetik kelime örneği**: tohumlu rastgele sayılardan oluşan 30 kare, 45'e kadar dolgulu. Beklenen kelimesi, modelin ona daha önce verdiği yanıttır (0,076 güvenle "give"; düzgün dağılımda bu değer 0,02 olurdu). Model Test onu hem tekli çalıştırmada hem toplu çalıştırmada bir çalışma kontrolü ("Çalışma kontrolü") olarak gösterir: referans etiketi yoktur ve doğruluk ölçmediğini söyleyen bir not eşlik eder.
 - **Gerçek kelime fixture'ları yalnızca yereldedir.** [`export_model_test_word_samples.py`](scripts/evaluation/export_model_test_word_samples.py) onları Git'in yok saydığı `asl-web/data/model-test-samples/local/` klasörüne yazar. Bu klasör varken `make deploy-check` başarısız olur, çünkü sürükle-bırak bir yükleme onu yayımlar.
+
+**Örnek kaydı.** [`demo-letters.json`](asl-web/data/demo-letters.json) (`asl-demo-letters-v1`), FLY kelimesinin her harfi için 21 landmark'lık bir sağ el tutar. [`export_demo_letters.py`](scripts/evaluation/export_demo_letters.py), tarayıcının el modeli MediaPipe Hand Landmarker'ı video modunda CC0 lisanslı American Sign Language Dataset üzerinde çalıştırdı, her duruşu yayımlanan harf modeliyle tohumlu titreme altında puanladı ve modelin bilinen karışma gruplarının dışındaki harfler arasından her harf için en iyi duruşu seçti. Fotoğraflar harf modelinin eğitim kaynaklarından birinden gelir ve model her duruşu 1,0 ile okur; bu yüzden örnek, uygulamanın nasıl çalıştığını gösterir, ne kadar doğru olduğunu değil. [`test_demo_letters.py`](tests/scripts/test_demo_letters.py), yayımlanan model bir duruşu 0,9'un altında ya da başka bir harf olarak okursa başarısız olur; yeni bir harf modeli bu yüzden yeni bir dışa aktarma gerektirir.
 
 [`feature-golden.json`](tests/web/fixtures/feature-golden.json), formüllerle kurulmuş sentetik eller için beklenen özellikleri tutar; hiçbir veri seti değeri içermez.
 
@@ -458,9 +466,10 @@ Koçun zorluk etiketleri ve karışıklık ipuçları bu tahminlerden hesaplanı
 | Kişiden bağımsız kelime ayırma | Rastgele ayırma | Rastgele ayırma modelin kişileri ezberlemesine izin verir | Yeni kişiler için geçerli, ama yalnızca 4 test kişisine dayanan bir rakam |
 | 168-D özellikler, maskeli 45 kare, tek SignTransformer | Diğer özellikler ve stratejiler; topluluk | En iyi doğrulama F1; iki yerine tek model | Yaklaşık 1,5 puanlık test F1'inden vazgeçildi |
 | Onaysız kelime eklenmez; 0,15'ten itibaren onay | Otomatik ekleme | Doğruyken bile düşük top-1 güven; kalibrasyon yardımcı olmadı | Testle korunan değişmez; eşik gerçek cihaz verisini bekliyor |
-| İhtiyaç anında yükleme, gzip'li harf modeli, çalışma zamanları CDN'lerde | Önceden yükleme; çalışma zamanlarını kendi sunucusundan sunmak | Barındırma bant genişliği sınırlı | Kamerayı hiç başlatmayan ziyaretçiye model inmiyor |
+| İhtiyaç anında yükleme, gzip'li harf modeli, çalışma zamanları CDN'lerde | Önceden yükleme; çalışma zamanlarını kendi sunucusundan sunmak | Barındırma bant genişliği sınırlı | Ne kamerayı ne de örneği başlatan ziyaretçiye model inmiyor |
 | Klasik script'ler, derleme yok | ES modülleri, bundler | Sürükle-bırak yayın; herhangi bir statik sunucuda çalışır | Script sırası test edilen bir sözleşme |
 | Bilgi ekranlarında kamerayı serbest bırakmak; iptal edilebilir başlatmalar | Çalışan kamerayı gizlemek | Gizlilik; başlatma sırasında gelen bir durdurma eskiden geri alınıyordu | Yeniden açtıktan sonra tek algılama döngüsü |
+| Kamerası olmayan ziyaretçiler için canlı harf pipeline'ından geçen kayıtlı bir el | Onların giriş yolu olarak Model Test | Ziyaretçiler fixture sonuçlarından oluşan bir ekranı anlamıyor; örnek, kullanıcının eklemesi de dahil gerçek yolu gösterir | %100'ü doğruluk hakkında bir şey söylemez; Model Test geliştiriciler için `#test` adresinde kalır |
 | Elle yayın, yalnızca raporlayan CSP, yarışma fixture'ları depo dışında | Git bağlantılı yayın; CSP'yi şimdi zorunlu kılmak | Barındırmaya yalnızca `_headers` ulaşır; CSP önce gerçek bir tarayıcıda denenmeli; kural 7.B | `make deploy-check` yüklemeyi korur |
 
 ---
@@ -488,6 +497,7 @@ Hiç başarısız olmamış bir test kanıtlanmamış sayılır. Yeni korumalar 
 - **Özellik golden'ları:** sırası değiştirilmiş bir özellik grubunun boyutu aynı kalır, bu yüzden boyut testleri geçer; golden'lar ise yer değiştirmiş bloklarda, ters çevrilmiş bayraklarda ya da yanlış aynalamada başarısız olur.
 - **Kamera en-boy oranı:** düzeltme öncesindeki kodda başarısız olur.
 - **Algılama hızı ve el seçimi:** 200 ms'lik bekleme sınırı kaldırıldığında ya da kalkık el yerine alttaki el okunduğunda başarısız olur.
+- **Örnek duruşları:** bir duruşun etiketi değiştirildiğinde (L yerine B) ya da bir harfe başka bir harfin duruşu verildiğinde başarısız olur.
 
 Değişmezleri koruyan davranış testleri (onay, maskenin yönü, kare sırası, zaman aşımları, kamera durdurma ve yaşam döngüsü) [`tests/web/`](tests/web/) içindedir. Yeni testler kaynak metni düzenli ifadelerle eşleyemez, çünkü bu tür testler zararsız düzenlemelerde bozuluyor ve gerçek hataları kaçırıyordu; eski olanlar, yerine gelen testlerin aynı hataları yakaladığı gösterildikçe kaldırılır.
 
@@ -518,7 +528,7 @@ Bütün doğrulayıcılar ve eşitlik komutları aynı çıkış kodu sözleşme
 |---|---|---|
 | `make health` | lint ve biçim, JS sözdizimi ve testleri, dosya ve köken kontrolleri, özellik eşitliği, hızlı pytest | Yalnızca Python ortamı |
 | `make check` | `health` ve JSDoc tür denetimi | Bir kez `npm ci` |
-| `make browser-check` | headless Chrome kontrolleri (`OFFLINE=1` kamera kontrolünü atlar) | Chrome |
+| `make browser-check` | headless Chrome kontrolleri (`OFFLINE=1`, CDN gerektiren iki kontrolü, `camera` ve `demo-model`'i atlar) | Chrome |
 | `make deploy-check` | JS sözdizimi, runtime dosya kontrolü ve yükleme envanteri | Her yüklemeden önce |
 | `make test-full` | masaüstü entegrasyonu dahil bütün pytest testleri | MediaPipe, modeller |
 
@@ -562,7 +572,8 @@ Projenin etiketlenmiş bir sürümü yoktur; ayrıntılı kayıt commit geçmiş
 - **Çalışma zamanı:** modeller ilk kullanımda yüklenir, harf modeli gzip'li gönderilir ve bir kamera ekranından çıkmak, başlatma sürerken bile kamerayı serbest bırakır.
 - **Harfler:** kamera en-boy düzeltmesi ve referans olarak kamu malı Gallaudet alfabe kartı.
 - **Doğrulama ve yayın:** davranış üzerine yeniden kurulan ve yerleştirilen hatalarda başarısız olduğu gösterilen testler, headless Chrome kontrolleri, özellik golden'ları, tek çıkış kodu sözleşmesi, SRI, yanıt başlıkları ve `make deploy-check`.
-- **Son tur:** kamera karesi başına bir kez algılama, iki el de kadrajdayken kalkık elin seçilmesi, ONNX Runtime'ın yalnızca WebAssembly içeren paketi (ilk kamera başlatmada yaklaşık 2 MB daha az), sentetik Model Test örneğinin eşleşme yerine çalışma kontrolü olarak gösterilmesi ve aynalanmamış karede algılama yapan bir masaüstü uygulaması. [Bölüm 7.1](#71-harf-modeli) içindeki landmark ölçümü de bu turda yapıldı.
+- **Önceki tur:** kamera karesi başına bir kez algılama, iki el de kadrajdayken kalkık elin seçilmesi, ONNX Runtime'ın yalnızca WebAssembly içeren paketi (ilk kamera başlatmada yaklaşık 2 MB daha az), sentetik Model Test örneğinin eşleşme yerine çalışma kontrolü olarak gösterilmesi ve aynalanmamış karede algılama yapan bir masaüstü uygulaması. [Bölüm 7.1](#71-harf-modeli) içindeki landmark ölçümü de bu turda yapıldı.
+- **Son tur:** kayıtlı el duruşlarıyla FLY kelimesini canlı pipeline'dan geçiren ve kamerasız giriş yolu olarak ziyaretçiler için Model Test'in yerini alan kamerasız bir harf örneği; Model Test geliştiriciler için `#test` adresinde kalır.
 
 ---
 

@@ -33,7 +33,9 @@ ASL Assistant recognises American Sign Language (ASL) from a webcam, entirely in
 | Letter (`#letter`) | Reads 24 static fingerspelled letters (no J or Z) and builds text | Main mode |
 | Word (`#word`) | Offers the top three of 50 words for one isolated sign; the user must accept | Experimental |
 | Coach (`#coach`) | Asks for letters or words and scores them | Early |
-| Model Test, QR, Project | Run bundled fixtures, share links, explain the project | Information screens |
+| Camera-free demo (on `#letter`) | Plays a recorded hand spelling FLY through the live letter pipeline; the user adds each letter | For visitors without a camera |
+| Model Test (`#test`) | Runs bundled fixtures through the models without a camera | Developer tool, linked from the project page |
+| QR, Project | Share links, explain the project | Information screens |
 
 | Figure | Value | Caveat |
 |---|---|---|
@@ -101,6 +103,7 @@ flowchart LR
 flowchart TD
   CAM["getUserMedia<br/>ideal 1280x720, facingMode user"] --> DET["Detection loop (camera.js)<br/>once per camera frame;<br/>HandLandmarker always,<br/>Pose + Face only in word contexts"]
   DET --> RES["latestMediaPipeResult"]
+  DEMO["Camera-free demo (demo-source.js)<br/>recorded right hand every 50 ms, aspect 1"] --> RES
   RES --> L321["landmarks.js<br/>321-D holistic frame"]
   L321 --> SPLIT{"Context"}
   SPLIT -- "letter, coach letter<br/>(every 120 ms)" --> LF["features.js<br/>aspect fix, hand choice, mirror,<br/>EMA, normalise, 93-D"]
@@ -114,6 +117,8 @@ flowchart TD
 ```
 
 Letter contexts run inference at most every 120 ms, so the five-prediction smoothing window spans about 600 ms of signing; word contexts run on every frame while recording. A frame that arrives during a model call is dropped, never queued.
+
+The camera-free demo, `media/demo-source.js`, is a second frame source rather than a fake camera. It publishes the recorded hand to `latestMediaPipeResult` about 20 times a second with a small seeded wobble, and marks each frame as square (aspect 1), because the recording comes from square photographs. Neither the camera nor MediaPipe starts; everything from `landmarks.js` on runs unchanged.
 
 ### 2.3 Desktop prototype
 
@@ -129,7 +134,7 @@ The browser loads plain `<script>` files in a fixed order from [`asl-web/index.h
 
 ### 3.2 Module boundaries and DOM contract
 
-The scripts sit in `core/` (state, routing, camera start and stop, render loop), `media/` (MediaPipe tasks, detection loop, overlay), `ml/` (features, ONNX sessions, smoothing), `services/` and `ui/`; [`asl-web/js/README.md`](asl-web/js/README.md) lists them in load order. Scripts find elements only by `id` or a `data-ui` hook, never by a styling class, so a redesign can change classes freely while renaming an id is a behaviour change the tests notice. Render functions rebuild the view from state and start no listener, timer, fetch or model session.
+The scripts sit in `core/` (state, routing, camera start and stop, render loop), `media/` (MediaPipe tasks, detection loop, the camera-free demo, overlay), `ml/` (features, ONNX sessions, smoothing), `services/` and `ui/`; [`asl-web/js/README.md`](asl-web/js/README.md) lists them in load order. Scripts find elements only by `id` or a `data-ui` hook, never by a styling class, so a redesign can change classes freely while renaming an id is a behaviour change the tests notice. Render functions rebuild the view from state and start no listener, timer, fetch or model session.
 
 ### 3.3 Word recording state machine
 
@@ -151,20 +156,21 @@ A frame counts only with hand, pose and face present. A recording that cannot fi
 
 ### 3.4 Lifecycle and consent invariants
 
-**Consent.** A word result is never added to the transcript without an explicit accept. `appendWordResultToTranscript()` is the only path from a word prediction to the transcript, and it re-checks the mode and state, that the result belongs to the latest recording and was not accepted before, and that its confidence is at least 0.15. Below 0.15 the result reads "Emin olunamadı" (not sure) and cannot be accepted; a top-two margin below 0.08 reads "Kontrol ederek ekleyin" (check before adding). An accepted word can be undone. Letters, too, are added only by the user: Space adds the current letter if its smoothed confidence is at least 0.60. There are no single-letter shortcuts (WCAG 2.1.4).
+**Consent.** A word result is never added to the transcript without an explicit accept. `appendWordResultToTranscript()` is the only path from a word prediction to the transcript, and it re-checks the mode and state, that the result belongs to the latest recording and was not accepted before, and that its confidence is at least 0.15. Below 0.15 the result reads "Emin olunamadı" (not sure) and cannot be accepted; a top-two margin below 0.08 reads "Kontrol ederek ekleyin" (check before adding). An accepted word can be undone. Letters, too, are added only by the user, in the demo as well: Space adds the current letter if its smoothed confidence is at least 0.60. There are no single-letter shortcuts (WCAG 2.1.4).
 
-**Lifecycle.** Leaving a camera screen releases the camera: the brand link and the `#test`, `#project` and `#qr` screens stop every track, cancel the frame callbacks, close the MediaPipe tasks and abandon any recording. A camera start waits several times (permission, first frame, MediaPipe, each model), and a stop can arrive during any wait. The start re-checks a start token and a generation counter after each one, so the stop cancels it and closes what it created. Reopening the camera leaves exactly one detection loop and one set of tasks.
+**Lifecycle.** Leaving a camera screen releases the camera: the brand link and the `#test`, `#project` and `#qr` screens stop every track, cancel the frame callbacks, close the MediaPipe tasks and abandon any recording. A camera start waits several times (permission, first frame, MediaPipe, each model), and a stop can arrive during any wait. The start re-checks a start token and a generation counter after each one, so the stop cancels it and closes what it created. Reopening the camera leaves exactly one detection loop and one set of tasks. The camera-free demo never runs beside the camera: its start stops the camera, and a camera start, any mode or route change and a hidden page stop the demo and end its one frame timer.
 
 **Routes.** `#letter`, `#word`, `#coach`, `#test`, `#project`, `#qr`; any other hash opens letter mode, which also serves as the start screen.
 
 ### 3.5 Lazy loading and sizes
 
-`init()` loads no model. A model loads the first time something needs it: a camera start in its mode, a word recording or a Model Test run. Live frames never start a load, and a failed load is retried at the next need. Loading waits because the host's bandwidth allowance is limited, and preloading both models had cost every visitor about 15 MB, camera or not.
+`init()` loads no model. A model loads the first time something needs it: a camera start in its mode, a demo start (the letter model only), a word recording or a Model Test run. Live frames never start a load, and a failed load is retried at the next need. Loading waits because the host's bandwidth allowance is limited, and preloading both models had cost every visitor about 15 MB, camera or not.
 
 | Step | Downloaded |
 |---|---|
 | Opening the page | about 0.35 MB |
 | First camera start in letter mode | about 15 MB: MediaPipe hand model 7.8 MB, MediaPipe WebAssembly 2.6 MB, ONNX Runtime WebAssembly 2.4 MB, letter model 2.2 MB |
+| First demo start, with no camera | about 4.6 MB: ONNX Runtime WebAssembly 2.4 MB, letter model 2.2 MB; nothing from MediaPipe |
 | Word mode as well | up to 24 MB in all |
 | A second visit | nothing; everything is cached |
 
@@ -212,7 +218,7 @@ The [README](README.md#data-and-attribution) lists the third-party licences; [`r
 | Source | Used for | Rows or recordings used | Terms |
 |---|---|---:|---|
 | [ASL Alphabet](https://www.kaggle.com/datasets/grassknoted/asl-alphabet) (Akash Nagaraj, 2018, doi:10.34740/KAGGLE/DSV/29550) | Letters, main source | 52,419 landmark rows | GPL-2.0 as labelled by the provider |
-| [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset) (Ayush Thakur) | Letters, more signers | 962 rows | CC0 1.0 |
+| [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset) (Ayush Thakur) | Letters, more signers; the demo's three hand poses | 962 rows | CC0 1.0 |
 | `ASL_SemCom` subset, associated with [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) | Letters; its test rows serve as an unseen source | 1,580 rows (train); 122 rows (test, not merged) | Not recorded; images stay local |
 | [Google Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs) (Deaf Professional Arts Network, Georgia Institute of Technology) | Words, both published word models | 94,477 recordings of 250 signs by 21 signers; 19,299 used for the 50-word model | CC BY 4.0, subject to the competition rules |
 
@@ -281,6 +287,8 @@ A fixture is a saved model input with its expected label, which the Model Test s
 - **24 letter fixtures**, one per letter, each the 93 features of one held-out row; none comes from competition data.
 - **One synthetic word sample**: 30 frames of seeded random numbers, padded to 45. Its expected word is the model's own earlier answer ("give" at 0.076, where uniform would be 0.02). The Model Test shows it as a pipeline check ("Çalışma kontrolü") in single runs and in run-all, with no reference label and a note that it measures no accuracy.
 - **Real word fixtures are local only.** [`export_model_test_word_samples.py`](scripts/evaluation/export_model_test_word_samples.py) writes them to the ignored `asl-web/data/model-test-samples/local/` folder. `make deploy-check` fails while that folder exists, because a drag-and-drop upload would publish it.
+
+**The demo recording.** [`demo-letters.json`](asl-web/data/demo-letters.json) (`asl-demo-letters-v1`) holds one right hand of 21 landmarks for each letter of FLY. [`export_demo_letters.py`](scripts/evaluation/export_demo_letters.py) ran MediaPipe Hand Landmarker, the browser's hand model, in video mode on the CC0 American Sign Language Dataset, scored each pose with the deployed letter model under seeded jitter, and kept the best pose per letter, among the letters outside the model's known confusion groups. The photographs come from one of the letter model's training sources, and the model reads each pose at 1.0, so the demo shows how the app works, not how accurate it is. [`test_demo_letters.py`](tests/scripts/test_demo_letters.py) fails if the deployed model reads a pose below 0.9 or as another letter, so a new letter model needs a new export.
 
 [`feature-golden.json`](tests/web/fixtures/feature-golden.json) holds expected features for synthetic hands built from formulas, with no dataset values.
 
@@ -458,9 +466,10 @@ A bidirectional 2-layer GRU with attention pooling over 30 frames x 321, built f
 | Signer-independent word split | A random split | A random split lets the model memorise signers | A figure that holds for new signers, from only 4 test signers |
 | 168-D features, 45 masked frames, one SignTransformer | Other features and strategies; the ensemble | Best validation F1; one model instead of two | About 1.5 test-F1 points given up |
 | No word appended without consent; accept from 0.15 | Auto-append | Low top-1 confidence even when correct; calibration did not help | Guarded invariant; the threshold awaits real-device data |
-| Lazy loading, gzip letter model, runtimes on CDNs | Preloading; self-hosted runtimes | Hosting bandwidth is limited | No download for visitors who never start the camera |
+| Lazy loading, gzip letter model, runtimes on CDNs | Preloading; self-hosted runtimes | Hosting bandwidth is limited | No download for visitors who start neither the camera nor the demo |
 | Classic scripts, no build | ES modules, a bundler | Drag-and-drop deploy; any static server runs it | Script order is a tested contract |
 | Release the camera on information screens; cancellable starts | Hiding a running camera | Privacy; a stop during start-up used to be undone | One detection loop after reopening |
+| A recorded hand played through the live letter pipeline for visitors without a camera | Model Test as their way in | Visitors do not understand a screen of fixture results; the demo shows the real path, the user's add included | Its 100% says nothing about accuracy; Model Test stays at `#test` for developers |
 | Manual deploy, report-only CSP, competition fixtures kept out | Git-linked deploy; enforced CSP now | Only `_headers` reaches the host; the CSP needs a real-browser run; rule 7.B | `make deploy-check` guards the upload |
 
 ---
@@ -488,6 +497,7 @@ A test that has never failed is treated as unproven. New guards are written test
 - **Feature goldens:** a reordered feature group keeps its shape, so shape tests pass; the goldens fail on swapped blocks, inverted flags or a wrong mirror.
 - **Camera aspect:** fails on the code before the fix.
 - **Detection pacing and hand choice:** fails when the 200 ms stall limit is removed, or when the lower hand is read instead of the raised one.
+- **Demo poses:** fails when a pose is relabelled (L as B) or a letter is given another letter's pose.
 
 The behavioural tests that guard the invariants (consent, mask polarity, frame order, timeouts, camera stop and lifecycle) are in [`tests/web/`](tests/web/). New tests may not match source text with regular expressions, because such tests broke on harmless edits and missed real faults; the older ones are retired as replacements are shown to catch the same faults.
 
@@ -518,7 +528,7 @@ All validators and parity commands share one exit-code contract:
 |---|---|---|
 | `make health` | lint and format, JS syntax and tests, asset and provenance checks, feature parity, fast pytest | Python environment only |
 | `make check` | `health` plus the JSDoc type check | `npm ci` once |
-| `make browser-check` | the headless-Chrome checks (`OFFLINE=1` skips the camera check) | Chrome |
+| `make browser-check` | the headless-Chrome checks (`OFFLINE=1` skips the two that need the CDNs, `camera` and `demo-model`) | Chrome |
 | `make deploy-check` | JS syntax, the runtime asset check and the upload inventory | before every upload |
 | `make test-full` | every pytest test, desktop integration included | MediaPipe, models |
 
@@ -562,7 +572,8 @@ The project has no tagged releases; the commit history is the detailed record. T
 - **Runtime:** models load on first use, the letter model travels gzipped, and leaving a camera screen releases the camera, even mid-start.
 - **Letters:** the camera-aspect correction and the public-domain Gallaudet alphabet chart as the reference.
 - **Verification and deployment:** tests rebuilt around behaviour and shown to fail on planted faults, headless-Chrome checks, feature goldens, one exit-code contract, SRI, response headers and `make deploy-check`.
-- **Latest round:** detection once per camera frame, the raised hand chosen when both are in view, ONNX Runtime's WebAssembly-only bundle (about 2 MB less on a first camera start), the synthetic Model Test sample shown as a pipeline check, and a desktop app that detects on the unmirrored frame. The landmark measurement in [section 7.1](#71-letter-model) was made in the same round.
+- **Previous round:** detection once per camera frame, the raised hand chosen when both are in view, ONNX Runtime's WebAssembly-only bundle (about 2 MB less on a first camera start), the synthetic Model Test sample shown as a pipeline check, and a desktop app that detects on the unmirrored frame. The landmark measurement in [section 7.1](#71-letter-model) was made in the same round.
+- **Latest round:** a camera-free letter demo, which plays recorded hand poses for FLY through the live pipeline and replaces Model Test as the visitor's way in without a camera; Model Test stays at `#test` for developers.
 
 ---
 

@@ -61,11 +61,17 @@ so any Python 3 will do and no package needs installing.
    shows it.
 4. Press **Kamerayı aç** (turn on the camera), allow the camera, then show a
    letter to it.
-5. To check the models without a camera, open **Kamerasız dene** (try without
-   a camera) and press **Tümünü çalıştır** (run all). This runs the letter
-   model on its 24 fixtures (stored test inputs) and counts how many come out
-   right.
-6. To check the word model, open **Başka model, başka örnek ya da kendi
+5. To see the app read letters without a camera, press **Örneği izleyin**
+   (watch the example). A recorded hand spells FLY; add each letter with Space
+   or **Ekle** (add) when the result shows it. The model reads these poses at
+   100% because their photographs come from one of its training sources, so
+   the demo shows how the app works, not how accurate it is.
+6. To check the models on stored inputs, open Model Test: go to `#test`, or
+   follow **modeli örnek dosyalarla test edin (Model Test)** at the foot of
+   the **Nasıl çalışır** (how it works) page. Press **Tümünü çalıştır** (run
+   all). This runs the letter model on its 24 fixtures (stored test inputs)
+   and counts how many come out right.
+7. To check the word model, open **Başka model, başka örnek ya da kendi
    dosyanız** (another model, another sample or your own file) on the same
    screen, choose **Kelime modeli** (word model) and press **Tümünü
    çalıştır** again. The one bundled word fixture should come out as `give`
@@ -86,7 +92,7 @@ Things to know:
 - The first load needs an internet connection. ONNX Runtime, the QR library and
   MediaPipe, with its hand, pose and face models, come from public CDNs. The
   app's own models in `asl-web/models/` download only when something needs
-  them, such as starting the camera.
+  them, such as starting the camera or the demo.
 
 ## Set up the Python environment
 
@@ -340,7 +346,7 @@ what must be in place besides `make`; "Python env" means the environment from
 | `make notebook-check` | Check that the word-model notebooks, models and result files are present. | Nothing |
 | `make git-hygiene` | Fail if a tracked file matches `.gitignore`. | Git |
 | `make check` | The gate before a commit: `make health` plus `make js-typecheck`. | Python env, Node, `npm ci` |
-| `make browser-check` | Checks in a real headless Chrome that the Node tests cannot make: cascade layers, hidden elements, mode-only controls, reduced motion, the dark theme, horizontal overflow and camera release. `OFFLINE=1` skips the one check that loads the CDN libraries. | Node, Chrome or Chromium |
+| `make browser-check` | Checks in a real headless Chrome that the Node tests cannot make: cascade layers, hidden elements, mode-only controls, reduced motion, the dark theme, horizontal overflow, camera release and the camera-free demo. `OFFLINE=1` skips the two checks that load the CDN libraries. | Node, Chrome or Chromium |
 | `make deploy-check` | The step before every upload: JavaScript syntax, the runtime asset check and a list of every file in `asl-web/`. Fails on any file the site does not ship. | Python env, Node |
 | `make model-test-fixtures` | Optional: export Model Test word fixtures from a downloaded Kaggle subset. Without the subset it prints the download command and stops. | Python env, the Kaggle subset |
 | `make clean` | Remove caches (`__pycache__`, `.pytest_cache`, `*.egg-info`, `*.pyc`) and `.DS_Store` files. Data, models, notebooks and environments are kept. | Nothing |
@@ -403,8 +409,9 @@ exactly as it is on disk, ignored files included, so the steps clean it first:
 
 1. Run `make check`, and `make browser-check` if Chrome is installed.
 2. Serve the app with `make web` and check by hand: model readiness, the
-   offline fixture, camera start and stop, adding a letter, a word recording,
-   and the `#letter`, `#word` and `#test` deep links.
+   camera-free demo, the offline fixtures on `#test`, camera start and stop,
+   adding a letter, a word recording, and the `#letter`, `#word` and `#test`
+   deep links (the QR screen links to the first two).
 3. If `asl-web/data/model-test-samples/local/` exists, move it out of
    `asl-web/` or delete it; `make model-test-fixtures` can export it again. It
    holds the competition-derived fixtures, which must not be published. `make
@@ -441,9 +448,9 @@ it only selects the publish folder for Git-linked or command-line deploys.
 ### Models do not load
 
 No model is requested when the page opens, so the browser's Network panel shows
-none until something needs one: starting the camera, a word recording, or a
-Model Test run. Letter mode loads the letter model and word mode the word
-model. The Learning Coach loads the letter model, and the word model only when
+none until something needs one: starting the camera or the demo, a word
+recording, or a Model Test run. Letter mode and the demo load the letter
+model, and word mode the word model. The Learning Coach loads the letter model, and the word model only when
 it is switched to words.
 
 Run `make validate`, trigger one of those, then read the browser's Network and

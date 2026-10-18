@@ -179,8 +179,12 @@ each visitor downloaded 14.4 MiB (15.0 MB) of models. A model now downloads on
 first use, and the 13.2 MB letter model is served gzipped at about 2.2 MB.
 
 The web app has six screens: letter, word, coach, Model Test (bundled samples
-run without a camera), QR and a project page. The
-[root README](../README.md#what-it-does) describes each one.
+run without a camera), QR and a project page. Model Test was first the
+visitor's way to try the app without a camera, but a table of fixture results
+explained little to a visitor. It is now a developer tool, and a visitor
+without a camera watches a recorded hand spell FLY on the letter screen,
+through the same pipeline as the camera. The
+[root README](../README.md#what-it-does) describes each screen and the demo.
 
 ## Why letters became the main mode
 
