@@ -22,11 +22,13 @@ the host does, with the response headers from `_headers` (the Content
 Security Policy included).
 
 No model downloads when the page opens. Each one loads the first time it is
-needed: starting the camera loads the models the current mode runs, and a
-word test under **Kamerasız dene** loads the word model. The message line on
-the stage reports the download and then which models are ready.
+needed: starting the camera loads the models the current mode runs, the
+camera-free demo (**Örneği izleyin**) loads the letter model, and a word test
+in Model Test loads the word model. The message line on the stage reports the
+download and then which models are ready.
 
-Use **Kamerasız dene** (`#test`) before testing with a camera. The bundled word
+Use Model Test (`#test`, linked for developers from **Nasıl çalışır**) before
+testing with a camera. The bundled word
 fixture should predict `give` at approximately `0.0760` confidence. That shows
 the word ONNX, temperature, mask, labels and browser inference path agree; it
 is not an evaluation result.
@@ -34,20 +36,22 @@ is not an evaluation result.
 ## Modes
 
 The interface is in Turkish. The three camera modes are the tabs of the top
-bar; the other screens are in its "Diğer" menu on a phone and are links in
-the bar on a laptop.
+bar; the QR and project screens are in its "Diğer" menu on a phone and are
+links in the bar on a laptop, and the project page links to Model Test.
 
 | Screen (route) | Behaviour |
 |---|---|
-| Harf (`#letter`) | Continuous 24-class static-letter inference; the user adds each letter to the transcript |
+| Harf (`#letter`) | Continuous 24-class static-letter inference; the user adds each letter to the transcript. Without a camera, **Örneği izleyin** plays a recorded hand spelling FLY through the same pipeline, and the user adds each letter |
 | Koç (`#coach`) | Target-based letter or word practice with local progress |
 | Kelime, deneysel (`#word`) | Recorded 45-frame isolated-sign inference with top-3 review; a result is added only when the user accepts it |
-| Kamerasız dene (`#test`) | Camera-free inference from versioned JSON fixtures (Model Test) |
-| Telefonda aç (`#qr`) | QR code and deep links to the hosted letter, word or test view |
+| Model Test (`#test`) | For developers, linked from the project page: camera-free inference from versioned JSON fixtures |
+| Telefonda aç (`#qr`) | QR code and deep links to the hosted letter or word view |
 | Nasıl çalışır (`#project`) | A short summary of how the app works and its limitations |
 
 Letter mode is the primary experience and opens for an empty or unknown hash.
 Leaving the camera screens for `#test`, `#qr` or `#project` stops the camera.
+The demo stops on any route change, on a camera start and when the page is
+hidden.
 When the camera cannot open (permission refused, no camera, camera busy, an
 insecure page) the stage says why, with a retry and the steps for the
 visitor's browser.
@@ -87,6 +91,7 @@ js/ml/letter-model.js
 js/ml/word-model.js
 js/media/overlay.js
 js/media/camera.js
+js/media/demo-source.js
 js/ml/live-inference.js
 js/ui/prediction.js
 js/ui/plate-side.js

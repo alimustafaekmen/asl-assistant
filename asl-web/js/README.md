@@ -21,6 +21,7 @@ ml/letter-model.js
 ml/word-model.js
 media/overlay.js
 media/camera.js
+media/demo-source.js
 ml/live-inference.js
 ui/prediction.js
 ui/plate-side.js
@@ -64,6 +65,7 @@ does, so a duplicated global or a file that `index.html` forgets fails a test.
 | `core/app.js` | Bootstrap, event wiring, hash routing, camera start/stop, render loop, debug API |
 | `media/camera.js` | MediaPipe task lifecycle, GPU/CPU fallback, frame detection loop |
 | `media/overlay.js` | Landmark drawing on the camera canvas |
+| `media/demo-source.js` | The camera-free letter demo: a recorded hand from `data/demo-letters.json` published as live frames, held until the user adds or skips each letter, and its panel on the stage |
 | `ml/landmarks.js` | MediaPipe output to the fixed 321D holistic frame and shoulder normalization |
 | `ml/features.js` | Letter 93D and word 168D feature construction, including the square-units step; the Python counterpart is `asl-features` |
 | `ml/live-inference.js` | Live letter/word inference and word recording finalization |
@@ -87,6 +89,7 @@ does, so a duplicated global or a file that `index.html` forgets fails a test.
 ```text
 camera (getUserMedia)      core/app.js    toggleCamera / stopCamera
   -> media/camera.js       MediaPipe hand + pose + face -> latestMediaPipeResult
+     media/demo-source.js  or, without a camera, a recorded hand -> latestMediaPipeResult
   -> media/overlay.js      draw landmarks on the canvas
   -> ml/live-inference.js  realInference() reads the latest frame
   -> ml/landmarks.js       321D frame + shoulder normalization
@@ -103,13 +106,23 @@ camera (getUserMedia)      core/app.js    toggleCamera / stopCamera
 `drawOverlay()` as well. `drawOverlay()` lives in `core/app.js` and hands the
 drawing to `drawLandmarks()` in `media/overlay.js`.
 
+The demo is a second frame source, never beside the camera: `startDemo()`
+stops the camera first, and a camera start, any mode or route change and a
+hidden page call `stopDemo()`, its one way out, which ends its frame timer.
+It publishes the recorded right hand about 20 times a second with an
+`aspect` of 1, since the recording holds square photographs; live inference
+reads that aspect instead of the hidden video's, and the overlay draws the
+square in the room the demo's card and the plate leave on the stage. The
+user adds every letter; the demo moves on only after an add of the letter it
+shows, or a skip.
+
 Models load on first use, not at startup. `ensureLetterModel()` in
 `ml/letter-model.js` and `ensureWordModel()` in `ml/word-model.js` download and
 warm a model once and hand every caller the same promise; a failed load is
 forgotten, so the next need retries. The callers are those first needs: the
 camera starting or the mode changing while it is on (through
-`loadModelsWithStatus()` in `core/app.js`, which reports progress), a word
-recording, and a Model Test run. A live frame never starts a
+`loadModelsWithStatus()` in `core/app.js`, which reports progress), the demo
+starting, a word recording, and a Model Test run. A live frame never starts a
 load; frames are dropped until the model is ready.
 
 ## Where new code goes
@@ -195,6 +208,7 @@ truth.
 | `WordFeatures45x168`, `WordMask45`, `WordMaskDtype` | `ml/word-model.js` |
 | `OnnxSessionLike`, `OnnxTensorLike`, `ProbabilityVector`, `FrameWarning` | `ml/letter-model.js` |
 | MediaPipe landmark and task shapes | `media/camera.js` |
+| `DemoLetter`, `DemoRecording`, `DemoStartOutcome` | `media/demo-source.js` |
 | Recording diagnostics, `DominantSide` | `ml/live-inference.js` |
 | `ConfidenceLevel`, `FeedbackKind` | `ui/prediction.js` |
 | `CoachLetterData`, `CoachConfusionGroup`, `CoachProgress`, `CoachLetterRecord` | `ui/coach.js` |
