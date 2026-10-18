@@ -61,7 +61,6 @@
           <span class="live-indicator" id="cameraStatus"><span aria-hidden="true"></span>Hazır</span>
           <button class="btn btn--quiet btn--icon topbar__more" type="button" popovertarget="moreMenu" data-icon="more" aria-label="Diğer"></button>
           <div class="topbar__links menu" id="moreMenu" popover>
-            <button class="navlink" data-ui="mode-tab" type="button" data-mode="test">Kamerasız dene</button>
             <button class="navlink" data-ui="mode-tab" type="button" data-mode="project">Nasıl çalışır</button>
             <button class="navlink navlink--icon" data-ui="mode-tab" type="button" data-mode="qr" data-icon="qr" title="Telefonda aç"><span class="navlink__label">Telefonda aç</span></button>
             <button class="navlink navlink--icon" type="button" id="themeToggle" data-icon="theme" title="Koyu tema" aria-pressed="false"><span class="navlink__label">Koyu tema</span></button>
@@ -96,7 +95,10 @@
                   <p class="stage__lead">Kamerayı açınca tarayıcı izin ister. Görüntü cihazınızdan çıkmaz, kaydedilmez.</p>
                   <div class="stage__cta">
                     <button class="btn btn--stage-primary" type="button" data-trigger="camera" data-icon="camera"><span class="mode-only letter-only word-only">Kamerayı aç</span><span class="mode-only coach-only">Çalışmayı başlat</span></button>
-                    <button class="btn btn--stage" type="button" data-go-mode="test">Kamerasız dene</button>
+                    <!-- The camera-free demo (js/media/demo-source.js) reads letters
+                         from a recorded hand on the letter screen; the coach and
+                         word screens send a visitor without a camera there. -->
+                    <button class="btn btn--stage" type="button" data-trigger="demo" data-icon="play">Örneği izleyin</button>
                   </div>
                   <ul class="stage__facts">
                     <li class="mode-only letter-only coach-only" data-icon="info">24 ASL harfi · J ve Z hareketli olduğu için yok</li>
@@ -121,7 +123,7 @@
                   <p class="stage__problem-text" id="cameraProblemText"></p>
                   <div class="stage__cta">
                     <button class="btn btn--stage-primary" type="button" id="cameraRetry" data-icon="retry">Yeniden dene</button>
-                    <button class="btn btn--stage" type="button" id="cameraNoCamera" data-go-mode="test">Kamerasız dene</button>
+                    <button class="btn btn--stage" type="button" id="cameraNoCamera" data-trigger="demo" data-icon="play">Örneği izleyin</button>
                   </div>
                   <details class="stage__help" id="cameraHelp">
                     <summary>Kamera iznini nasıl veririm?</summary>
@@ -396,7 +398,7 @@
               </ul>
               <div class="pj__cta">
                 <button class="btn btn--primary" type="button" data-go-mode="letter" data-icon="camera">Kamerayı açıp deneyin</button>
-                <button class="btn" type="button" data-go-mode="test">Kamerasız deneyin</button>
+                <button class="btn" type="button" data-trigger="demo" data-icon="play">Örneği izleyin</button>
               </div>
             </div>
 
@@ -469,7 +471,7 @@
                     Yazdığınız metin yalnızca bu tarayıcıda saklanır.
                   </p>
                   <p>
-                    Sayfa açıldığında model indirilmez; kamera ya da test ilk başladığında indirilir. Çalıştırıcılar
+                    Sayfa açıldığında model indirilmez; kamera, örnek ya da test ilk başladığında indirilir. Çalıştırıcılar
                     herkese açık içerik ağlarından (jsDelivr, Google) gelir.
                   </p>
                 </section>
@@ -482,6 +484,9 @@
                     <li>İki model de tarayıcıda çalışır; sunucuya ne görüntü ne de sayı gönderilir.</li>
                   </ul>
                 </details>
+
+                <!-- Model Test stays for developers; visitors get the demo on the letter screen. -->
+                <p class="pj__dev">Geliştiriciler için: <a href="#test">modeli örnek dosyalarla test edin (Model Test)</a></p>
               </div>
 
               <div class="pj__aside">
@@ -702,11 +707,6 @@
                   <input class="visually-hidden" type="radio" name="qrTarget" data-qr-target="word" />
                   <strong>Kelime</strong>
                   <small>Deneysel; ışık ve kadraj önemli</small>
-                </label>
-                <label class="choice">
-                  <input class="visually-hidden" type="radio" name="qrTarget" data-qr-target="test" />
-                  <strong>Kamerasız dene</strong>
-                  <small>Hazır örneklerle modeli dener</small>
                 </label>
               </fieldset>
               <ol class="qr__steps">

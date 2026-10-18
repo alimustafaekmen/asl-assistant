@@ -278,11 +278,23 @@ function bindEvents() {
     await toggleCamera();
     afterCameraStart(event);
   });
-  // The camera-free demo's stop hides with it, so a keyboard user's focus
-  // goes to the stage's camera start, which is back in view. Its end action
-  // is one of the camera triggers above. The demo's functions are read when
-  // pressed, not when bound: a page that could not fetch the demo still
-  // binds everything else.
+  // The camera-free demo starts from the letter stage, the camera problem and
+  // the project page, and plays on the letter screen. The button pressed is
+  // hidden by then, so a keyboard press takes focus to the demo's panel, and
+  // back to the stage's own start when the recording could not be loaded.
+  // The demo's functions are read when pressed, not when bound: a page that
+  // could not fetch the demo still binds everything else.
+  const demoStarts = queryElements('[data-trigger="demo"]');
+  demoStarts.forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      const started = startDemo();
+      if (event.detail === 0) els.demoPanel?.focus({ preventScroll: true });
+      if ((await started) === "failed" && event.detail === 0) demoStarts[0]?.focus();
+    });
+  });
+  // The demo's stop hides with it, so a keyboard user's focus goes to the
+  // stage's camera start, which is back in view. Its end action is one of the
+  // camera triggers above.
   els.demoStop?.addEventListener("click", (event) => {
     stopDemo();
     if (event.detail === 0) cameraStarts[0]?.focus();
@@ -799,7 +811,7 @@ const CAMERA_PROBLEMS = {
   },
   notfound: {
     title: "Kamera bulunamadı",
-    text: "Bu cihazda kullanılabilir bir kamera yok. Kamerasız dene ile örnek verilerle deneyebilirsiniz.",
+    text: "Bu cihazda kullanılabilir bir kamera yok. Uygulamanın harfleri nasıl okuduğunu kamerasız bir örnekle izleyebilirsiniz.",
   },
   insecure: {
     title: "Bu adreste kamera açılamıyor",
@@ -812,11 +824,11 @@ const CAMERA_PROBLEMS = {
   },
   unsupported: {
     title: "Bu tarayıcı kameraya erişemiyor",
-    text: "Siteyi güncel bir tarayıcıda açın. Kamerasız dene ile örnek verilerle deneyebilirsiniz.",
+    text: "Siteyi güncel bir tarayıcıda açın. Bu arada uygulamanın harfleri nasıl okuduğunu kamerasız bir örnekle izleyebilirsiniz.",
   },
   failed: {
     title: "Kamera açılamadı",
-    text: "Sayfayı yenileyip yeniden deneyin. Sorun sürerse Kamerasız dene ile devam edebilirsiniz.",
+    text: "Sayfayı yenileyip yeniden deneyin. Sorun sürerse kamerasız bir örneği izleyebilirsiniz.",
   },
   ended: {
     title: "Kamera bağlantısı kesildi",
@@ -883,8 +895,8 @@ function cameraHelpBrowser() {
  * Show why the camera is not open, in place of the first-visit stage.
  *
  * The stage stays at rest (no video). Where retrying cannot help (an
- * insecure page, a browser without the API) only "Kamerasız dene" (try
- * without a camera) is offered; where there is no camera it comes first.
+ * insecure page, a browser without the API) only "Örneği izleyin" (watch the
+ * camera-free demo) is offered; where there is no camera it comes first.
  * The cause is announced once, through the message line's report.
  *
  * @param {CameraProblemKind} kind

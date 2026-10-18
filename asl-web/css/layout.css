@@ -175,7 +175,8 @@
     @container stage (max-width: 21rem) and (max-height: 36rem) {
       .stage__facts { display: none; }
     }
-    /* "Kamerasız dene" stays in "Diğer". */
+    /* The camera start is the stage's main action; on a stage this short
+       "Örneği izleyin" (the camera-free demo) gives way to it. */
     @container stage (max-height: 22rem) {
       .stage__intro .stage__cta > .btn--stage { display: none; }
     }
@@ -357,7 +358,7 @@
       .stage__cta { flex-direction: column; }
     }
     @container stage (max-width: 17.5rem) {
-      /* "Kamerasız dene" stays in "Diğer". */
+      /* "Örneği izleyin" gives way to the camera start. */
       .stage__intro .stage__cta > .btn--stage { display: none; }
     }
 
@@ -372,8 +373,7 @@
 
     /* The shortest tier (568x320): the letter actions in one row, Sil and
        Boşluk as icons (their labels stay for screen readers), a word without
-       its message line, and only the problem's main action ("Kamerasız
-       dene" stays in "Diğer"). */
+       its message line, and only the problem's main action. */
     @media (max-height: 21.25rem) {
       .topbar .modes { padding: calc(var(--sp-1) / 2); }
       .stage[data-kind="word"] + .plate .plate__message { display: none; }

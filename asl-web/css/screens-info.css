@@ -1,5 +1,5 @@
-/* The information screens: #test ("Kamerasız dene"), #qr ("Telefonda aç")
- * and #project ("Nasıl çalışır").
+/* The information screens: #test (Model Test, linked for developers from
+ * the project page), #qr ("Telefonda aç") and #project ("Nasıl çalışır").
  *
  * They share a page frame and a few components (a choice group, a notice, a
  * list of facts), so those live at the top; each screen's own layout follows.
@@ -363,6 +363,8 @@
   .pj__credits dt { font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
   .pj__credits dd { font-size: var(--fs-sm); color: var(--color-text-2); overflow-wrap: anywhere; }
   .pj__footer { font-size: var(--fs-sm); color: var(--color-text-3); }
+  /* The one way into Model Test: a quiet line for developers. */
+  .pj__dev { margin: 0; font-size: var(--fs-sm); color: var(--color-text-2); }
 
   @media (min-width: 64rem) {
     .pj__grid { grid-template-columns: minmax(0, 1fr) var(--size-side); gap: var(--sp-8); align-items: start; }
