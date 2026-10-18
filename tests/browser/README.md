@@ -18,7 +18,7 @@ a class in the markup and the CSS together, changes nothing here.
 
 ```bash
 make browser-check                         # every check
-make browser-check OFFLINE=1               # skip the camera check (no CDN)
+make browser-check OFFLINE=1               # skip the checks that need the CDNs
 
 node tests/browser/run.mjs                 # the same, without make
 node tests/browser/run.mjs --offline
@@ -39,8 +39,9 @@ Windows. Nothing is installed: there is no npm dependency.
 
 A missing Chrome is never reported as a pass.
 
-An offline run takes under half a minute. The camera check adds the CDN
-download, and Chrome's first start on a new profile can add a few seconds.
+An offline run takes under half a minute. The `camera` and `demo-model`
+checks add the CDN download, and Chrome's first start on a new profile can
+add a few seconds.
 
 ## How it runs
 
@@ -63,10 +64,12 @@ download, and Chrome's first start on a new profile can add a few seconds.
   permissions an earlier one left behind. Pages emulate a light colour scheme
   and no motion preference unless a check says otherwise, so the host's own
   dark mode cannot change a result.
-- Every check except `camera` refuses requests to other origins, so the app's
-  CDN scripts (ONNX Runtime, kjua) are blocked and never downloaded. The
-  `camera` check lets MediaPipe and ONNX Runtime load from their CDNs, as a
-  visitor's browser does; `--offline` skips it and says so.
+- Every check except `camera` and `demo-model` refuses requests to other
+  origins, so the app's CDN scripts (ONNX Runtime, kjua) are blocked and never
+  downloaded. Those two let MediaPipe and ONNX Runtime load from their CDNs,
+  as a visitor's browser does; `--offline` skips them and says so. The `demo`
+  check therefore plays the recording without a letter model: the hand is
+  drawn, nothing is read.
 - Every wait polls a condition against a deadline and names what it waited for
   when the deadline passes. There are no fixed sleeps.
 - Each page waits until `init()` has applied the route and the start-up
@@ -96,6 +99,8 @@ Each check was shown to fail on deliberate faults planted in a scratch copy of
 | `confidence-levels` | the word result guide, rendered by the app's own assessment of a weak, a close and a clear result, takes the levels `low`, `maybe` and `good`, and each looks different from the others and from no level |
 | `model-test-labels` | on `#test`, at laptop and phone width, the ranked results drawn by the panel's own renderer show the longest word labels whole, not cut off, and letters as a control |
 | `guided-actions` | on `#test` the short copy and both quick-test buttons are rendered, the long brief is not, and the advanced section starts closed with the model choice inside it; on `#coach` the reference panel sits above the coach card; on `#word` the demo card starts closed |
+| `demo` | at 390×844, 320×568, 844×390 and 1366×768 (light and dark), the stage's "Örneği izleyin" plays the real `data/demo-letters.json`: the hand is drawn on the overlay (read from its pixels), at least a quarter of the stage high, and where the stage has room clear of the demo's card and the plate; the instruction is rendered inside the stage; nothing scrolls sideways; the stop clears the overlay and hides itself |
+| `demo-model` | the real letter model, through ONNX Runtime from the CDN, reads the recorded hand: the plate shows F, L and Y in turn, a real Space key press adds each, the transcript reads `FLY`, and the end offers the camera; no CSP violation |
 | `camera` | the model each mode runs (letter, then word) loads through the real ONNX Runtime and its WASM files from the CDN, as `window.aslDebug.models` reports it, so a wrong `wasmPaths` or a 404 on the `.wasm` fails; the stage close button is rendered only while the camera is live, has a label and a 24 px target; after a stop no track handed out by `getUserMedia` is live; no CSP violation while MediaPipe and ONNX Runtime load |
 
 `hidden` and `reduced-motion` run a second time with the `legacy` layer (the

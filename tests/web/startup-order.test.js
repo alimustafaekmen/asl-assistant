@@ -48,6 +48,15 @@ function network(overrides = {}) {
   return { fetch, requested };
 }
 
+/**
+ * Open Model Test the way a developer does since it lost its tab: through
+ * the address, which the page follows on hashchange.
+ */
+function openModelTest(app) {
+  app.get("location").hash = "#test";
+  app.windowHandler("hashchange")({ type: "hashchange" });
+}
+
 function pageAt(hash, net) {
   return loadWebApp({
     boot: true,
@@ -76,7 +85,7 @@ test("a page load does not ask for the local fixture manifest; the Model Test sc
   assert.ok(net.requested.includes(PUBLISHED), "precondition: the published manifest was read");
   assert.equal(net.requested.includes(LOCAL), false, "the local manifest is not asked for outside Model Test");
 
-  app.evaluate('document.querySelector(\'button[data-mode="test"]\')').dispatchEvent({ type: "click", detail: 1 });
+  openModelTest(app);
   await flush();
   assert.equal(net.requested.filter((path) => path === LOCAL).length, 1, "opening Model Test asks for it once");
 });
@@ -97,7 +106,7 @@ test("the Model Test screen offers the local word fixtures once it opens", async
   const net = network({ [LOCAL]: answer(localManifest) });
   const app = pageAt("", net);
   await app.ready;
-  app.evaluate('document.querySelector(\'button[data-mode="test"]\')').dispatchEvent({ type: "click", detail: 1 });
+  openModelTest(app);
   await flush();
 
   const ids = offeredWordIds(app);

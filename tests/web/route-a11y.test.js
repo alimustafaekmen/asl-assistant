@@ -6,9 +6,11 @@
 // - the information screens (#test, #qr, #project) have no h1, so heading
 //   navigation finds no start of the screen;
 // - after a route change by the visitor, focus stays on a control that may
-//   no longer be visible (a menu item, the stage's "Kamerasız dene") or falls
-//   to the page, instead of moving to the new screen's heading; and on the
-//   first load it must not move at all;
+//   no longer be visible (a menu item, the project page's link to Model
+//   Test) or falls to the page, instead of moving to the new screen's
+//   heading; and on the first load it must not move at all;
+// - the stage's way to watch the camera-free example hides behind the demo
+//   it starts, so a keyboard press must take focus to that demo;
 // - a skip link to #main is an unknown route: followed as a link, it would
 //   throw the visitor out of coach or word mode into letter mode.
 //
@@ -79,6 +81,21 @@ function clickTab(app, mode) {
   tab.dispatchEvent({ type: "click", detail: 0, target: tab });
 }
 
+/**
+ * Open `mode` as a visitor does. Model Test has no tab since it became a
+ * developer tool (owner decision 2026-10-18); the project page links to it.
+ * Focus moves recorded before the last step are dropped, so what is left is
+ * the move the route change itself made.
+ */
+function openRoute(page, mode) {
+  if (mode !== "test") return clickTab(page.app, mode);
+  clickTab(page.app, "project");
+  const link = page.app.evaluate(`document.querySelector('#projectScreen a[href="#test"]')`);
+  assert.ok(link, "the project page links to Model Test");
+  page.app.evaluate("__focused.length = 0");
+  page.followLink(link);
+}
+
 /** Whether an element would be shown on `mode`: no hidden ancestor, no other mode's tag. */
 function shownOn(element, mode) {
   for (let at = element; at && at.localName !== "html"; at = at.parentNode) {
@@ -99,7 +116,7 @@ for (const mode of MODES) {
     const page = pageOn("#letter");
     await page.start();
 
-    clickTab(page.app, mode);
+    openRoute(page, mode);
 
     const headings = headingsOn(page.app, mode);
     assert.equal(headings.length, 1, `#${mode} shows exactly one h1`);
@@ -121,7 +138,7 @@ test("a route change by the visitor moves focus to the new screen's h1", async (
 
   for (const mode of ["test", "coach", "qr", "letter"]) {
     page.app.evaluate("__focused.length = 0");
-    clickTab(page.app, mode);
+    openRoute(page, mode);
     const [heading] = headingsOn(page.app, mode);
     const focused = page.focused();
     assert.equal(focused.length, 1, `one focus move after opening #${mode}`);
@@ -131,16 +148,19 @@ test("a route change by the visitor moves focus to the new screen's h1", async (
   }
 });
 
-test("the stage's own way to Model Test moves focus to its h1 too", async () => {
+test("the stage's way to watch the example takes keyboard focus to the demo it starts", async () => {
   const page = pageOn("#letter");
   await page.start();
 
-  const go = page.app.evaluate('document.querySelector("#cameraIntro [data-go-mode=test]")');
-  go.dispatchEvent({ type: "click", detail: 1, target: go });
+  const go = page.app.evaluate('document.querySelector("#cameraIntro [data-trigger=demo]")');
+  assert.ok(go, "the first-visit stage offers the camera-free example");
+  page.app.evaluate("__focused.length = 0");
+  go.dispatchEvent({ type: "click", detail: 0, target: go });
 
-  const [heading] = headingsOn(page.app, "test");
-  assert.ok(heading, "Model Test has an h1");
-  assert.equal(page.focused().at(-1)?.element, heading);
+  const panel = page.app.evaluate('document.getElementById("demoPanel")');
+  assert.equal(panel.hidden, false, "the demo is on the stage");
+  assert.equal(page.focused().at(-1)?.element, panel, "focus follows the visitor to it");
+  assert.equal(page.focused().at(-1)?.preventScroll, true, "without scrolling the page");
 });
 
 test("the first load does not move focus", async () => {

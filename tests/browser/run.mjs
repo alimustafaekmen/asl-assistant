@@ -20,8 +20,9 @@ import { startServer } from "./serve.mjs";
 
 const USAGE = `usage: node tests/browser/run.mjs [--offline] [--only name[,name]] [--list]
 
-  --offline   skip the checks that start the camera, which load MediaPipe and
-              ONNX Runtime from their CDNs; every other check runs offline
+  --offline   skip the checks that load MediaPipe or ONNX Runtime from their
+              CDNs (the camera, and the demo read by the real letter model);
+              every other check runs offline
   --only      run only the named checks (repeatable or comma-separated)
   --list      print the checks and exit
 
@@ -86,7 +87,7 @@ async function main() {
     return 2;
   }
   if (options.list) {
-    for (const check of CHECKS) console.log(`${check.name.padEnd(18)} ${check.network ? "[camera, CDN] " : ""}${check.summary}`);
+    for (const check of CHECKS) console.log(`${check.name.padEnd(18)} ${check.network ? "[CDN] " : ""}${check.summary}`);
     return 0;
   }
 
@@ -150,7 +151,7 @@ async function main() {
     for (const check of selected) {
       if (check.network && options.offline) {
         skipped += 1;
-        console.log(`SKIP  ${check.name}  (--offline: it starts the camera, which loads MediaPipe and ONNX Runtime from their CDNs)`);
+        console.log(`SKIP  ${check.name}  (--offline: it loads MediaPipe or ONNX Runtime from their CDNs)`);
         continue;
       }
       const pages = [];

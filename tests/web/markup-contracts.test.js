@@ -196,7 +196,9 @@ test("the More button targets a popover menu that holds the secondary screens", 
   assert.equal(menu.hasAttribute("popover"), true, "without the popover attribute the button opens nothing");
 
   const screens = [...menu.querySelectorAll('[data-ui="mode-tab"]')].map((tab) => tab.dataset.mode);
-  assert.deepEqual(screens.sort(), ["project", "qr", "test"]);
+  // Model Test is not among them: it is a developer tool, linked from the
+  // project page (owner decision 2026-10-18).
+  assert.deepEqual(screens.sort(), ["project", "qr"]);
 });
 
 test("choosing a screen from the open menu closes the menu and opens the screen", async () => {

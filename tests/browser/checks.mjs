@@ -118,8 +118,8 @@ const STATIC_TYPES = new Set(["Document", "Script", "Stylesheet", "Font", "Image
  * @typedef {object} Check
  * @property {string} name
  * @property {string} summary What it asserts, in one line.
- * @property {boolean} [network] Starts the camera and loads MediaPipe and ORT
- *   from their CDNs; skipped with --offline.
+ * @property {boolean} [network] Loads MediaPipe or ORT from their CDNs (the
+ *   camera, the demo's real model); skipped with --offline.
  * @property {number} [timeoutMs]
  * @property {(ctx: CheckContext) => Promise<string[]>} run Returns the problems found.
  */
@@ -822,6 +822,160 @@ export const CHECKS = [
         if (!demo.rendered) problems.push("#word: the word demo card is not rendered");
         if (demo.open) problems.push("#word: the word demo card starts open");
       }
+      return problems;
+    },
+  },
+
+  {
+    name: "demo",
+    summary: "the camera-free demo plays the real recording: the hand is drawn clear of its card and the plate, the instruction shows, nothing scrolls sideways, and stop clears the stage",
+    timeoutMs: 60_000,
+    async run(ctx) {
+      const viewports = [
+        { width: 390, height: 844, mobile: true, room: true },
+        { width: 320, height: 568, mobile: true, room: false },
+        { width: 844, height: 390, mobile: true, room: true },
+        { width: 1366, height: 768, mobile: false, room: true },
+      ];
+      // The overlay's drawn pixels, as a box in page pixels, and what lies
+      // over the stage. The hand is read from the canvas itself, so a demo
+      // that publishes nothing, or draws off the stage, shows here.
+      const look = `(() => {
+        ${IN_PAGE}
+        const canvas = document.getElementById("overlayCanvas");
+        const pixels = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+        let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity, count = 0;
+        for (let y = 0; y < canvas.height; y += 1) {
+          for (let x = 0; x < canvas.width; x += 1) {
+            if (pixels[(y * canvas.width + x) * 4 + 3] === 0) continue;
+            count += 1;
+            if (x < left) left = x;
+            if (x > right) right = x;
+            if (y < top) top = y;
+            if (y > bottom) bottom = y;
+          }
+        }
+        const c = box(canvas);
+        const scale = c.width / canvas.width;
+        const hand = count
+          ? { left: c.left + left * scale, top: c.top + top * scale, right: c.left + (right + 1) * scale, bottom: c.top + (bottom + 1) * scale }
+          : null;
+        const panel = document.getElementById("demoPanel");
+        const text = document.getElementById("demoText");
+        const plate = document.querySelector(".camera-column > .plate");
+        const stage = box(document.getElementById("cameraStage"));
+        return {
+          count,
+          hand,
+          stage: { left: stage.left, top: stage.top, right: stage.right, bottom: stage.bottom, height: stage.height },
+          panel: rendered(panel) ? box(panel).toJSON() : null,
+          plate: rendered(plate) ? box(plate).toJSON() : null,
+          text: rendered(text) ? text.textContent.trim() : "",
+          textInside: rendered(text) && inside(box(text), stage),
+          stop: rendered(document.getElementById("demoStop")),
+          overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        };
+      })()`;
+      const meetsBox = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5;
+      const problems = [];
+      for (const viewport of viewports) {
+        for (const scheme of viewport.mobile ? ["light"] : ["light", "dark"]) {
+          const label = `${viewport.width}x${viewport.height} ${scheme}`;
+          const page = await openApp(ctx, {
+            route: "letter",
+            viewport,
+            media: [{ name: "prefers-color-scheme", value: scheme }, { name: "prefers-reduced-motion", value: "no-preference" }],
+          });
+          await page.eval("document.fonts.ready.then(() => true)");
+          const before = await page.eval(look);
+          if (before.count !== 0) problems.push(`${label}: the overlay draws before the demo starts`);
+
+          await page.click('#cameraIntro [data-trigger="demo"]');
+          try {
+            await page.waitFor(`(() => {
+              const c = document.getElementById("overlayCanvas");
+              const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+              for (let i = 3; i < d.length; i += 4) if (d[i]) return true;
+              return false;
+            })()`, { what: `${label}: the demo's hand on the stage`, timeoutMs: 5_000 });
+          } catch (error) {
+            problems.push(error.message);
+            await page.close();
+            continue;
+          }
+          const playing = await page.eval(look);
+          if (!playing.panel) problems.push(`${label}: the demo's card is not rendered`);
+          if (!playing.text) problems.push(`${label}: the instruction is not rendered`);
+          else if (!playing.textInside) problems.push(`${label}: the instruction is cut off by the stage`);
+          if (!playing.stop) problems.push(`${label}: the demo's stop is not rendered`);
+          if (playing.overflow > 0) problems.push(`${label}: the page scrolls ${playing.overflow}px sideways`);
+          const hand = playing.hand;
+          const h = hand ? hand.bottom - hand.top : 0;
+          if (hand && h < 0.25 * playing.stage.height) {
+            problems.push(`${label}: the hand is ${Math.round(h)}px high, under a quarter of the stage`);
+          }
+          // Where the stage has the room, nothing lies over the hand.
+          if (hand && viewport.room) {
+            if (playing.panel && meetsBox(hand, playing.panel)) problems.push(`${label}: the hand is drawn under the demo's card`);
+            if (playing.plate && meetsBox(hand, playing.plate)) problems.push(`${label}: the hand is drawn under the plate`);
+          }
+
+          await page.click("#demoStop");
+          await page.waitFor(`document.getElementById("demoPanel").hidden`, { what: `${label}: the demo to stop` });
+          // The render loop clears the overlay on its next frame.
+          await page.eval("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))");
+          const stopped = await page.eval(look);
+          if (stopped.count !== 0) problems.push(`${label}: the hand is still drawn after stop`);
+          if (stopped.stop) problems.push(`${label}: the demo's stop is still rendered after stop`);
+          if (page.exceptions.length) problems.push(`${label}: uncaught error: ${page.exceptions.join(" | ")}`);
+          await page.close();
+        }
+      }
+      return problems;
+    },
+  },
+
+  {
+    name: "demo-model",
+    summary: "the real letter model reads the demo's recorded hand: Space for each letter writes F, L and Y, and the end offers the camera",
+    network: true,
+    timeoutMs: 90_000,
+    async run(ctx) {
+      const problems = [];
+      const page = await openApp(ctx, { route: "letter", allowExternal: true });
+      await page.click('#cameraIntro [data-trigger="demo"]');
+      const press = async () => {
+        for (const type of ["keyDown", "keyUp"]) {
+          await page.send("Input.dispatchKeyEvent", { type, key: " ", code: "Space", windowsVirtualKeyCode: 32, text: type === "keyDown" ? " " : undefined });
+        }
+      };
+      for (const letter of ["F", "L", "Y"]) {
+        try {
+          await page.waitFor(`document.getElementById("primaryPrediction").textContent.trim() === ${JSON.stringify(letter)}`, {
+            what: `the plate to read ${letter} from the recorded hand`,
+            timeoutMs: 45_000,
+          });
+        } catch (error) {
+          problems.push(error.message);
+          break;
+        }
+        await press();
+      }
+      try {
+        await page.waitFor(`(() => {
+          const camera = document.getElementById("demoCamera");
+          return !camera.hidden && camera.getBoundingClientRect().height > 0;
+        })()`, { what: "the end of the demo to offer the camera", timeoutMs: 10_000 });
+      } catch (error) {
+        problems.push(error.message);
+      }
+      const written = await page.eval(`document.getElementById("transcriptText").textContent.replace("|", "").trim()`);
+      if (written !== "FLY") problems.push(`the transcript reads "${written}", not "FLY"`);
+      if (page.exceptions.length) problems.push(`uncaught error: ${page.exceptions.join(" | ")}`);
+      for (const violation of await page.eval("window.__browserCheck.csp")) {
+        problems.push(`CSP ${violation.disposition} violation of ${violation.directive} by ${violation.blocked || "inline code"}`);
+      }
+      await page.close();
       return problems;
     },
   },

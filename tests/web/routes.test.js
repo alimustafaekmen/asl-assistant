@@ -8,6 +8,10 @@
 // Switching mode also has to start the letter smoother from nothing, so a
 // letter held up before the switch cannot show after it.
 //
+// Every route but #test has a tab. Model Test is a developer tool (owner
+// decision 2026-10-18): a visitor never meets it, and the project page links
+// to it, so it is opened here by following that link.
+//
 // The page is the real index.html booted through init(). The address bar is a
 // URL object with a recording history; the clicks are the tabs' own.
 
@@ -17,6 +21,8 @@ import { test } from "node:test";
 import { loadWebApp } from "./helpers/web-app-context.mjs";
 
 const MODES = ["letter", "word", "coach", "test", "project", "qr"];
+/** The routes the visitor reaches by a tab. */
+const TABBED = MODES.filter((mode) => mode !== "test");
 /** The information screen each of those routes shows; the others show none. */
 const SCREEN_OF = { test: "modelTestScreen", project: "projectScreen", qr: "qrScreen" };
 const SCREENS = Object.values(SCREEN_OF);
@@ -51,6 +57,25 @@ function clickTab(app, mode) {
   tab.dispatchEvent({ type: "click" });
 }
 
+/**
+ * Follow the project page's link to Model Test, as the browser follows a
+ * link the page does not cancel: the hash changes and hashchange fires.
+ */
+function followModelTestLink(app, location) {
+  const link = app.evaluate(`document.querySelector('#projectScreen a[href="#test"]')`);
+  assert.ok(link, "the project page links to Model Test");
+  assert.equal(link.dispatchEvent({ type: "click", detail: 1, target: link }), true, "the page lets the link be followed");
+  location.hash = link.getAttribute("href");
+  app.windowHandler("hashchange")({ type: "hashchange" });
+}
+
+/** Open `mode` as a visitor does: its tab, or for Model Test the project page's link. */
+function open(app, location, mode) {
+  if (TABBED.includes(mode)) return clickTab(app, mode);
+  clickTab(app, "project");
+  followModelTestLink(app, location);
+}
+
 const panes = (app) => app.evaluate('Array.from(document.querySelectorAll("[data-ui=workspace-pane]"))');
 const screenHidden = (app, id) => app.evaluate(`document.getElementById("${id}").hidden`);
 const shellMode = (app) => app.evaluate('document.querySelector("[data-ui=app-shell]").dataset.mode');
@@ -77,20 +102,33 @@ function assertScreenFor(app, mode, context) {
     .filter((tab) => tab.getAttribute("aria-current") !== null);
   assert.deepEqual(
     Array.from(current, (tab) => `${tab.dataset.mode}=${tab.getAttribute("aria-current")}`),
-    [`${mode}=page`],
-    `${context}: only the active tab is marked as the current page`,
+    TABBED.includes(mode) ? [`${mode}=page`] : [],
+    `${context}: only the active tab is marked as the current page, and none on a route without one`,
   );
 }
 
 test("a tab opens its route from any other route", async () => {
-  const { app } = await bootedOn();
+  const { app, location } = await bootedOn();
   for (const from of MODES) {
     for (const to of MODES) {
-      clickTab(app, from);
-      clickTab(app, to);
+      open(app, location, from);
+      open(app, location, to);
       assertScreenFor(app, to, `${from} -> ${to}`);
     }
   }
+});
+
+test("Model Test has no tab; the project page's link opens it and leaves the address to the browser", async () => {
+  const { app, location, writes } = await bootedOn("#letter");
+  const tabs = app.evaluate('Array.from(document.querySelectorAll("[data-ui=mode-tab]"))');
+  assert.equal(tabs.filter((tab) => tab.dataset.mode === "test").length, 0, "no tab for Model Test");
+
+  clickTab(app, "project");
+  writes.length = 0;
+  followModelTestLink(app, location);
+  assertScreenFor(app, "test", "the project page's link");
+  assert.equal(location.hash, "#test");
+  assert.deepEqual(writes, [], "the link moved the address; writing it again would loop");
 });
 
 test("an address opens its route on load", async () => {
@@ -109,7 +147,7 @@ test("an unknown address opens letter mode", async () => {
 
 test("a tab writes its route to the address without adding history", async () => {
   const { app, location, writes } = await bootedOn("#letter");
-  for (const mode of MODES.filter((m) => m !== "letter")) {
+  for (const mode of TABBED.filter((m) => m !== "letter")) {
     writes.length = 0;
     clickTab(app, mode);
     assert.equal(location.hash, `#${mode}`, `the address names ${mode}`);
@@ -163,14 +201,14 @@ test("returning from an information screen brings the camera workspace back", as
 
 test("changing mode starts the letter smoother from nothing", async () => {
   for (const away of ["word", "test"]) {
-    const { app } = await bootedOn("#letter");
+    const { app, location } = await bootedOn("#letter");
     const smooth = app.get("smoothLetterPrediction");
     const raw = (label) => ({ label, confidence: 0.9, alternatives: [] });
 
     for (let i = 0; i < 5; i++) smooth(raw("A"));
     assert.equal(smooth(raw("A")).label, "A", "precondition: A is what the window shows");
 
-    clickTab(app, away);
+    open(app, location, away);
     clickTab(app, "letter");
 
     const shown = smooth(raw("B"));

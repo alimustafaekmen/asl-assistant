@@ -596,6 +596,7 @@ def test_classic_script_order_protects_global_runtime_contract() -> None:
         "js/ml/word-model.js",
         "js/media/overlay.js",
         "js/media/camera.js",
+        "js/media/demo-source.js",
         "js/ml/live-inference.js",
         "js/ui/prediction.js",
         "js/ui/plate-side.js",
@@ -889,9 +890,16 @@ def test_qr_demo_deep_links_can_open_runtime_modes() -> None:
     assert re.search(r"function\s+renderQrDemo\s*\(", corpus)
     assert "window.kjua" in corpus
     assert "CONFIG.DEMO_PUBLIC_URL" in corpus
-    assert {"letter", "coach", "word", "project", "test", "qr"} <= html.attribute_values(
-        "data-mode"
+    # Every route stays reachable from the markup: by a mode control, or, for
+    # Model Test, which has no tab since it became a developer tool, by the
+    # project page's link to its hash.
+    route_links = {
+        href.removeprefix("#") for href in html.attribute_values("href") if href.startswith("#")
+    }
+    assert {"letter", "coach", "word", "project", "test", "qr"} <= (
+        html.attribute_values("data-mode") | route_links
     )
+    assert "test" in route_links
 
 
 # The live site. A page without a shareable origin of its own (localhost,

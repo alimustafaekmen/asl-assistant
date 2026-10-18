@@ -14,6 +14,9 @@ import { loadWebApp, parsedIndexHtml } from "./helpers/web-app-context.mjs";
 
 const quietConsole = { ...console, log() {}, warn() {}, info() {} };
 const ROUTES = ["letter", "coach", "word", "test", "project", "qr"];
+// Model Test is a developer tool (owner decision 2026-10-18): it has no tab,
+// and the project page links to it; routes.test.js follows that link.
+const TABBED_ROUTES = ROUTES.filter((route) => route !== "test");
 
 /** Build loose markup into live stub nodes, outside any app. */
 function fragment(html) {
@@ -43,7 +46,7 @@ test("every mode tab in the markup opens its mode when clicked, and only it is c
   // Found by what they are, buttons that name a mode, not by the hook the app
   // binds to, so a tab that lost its hook is still clicked here.
   const tabs = Array.from(app.evaluate('document.querySelectorAll("button[data-mode]")'));
-  assert.deepEqual(tabs.map((tab) => tab.dataset.mode).sort(), [...ROUTES].sort(), "one tab per route");
+  assert.deepEqual(tabs.map((tab) => tab.dataset.mode).sort(), [...TABBED_ROUTES].sort(), "one tab per route but Model Test");
 
   for (const tab of tabs) {
     tab.dispatchEvent({ type: "click", detail: 1 });

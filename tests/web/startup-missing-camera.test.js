@@ -54,9 +54,9 @@ test("a page without its camera code shows and announces the start-up message", 
 test("a page without its camera code still opens the screens that need no camera", async () => {
   const app = await bootWithoutCamera();
 
-  const tab = app.evaluate(`document.querySelector('[data-ui="mode-tab"][data-mode="test"]')`);
+  const tab = app.evaluate(`document.querySelector('[data-ui="mode-tab"][data-mode="project"]')`);
   tab.dispatchEvent({ type: "click", detail: 1 });
   await flush();
 
-  assert.equal(app.evaluate("state.mode"), "test", "the rest of the page stopped answering");
+  assert.equal(app.evaluate("state.mode"), "project", "the rest of the page stopped answering");
 });

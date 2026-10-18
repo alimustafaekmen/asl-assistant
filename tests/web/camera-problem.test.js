@@ -209,14 +209,28 @@ test("leaving for an information screen clears the problem; another camera mode 
   assert.equal(stage.camera, "off");
 });
 
-test("the way to try without a camera opens Model Test", async () => {
-  const { app } = cameraRefusing([mediaError("NotFoundError")]);
-  await app.get("toggleCamera")();
-  await flush();
+test("the way on without a camera starts the camera-free example on the letter screen", async () => {
+  // From the word screen too: a camera an in-app browser blocks is blocked
+  // on every screen, and the example is a letter one.
+  for (const mode of ["letter", "word"]) {
+    const { app } = cameraRefusing([mediaError("NotFoundError")], { mode });
+    await app.get("toggleCamera")();
+    await flush();
+    assert.equal(stageOf(app).problem, true, "precondition: the problem is shown");
 
-  const without = app.evaluate('document.querySelector("#cameraProblem [data-go-mode]")');
-  assert.ok(without, "the problem offers a way on without a camera");
-  assert.equal(without.dataset.goMode, "test");
+    const without = app.evaluate('document.getElementById("cameraNoCamera")');
+    assert.ok(without, "the problem offers a way on without a camera");
+    without.dispatchEvent({ type: "click", detail: 1, target: without });
+    await flush();
+
+    assert.equal(app.evaluate("state.mode"), "letter", `from ${mode}: the example plays on the letter screen`);
+    assert.notEqual(app.evaluate("state.demo"), "off", `from ${mode}: the example has started`);
+    assert.equal(app.evaluate('document.getElementById("demoPanel").hidden'), false, `from ${mode}: and shows`);
+    assert.equal(stageOf(app).problem, false, `from ${mode}: the problem is over`);
+    assert.equal(app.evaluate("state.cameraOn"), false, `from ${mode}: no camera is asked for again`);
+    // The example's frame loop runs on this helper's real timers.
+    app.get("stopDemo")();
+  }
 });
 
 test("a camera the browser takes away shows the lost-camera problem, and the retry reopens it", async () => {
