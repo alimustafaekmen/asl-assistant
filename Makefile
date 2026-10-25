@@ -34,7 +34,7 @@ help:
 
 setup:
 	$(PYTHON) scripts/tooling/setup_guard.py
-	$(PYTHON) -m pip install -r requirements-dev.txt
+	$(PYTHON) -m pip install -r requirements.txt
 	$(PYTHON) -m pip install --no-deps -e ./asl-features -e ./asl-desktop
 
 web:

@@ -927,9 +927,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if unverified:
         print("Next step:")
-        print(
-            "  - pip install -r requirements-dev.txt; to leave ONNX out on purpose, pass --no-onnx"
-        )
+        print("  - pip install -r requirements.txt; to leave ONNX out on purpose, pass --no-onnx")
         print()
         return 2
 

@@ -1,3 +1,6 @@
+# Python packages for training, the desktop prototype, the checks and the
+# tests. The web app in asl-web/ needs none.
+
 # Data and numerical computing
 numpy==1.26.4
 pandas==2.3.1
@@ -39,3 +42,6 @@ onnxruntime==1.23.2
 
 # Test suite
 pytest==9.1.1
+
+# Lint and formatting, for make format and make check
+ruff==0.16.8

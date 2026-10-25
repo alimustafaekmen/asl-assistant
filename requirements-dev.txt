@@ -1,8 +1,0 @@
-# Development, validation, and test dependencies.
-# Includes the desktop/offline dependencies declared in requirements.txt.
-# The static browser application itself has no Python package requirement.
-
--r requirements.txt
-
-# Formatting and lightweight static checks used by `make format` and `make check`.
-ruff==0.16.8

@@ -43,7 +43,7 @@ source .venv/bin/activate
 make setup
 ```
 
-`make setup` installs `requirements-dev.txt` and the local packages
+`make setup` installs `requirements.txt` and the local packages
 `asl-features` and `asl-desktop` in editable mode. It refuses to install into
 Conda's `base` environment, Apple's Command Line Tools Python, or an interpreter
 outside the active environment; `make setup PYTHON=/path/to/python` picks the
@@ -71,7 +71,7 @@ Windows PowerShell and cmd have no `make`. Use WSL, or the commands directly:
 
 | Instead of | Run |
 |---|---|
-| `make setup` | `python -m pip install -r requirements-dev.txt`, then `python -m pip install --no-deps -e ./asl-features -e ./asl-desktop` |
+| `make setup` | `python -m pip install -r requirements.txt`, then `python -m pip install --no-deps -e ./asl-features -e ./asl-desktop` |
 | `make web` | `python -m http.server 8080 --directory asl-web` |
 | `make format` | `python -m ruff format asl-desktop asl-features scripts tests` |
 | `make test` | `python -m pytest tests/`, `npm test` and the three `tests/validation/check_*_parity.py` scripts |
