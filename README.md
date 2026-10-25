@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/alimustafaekmen/asl-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/alimustafaekmen/asl-assistant/actions/workflows/ci.yml)
 
-**Live demo:** https://asl-assistant.pages.dev/ · [Technical report](TECHNICAL_REPORT.md) · [Türkçe](README.tr.md)
+**Live demo:** https://asl-assistant.pages.dev/ · [Technical report](docs/technical-report.md) · [Türkçe](README.tr.md)
 
 ASL Assistant reads American Sign Language letters from the camera and turns them into text, in the browser. MediaPipe finds the hand, face and pose landmarks, and two small ONNX models classify them inside the page: there is no server, and the camera image never leaves the device. Letter recognition is the main mode; an experimental mode recognises 50 isolated ASL words. The interface is in English and Turkish.
 
@@ -45,7 +45,7 @@ The app is plain HTML, CSS and JavaScript loaded as classic scripts, with no fra
 | Classes | 24 static letters | 50 isolated signs |
 | Result | 99.35% on a random held-out split; about 70% on hands from another dataset | 71.92% accuracy, 0.714 macro-F1 on 4 unseen signers |
 
-The demo reads its poses at 100% because their photographs are in the letter model's training data: it shows how the app works, not how accurate it is. The [technical report](TECHNICAL_REPORT.md) covers the data, the experiments and the browser runtime.
+The demo reads its poses at 100% because their photographs are in the letter model's training data: it shows how the app works, not how accurate it is. The [technical report](docs/technical-report.md) covers the data, the experiments and the browser runtime.
 
 ## Quick start
 

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/alimustafaekmen/asl-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/alimustafaekmen/asl-assistant/actions/workflows/ci.yml)
 
-**Canlı demo:** https://asl-assistant.pages.dev/ · [Teknik rapor](TECHNICAL_REPORT.tr.md) · [English](README.md)
+**Canlı demo:** https://asl-assistant.pages.dev/ · [Teknik rapor](docs/technical-report.tr.md) · [English](README.md)
 
 ASL Assistant, Amerikan İşaret Dili (ASL) harflerini kameradan okuyup metne çeviren bir web uygulaması. Her şey tarayıcıda olur: MediaPipe el, yüz ve vücut noktalarını (landmark) bulur, iki küçük ONNX modeli de bu noktaları sayfanın içinde sınıflandırır. Sunucu yoktur, kamera görüntüsü cihazdan çıkmaz. Asıl mod harf tanıma; ayrıca 50 ASL kelimesini tek tek tanıyan deneysel bir mod var. Arayüz Türkçe ve İngilizce.
 
@@ -45,7 +45,7 @@ Uygulama düz HTML, CSS ve JavaScript ile yazıldı; framework ya da derleme ad�
 | Sınıf | 24 statik harf | 50 tekil işaret |
 | Sonuç | Rastgele ayrılmış test verisinde %99,35; başka bir veri setinden gelen ellerde yaklaşık %70 | Eğitimde görülmemiş 4 kişide %71,92 doğruluk, 0,714 macro-F1 |
 
-Örnekteki el pozları %100 okunuyor, çünkü fotoğrafları harf modelinin eğitim verisinde var. Yani örnek uygulamanın nasıl çalıştığını gösteriyor, ne kadar doğru olduğunu değil. Veri, deneyler ve tarayıcı tarafının ayrıntıları [teknik raporda](TECHNICAL_REPORT.tr.md).
+Örnekteki el pozları %100 okunuyor, çünkü fotoğrafları harf modelinin eğitim verisinde var. Yani örnek uygulamanın nasıl çalıştığını gösteriyor, ne kadar doğru olduğunu değil. Veri, deneyler ve tarayıcı tarafının ayrıntıları [teknik raporda](docs/technical-report.tr.md).
 
 ## Hızlı başlangıç
 

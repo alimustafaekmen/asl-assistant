@@ -4,7 +4,7 @@
 |---|---|
 | [README](../README.md) ([Türkçe](../README.tr.md)) | What the app does, quick start, limitations, licence and data attribution |
 | [Getting started](getting-started.md) | Setting up, the `make` targets, the desktop prototype, hosting a copy, common problems |
-| [Technical report](../TECHNICAL_REPORT.md) | Architecture, data, features, models and results, browser runtime, testing |
+| [Technical report](technical-report.md) ([Türkçe](technical-report.tr.md)) | Architecture, data, features, models and results, browser runtime, testing |
 
 Each part of the repository also has a short README next to its files:
 

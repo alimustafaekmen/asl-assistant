@@ -6,7 +6,7 @@ scripts (`scripts/data_preparation/`), the model-training scripts
 (`scripts/model_training/`), and the Python tests (`tests/`).
 
 The browser runtime (`asl-web/`) does NOT depend on this package; it ships
-its own JavaScript implementation. The Features section of `TECHNICAL_REPORT.md`
+its own JavaScript implementation. The Features section of `docs/technical-report.md`
 describes the contract that both implementations follow.
 
 Modules:

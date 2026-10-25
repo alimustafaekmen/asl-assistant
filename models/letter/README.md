@@ -18,5 +18,5 @@ list-of-maps output. The browser downloads a gzipped copy,
 The recorded result is 0.9935 on 8,245 held-out rows, but those rows are a
 random split of the same photo runs as the training rows; on rows from an
 unseen source the model scores 68.9%. The
-[technical report](../../TECHNICAL_REPORT.md#letter-model) has the details.
+[technical report](../../docs/technical-report.md#letter-model) has the details.
 The pickle needs the scikit-learn version pinned in `requirements.txt`.

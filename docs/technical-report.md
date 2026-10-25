@@ -1,8 +1,8 @@
 # ASL Assistant: Technical Report
 
-[Türkçe](TECHNICAL_REPORT.tr.md)
+[Türkçe](technical-report.tr.md)
 
-ASL Assistant recognises American Sign Language (ASL) from a webcam, entirely in the browser. MediaPipe finds landmarks (3D points on the hands, face and body) in each camera frame, and two small ONNX models classify them. No camera frame leaves the device. The product is the static web app in [`asl-web/`](asl-web/), live at <https://asl-assistant.pages.dev/>. The repository also holds the Python feature package [`asl-features/`](asl-features/), shared by training and the checks, and an earlier desktop prototype, [`asl-desktop/`](asl-desktop/).
+ASL Assistant recognises American Sign Language (ASL) from a webcam, entirely in the browser. MediaPipe finds landmarks (3D points on the hands, face and body) in each camera frame, and two small ONNX models classify them. No camera frame leaves the device. The product is the static web app in [`asl-web/`](../asl-web/), live at <https://asl-assistant.pages.dev/>. The repository also holds the Python feature package [`asl-features/`](../asl-features/), shared by training and the checks, and an earlier desktop prototype, [`asl-desktop/`](../asl-desktop/).
 
 | Figure | Value | Scope |
 |---|---|---|
@@ -24,7 +24,7 @@ ASL Assistant recognises American Sign Language (ASL) from a webcam, entirely in
 
 The browser never calls Python. JavaScript in `asl-web/js/ml/` reimplements the feature code of `asl-features`, and parity checks feed both the same landmarks and require them to agree within 1e-4.
 
-**Load order.** `index.html` holds every screen and loads 32 classic scripts of its own in a fixed order; they share one global scope, so the order is a contract. `core/theme-boot.js` and `core/lang-boot.js` run in `<head>` so the first paint has the right theme and language; the `i18n/` string files and `core/i18n-boot.js` translate the page before the CDN scripts; `core/config.js` and `core/runtime.js` create the settings and the shared state once; the `ml/`, `media/`, `services/` and `ui/` files only declare functions; `core/app.js` comes last and is the only script with start-up side effects. [`asl-web/js/README.md`](asl-web/js/README.md) lists every module. Scripts find elements only by `id` or a `data-ui` hook, never by a styling class, and render functions start no listener, timer, fetch or model session.
+**Load order.** `index.html` holds every screen and loads 32 classic scripts of its own in a fixed order; they share one global scope, so the order is a contract. `core/theme-boot.js` and `core/lang-boot.js` run in `<head>` so the first paint has the right theme and language; the `i18n/` string files and `core/i18n-boot.js` translate the page before the CDN scripts; `core/config.js` and `core/runtime.js` create the settings and the shared state once; the `ml/`, `media/`, `services/` and `ui/` files only declare functions; `core/app.js` comes last and is the only script with start-up side effects. [`asl-web/js/README.md`](../asl-web/js/README.md) lists every module. Scripts find elements only by `id` or a `data-ui` hook, never by a styling class, and render functions start no listener, timer, fetch or model session.
 
 ```mermaid
 flowchart LR
@@ -56,7 +56,7 @@ Two loops meet only at the latest MediaPipe result. The detection loop in `media
 
 `index.html` loads ONNX Runtime's WebAssembly-only bundle (`ort.wasm.min.js`), because the full bundle also fetched a 4.2 MB WebGPU build that neither model uses. The 13.2 MB letter model ships gzipped at 2.2 MB and is unpacked with `DecompressionStream`, with the raw file as fallback.
 
-**Privacy and security.** No backend, account or analytics. `localStorage` holds the theme, the language, the text and the coach progress. ONNX Runtime and kjua load with Subresource Integrity; MediaPipe, a dynamic import, is pinned to an exact version. [`asl-web/_headers`](asl-web/_headers) sets the hardening headers and a Content Security Policy that is still report-only.
+**Privacy and security.** No backend, account or analytics. `localStorage` holds the theme, the language, the text and the coach progress. ONNX Runtime and kjua load with Subresource Integrity; MediaPipe, a dynamic import, is pinned to an exact version. [`asl-web/_headers`](../asl-web/_headers) sets the hardening headers and a Content Security Policy that is still report-only.
 
 ## 2. Data
 
@@ -67,13 +67,13 @@ Two loops meet only at the latest MediaPipe result. The detection loop in `media
 | `ASL_SemCom` subset, associated with [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) | Letters; its test rows serve as an unseen source | 1,580 training rows; 122 test rows not merged | Not recorded; the images are not redistributed |
 | [Google - Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs) (Kaggle, 2023), Deaf Professional Arts Network and Georgia Institute of Technology | Words | 94,477 recordings of 250 signs by 21 signers; 19,299 used | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), subject to the competition rules |
 
-Letter counts are rows where MediaPipe found a hand, not image counts. MediaPipe Processed ASL (no usable hands) and MS-ASL (download scripts only) were explored and not used. The competition rules allow any use of the data (7.A) but forbid redistributing it (7.B), so the repository publishes trained models and aggregate results only. Word fixtures exported from the competition data go to the ignored `asl-web/data/model-test-samples/local/` folder, and the one published word fixture is synthetic. Raw data never enters Git; [Getting started](docs/getting-started.md#training-and-data) lists what stays local.
+Letter counts are rows where MediaPipe found a hand, not image counts. MediaPipe Processed ASL (no usable hands) and MS-ASL (download scripts only) were explored and not used. The competition rules allow any use of the data (7.A) but forbid redistributing it (7.B), so the repository publishes trained models and aggregate results only. Word fixtures exported from the competition data go to the ignored `asl-web/data/model-test-samples/local/` folder, and the one published word fixture is synthetic. Raw data never enters Git; [Getting started](getting-started.md#training-and-data) lists what stays local.
 
-**Letters.** [`extract_static_letter_landmarks.py`](scripts/data_preparation/extract_static_letter_landmarks.py) runs MediaPipe's legacy Hands API in static-image mode and keeps the first hand of each image. [`merge_static_letter_datasets.py`](scripts/data_preparation/merge_static_letter_datasets.py) keeps the 24 static letters, drops duplicates, non-finite values and outliers, and makes a stratified 85/15 split with seed 42: 54,961 rows become 46,716 for training and 8,245 held out. The split is random over rows, because the CSVs carry no signer id. ASL Alphabet, 95.4% of the rows, photographs each letter as long runs of near-identical frames.
+**Letters.** [`extract_static_letter_landmarks.py`](../scripts/data_preparation/extract_static_letter_landmarks.py) runs MediaPipe's legacy Hands API in static-image mode and keeps the first hand of each image. [`merge_static_letter_datasets.py`](../scripts/data_preparation/merge_static_letter_datasets.py) keeps the 24 static letters, drops duplicates, non-finite values and outliers, and makes a stratified 85/15 split with seed 42: 54,961 rows become 46,716 for training and 8,245 held out. The split is random over rows, because the CSVs carry no signer id. ASL Alphabet, 95.4% of the rows, photographs each letter as long runs of near-identical frames.
 
-**Words.** The competition gives MediaPipe Holistic landmarks for every frame. [`word_50_training.ipynb`](notebooks/word_50_training.ipynb) keeps 107 of the 543 points, fills gaps by interpolation, drops recordings shorter than 5 frames and normalises each frame on the shoulders. Signs with at least 300 recordings were eligible; a hand-picked list of 50 everyday words gave 34, and the other 16 were filled by recording count. The 21 signers are shuffled with seed 42 into 14 for training (12,723 recordings), 3 for validation (2,658) and 4 for test (3,918); assertions check that no signer is in two partitions.
+**Words.** The competition gives MediaPipe Holistic landmarks for every frame. [`word_50_training.ipynb`](../notebooks/word_50_training.ipynb) keeps 107 of the 543 points, fills gaps by interpolation, drops recordings shorter than 5 frames and normalises each frame on the shoulders. Signs with at least 300 recordings were eligible; a hand-picked list of 50 everyday words gave 34, and the other 16 were filled by recording count. The 21 signers are shuffled with seed 42 into 14 for training (12,723 recordings), 3 for validation (2,658) and 4 for test (3,918); assertions check that no signer is in two partitions.
 
-**Demo recording.** [`demo-letters.json`](asl-web/data/demo-letters.json) holds one right hand per letter of FLY. [`export_demo_letters.py`](scripts/evaluation/export_demo_letters.py) ran the browser's hand model in video mode on the CC0 dataset and kept, per letter, the pose the deployed model reads most surely. Those photographs are in the training split, so the model reads each pose at 1.0: the demo shows how the app works, not how accurate it is.
+**Demo recording.** [`demo-letters.json`](../asl-web/data/demo-letters.json) holds one right hand per letter of FLY. [`export_demo_letters.py`](../scripts/evaluation/export_demo_letters.py) ran the browser's hand model in video mode on the CC0 dataset and kept, per letter, the pose the deployed model reads most surely. Those photographs are in the training split, so the model reads each pose at 1.0: the demo shows how the app works, not how accurate it is.
 
 ## 3. Features
 
@@ -81,17 +81,17 @@ Letter counts are rows where MediaPipe found a hand, not image counts. MediaPipe
 
 **Normalisation.** Subtract the wrist (landmark 0) and divide by the wrist to middle-knuckle distance (landmark 9): 63 values per hand.
 
-**93-D letter vector** ([`letter.py`](asl-features/src/asl_features/letter.py), `ml/features.js`): normalised landmarks (0..62), 5 fingertip-to-wrist and 4 adjacent-fingertip distances (63..71), 14 joint angles (72..85), bounding-box aspect and area (86..87), and 5 finger-extended flags (88..92). A vector of the right length in the wrong order still runs and predicts nonsense, so the order is pinned by goldens and parity checks.
+**93-D letter vector** ([`letter.py`](../asl-features/src/asl_features/letter.py), `ml/features.js`): normalised landmarks (0..62), 5 fingertip-to-wrist and 4 adjacent-fingertip distances (63..71), 14 joint angles (72..85), bounding-box aspect and area (86..87), and 5 finger-extended flags (88..92). A vector of the right length in the wrong order still runs and predicts nonsense, so the order is pinned by goldens and parity checks.
 
 **321-D holistic frame** (word path): right hand 0..62, left hand 63..125, 40 face points 126..245, 25 pose points 246..320. A missing part stays zero, so later groups never shift.
 
-**168-D word features per frame** ([`word.py`](asl-features/src/asl_features/word.py), a copy of the notebook's code, tested against it): the dominant hand's 63 landmarks, 30 hand-shape values, 12 hand-to-face relations and 63 values of frame-to-frame motion. The dominant hand is chosen once per recording. The model takes `float32 [1, 45, 168]` and a `bool [1, 45]` mask where `true` marks a real frame; the exported graph inverts the mask itself, so the browser must not.
+**168-D word features per frame** ([`word.py`](../asl-features/src/asl_features/word.py), a copy of the notebook's code, tested against it): the dominant hand's 63 landmarks, 30 hand-shape values, 12 hand-to-face relations and 63 values of frame-to-frame motion. The dominant hand is chosen once per recording. The model takes `float32 [1, 45, 168]` and a `bool [1, 45]` mask where `true` marks a real frame; the exported graph inverts the mask itself, so the browser must not.
 
 ## 4. Models
 
 ### Letter model
 
-Augmentation runs on the training split only: each row gets 5 noisy, rotated and scaled copies. Recorded in [`letter_model_meta.json`](models/letter/letter_model_meta.json):
+Augmentation runs on the training split only: each row gets 5 noisy, rotated and scaled copies. Recorded in [`letter_model_meta.json`](../models/letter/letter_model_meta.json):
 
 | Model | Accuracy |
 |---|---:|
@@ -131,7 +131,7 @@ The hand model weights are the same in all of them; only the crop and the tracki
 
 ### Word model
 
-All experiments share one recipe (focal loss with label smoothing, AdamW, seed 42) and pick by validation macro-F1; the test set is only reported. Test macro-F1 of each comparison, from [`all_experiment_results.json`](notebooks/word_50_results/all_experiment_results.json):
+All experiments share one recipe (focal loss with label smoothing, AdamW, seed 42) and pick by validation macro-F1; the test set is only reported. Test macro-F1 of each comparison, from [`all_experiment_results.json`](../notebooks/word_50_results/all_experiment_results.json):
 
 | Features (BiGRU, 30 frames) | F1 | Sequence (168-D, BiGRU) | F1 | Model (168-D, 45 + mask) | Params | F1 |
 |---|---:|---|---:|---|---:|---:|

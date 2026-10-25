@@ -1,8 +1,8 @@
 # ASL Assistant: Teknik Rapor
 
-[English](TECHNICAL_REPORT.md)
+[English](technical-report.md)
 
-ASL Assistant, Amerikan İşaret Dili'ni (ASL) web kamerasından tanır ve bunu tamamen tarayıcıda yapar. MediaPipe her kamera karesinde landmark'ları (eller, yüz ve vücut üzerindeki 3B noktalar) bulur, iki küçük ONNX modeli de bunları sınıflandırır. Hiçbir kamera karesi cihazdan çıkmaz. Ürün, [`asl-web/`](asl-web/) klasöründeki statik web uygulamasıdır ve <https://asl-assistant.pages.dev/> adresinde yayında. Repoda ayrıca eğitimin ve kontrollerin ortak kullandığı Python özellik paketi [`asl-features/`](asl-features/) ile daha önceki bir masaüstü prototipi, [`asl-desktop/`](asl-desktop/), bulunur.
+ASL Assistant, Amerikan İşaret Dili'ni (ASL) web kamerasından tanır ve bunu tamamen tarayıcıda yapar. MediaPipe her kamera karesinde landmark'ları (eller, yüz ve vücut üzerindeki 3B noktalar) bulur, iki küçük ONNX modeli de bunları sınıflandırır. Hiçbir kamera karesi cihazdan çıkmaz. Ürün, [`asl-web/`](../asl-web/) klasöründeki statik web uygulamasıdır ve <https://asl-assistant.pages.dev/> adresinde yayında. Repoda ayrıca eğitimin ve kontrollerin ortak kullandığı Python özellik paketi [`asl-features/`](../asl-features/) ile daha önceki bir masaüstü prototipi, [`asl-desktop/`](../asl-desktop/), bulunur.
 
 | Ölçüt | Değer | Kapsam |
 |---|---|---|
@@ -31,7 +31,7 @@ Tarayıcı hiçbir zaman Python çağırmaz. `asl-web/js/ml/` içindeki JavaScri
 - `ml/`, `media/`, `services/` ve `ui/` dosyaları yalnızca fonksiyon tanımlar.
 - `core/app.js` en son gelir ve başlangıçta yan etkisi olan tek script'tir.
 
-[`asl-web/js/README.md`](asl-web/js/README.md) her modülü listeler. Script'ler öğeleri yalnızca `id` ya da bir `data-ui` kancasıyla bulur, hiçbir zaman bir stil sınıfıyla bulmaz. Render fonksiyonları dinleyici, zamanlayıcı, fetch ya da model oturumu başlatmaz.
+[`asl-web/js/README.md`](../asl-web/js/README.md) her modülü listeler. Script'ler öğeleri yalnızca `id` ya da bir `data-ui` kancasıyla bulur, hiçbir zaman bir stil sınıfıyla bulmaz. Render fonksiyonları dinleyici, zamanlayıcı, fetch ya da model oturumu başlatmaz.
 
 ```mermaid
 flowchart LR
@@ -63,7 +63,7 @@ flowchart LR
 
 `index.html`, ONNX Runtime'ın yalnızca WebAssembly içeren paketini (`ort.wasm.min.js`) yükler, çünkü tam paket iki modelin de kullanmadığı 4,2 MB'lık bir WebGPU derlemesini de indiriyordu. 13,2 MB'lık harf modeli gzip'lenmiş olarak 2,2 MB gelir ve `DecompressionStream` ile açılır; ham dosya yedek olarak durur.
 
-**Gizlilik ve güvenlik.** Arka uç, hesap ya da analitik yok. `localStorage` temayı, dili, metni ve koç ilerlemesini tutar. ONNX Runtime ve kjua, Subresource Integrity ile yüklenir; dinamik import ile gelen MediaPipe tam bir sürüme sabitlenmiştir. [`asl-web/_headers`](asl-web/_headers) güvenlik başlıklarını ve hâlâ yalnızca raporlama modunda olan bir İçerik Güvenliği Politikası'nı (CSP) ayarlar.
+**Gizlilik ve güvenlik.** Arka uç, hesap ya da analitik yok. `localStorage` temayı, dili, metni ve koç ilerlemesini tutar. ONNX Runtime ve kjua, Subresource Integrity ile yüklenir; dinamik import ile gelen MediaPipe tam bir sürüme sabitlenmiştir. [`asl-web/_headers`](../asl-web/_headers) güvenlik başlıklarını ve hâlâ yalnızca raporlama modunda olan bir İçerik Güvenliği Politikası'nı (CSP) ayarlar.
 
 ## 2. Veri
 
@@ -74,11 +74,11 @@ flowchart LR
 | [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) ile ilişkili `ASL_SemCom` alt kümesi | Harfler; test satırları görülmemiş kaynak olarak kullanılır | 1.580 eğitim satırı; 122 test satırı birleştirilmedi | Kaydedilmemiş; görüntüler yeniden dağıtılmıyor |
 | [Google - Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs) (Kaggle, 2023), Deaf Professional Arts Network ve Georgia Institute of Technology | Kelimeler | 21 işaretçinin 250 işaretinden 94.477 kayıt; 19.299'u kullanıldı | Yarışma kurallarına bağlı olarak [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 
-Harf sayıları görüntü sayısı değil, MediaPipe'ın el bulduğu satır sayısıdır. MediaPipe Processed ASL (kullanılabilir el yok) ve MS-ASL (yalnızca indirme betikleri) incelendi, kullanılmadı. Yarışma kuralları verinin her türlü kullanımına izin veriyor (7.A) ama yeniden dağıtılmasını yasaklıyor (7.B). Bu yüzden repo yalnızca eğitilmiş modelleri ve toplu sonuçları yayımlar. Yarışma verisinden çıkarılan kelime fixture'ları git'in yok saydığı `asl-web/data/model-test-samples/local/` klasörüne gider; yayımlanan tek kelime fixture'ı sentetiktir. Ham veri hiçbir zaman git'e girmez; neyin yerelde kaldığını [Başlangıç kılavuzu](docs/getting-started.md#training-and-data) listeler.
+Harf sayıları görüntü sayısı değil, MediaPipe'ın el bulduğu satır sayısıdır. MediaPipe Processed ASL (kullanılabilir el yok) ve MS-ASL (yalnızca indirme betikleri) incelendi, kullanılmadı. Yarışma kuralları verinin her türlü kullanımına izin veriyor (7.A) ama yeniden dağıtılmasını yasaklıyor (7.B). Bu yüzden repo yalnızca eğitilmiş modelleri ve toplu sonuçları yayımlar. Yarışma verisinden çıkarılan kelime fixture'ları git'in yok saydığı `asl-web/data/model-test-samples/local/` klasörüne gider; yayımlanan tek kelime fixture'ı sentetiktir. Ham veri hiçbir zaman git'e girmez; neyin yerelde kaldığını [Başlangıç kılavuzu](getting-started.md#training-and-data) listeler.
 
-**Harfler.** [`extract_static_letter_landmarks.py`](scripts/data_preparation/extract_static_letter_landmarks.py), MediaPipe'ın eski Hands API'sini durağan görüntü modunda çalıştırır ve her görüntünün ilk elini tutar. [`merge_static_letter_datasets.py`](scripts/data_preparation/merge_static_letter_datasets.py) 24 statik harfi tutar; tekrarları, sonlu olmayan değerleri ve aykırı değerleri atar. Ardından seed 42 ile katmanlı bir 85/15 bölme yapar: 54.961 satır, eğitim için 46.716 ve dışarıda tutulan 8.245 satır olur. CSV'lerde işaretçi kimliği olmadığı için bölme satırlar üzerinden rastgeledir. Satırların %95,4'ünü oluşturan ASL Alphabet, her harfi birbirine çok benzeyen karelerden oluşan uzun seriler halinde fotoğraflar.
+**Harfler.** [`extract_static_letter_landmarks.py`](../scripts/data_preparation/extract_static_letter_landmarks.py), MediaPipe'ın eski Hands API'sini durağan görüntü modunda çalıştırır ve her görüntünün ilk elini tutar. [`merge_static_letter_datasets.py`](../scripts/data_preparation/merge_static_letter_datasets.py) 24 statik harfi tutar; tekrarları, sonlu olmayan değerleri ve aykırı değerleri atar. Ardından seed 42 ile katmanlı bir 85/15 bölme yapar: 54.961 satır, eğitim için 46.716 ve dışarıda tutulan 8.245 satır olur. CSV'lerde işaretçi kimliği olmadığı için bölme satırlar üzerinden rastgeledir. Satırların %95,4'ünü oluşturan ASL Alphabet, her harfi birbirine çok benzeyen karelerden oluşan uzun seriler halinde fotoğraflar.
 
-**Kelimeler.** Yarışma her kare için MediaPipe Holistic landmark'larını veriyor. [`word_50_training.ipynb`](notebooks/word_50_training.ipynb):
+**Kelimeler.** Yarışma her kare için MediaPipe Holistic landmark'larını veriyor. [`word_50_training.ipynb`](../notebooks/word_50_training.ipynb):
 - 543 noktanın 107'sini tutar;
 - boşlukları ara değerle doldurur;
 - 5 kareden kısa kayıtları atar;
@@ -86,7 +86,7 @@ Harf sayıları görüntü sayısı değil, MediaPipe'ın el bulduğu satır say
 
 En az 300 kaydı olan işaretler seçilebilirdi. Elle seçilmiş 50 gündelik kelimelik bir listeden 34'ü bu koşulu sağladı; kalan 16'sı kayıt sayısına göre dolduruldu. 21 işaretçi seed 42 ile karıştırılıp üçe ayrıldı: eğitim için 14 (12.723 kayıt), doğrulama için 3 (2.658) ve test için 4 (3.918). Hiçbir işaretçinin iki bölmede birden bulunmadığını assert'ler denetler.
 
-**Örnek kaydı.** [`demo-letters.json`](asl-web/data/demo-letters.json), FLY'ın her harfi için bir sağ el tutar. [`export_demo_letters.py`](scripts/evaluation/export_demo_letters.py), tarayıcının el modelini CC0 veri kümesi üzerinde video modunda çalıştırdı ve her harf için yayındaki modelin en emin okuduğu pozu tuttu. Bu fotoğraflar eğitim bölmesinde olduğu için model her pozu 1,0 ile okur. Yani örnek, uygulamanın nasıl çalıştığını gösterir, ne kadar doğru olduğunu değil.
+**Örnek kaydı.** [`demo-letters.json`](../asl-web/data/demo-letters.json), FLY'ın her harfi için bir sağ el tutar. [`export_demo_letters.py`](../scripts/evaluation/export_demo_letters.py), tarayıcının el modelini CC0 veri kümesi üzerinde video modunda çalıştırdı ve her harf için yayındaki modelin en emin okuduğu pozu tuttu. Bu fotoğraflar eğitim bölmesinde olduğu için model her pozu 1,0 ile okur. Yani örnek, uygulamanın nasıl çalıştığını gösterir, ne kadar doğru olduğunu değil.
 
 ## 3. Özellikler
 
@@ -94,7 +94,7 @@ En az 300 kaydı olan işaretler seçilebilirdi. Elle seçilmiş 50 gündelik ke
 
 **Normalizasyon.** Bileği (landmark 0) çıkar ve bilekle orta parmak eklemi (landmark 9) arasındaki uzaklığa böl: el başına 63 değer.
 
-**93 boyutlu harf vektörü** ([`letter.py`](asl-features/src/asl_features/letter.py), `ml/features.js`):
+**93 boyutlu harf vektörü** ([`letter.py`](../asl-features/src/asl_features/letter.py), `ml/features.js`):
 
 | Aralık | İçerik |
 |---|---|
@@ -108,13 +108,13 @@ Doğru uzunlukta ama yanlış sıralı bir vektör yine de çalışır ve saçma
 
 **321 boyutlu holistic kare** (kelime yolu): sağ el 0..62, sol el 63..125, 40 yüz noktası 126..245, 25 vücut noktası 246..320. Eksik bir parça sıfır kalır, böylece sonraki gruplar hiç kaymaz.
 
-**Kare başına 168 boyutlu kelime özellikleri** ([`word.py`](asl-features/src/asl_features/word.py); notebook'taki kodun bir kopyası, ona karşı test edilir): baskın elin 63 landmark'ı, 30 el şekli değeri, 12 el-yüz ilişkisi ve kareden kareye harekete ait 63 değer. Baskın el her kayıt için bir kez seçilir. Model `float32 [1, 45, 168]` girdisini ve gerçek kareleri `true` ile işaretleyen bir `bool [1, 45]` maskesini alır. Dışa aktarılan grafik maskeyi kendisi ters çevirir; bu yüzden tarayıcı çevirmemelidir.
+**Kare başına 168 boyutlu kelime özellikleri** ([`word.py`](../asl-features/src/asl_features/word.py); notebook'taki kodun bir kopyası, ona karşı test edilir): baskın elin 63 landmark'ı, 30 el şekli değeri, 12 el-yüz ilişkisi ve kareden kareye harekete ait 63 değer. Baskın el her kayıt için bir kez seçilir. Model `float32 [1, 45, 168]` girdisini ve gerçek kareleri `true` ile işaretleyen bir `bool [1, 45]` maskesini alır. Dışa aktarılan grafik maskeyi kendisi ters çevirir; bu yüzden tarayıcı çevirmemelidir.
 
 ## 4. Modeller
 
 ### Harf modeli
 
-Veri çoğaltma yalnızca eğitim bölmesinde çalışır: her satırın gürültü eklenmiş, döndürülmüş ve ölçeklenmiş 5 kopyası üretilir. Sonuçlar [`letter_model_meta.json`](models/letter/letter_model_meta.json) dosyasında kayıtlı:
+Veri çoğaltma yalnızca eğitim bölmesinde çalışır: her satırın gürültü eklenmiş, döndürülmüş ve ölçeklenmiş 5 kopyası üretilir. Sonuçlar [`letter_model_meta.json`](../models/letter/letter_model_meta.json) dosyasında kayıtlı:
 
 | Model | Doğruluk |
 |---|---:|
@@ -154,7 +154,7 @@ El modelinin ağırlıkları hepsinde aynı; yalnızca kırpma ve takip farklı.
 
 ### Kelime modeli
 
-Bütün deneyler aynı tarifi paylaşıyor (etiket yumuşatmalı focal loss, AdamW, seed 42) ve doğrulama makro-F1'ine göre seçiliyor; test kümesi yalnızca raporlanıyor. Aşağıda her karşılaştırmanın test makro-F1 değerleri var; kaynak [`all_experiment_results.json`](notebooks/word_50_results/all_experiment_results.json):
+Bütün deneyler aynı tarifi paylaşıyor (etiket yumuşatmalı focal loss, AdamW, seed 42) ve doğrulama makro-F1'ine göre seçiliyor; test kümesi yalnızca raporlanıyor. Aşağıda her karşılaştırmanın test makro-F1 değerleri var; kaynak [`all_experiment_results.json`](../notebooks/word_50_results/all_experiment_results.json):
 
 | Özellikler (BiGRU, 30 kare) | F1 | Dizi (168 boyut, BiGRU) | F1 | Model (168 boyut, 45 + maske) | Parametre | F1 |
 |---|---:|---|---:|---|---:|---:|
