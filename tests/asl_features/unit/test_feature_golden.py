@@ -19,8 +19,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 EXPORTER = PROJECT_ROOT / "scripts" / "evaluation" / "export_feature_goldens.py"
 COMMITTED = PROJECT_ROOT / "tests" / "web" / "fixtures" / "feature-golden.json"
 
-# Rounding to seven decimals can flip the last digit between platforms.
+# Rounding to seven decimals can flip the last digit between platforms, and
+# float32 maths on x86 Linux differs from arm64 macOS by a few units in the
+# last place, so large values get a relative margin too.
 ATOL = 2e-6
+RTOL = 2e-6
 
 
 @pytest.fixture(scope="module")
@@ -56,13 +59,13 @@ def test_letter_inputs_are_unchanged(committed, rebuilt):
     for old, new in zip(committed["letter"]["cases"], rebuilt["letter"]["cases"]):
         assert old["source"] == new["source"], old["name"]
         for slot in ("right", "left"):
-            np.testing.assert_allclose(old[slot], new[slot], rtol=0, atol=ATOL, err_msg=old["name"])
+            np.testing.assert_allclose(old[slot], new[slot], rtol=RTOL, atol=ATOL, err_msg=old["name"])
 
 
 def test_letter_vectors_match_what_asl_features_computes_now(committed, rebuilt):
     for old, new in zip(committed["letter"]["cases"], rebuilt["letter"]["cases"]):
         np.testing.assert_allclose(
-            old["expect"], new["expect"], rtol=0, atol=ATOL, err_msg=f"{old['name']}: 93-D vector"
+            old["expect"], new["expect"], rtol=RTOL, atol=ATOL, err_msg=f"{old['name']}: 93-D vector"
         )
 
 
@@ -70,7 +73,7 @@ def test_word_inputs_are_unchanged(committed, rebuilt):
     for old, new in zip(committed["word"]["sequences"], rebuilt["word"]["sequences"]):
         assert old["dominant"] == new["dominant"], old["name"]
         np.testing.assert_allclose(
-            old["frames"], new["frames"], rtol=0, atol=ATOL, err_msg=old["name"]
+            old["frames"], new["frames"], rtol=RTOL, atol=ATOL, err_msg=old["name"]
         )
 
 
@@ -78,7 +81,7 @@ def test_word_frames_match_what_the_notebook_contract_computes_now(committed, re
     for old, new in zip(committed["word"]["sequences"], rebuilt["word"]["sequences"]):
         assert np.shape(old["expect"]) == (len(old["frames"]), 168), old["name"]
         np.testing.assert_allclose(
-            old["expect"], new["expect"], rtol=0, atol=ATOL, err_msg=f"{old['name']}: 168-D frames"
+            old["expect"], new["expect"], rtol=RTOL, atol=ATOL, err_msg=f"{old['name']}: 168-D frames"
         )
 
 
