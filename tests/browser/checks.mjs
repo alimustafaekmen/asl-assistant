@@ -1577,13 +1577,9 @@ export const CHECKS = [
       for (const viewport of [PHONE, { width: 360, height: 640, mobile: true }]) {
         const size = `${viewport.width}x${viewport.height}`;
         const page = await openApp(ctx, { route: "project", viewport });
-        await page.send("Input.synthesizeScrollGesture", {
-          x: Math.round(viewport.width / 2),
-          y: Math.round(viewport.height * 0.7),
-          yDistance: -6000,
-          gestureSourceType: "touch",
-          speed: 4000,
-        });
+        // Scrolled to the end directly: a synthetic touch fling keeps running
+        // after the tap and would scroll the next screen, which a real tap stops.
+        await page.eval("window.scrollTo(0, document.documentElement.scrollHeight)");
         await page.waitFor("scrollY > 0 && Math.abs(scrollY - (document.documentElement.scrollHeight - innerHeight)) < 2", {
           what: `${size}: #project to scroll to its end`,
         });
