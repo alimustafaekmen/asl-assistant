@@ -134,7 +134,7 @@ The browser loads plain `<script>` files in a fixed order from [`asl-web/index.h
 
 ### 3.2 Module boundaries and DOM contract
 
-The scripts sit in `core/` (state, routing, camera start and stop, render loop), `media/` (MediaPipe tasks, detection loop, the camera-free demo, overlay), `ml/` (features, ONNX sessions, smoothing), `services/` and `ui/`; [`asl-web/js/README.md`](asl-web/js/README.md) lists them in load order. Scripts find elements only by `id` or a `data-ui` hook, never by a styling class, so a redesign can change classes freely while renaming an id is a behaviour change the tests notice. Render functions rebuild the view from state and start no listener, timer, fetch or model session.
+The scripts sit in `core/` (state, routing, camera start and stop, render loop), `media/` (MediaPipe tasks, detection loop, the camera-free demo, overlay), `ml/` (features, ONNX sessions, smoothing), `i18n/` (the interface strings in Turkish and English), `services/` and `ui/`; [`asl-web/js/README.md`](asl-web/js/README.md) lists them in load order. Scripts find elements only by `id` or a `data-ui` hook, never by a styling class, so a redesign can change classes freely while renaming an id is a behaviour change the tests notice. Render functions rebuild the view from state and start no listener, timer, fetch or model session.
 
 ### 3.3 Word recording state machine
 
@@ -184,7 +184,7 @@ Of the camera downloads, the site serves only the models (2.2 MB letter, 1.85 MB
 
 ### 3.7 Accessibility
 
-Each screen has one visually hidden `h1` that is also the document title and takes focus on navigation; there is a skip link and a polite live region, and reduced motion is honoured. The landmark overlay draws a dark halo under a light core, because single-colour strokes fell below 3:1 contrast on some video, and text contrast meets WCAG 2.2 AA in both themes. Interface copy is plain Turkish addressing the user as "siz"; code, comments and developer terminal output are English.
+Each screen has one visually hidden `h1` that is also the document title and takes focus on navigation; there is a skip link and a polite live region, and reduced motion is honoured. The landmark overlay draws a dark halo under a light core, because single-colour strokes fell below 3:1 contrast on some video, and text contrast meets WCAG 2.2 AA in both themes. The interface is in plain Turkish, addressing the user as "siz", and in plain English. It opens in the visitor's saved choice, else the browser's preferred language, else English, and the switch in the top bar changes every visible string, `<html lang>` and the document title without a reload or a camera restart. Code, comments and developer terminal output are English.
 
 ### 3.8 Styling system
 
@@ -568,7 +568,7 @@ None of them covers lighting, permission prompts, device speed or live signing.
 
 The project has no tagged releases; the commit history is the detailed record. The first version (0.1.0) was a static page with letter translation, a coach, experimental word practice, a Model Test and a QR demo, running both models through ONNX Runtime Web. Since then:
 
-- **Interface:** rebuilt screen by screen, with light and dark themes, phone and laptop layouts, plain Turkish, undo, camera-problem help and the accessibility work of [section 3.7](#37-accessibility).
+- **Interface:** rebuilt screen by screen, with light and dark themes, phone and laptop layouts, plain Turkish and an English translation with a language switch, undo, camera-problem help and the accessibility work of [section 3.7](#37-accessibility).
 - **Runtime:** models load on first use, the letter model travels gzipped, and leaving a camera screen releases the camera, even mid-start.
 - **Letters:** the camera-aspect correction and the public-domain Gallaudet alphabet chart as the reference.
 - **Verification and deployment:** tests rebuilt around behaviour and shown to fail on planted faults, headless-Chrome checks, feature goldens, one exit-code contract, SRI, response headers and `make deploy-check`.

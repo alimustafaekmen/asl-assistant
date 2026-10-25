@@ -9,26 +9,27 @@ Dili (ASL) harflerini kameradan canlı olarak tanır ve metne dönüştürür; 5
 izole ASL kelimesi için de deneysel bir modu vardır. El, yüz ve gövde
 landmark'ları MediaPipe ile bulunur ve ONNX modelleriyle sınıflandırılır. Bunun
 tamamı sayfanın içinde olur: uygulama sunucusu yoktur ve kamera görüntüsü
-cihazdan çıkmaz. Arayüz Türkçedir.
+cihazdan çıkmaz. Arayüz Türkçe ve İngilizcedir.
 
-![Dizüstü bilgisayarda harf ekranı, açık tema. Koyu kamera alanı ziyaretçiden bir ASL harfi göstermesini istiyor ve Kamerayı aç ile Örneği izleyin düğmelerini sunuyor; yan kartlarda en olası sonuçlar, harf referansı ve klavye kısayolları var; altta metin şeridi ile Sil, Boşluk ve Ekle düğmeleri duruyor.](docs/assets/screenshots/letter-laptop.png)
+![Dizüstü bilgisayarda harf ekranı, açık tema. Koyu kamera alanı ziyaretçiden bir ASL harfi göstermesini istiyor ve Kamerayı aç ile Örneği izleyin düğmelerini sunuyor; yan kartlarda en olası sonuçlar, harf referansı ve klavye kısayolları var; altta metin şeridi ile Sil, Boşluk ve Ekle düğmeleri duruyor; üst çubuğun sonunda English'e geçiş düğmesi var.](docs/assets/screenshots/letter-laptop.tr.png)
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone.png" width="240" alt="Telefonda harf ekranı, açık tema: Kamerayı aç ve Örneği izleyin düğmeleriyle kamera alanı, altında metin şeridi ile Sil, Boşluk ve Ekle düğmeleri."><br><sub>Telefonda harf ekranı</sub></td>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone-dark.png" width="240" alt="Aynı harf ekranı, telefonda koyu temada."><br><sub>Koyu tema</sub></td>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/camera-help-phone.png" width="240" alt="Kamera izni reddedildikten sonra kamera alanı: “Kamera izni verilmedi” başlığı, Yeniden dene ve Örneği izleyin düğmeleri, iPhone Safari ve Chrome için açılmış adım adım yardım."><br><sub>Kamera izni reddedildiğinde yardım</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone.tr.png" width="240" alt="Telefonda harf ekranı, açık tema: Kamerayı aç ve Örneği izleyin düğmeleriyle kamera alanı, altında metin şeridi ile Sil, Boşluk ve Ekle düğmeleri."><br><sub>Telefonda harf ekranı</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone-dark.tr.png" width="240" alt="Aynı harf ekranı, telefonda koyu temada."><br><sub>Koyu tema</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/camera-help-phone.tr.png" width="240" alt="Kamera izni reddedildikten sonra kamera alanı: “Kamera izni verilmedi” başlığı, Yeniden dene ve Örneği izleyin düğmeleri, iPhone Safari ve Chrome için açılmış adım adım yardım."><br><sub>Kamera izni reddedildiğinde yardım</sub></td>
   </tr>
 </table>
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="docs/assets/screenshots/word-laptop.png" width="100%" alt="Dizüstü bilgisayarda kelime ekranı: kamera alanı ziyaretçiyi, ancak onayladıktan sonra metne eklenecek bir ASL kelimesi kaydetmeye çağırıyor; yan kartlarda sonuçlar, kelime referansı, önce denenecek kelimeler ve aranabilir 50 kelimelik liste var; alt çubukta kaydetme, yeniden kaydetme ve metne ekleme düğmeleri duruyor."><br><sub>Kelime ekranı (deneysel)</sub></td>
-    <td align="center" width="50%"><img src="docs/assets/screenshots/demo-laptop.png" width="100%" alt="Dizüstü bilgisayarda kamerasız örnek: koyu kamera alanında landmark'larıyla çizilmiş kayıtlı bir el; üstündeki kart FLY kelimesini gösteriyor, sıradaki harf L işaretli (2/3) ve ziyaretçiden harfi Ekle'ye dokunarak ya da Space tuşuyla eklemesini istiyor; sonuç kartı %100 ile L okuyor, en olası sonuçlarda L ilk sırada, metin şeridinde de F var."><br><sub>Kayıtlı bir eli okuyan kamerasız örnek</sub></td>
+    <td align="center" width="50%"><img src="docs/assets/screenshots/word-laptop.tr.png" width="100%" alt="Dizüstü bilgisayarda kelime ekranı: kamera alanı ziyaretçiyi, ancak onayladıktan sonra metne eklenecek bir ASL kelimesi kaydetmeye çağırıyor; yan kartlarda sonuçlar, kelime referansı, önce denenecek kelimeler ve aranabilir 50 kelimelik liste var; alt çubukta Kamera kapalı, Yeniden kaydet ve Metne ekle düğmeleri duruyor."><br><sub>Kelime ekranı (deneysel)</sub></td>
+    <td align="center" width="50%"><img src="docs/assets/screenshots/demo-laptop.tr.png" width="100%" alt="Dizüstü bilgisayarda kamerasız örnek: koyu kamera alanında landmark'larıyla çizilmiş kayıtlı bir el; üstündeki kart FLY kelimesini gösteriyor, sıradaki harf L işaretli (2/3) ve ziyaretçiden harfi Ekle'ye dokunarak ya da Space tuşuyla eklemesini istiyor; sonuç kartı %100 ile L okuyor, en olası sonuçlarda L ilk sırada, metin şeridinde de F var."><br><sub>Kayıtlı bir eli okuyan kamerasız örnek</sub></td>
   </tr>
 </table>
 
-Ekran görüntüleri kamerasız bir headless Chrome'da alındı. Kamerasız örnekten
+Ekran görüntüleri kamerasız bir headless Chrome'da, Türkçe arayüzle alındı;
+[İngilizce README](README.md) aynı ekranları İngilizce gösterir. Kamerasız örnekten
 alınan görüntüdeki sonuç, kayıtlı elin yayımlanan harf modelinden gerçekten
 geçirilmesiyle elde edildi; neden %100 okunduğu [Nasıl çalışır](#nasıl-çalışır)
 bölümünde.
@@ -44,6 +45,7 @@ bölümünde.
 | Model Test (geliştiriciler için) | Depodaki örnekleri kamera olmadan modellerden geçirir, tek tek ya da hepsini birden; tahmini, güveni ve süreyi gösterir. `#test` adresindedir, proje sayfasından bağlantı verilir. |
 | QR (*Telefonda aç*) | Yayındaki harf ya da kelime ekranını telefonda açan bir QR kodu. |
 | Proje (*Nasıl çalışır*) | Modellerin ve sınırlarının kısa özeti. |
+| Dil (*English* / *Türkçe*) | Her ekran Türkçe ve İngilizcedir. İlk ziyaret tarayıcının diliyle açılır, bu dil ikisinden biri değilse İngilizceyle; üst çubuğun sonundaki düğme (telefonda *Diğer* menüsünde) dili sayfayı yeniden yüklemeden hemen değiştirir, kamera açık kalır, metin de kaybolmaz. Seçim cihazda saklanır. |
 
 ## Nasıl çalışır
 

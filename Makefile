@@ -122,7 +122,7 @@ help:
 	@echo "  make notebook-check    Check that the notebook, model and result files are in place"
 	@echo "  make git-hygiene       Check that no tracked file matches .gitignore"
 	@echo "  make check             Before a commit: health + js-typecheck (needs npm ci)"
-	@echo "  make browser-check     CSS and page checks in real Chrome (OFFLINE=1: no CDN)"
+	@echo "  make browser-check     CSS and page checks in real Chrome (OFFLINE=1: no CDN; UI_LANG=en: English pages)"
 	@echo ""
 	@echo "Deploy"
 	@echo "  make deploy-check      Before every upload: validate + the asl-web/ file inventory"
@@ -303,7 +303,7 @@ check: health js-typecheck
 # runner exits 2 and so does this target.
 browser-check:
 	@command -v node >/dev/null 2>&1 || { echo "ERROR: Node.js not found; the browser checks cannot run."; exit 1; }
-	node tests/browser/run.mjs $(if $(OFFLINE),--offline)
+	node tests/browser/run.mjs $(if $(OFFLINE),--offline) $(if $(UI_LANG),--lang $(UI_LANG))
 
 
 # Deploy

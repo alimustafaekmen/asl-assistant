@@ -1,6 +1,6 @@
 // Run the browser checks in a headless Chrome against a local copy of asl-web.
 //
-//   node tests/browser/run.mjs [--offline] [--only name[,name]] [--list]
+//   node tests/browser/run.mjs [--offline] [--lang tr|en] [--only name[,name]] [--list]
 //
 // Exit codes follow the project's contract:
 //   0  every check that ran passed
@@ -18,11 +18,13 @@ import { CHECKS } from "./checks.mjs";
 import { Browser, launchChrome, withTimeout } from "./cdp.mjs";
 import { startServer } from "./serve.mjs";
 
-const USAGE = `usage: node tests/browser/run.mjs [--offline] [--only name[,name]] [--list]
+const USAGE = `usage: node tests/browser/run.mjs [--offline] [--lang tr|en] [--only name[,name]] [--list]
 
   --offline   skip the checks that load MediaPipe or ONNX Runtime from their
               CDNs (the camera, and the demo read by the real letter model);
               every other check runs offline
+  --lang      the browser language every page opens with: tr (the default)
+              or en; a check that needs a language of its own still sets it
   --only      run only the named checks (repeatable or comma-separated)
   --list      print the checks and exit
 
@@ -31,12 +33,21 @@ install locations.`;
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
-/** @returns {{ offline: boolean, only: string[] | null, list: boolean } | string} */
+/** The browser languages a page opens with under each --lang value. */
+const RUN_LANGUAGES = { tr: ["tr-TR", "tr"], en: ["en-US", "en"] };
+
+/** @returns {{ offline: boolean, lang: "tr" | "en", only: string[] | null, list: boolean } | string} */
 function parseArgs(argv) {
-  const options = { offline: false, only: null, list: false };
+  /** @type {{ offline: boolean, lang: "tr" | "en", only: string[] | null, list: boolean }} */
+  const options = { offline: false, lang: "tr", only: null, list: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--offline") options.offline = true;
+    else if (arg === "--lang" || arg.startsWith("--lang=")) {
+      const value = arg === "--lang" ? argv[++i] : arg.slice("--lang=".length);
+      if (value !== "tr" && value !== "en") return "--lang needs tr or en";
+      options.lang = value;
+    }
     else if (arg === "--list") options.list = true;
     else if (arg === "--help" || arg === "-h") return "help";
     else if (arg === "--only" || arg.startsWith("--only=")) {
@@ -136,14 +147,16 @@ async function main() {
     try {
       browserProcess = await launchChrome({
         executable: chrome.path,
-        args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"],
+        // Every page also sets its languages (cdp.mjs); the flag makes the
+        // browser itself Turkish too, so nothing falls back to the host's.
+        args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--lang=tr-TR"],
       });
     } catch (error) {
       console.error(`Chrome at ${chrome.path} could not start: ${error.message}`);
       return 2;
     }
     browser = await Browser.connect(browserProcess.wsUrl);
-    console.log(`Serving asl-web at ${server.origin}; Chrome ${chrome.path}`);
+    console.log(`Serving asl-web at ${server.origin}; Chrome ${chrome.path}; pages in ${options.lang}`);
 
     let failed = 0;
     let passed = 0;
@@ -158,8 +171,9 @@ async function main() {
       const ctx = {
         origin: server.origin,
         offline: options.offline,
+        lang: options.lang,
         newPage: async (pageOptions) => {
-          const page = await browser.newPage({ origin: server.origin, ...pageOptions });
+          const page = await browser.newPage({ origin: server.origin, languages: RUN_LANGUAGES[options.lang], ...pageOptions });
           pages.push(page);
           return page;
         },

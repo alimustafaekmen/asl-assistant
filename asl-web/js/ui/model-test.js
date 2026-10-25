@@ -42,6 +42,97 @@ function isLocalModelTestItem(item) {
 }
 
 /**
+ * The name a manifest sample is shown by.
+ *
+ * The manifest titles its samples in Turkish ("Harf A", "Kelime give #3"),
+ * so a Turkish page shows the title and an English page names the sample
+ * from its label, keeping a title's sample number.
+ *
+ * @param {ModelTestManifestItem} item
+ * @param {ModelTask} task The model the sample is for.
+ * @returns {string} Empty when the item has no title, label or id.
+ */
+function modelTestItemTitle(item, task) {
+  const title = item.title || item.label || item.id || "";
+  if (currentLanguage() === "tr") return title;
+  const isWord = task === "word";
+  if (item.kind === MODEL_TEST_SYNTHETIC_KIND) {
+    return t(isWord ? "info.test.sample.wordCheck" : "info.test.sample.letterCheck");
+  }
+  const label = item.expected_label || item.label;
+  if (!label) return title;
+  const number = /\s(#\d+)$/.exec(item.title || "");
+  const name = t(isWord ? "info.test.sample.word" : "info.test.sample.letter", { label });
+  return number ? `${name} ${number[1]}` : name;
+}
+
+/**
+ * A manifest sample as its dropdown option reads.
+ *
+ * @param {ModelTestManifestItem} item
+ * @param {ModelTask} task
+ * @returns {string}
+ */
+function modelTestOptionText(item, task) {
+  const title = modelTestItemTitle(item, task);
+  // A made-up sample's expected confidence is the model's old answer to
+  // random numbers, so it is not shown as something to expect.
+  if (!Number.isFinite(Number(item.confidence)) || item.kind === MODEL_TEST_SYNTHETIC_KIND) return title;
+  return t("info.test.option.expected", {
+    title,
+    percent: formatWholePercent(Math.round(Number(item.confidence) * 100)),
+  });
+}
+
+/**
+ * Show text the panel made rather than a string, such as a label or a file
+ * name. The element stops naming a string, so a language change does not
+ * write one back over the text.
+ *
+ * @param {HTMLElement | null | undefined} element
+ * @param {string} text
+ * @returns {void}
+ */
+function setModelTestPlainText(element, text) {
+  if (!element) return;
+  element.removeAttribute("data-i18n");
+  element.removeAttribute("data-i18n-params");
+  element.textContent = text;
+}
+
+/**
+ * Where the loaded sample came from, kept so a language change can name it
+ * again: `name` gives its name in the current language, and `ownSource`
+ * says whether the fixture states a source of its own. Null before a
+ * sample loads.
+ *
+ * @type {{name: () => string, ownSource: boolean} | null}
+ */
+let _modelTestSource = null;
+
+/**
+ * The text of the result note, kept so a language change can write it
+ * again. Null while the note shows its authored string.
+ *
+ * @type {(() => string) | null}
+ */
+let _modelTestNote = null;
+
+/**
+ * The answer on screen, kept so a language change can write its figures
+ * again; null while none is shown.
+ *
+ * @type {{confidence: number, alternatives: PredictionCandidate[]} | null}
+ */
+let _modelTestAnswer = null;
+
+/**
+ * The failure of each batch row that failed, kept so a language change can
+ * explain it again. @type {WeakMap<ModelTestBatchRow, unknown>}
+ */
+const _modelTestRowErrors = new WeakMap();
+
+/**
  * @typedef {Object} ModelTestManifest
  * @property {ModelTestManifestItem[]} [letters]
  * @property {ModelTestManifestItem[]} [words]
@@ -58,7 +149,8 @@ function isLocalModelTestItem(item) {
  * @property {string} schemaVersion
  * @property {string} source
  * @property {string} shapeLabel Human-readable input shape.
- * @property {string} maskLabel Human-readable mask summary.
+ * @property {string} maskLabel Human-readable mask summary, in the language
+ *   the sample was loaded in.
  * @property {boolean} synthetic Made up to prove the pipeline runs: shown as a
  *   check, never scored against its expected label.
  */
@@ -84,7 +176,7 @@ function isLocalModelTestItem(item) {
 
 /**
  * What was wrong with a fixture. The validator's messages stay technical, for
- * tests and the console; the panel maps the code to plain Turkish.
+ * tests and the console; the panel maps the code to a plain sentence.
  *
  * @typedef {"unreadable" | "bad-json" | "not-object" | "no-features" | "letter-length" |
  *   "word-length" | "mask-length" | "mask-value" | "not-number" | "mask-empty"} ModelTestErrorCode
@@ -107,7 +199,7 @@ function isLocalModelTestItem(item) {
  * @property {"correct" | "wrong" | "no-reference" | "error"} verdict
  * @property {number} confidence NaN when the row failed.
  * @property {number} ms Inference time alone; NaN when the row failed.
- * @property {string} error Plain Turkish, "" unless the row failed.
+ * @property {string} error What went wrong, as first shown; "" unless the row failed.
  * @property {boolean} local From the unpublished local fixtures.
  * @property {boolean} synthetic Made up to prove the pipeline runs; it measures nothing.
  */
@@ -137,7 +229,7 @@ function isLocalModelTestItem(item) {
  * @property {number} total Samples the run will go through.
  * @property {ModelTestBatchRow[]} rows Finished rows, in manifest order.
  * @property {ModelTestBatchSummary | null} summary Set when the run is done.
- * @property {string} error Plain Turkish, "" unless the run could not start.
+ * @property {string} error What went wrong, as first shown; "" unless the run could not start.
  */
 
 /**
@@ -295,9 +387,7 @@ function renderModelTestSampleOptions() {
   if (!items.length) {
     const option = document.createElement("option");
     option.value = "";
-    option.textContent = state.modelTestTask === "word"
-      ? "Hazır kelime fixture yok"
-      : "Hazır harf fixture yok";
+    option.textContent = t(state.modelTestTask === "word" ? "info.test.option.noWord" : "info.test.option.noLetter");
     els.modelTestSampleSelect.appendChild(option);
     if (els.loadSelectedModelTestSample) els.loadSelectedModelTestSample.disabled = true;
     return;
@@ -306,12 +396,7 @@ function renderModelTestSampleOptions() {
   items.forEach((item) => {
     const option = document.createElement("option");
     option.value = item.path;
-    // A made-up sample's expected confidence is the model's old answer to
-    // random numbers, so it is not shown as something to expect.
-    const conf = Number.isFinite(Number(item.confidence)) && item.kind !== MODEL_TEST_SYNTHETIC_KIND
-      ? ` · beklenen %${Math.round(Number(item.confidence) * 100)}`
-      : "";
-    option.textContent = `${item.title || item.label || item.id}${conf}`;
+    option.textContent = modelTestOptionText(item, state.modelTestTask);
     option.dataset.sampleId = item.id || "";
     option.dataset.label = item.expected_label || item.label || "";
     option.dataset.kind = item.kind || "";
@@ -326,6 +411,24 @@ function renderModelTestSampleOptions() {
     if (preferred) preferred.selected = true;
   }
   if (els.loadSelectedModelTestSample) els.loadSelectedModelTestSample.disabled = false;
+}
+
+/**
+ * Write the dropdown's options in the current language, keeping the one
+ * the visitor selected.
+ *
+ * @returns {void}
+ */
+function renameModelTestSampleOptions() {
+  if (!els.modelTestSampleSelect) return;
+  const items = getModelTestManifestItems();
+  for (const option of Array.from(els.modelTestSampleSelect.options)) {
+    const item = items.find((entry) => entry.path === option.value);
+    if (item) option.textContent = modelTestOptionText(item, state.modelTestTask);
+    else if (!items.length) {
+      option.textContent = t(state.modelTestTask === "word" ? "info.test.option.noWord" : "info.test.option.noLetter");
+    }
+  }
 }
 
 /**
@@ -344,15 +447,13 @@ async function loadPreferredModelTestSample(task) {
     preferredIds.map((id) => items.find((item) => item.id === id)).find(Boolean) || items[0];
 
   if (!sample?.path) {
-    showModelTestError(
-      normalizedTask === "word"
-        ? "Hazır kelime demo fixture bulunamadı."
-        : "Hazır harf demo fixture bulunamadı.",
+    showModelTestError(() =>
+      t(normalizedTask === "word" ? "info.test.error.noWordSample" : "info.test.error.noLetterSample"),
     );
     return;
   }
 
-  await loadModelTestSampleFromUrl(sample.path, sample.title || sample.label || sample.id, sample.kind);
+  await loadModelTestSampleFromUrl(sample.path, () => modelTestItemTitle(sample, normalizedTask), sample.kind);
 }
 
 /**
@@ -378,50 +479,49 @@ async function loadAndRunPreferredModelTestSample(task) {
  */
 function updateModelTestDomainHelp() {
   const isWord = state.modelTestTask === "word";
-  if (els.modelTestDomainHelp) {
-    els.modelTestDomainHelp.textContent = isWord
-      ? "Kelime modeli, 45 kareden oluşan kısa bir hareket dizisine bakıp 50 kelimeden birini seçer."
-      : "Harf modeli, tek bir el duruşuna bakıp 24 harften birini seçer.";
-  }
+  setText(els.modelTestDomainHelp, isWord ? "info.test.help.word" : "info.test.help.letter");
   // Run-all runs the selected model, so the line under it names that model,
   // and it promises a count only when some sample is a real recording.
-  if (els.modelTestBatchHint) {
-    const model = isWord ? "Kelime" : "Harf";
-    const countable = getModelTestManifestItems().some((item) => item.kind !== MODEL_TEST_SYNTHETIC_KIND);
-    els.modelTestBatchHint.textContent = countable
-      ? `${model} modelinin hazır örneklerini sırayla çalıştırır ve kaçının doğru olduğunu sayar.`
-      : isWord
-        ? "Kelime modelinin hazır örneğini çalıştırır. Gerçek kelime kayıtları yarışma kuralları gereği paylaşılamadığından doğruluk sayılmaz."
-        : `${model} modelinin hazır örneklerini çalıştırır; hepsi uydurma olduğundan doğruluk sayılmaz.`;
-  }
+  const countable = getModelTestManifestItems().some((item) => item.kind !== MODEL_TEST_SYNTHETIC_KIND);
+  setText(
+    els.modelTestBatchHint,
+    countable
+      ? isWord ? "info.test.all.hint.wordCounted" : "info.test.all.hint.letterCounted"
+      : isWord ? "info.test.all.hint.wordUncounted" : "info.test.all.hint.letterUncounted",
+  );
 }
 
 /** @returns {Promise<void>} */
 async function loadSelectedModelTestSample() {
   const option = els.modelTestSampleSelect?.selectedOptions?.[0];
   if (!option?.value) {
-    showModelTestError("Bu domain için hazır fixture bulunamadı.");
+    showModelTestError(() => t("info.test.error.noSample"));
     return;
   }
-  await loadModelTestSampleFromUrl(option.value, option.textContent.trim(), option.dataset.kind);
+  const task = state.modelTestTask;
+  const item = getModelTestManifestItems(task).find((entry) => entry.path === option.value);
+  const name = item ? () => modelTestOptionText(item, task) : option.textContent.trim();
+  await loadModelTestSampleFromUrl(option.value, name, option.dataset.kind);
 }
 
 /**
  * Fetch and validate a fixture from a URL.
  *
  * @param {string} url Fixture path relative to asl-web/.
- * @param {string} [displayName] Label for the status line; falls back to the URL.
+ * @param {string | (() => string)} [displayName] The sample's name, or what
+ *   gives it in the current language; falls back to the URL.
  * @param {string} [kind] The manifest's kind for the fixture, if it has one.
  * @returns {Promise<void>} Resolves after reporting a fetch or validation
  *   failure to the user.
  */
 async function loadModelTestSampleFromUrl(url, displayName, kind) {
+  const name = typeof displayName === "function" ? displayName : () => displayName || url;
   try {
-    if (els.modelTestSampleStatus) els.modelTestSampleStatus.textContent = "Örnek yükleniyor";
+    setText(els.modelTestSampleStatus, "info.test.status.loading");
     updateModelTestProcess("loading");
-    setModelTestSample(await fetchModelTestJson(url, displayName), displayName || url, kind);
+    setModelTestSample(await fetchModelTestJson(url, name), name, kind);
   } catch (err) {
-    showModelTestError(describeModelTestError(err));
+    showModelTestError(() => describeModelTestError(err));
     console.error(err);
   }
 }
@@ -430,12 +530,13 @@ async function loadModelTestSampleFromUrl(url, displayName, kind) {
  * Fetch a fixture's JSON, not yet validated.
  *
  * @param {string} url Fixture path relative to asl-web/.
- * @param {string} [displayName] Name for the message when the fetch fails.
+ * @param {() => string} [name] Gives the sample's name for the message when
+ *   the fetch fails.
  * @returns {Promise<unknown>}
  * @throws {Error} A ModelTestVisitorError when the request fails or is
  *   refused, or a fixture error with code "bad-json" when the body is not JSON.
  */
-async function fetchModelTestJson(url, displayName) {
+async function fetchModelTestJson(url, name = () => url) {
   let res;
   try {
     res = await fetch(url, { cache: "no-store" });
@@ -443,9 +544,10 @@ async function fetchModelTestJson(url, displayName) {
     // fetch rejects only when no response arrived at all: offline, a dropped
     // connection, a blocked request. Its own text ("Failed to fetch") is for
     // the console.
-    throw modelTestVisitorError(MODEL_TEST_CONNECTION_TEXT, `${url}: ${errorMessage(cause)}`);
+    throw modelTestVisitorError(() => t("info.test.error.connection"), `${url}: ${errorMessage(cause)}`);
   }
-  if (!res.ok) throw modelTestVisitorError(`${displayName || url} alınamadı (HTTP ${res.status})`);
+  const status = res.status;
+  if (!res.ok) throw modelTestVisitorError(() => t("info.test.error.http", { name: name() || url, status }));
   try {
     return await res.json();
   } catch (cause) {
@@ -493,9 +595,9 @@ async function readModelTestSampleFile(file) {
     } catch (cause) {
       throw modelTestFixtureError("unreadable", `dosya okunamadı: ${errorMessage(cause)}`);
     }
-    setModelTestSample(parseModelTestJson(text), file.name);
+    setModelTestSample(parseModelTestJson(text), () => file.name);
   } catch (err) {
-    showModelTestError(describeModelTestError(err));
+    showModelTestError(() => describeModelTestError(err));
     console.error(err);
   }
 }
@@ -552,24 +654,22 @@ const MODEL_TEST_ERROR_CODES = new Set([
 ]);
 
 /**
- * An error the panel raised itself, carrying a plain Turkish sentence for the
- * visitor: a model that did not load, a sample that could not be fetched. Its
- * message may stay technical, for the console.
+ * An error the panel raised itself, carrying a plain sentence for the
+ * visitor: a model that did not load, a sample that could not be fetched.
+ * The sentence is given in the current language each time it is asked for,
+ * so a failure on screen follows a language change. Its message may stay
+ * technical, for the console.
  *
- * @typedef {Error & {visitorText: string}} ModelTestVisitorError
+ * @typedef {Error & {visitorText: () => string}} ModelTestVisitorError
  */
-
-/** Shown when a sample could not be downloaded at all. */
-const MODEL_TEST_CONNECTION_TEXT = "Örnek indirilemedi. İnternet bağlantınızı kontrol edip yeniden deneyin.";
-/** Shown for any failure the panel did not raise itself, such as a runtime error. */
-const MODEL_TEST_FAILURE_TEXT = "Model çalıştırılamadı. Sayfayı yenileyip yeniden deneyin.";
 
 /**
- * @param {string} visitorText What the panel shows.
- * @param {string} [message] What the console shows; defaults to the same text.
+ * @param {() => string} visitorText Gives what the panel shows.
+ * @param {string} [message] What the console shows; defaults to the text
+ *   shown when the error was raised.
  * @returns {ModelTestVisitorError}
  */
-function modelTestVisitorError(visitorText, message = visitorText) {
+function modelTestVisitorError(visitorText, message = visitorText()) {
   return Object.assign(new Error(message), { visitorText });
 }
 
@@ -578,7 +678,7 @@ function modelTestVisitorError(visitorText, message = visitorText) {
  * @returns {err is ModelTestVisitorError}
  */
 function isModelTestVisitorError(err) {
-  return err instanceof Error && "visitorText" in err && typeof err.visitorText === "string";
+  return err instanceof Error && "visitorText" in err && typeof err.visitorText === "function";
 }
 
 /**
@@ -586,36 +686,37 @@ function isModelTestVisitorError(err) {
  *
  * A fixture error is explained from its code, and an error the panel raised
  * carries its own sentence. Anything else (a runtime error, a bug) is never
- * shown as it is: its text is English and technical, so the visitor gets a
- * plain message and the caller logs the error itself.
+ * shown as it is: its text is technical, so the visitor gets a plain message
+ * and the caller logs the error itself. The sentence is in the current
+ * language.
  *
  * @param {unknown} err
  * @returns {string}
  */
 function describeModelTestError(err) {
-  if (isModelTestVisitorError(err)) return err.visitorText;
-  if (!isModelTestFixtureError(err)) return MODEL_TEST_FAILURE_TEXT;
-  const found = err.count ?? 0;
+  if (isModelTestVisitorError(err)) return err.visitorText();
+  if (!isModelTestFixtureError(err)) return t("info.test.error.failed");
+  const count = err.count ?? 0;
   switch (err.code) {
     case "unreadable":
-      return "Dosya okunamadı.";
+      return t("info.test.error.unreadable");
     case "bad-json":
-      return "Dosya okunamadı: geçerli bir JSON değil.";
+      return t("info.test.error.badJson");
     case "not-object":
     case "no-features":
-      return "Bu dosyada örnek verisi bulunamadı.";
+      return t("info.test.error.noData");
     case "letter-length":
-      return `Harf örneği 93 sayı içermeli; bu dosyada ${found} sayı var.`;
+      return t("info.test.error.letterLength", { count });
     case "word-length":
-      return `Kelime örneği 7560 sayı (45 × 168) içermeli; bu dosyada ${found} var.`;
+      return t("info.test.error.wordLength", { count });
     case "mask-length":
-      return `Maske 45 değer içermeli; bu dosyada ${found} var.`;
+      return t("info.test.error.maskLength", { count });
     case "mask-value":
-      return "Maske yalnızca doğru/yanlış (true/false ya da 1/0) değerleri içerebilir.";
+      return t("info.test.error.maskValue");
     case "not-number":
-      return "Dosyada sayı olmayan bir değer var.";
+      return t("info.test.error.notNumber");
     case "mask-empty":
-      return "Bu örnekte gerçek kare yok; kelime modeli çalıştırılamaz.";
+      return t("info.test.error.maskEmpty");
   }
 }
 
@@ -623,46 +724,71 @@ function describeModelTestError(err) {
  * Validate a fixture and show its metadata.
  *
  * @param {unknown} rawSample Parsed JSON, not yet trusted.
- * @param {string} sourceName Where it came from, for the status line.
+ * @param {() => string} sourceName Gives where it came from, for the status
+ *   line, in the current language.
  * @param {string} [kind] The manifest's kind for the fixture, if it has one.
  * @returns {void}
  * @throws {Error} When validation rejects the fixture; callers report the
  *   message to the user.
  */
 function setModelTestSample(rawSample, sourceName, kind) {
-  const sample = normalizeModelTestSample(rawSample, sourceName, kind);
+  const sample = normalizeModelTestSample(rawSample, sourceName(), kind);
   state.modelTestSample = sample;
+  _modelTestSource = { name: sourceName, ownSource: isRecord(rawSample) && Boolean(rawSample.source || rawSample.dataset) };
   // A run still waiting for its model belongs to the sample it started with.
   _modelTestSampleEpoch += 1;
   setModelTestTask(sample.task);
   updateModelTestProcess("validated");
 
-  if (els.modelTestSampleStatus) els.modelTestSampleStatus.textContent = "Örnek hazır";
-  if (els.modelTestFileName) els.modelTestFileName.textContent = sourceName || sample.source || "Yüklenen JSON";
+  setText(els.modelTestSampleStatus, "info.test.status.ready");
+  drawModelTestSource();
   if (els.runModelTestSample) {
     els.runModelTestSample.disabled = false;
-    els.runModelTestSample.textContent = "Seçili örneği yeniden çalıştır";
+    setText(els.runModelTestSample, "info.test.runAgain");
   }
-  if (els.modelTestTaskLabel) els.modelTestTaskLabel.textContent = sample.task === "word" ? "Kelime modeli" : "Harf modeli";
-  if (els.modelTestSourceLabel) els.modelTestSourceLabel.textContent = sample.source || sourceName || "JSON fixture";
+  setText(els.modelTestTaskLabel, sample.task === "word" ? "info.test.model.word" : "info.test.model.letter");
   if (els.modelTestSchemaLabel) els.modelTestSchemaLabel.textContent = sample.schemaVersion;
   if (els.modelTestShapeLabel) els.modelTestShapeLabel.textContent = sample.shapeLabel;
-  if (els.modelTestMaskLabel) els.modelTestMaskLabel.textContent = sample.maskLabel;
-  if (els.modelTestExpectedLabel) {
-    els.modelTestExpectedLabel.textContent = (!sample.synthetic && sample.expectedLabel) || "Referans yok";
-  }
+  if (sample.mask) setText(els.modelTestMaskLabel, "info.test.facts.realFrames", { n: sample.mask.filter(Boolean).length });
+  else setText(els.modelTestMaskLabel, "info.test.facts.noMask");
+  if (!sample.synthetic && sample.expectedLabel) setModelTestPlainText(els.modelTestExpectedLabel, sample.expectedLabel);
+  else setText(els.modelTestExpectedLabel, "info.test.noReference");
   clearModelTestResult();
   if (els.modelTestMatchBadge) {
-    els.modelTestMatchBadge.textContent = "Çalıştırılmadı";
+    setText(els.modelTestMatchBadge, "info.test.badge.notRun");
     els.modelTestMatchBadge.dataset.match = "unknown";
   }
-  if (els.modelTestResultNote) {
-    els.modelTestResultNote.textContent = sample.synthetic
-      ? "Bu örnek gerçek bir işaret kaydı değil; modelin çalıştığını göstermek için rastgele üretildi."
-      : sample.task === "word"
-        ? "Kelime örneği 45 frame hareket bilgisinden hazırlanmıştır. Model çalıştırıldığında tahmin ve top-3 burada görünecek."
-        : "Harf örneği tek el pozundan hazırlanmıştır. Model çalıştırıldığında tahmin ve top-3 burada görünecek.";
-  }
+  const note = sample.synthetic
+    ? "info.test.note.synthetic"
+    : sample.task === "word" ? "info.test.note.wordReady" : "info.test.note.letterReady";
+  setModelTestNote(() => t(note));
+}
+
+/**
+ * Name the loaded sample and its source in the current language.
+ *
+ * @returns {void}
+ */
+function drawModelTestSource() {
+  const sample = state.modelTestSample;
+  if (!sample || !_modelTestSource) return;
+  const name = _modelTestSource.name();
+  if (name || sample.source) setModelTestPlainText(els.modelTestFileName, name || sample.source);
+  else setText(els.modelTestFileName, "info.test.uploadedJson");
+  // A fixture without a source of its own is named by where it was loaded from.
+  const source = _modelTestSource.ownSource ? sample.source : name || sample.source;
+  setModelTestPlainText(els.modelTestSourceLabel, source || "JSON fixture");
+}
+
+/**
+ * Write the result note, and keep what gives it for a language change.
+ *
+ * @param {() => string} text Gives the note in the current language.
+ * @returns {void}
+ */
+function setModelTestNote(text) {
+  _modelTestNote = text;
+  setModelTestPlainText(els.modelTestResultNote, text());
 }
 
 /**
@@ -730,7 +856,7 @@ function normalizeModelTestSample(rawSample, sourceName, kind) {
       schemaVersion: String(rawSample.schema_version || "legacy-word-test-sample"),
       source: String(rawSample.source || rawSample.dataset || sourceName || "word fixture"),
       shapeLabel: "45 × 168 = 7560 float",
-      maskLabel: `${realFrames}/45 real frame`,
+      maskLabel: t("info.test.facts.realFrames", { n: realFrames }),
       synthetic,
     };
   }
@@ -751,7 +877,7 @@ function normalizeModelTestSample(rawSample, sourceName, kind) {
     schemaVersion: String(rawSample.schema_version || "asl-sample-v1"),
     source: String(rawSample.source || rawSample.dataset || sourceName || "letter fixture"),
     shapeLabel: "93 float",
-    maskLabel: "Yok",
+    maskLabel: t("info.test.facts.noMask"),
     synthetic,
   };
 }
@@ -851,7 +977,7 @@ function runModelTestSample() {
 async function executeModelTestRun(epoch) {
   const sample = state.modelTestSample;
   if (!sample) {
-    showModelTestError("Önce bir örnek seçin ya da JSON dosyası yükleyin.");
+    showModelTestError(() => t("info.test.error.pickFirst"));
     return;
   }
 
@@ -859,22 +985,22 @@ async function executeModelTestRun(epoch) {
   const isWord = sample.task === "word";
   try {
     // A model download is labelled as loading, not as inference.
-    if (els.modelTestSampleStatus) {
-      els.modelTestSampleStatus.textContent =
-        (isWord ? wordSession : letterSession) ? "Model çalışıyor" : "Model yükleniyor";
-    }
+    setText(
+      els.modelTestSampleStatus,
+      (isWord ? wordSession : letterSession) ? "info.test.status.running" : "info.test.status.loadingModel",
+    );
     if (els.runModelTestSample) {
       els.runModelTestSample.disabled = true;
-      els.runModelTestSample.textContent = "Model çalışıyor";
+      setText(els.runModelTestSample, "info.test.status.running");
     }
     updateModelTestProcess("running");
 
     const loaded = await (isWord ? ensureWordModel() : ensureLetterModel());
     if (stale()) return;
     if (!loaded) {
-      throw modelTestVisitorError(isWord ? "Kelime modeli yüklenemedi" : "Harf modeli yüklenemedi");
+      throw modelTestVisitorError(() => t(isWord ? "info.test.error.wordModel" : "info.test.error.letterModel"));
     }
-    if (els.modelTestSampleStatus) els.modelTestSampleStatus.textContent = "Model çalışıyor";
+    setText(els.modelTestSampleStatus, "info.test.status.running");
 
     let result = null;
     const t0 = performance.now();
@@ -887,17 +1013,17 @@ async function executeModelTestRun(epoch) {
     }
     const elapsed = performance.now() - t0;
     if (stale()) return;
-    if (!result) throw modelTestVisitorError("Model tahmin döndürmedi");
+    if (!result) throw modelTestVisitorError(() => t("info.test.error.noPrediction"));
 
     renderModelTestResult(sample, result, elapsed);
   } catch (err) {
     if (stale()) return;
-    showModelTestError(describeModelTestError(err));
+    showModelTestError(() => describeModelTestError(err));
     console.error(err);
   } finally {
     if (!stale() && els.runModelTestSample) {
       els.runModelTestSample.disabled = false;
-      els.runModelTestSample.textContent = "Seçili örneği yeniden çalıştır";
+      setText(els.runModelTestSample, "info.test.runAgain");
     }
   }
 }
@@ -918,36 +1044,72 @@ function renderModelTestResult(sample, result, elapsed) {
   const alternatives = result.alternatives?.length
     ? result.alternatives
     : [{ label: result.label, confidence: result.confidence || 0 }];
-  if (els.modelTestSampleStatus) els.modelTestSampleStatus.textContent = "Tamamlandı";
+  setText(els.modelTestSampleStatus, "info.test.status.done");
   updateModelTestProcess("done");
   if (els.modelTestMatchBadge) {
-    els.modelTestMatchBadge.textContent = sample.synthetic
-      ? "Çalışma kontrolü"
-      : matched === null ? "Referans yok" : matched ? "Eşleşti" : "Eşleşmedi";
+    setText(
+      els.modelTestMatchBadge,
+      sample.synthetic
+        ? "info.test.badge.check"
+        : matched === null ? "info.test.noReference" : matched ? "info.test.badge.match" : "info.test.badge.noMatch",
+    );
     els.modelTestMatchBadge.dataset.match = matched === null ? "unknown" : matched ? "yes" : "no";
   }
-  if (els.modelTestExpectedLabel) els.modelTestExpectedLabel.textContent = expected || "Referans yok";
+  if (expected) setModelTestPlainText(els.modelTestExpectedLabel, expected);
+  else setText(els.modelTestExpectedLabel, "info.test.noReference");
   if (els.modelTestPredictedLabel) els.modelTestPredictedLabel.textContent = result.label;
-  if (els.modelTestConfidence) els.modelTestConfidence.textContent = formatPercent(result.confidence);
   if (els.modelTestLatency) els.modelTestLatency.textContent = `${elapsed.toFixed(0)} ms`;
-  renderModelTestTop3(alternatives);
+  _modelTestAnswer = { confidence: result.confidence, alternatives };
+  drawModelTestAnswer();
 
-  if (els.modelTestResultNote && sample.synthetic) {
-    els.modelTestResultNote.textContent =
-      "Bu örnek gerçek bir işaret kaydı değil; modelin tarayıcıda çalıştığını göstermek için rastgele üretildi, bu yüzden doğruluk ölçmez." +
-      (sample.task === "word"
-        ? " Gerçek kelime kayıtları yarışma kuralları gereği paylaşılamıyor; kelime modunu kamerayla deneyebilirsiniz."
-        : "");
-  } else if (els.modelTestResultNote) {
-    const topText = formatTopPredictions(alternatives);
-    const matchText =
-      matched === null
-        ? "Bu fixture için referans etiket yok."
-        : matched
-          ? "Tahmin beklenen etiketle eşleşti. Bu, seçilen test girdisinde modelin doğru sınıfı seçtiğini gösterir."
-          : "Tahmin beklenen etiketten farklı. Bu durumda top-3 listesi modelin hangi sınıfları karıştırdığını gösterir.";
-    els.modelTestResultNote.textContent = `${matchText} Top-3: ${topText}.`;
+  if (sample.synthetic) {
+    const isWord = sample.task === "word";
+    setModelTestNote(() =>
+      isWord
+        ? `${t("info.test.note.syntheticRun")} ${t("info.test.note.syntheticRunWord")}`
+        : t("info.test.note.syntheticRun"),
+    );
+    return;
   }
+  const matchKey =
+    matched === null ? "info.test.note.noReference" : matched ? "info.test.note.matched" : "info.test.note.mismatched";
+  setModelTestNote(() => `${t(matchKey)} ${t("info.test.note.top", { top: formatModelTestTop(alternatives) })}`);
+}
+
+/**
+ * Write the answer's figures, its confidence and ranked list, in the
+ * current language.
+ *
+ * @returns {void}
+ */
+function drawModelTestAnswer() {
+  if (!_modelTestAnswer) return;
+  if (els.modelTestConfidence) els.modelTestConfidence.textContent = formatPercent(_modelTestAnswer.confidence);
+  renderModelTestTop3(_modelTestAnswer.alternatives);
+}
+
+/**
+ * Ranked candidates in a line: "1. A %90 · 2. B %6" in Turkish,
+ * "1. A 90% · 2. B 6%" in English.
+ *
+ * @param {PredictionCandidate[]} items Ranked candidates, best first.
+ * @returns {string}
+ */
+function formatModelTestTop(items) {
+  return items
+    .slice(0, 3)
+    .map((item, index) => `${index + 1}. ${item.label} ${formatWholePercent(Math.round((item.confidence || 0) * 100))}`)
+    .join(" · ");
+}
+
+/**
+ * A whole percentage in the page's language: "%90" or "90%".
+ *
+ * @param {number} percent
+ * @returns {string}
+ */
+function formatWholePercent(percent) {
+  return t("info.format.percent", { n: percent });
 }
 
 /**
@@ -975,7 +1137,7 @@ function renderModelTestTop3(items) {
     fill.style.width = `${pct}%`;
     bar.appendChild(fill);
     const confidence = document.createElement("span");
-    confidence.textContent = `%${pct}`;
+    confidence.textContent = formatWholePercent(pct);
     row.append(rank, label, bar, confidence);
     els.modelTestTop3List.appendChild(row);
   });
@@ -988,6 +1150,7 @@ function renderModelTestTop3(items) {
  * @returns {void}
  */
 function clearModelTestResult() {
+  _modelTestAnswer = null;
   if (els.modelTestPredictedLabel) els.modelTestPredictedLabel.textContent = "-";
   if (els.modelTestConfidence) els.modelTestConfidence.textContent = "-";
   if (els.modelTestLatency) els.modelTestLatency.textContent = "-";
@@ -997,18 +1160,19 @@ function clearModelTestResult() {
 /**
  * Report a fixture or inference failure in the result area.
  *
- * @param {string} message Turkish text shown to the user.
+ * @param {() => string} message Gives what the visitor is told, in the
+ *   current language.
  * @returns {void}
  */
 function showModelTestError(message) {
   clearModelTestResult();
-  if (els.modelTestSampleStatus) els.modelTestSampleStatus.textContent = "Hata";
+  setText(els.modelTestSampleStatus, "info.test.status.error");
   updateModelTestProcess("error");
   if (els.modelTestMatchBadge) {
-    els.modelTestMatchBadge.textContent = "Hata";
+    setText(els.modelTestMatchBadge, "info.test.badge.error");
     els.modelTestMatchBadge.dataset.match = "no";
   }
-  if (els.modelTestResultNote) els.modelTestResultNote.textContent = message;
+  setModelTestNote(message);
 }
 
 /**
@@ -1044,45 +1208,45 @@ function updateModelTestProcess(status) {
 }
 
 /**
- * Write a number the way Turkish writes a measurement: a decimal comma, one
- * decimal only under 10, where it still tells figures apart, and no trailing
- * ",0".
+ * Write a measurement in the page's language: one decimal only under 10,
+ * where it still tells figures apart, no trailing zero decimal, and the
+ * decimal comma Turkish writes ("7,6") or the point English writes ("7.6").
  *
  * @param {number} value
  * @returns {string}
  */
-function formatTurkishNumber(value) {
+function formatMeasurement(value) {
   // 9.96 rounds to "10.0" at one decimal; the trailing-zero strip leaves "10".
   const text = Math.abs(value) < 10 ? value.toFixed(1).replace(/\.0$/, "") : String(Math.round(value));
-  return text.replace(".", ",");
+  return currentLanguage() === "tr" ? text.replace(".", ",") : text;
 }
 
 /**
- * Write a probability the way Turkish writes a percentage: "%7,6", "%46",
- * "%100".
+ * Write a probability as a percentage in the page's language: "%7,6" and
+ * "%100" in Turkish, "7.6%" and "100%" in English.
  *
  * @param {number} value Probability in [0, 1].
  * @returns {string} The percentage, or "-" when not finite.
  */
 function formatPercent(value) {
   if (!Number.isFinite(value)) return "-";
-  return `%${formatTurkishNumber(value * 100)}`;
+  return t("info.format.percent", { n: formatMeasurement(value * 100) });
 }
 
 /**
  * @param {number} ms
- * @returns {string} "0,6 ms", "12 ms"; "-" when not finite.
+ * @returns {string} "0,6 ms" or "0.6 ms", "12 ms"; "-" when not finite.
  */
 function formatMilliseconds(ms) {
-  return Number.isFinite(ms) ? `${formatTurkishNumber(ms)} ms` : "-";
+  return Number.isFinite(ms) ? `${formatMeasurement(ms)} ms` : "-";
 }
 
 /**
  * @param {number} ms
- * @returns {string} The time in seconds, "1,9 sn"; "-" when not finite.
+ * @returns {string} The time in seconds, "1,9 sn" or "1.9 s"; "-" when not finite.
  */
 function formatSeconds(ms) {
-  return Number.isFinite(ms) ? `${formatTurkishNumber(ms / 1000)} sn` : "-";
+  return Number.isFinite(ms) ? t("info.format.seconds", { n: formatMeasurement(ms / 1000) }) : "-";
 }
 
 /**
@@ -1156,7 +1320,7 @@ async function executeModelTestBatch(kind, epoch) {
   if (stale()) return;
   if (!ready) {
     batch.status = "error";
-    batch.error = isWord ? "Kelime modeli yüklenemedi" : "Harf modeli yüklenemedi";
+    batch.error = t(isWord ? "info.test.error.wordModel" : "info.test.error.letterModel");
     renderModelTestBatch();
     return;
   }
@@ -1183,11 +1347,11 @@ async function executeModelTestBatch(kind, epoch) {
  * @returns {Promise<ModelTestBatchRow>} Never rejects; a failure is an "error" row.
  */
 async function runModelTestBatchItem(item, kind) {
-  const title = item.title || item.label || item.id || "Örnek";
+  const name = () => modelTestItemTitle(item, kind) || t("info.test.table.sample");
   /** @type {ModelTestBatchRow} */
   const row = {
     id: item.id || "",
-    title,
+    title: name(),
     expected: item.expected_label || item.label || "",
     predicted: "",
     verdict: "error",
@@ -1198,10 +1362,10 @@ async function runModelTestBatchItem(item, kind) {
     synthetic: item.kind === MODEL_TEST_SYNTHETIC_KIND,
   };
   try {
-    if (!item.path) throw modelTestVisitorError(`${title} için dosya yolu yok`);
-    const sample = normalizeModelTestSample(await fetchModelTestJson(item.path, title), title);
+    if (!item.path) throw modelTestVisitorError(() => t("info.test.error.noPath", { name: name() }));
+    const sample = normalizeModelTestSample(await fetchModelTestJson(item.path, name), row.title);
     row.expected = sample.expectedLabel;
-    if (sample.task !== kind) throw modelTestVisitorError(`${title} bu modele uygun değil`);
+    if (sample.task !== kind) throw modelTestVisitorError(() => t("info.test.error.wrongModel", { name: name() }));
 
     // Only the inference is timed: fetching and validating the sample is not it.
     const t0 = performance.now();
@@ -1209,7 +1373,7 @@ async function runModelTestBatchItem(item, kind) {
       ? await predictWord(sample.features, sample.mask)
       : await predictLetter(sample.features);
     const elapsed = performance.now() - t0;
-    if (!result) throw modelTestVisitorError("Model tahmin döndürmedi");
+    if (!result) throw modelTestVisitorError(() => t("info.test.error.noPrediction"));
 
     row.predicted = result.label;
     row.confidence = result.confidence;
@@ -1217,6 +1381,7 @@ async function runModelTestBatchItem(item, kind) {
     row.verdict = !row.expected ? "no-reference" : result.label === row.expected ? "correct" : "wrong";
   } catch (err) {
     row.error = describeModelTestError(err);
+    _modelTestRowErrors.set(row, err);
     console.error(err);
   }
   return row;
@@ -1252,45 +1417,46 @@ function summarizeModelTestBatch(rows, prepMs) {
 }
 
 /**
- * The batch in a sentence or two of plain Turkish.
+ * The batch in a sentence or two, in the current language.
  *
  * @param {ModelTestBatch} batch
  * @returns {string}
  */
 function describeModelTestBatch(batch) {
-  if (batch.status === "error") return batch.error;
-  if (batch.status === "preparing") return "Model hazırlanıyor…";
-  if (batch.status === "running") return `Çalışıyor: ${batch.rows.length} / ${batch.total}`;
+  // The only failure that stops a run before its first sample is a model that did not load.
+  if (batch.status === "error") return t(batch.task === "word" ? "info.test.error.wordModel" : "info.test.error.letterModel");
+  if (batch.status === "preparing") return t("info.test.batch.preparing");
+  if (batch.status === "running") return t("info.test.batch.running", { done: batch.rows.length, total: batch.total });
   const summary = batch.summary;
-  if (!summary || summary.total === 0) return "Çalıştırılacak örnek bulunamadı.";
+  if (!summary || summary.total === 0) return t("info.test.batch.empty");
 
   const parts = [];
   if (summary.accuracy === null && summary.synthetic) {
-    parts.push("Model çalıştı. Örnek yapay olduğundan doğruluk hesaplanmadı; bu yalnızca modelin baştan sona çalıştığını gösterir.");
+    parts.push(t("info.test.batch.synthetic"));
   } else if (summary.accuracy === null) {
-    parts.push(`Model ${summary.total} örnek üzerinde çalıştı; referans etiketi olmadığı için doğruluk hesaplanmadı.`);
+    parts.push(t("info.test.batch.unscored", { count: summary.total }));
   } else {
     parts.push(
-      `${summary.counted} örnekten ${summary.correct} tanesi doğru (${formatPercent(summary.accuracy)}).`,
+      t("info.test.batch.accuracy", {
+        count: summary.counted,
+        correct: summary.correct,
+        percent: formatPercent(summary.accuracy),
+      }),
     );
   }
-  if (summary.medianMs !== null) parts.push(`Ortanca süre ${formatMilliseconds(summary.medianMs)}.`);
-  if (summary.prepMs !== null) {
-    parts.push(`Model hazırlığı ${formatSeconds(summary.prepMs)} sürdü; bu süre örneklerin süresine eklenmedi.`);
-  }
-  if (summary.failed > 0) parts.push(`${summary.failed} örnek çalışmadı.`);
-  if (summary.hasLocal) {
-    parts.push("Yerel örnekler bu bilgisayara özeldir; siteyle birlikte yayınlanmamalıdır.");
-  }
+  if (summary.medianMs !== null) parts.push(t("info.test.batch.median", { time: formatMilliseconds(summary.medianMs) }));
+  if (summary.prepMs !== null) parts.push(t("info.test.batch.prep", { time: formatSeconds(summary.prepMs) }));
+  if (summary.failed > 0) parts.push(t("info.test.batch.failed", { count: summary.failed }));
+  if (summary.hasLocal) parts.push(t("info.test.batch.local"));
   return parts.join(" ");
 }
 
-/** Display names of the row verdicts. @type {Record<ModelTestBatchRow["verdict"], string>} */
-const MODEL_TEST_VERDICT_LABELS = {
-  correct: "Doğru",
-  wrong: "Yanlış",
-  "no-reference": "Referans yok",
-  error: "Hata",
+/** The strings that name the row verdicts. @type {Record<ModelTestBatchRow["verdict"], string>} */
+const MODEL_TEST_VERDICT_KEYS = {
+  correct: "info.test.verdict.correct",
+  wrong: "info.test.verdict.wrong",
+  "no-reference": "info.test.noReference",
+  error: "info.test.badge.error",
 };
 
 /**
@@ -1308,17 +1474,24 @@ function renderModelTestBatch() {
   if (els.modelTestSummary) els.modelTestSummary.textContent = batch ? describeModelTestBatch(batch) : "";
   if (!els.modelTestRows) return;
   els.modelTestRows.innerHTML = "";
+  const samples = batch ? getModelTestManifestItems(batch.task) : [];
   for (const item of batch?.rows ?? []) {
     const row = document.createElement("tr");
     row.dataset.verdict = item.verdict;
     if (item.local) row.dataset.local = "true";
     // A made-up sample answered "correctly" is a run check, not a success.
-    const verdictLabel = item.synthetic && item.verdict !== "error" ? "Çalışma kontrolü" : MODEL_TEST_VERDICT_LABELS[item.verdict];
+    const verdictLabel = t(
+      item.synthetic && item.verdict !== "error" ? "info.test.badge.check" : MODEL_TEST_VERDICT_KEYS[item.verdict],
+    );
+    // Named again from the manifest, so the name follows a language change.
+    const sample = item.id ? samples.find((entry) => entry.id === item.id) : undefined;
+    const title = sample && batch ? modelTestItemTitle(sample, batch.task) || item.title : item.title;
+    const failure = _modelTestRowErrors.has(item) ? describeModelTestError(_modelTestRowErrors.get(item)) : item.error;
     const cells = [
-      item.local ? `${item.title} · Yerel` : item.title,
+      item.local ? t("info.test.batch.localTitle", { title }) : title,
       item.expected || "-",
       // A failed row has no answer, so its reason takes the answer's place.
-      item.predicted || item.error || "-",
+      item.predicted || failure || "-",
       formatPercent(item.confidence),
       formatMilliseconds(item.ms),
       verdictLabel,
@@ -1346,6 +1519,14 @@ function renderModelTestBatch() {
 let _modelCardLoad = null;
 
 /**
+ * The card the page's figures were filled from, kept so a language change
+ * can write them again; null until a card has filled them.
+ *
+ * @type {unknown}
+ */
+let _modelCardShown = null;
+
+/**
  * Look up a figure of the card by its dotted path.
  *
  * @param {unknown} card
@@ -1369,7 +1550,7 @@ function modelCardFigure(card, path) {
  */
 function formatModelCardFigure(value, format) {
   if (format === "percent") return formatPercent(value);
-  if (format === "mb") return `${formatTurkishNumber(value / 1048576)} MB`;
+  if (format === "mb") return `${formatMeasurement(value / 1048576)} MB`;
   return String(value);
 }
 
@@ -1392,7 +1573,25 @@ function renderProjectModelCard(card) {
   for (const { element, value } of slots) {
     element.textContent = formatModelCardFigure(/** @type {number} */ (value), element.dataset.format);
   }
+  _modelCardShown = card;
   if (els.projectNumbers) els.projectNumbers.hidden = false;
+}
+
+/**
+ * Write the filled sentences again in the page's language.
+ *
+ * Their figures make the shown sentences differ from their strings, so the
+ * markup pass leaves them as they are: each is rewritten from its string and
+ * filled again, its figures now formatted the new language's way.
+ *
+ * @returns {void}
+ */
+function renderProjectLanguage() {
+  if (_modelCardShown === null || !els.projectNumbers) return;
+  for (const element of queryElements("[data-i18n-html]", els.projectNumbers)) {
+    element.innerHTML = t(element.getAttribute("data-i18n-html") ?? "");
+  }
+  renderProjectModelCard(_modelCardShown);
 }
 
 /**
@@ -1419,4 +1618,31 @@ function loadProjectModelCard() {
     });
   _modelCardLoad = load;
   return load;
+}
+
+/**
+ * Redraw what the information screens drew from state, after a language
+ * change has translated their markup.
+ *
+ * @returns {void}
+ */
+function renderInfoLanguage() {
+  renderProjectLanguage();
+  renderModelTestLanguage();
+}
+
+/**
+ * Write again what the Model Test panel built from state: the dropdown, the
+ * loaded sample's name, the answer's figures, the result note and the batch.
+ * The status, badge and labels follow the change by themselves, written
+ * with setText().
+ *
+ * @returns {void}
+ */
+function renderModelTestLanguage() {
+  renameModelTestSampleOptions();
+  drawModelTestSource();
+  drawModelTestAnswer();
+  if (_modelTestNote) setModelTestPlainText(els.modelTestResultNote, _modelTestNote());
+  renderModelTestBatch();
 }

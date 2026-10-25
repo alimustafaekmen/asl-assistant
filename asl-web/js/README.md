@@ -10,6 +10,14 @@ runtime contract.
 
 ```text
 core/theme-boot.js
+core/lang-boot.js
+core/i18n.js
+i18n/shell.js
+i18n/letter.js
+i18n/word.js
+i18n/coach.js
+i18n/info.js
+core/i18n-boot.js
 core/config.js
 core/runtime.js
 ml/landmarks.js
@@ -40,6 +48,19 @@ The rules behind that order:
 - `core/theme-boot.js` is in `<head>`, before the stylesheets, so the first
   frame is painted in the visitor's theme. It writes only the theme onto
   `<html>`, and reads neither `state` nor `els`, which do not exist yet.
+- `core/lang-boot.js` follows it for the same reason: `<html lang>` names the
+  visitor's language before anything is painted.
+- `core/i18n.js`, the strings files under `i18n/` and `core/i18n-boot.js`
+  open the body's scripts, before the CDN scripts. The parser waits for each
+  CDN script to download, so the page is translated before that wait, not
+  after it: an English reader never waits looking at the Turkish markup.
+  The parser also waits for the strings themselves, and the browser paints
+  the Turkish body parsed above them meanwhile, so `core/lang-boot.js` marks
+  a page in any other language with `data-i18n-pending`, which
+  `css/base.css` hides, and `core/i18n-boot.js` removes the mark once it
+  has run. If the translation never runs, the stylesheet shows the page
+  after 3 s anyway, and a translation that could not run sets `<html lang>`
+  back to `tr`, the language the page is then in.
 - `core/config.js` comes before anything that reads `CONFIG` or the label lists.
 - `core/runtime.js` creates the shared `state`, the `els` DOM registry, the
   overlay canvas context, and the word recording buffers exactly once.
@@ -48,8 +69,11 @@ The rules behind that order:
 - `core/app.js` is last and is the only script that calls `init()`.
 
 No module other than `core/app.js` does asynchronous work, binds events, or
-loads a model while it is being loaded; `core/theme-boot.js` only sets the
-theme. Startup side effects belong in the bootstrap flow.
+loads a model while it is being loaded. `core/theme-boot.js` and
+`core/lang-boot.js` only write onto `<html>`, a strings file only registers
+its strings and its language-change listener, and `core/i18n-boot.js` only
+translates the parsed markup. Startup side effects belong in the bootstrap
+flow.
 
 `tests/project/test_web_ui_contracts.py` enforces this order, and
 `tests/web/module-contracts.test.js` loads the scripts the same way the browser
@@ -60,6 +84,14 @@ does, so a duplicated global or a file that `index.html` forgets fails a test.
 | Module | Responsibility |
 |---|---|
 | `core/theme-boot.js` | Theme resolution before the first paint: saved choice, else the system scheme; the theme-color metas |
+| `core/lang-boot.js` | Language resolution before the first paint: saved choice (`asl-lang`), else the browser's preferred languages, else English; writes `<html lang>` |
+| `core/i18n.js` | The strings registry (`registerStrings`), lookup (`t`), the markup pass over `data-i18n*` attributes (`translatePage`), bound text (`setText`, `setAttrText`), and the switch (`setLanguage`, `onLanguageChange`) |
+| `i18n/shell.js` | Shell strings in Turkish and English: header, navigation, language and theme controls, screen titles, camera status and problems, model downloads |
+| `i18n/letter.js` | Letter screen strings: stage, camera help, plate, transcript, action bar, side cards, demo, toast |
+| `i18n/word.js` | Word screen strings: recording, word dock, word cards and library, reference panel and viewer |
+| `i18n/coach.js` | Coach screen strings: target tile, cues and hints, session bar, study cards, letter grid |
+| `i18n/info.js` | Information screen strings: project page, phone (QR) screen, Model Test |
+| `core/i18n-boot.js` | Translates the parsed page into the visitor's language, before the CDN scripts |
 | `core/config.js` | Runtime configuration, letter/word label lists, difficulty sets, reference assets, and `ORT_WASM_PATHS`, the ONNX Runtime directory both model adapters use (it must match the `ort.wasm.min.js` in `index.html`) |
 | `core/runtime.js` | Shared mutable state, DOM registry, canvas context, word recording buffers |
 | `core/app.js` | Bootstrap, event wiring, hash routing, camera start/stop, render loop, debug API |
@@ -133,6 +165,8 @@ load; frames are dropped until the model is ready.
 - New shared mutable state: `core/runtime.js`, and nowhere else.
 - A new event binding: `bindEvents()` in `core/app.js`, so every listener stays
   visible from one place.
+- A new interface string: the strings file of its area under `i18n/`, in
+  Turkish and English (see [Interface languages](#interface-languages)).
 
 Add the file to `index.html` in the position its dependencies require, and
 update the expected order in `tests/project/test_web_ui_contracts.py`.
@@ -186,6 +220,81 @@ than the page.
 used for a fully escaped or fully literal template; a model label, a dataset
 value or fetched JSON is never interpolated into HTML unescaped.
 
+## Interface languages
+
+The interface is in Turkish and English. Turkish addresses the visitor as
+*siz*; English is plain US English in sentence case. ASL letters and word
+glosses are not translated.
+
+**Resolution.** `core/lang-boot.js` picks the language before the first
+paint: the visitor's saved choice (`localStorage["asl-lang"]`, `"tr"` or
+`"en"`), else the first of the browser's preferred languages
+(`navigator.languages`, then `navigator.language`) whose primary subtag is
+`tr` or `en`, else English. It writes the result to `<html lang>`, which is
+the one record of the current language (`currentLanguage()`), and, for
+English, `data-i18n-pending`, which keeps the body hidden until
+`core/i18n-boot.js` has translated it.
+
+**Strings.** Each area has one file under `i18n/` that calls
+`registerStrings(area, {tr: {...}, en: {...}})` once. Keys are
+`<area>.<part>.<name>` in lowerCamelCase segments and must start with the
+area (`shell`, `letter`, `word`, `coach`, `info`); a key outside the area or
+registered twice is refused and recorded in `I18N_PROBLEMS.refused`. A value
+is a string, with `{name}` placeholders, or `{one, other}` for a count, picked
+by the `count` parameter. Strings that hold markup are written with
+characters, not entities.
+
+**Markup.** The authored markup is Turkish and stays the fallback. An element
+names its strings with attributes, and `translatePage()` writes them:
+
+| Attribute | Writes |
+|---|---|
+| `data-i18n="key"` | the text; only on an element whose content is text alone (wrap the text in a `<span>` if the element also holds an icon, a key cap or another element) |
+| `data-i18n-html="key"` | the markup, for a string with `<strong>`, `<a>` or a `lang` span in it; only strings from the strings files, never anything a visitor typed |
+| `data-i18n-aria-label`, `data-i18n-title`, `data-i18n-placeholder`, `data-i18n-alt`, `data-i18n-content`, `data-i18n-lang` | that attribute |
+| `data-i18n-params='{"n": 3}'` | the parameters of the element's strings, as JSON |
+
+The Turkish string of every marked element must equal its authored text;
+`tests/web/i18n-core.test.js` holds them together, so switching to English and
+back shows the same Turkish.
+
+**Scripts.** `t(key, params)` returns the string in the current language.
+`setText(element, key, params)` and `setAttrText(element, attribute, key,
+params)` show a string and mark the element with its key, so the next language
+change rewrites it like markup. A change rewrites an element only while it
+still shows the previous language's string: text a script wrote since is that
+script's to redraw. Text a module builds from state (a list, a status, a
+message) is redrawn by the module from state in a listener it registers in
+its strings file with `onLanguageChange(() => ...)`, looking its function up
+when the change comes, since the strings file loads before the module.
+
+The shared message places take a `UiText`: a string, or a function that
+returns one. `setMessage()` and `reportProblem()` (the plate's status line),
+`showFeedback()` (the feedback bar) and `showToast()` (its text and its
+action's label) call a function again after a language change, so any
+screen's message follows a switch when it is written as
+`setMessage(() => t("letter.plate.letterClear", { letter }), "good")`; a
+string stays as it was written. A percentage goes through `percentText(n)`, since Turkish writes
+"%90" and English "90%".
+
+**Missing strings.** A key the current language lacks shows the Turkish
+string; a key nobody registered shows nothing, never the key. Both are
+recorded in `I18N_PROBLEMS.missing` and warned about once.
+
+**Switching.** `setLanguage(language)` saves the choice, moves `<html lang>`,
+rewrites the marked markup and calls every listener. Nothing reloads, and the
+camera, the transcript and the current screen are left as they are. The
+switch in the header (`#languageToggle`, in the "Diğer" menu on a phone) is
+labelled and named in the language it switches to.
+
+**Tests.** The node harness and the browser runner open every page as a
+Turkish browser's unless a test says otherwise:
+`loadWebApp({languages: ["en-US", "en"]})` or `{savedLanguage: "en"}`, and in
+the browser checks the page options of the same names, or
+`make browser-check UI_LANG=en` for the whole suite.
+`tests/web/helpers/turkish-left.mjs` reports the Turkish an English page still
+shows, in text and in spoken attributes.
+
 ## Type contracts
 
 The modules carry JSDoc types. They are documentation that a checker can verify,
@@ -198,6 +307,8 @@ truth.
 
 | Type group | Owner |
 |---|---|
+| `Language` | `core/lang-boot.js` |
+| `I18nValue`, `I18nParams` | `core/i18n.js` |
 | `RuntimeConfig`, `ThresholdSet`, reference assets | `core/config.js` |
 | State unions, `AppState`, `PredictionResult`, `WordResultAssessment` | `core/runtime.js` |
 | `Frame321D` | `ml/landmarks.js` |
@@ -210,7 +321,7 @@ truth.
 | MediaPipe landmark and task shapes | `media/camera.js` |
 | `DemoLetter`, `DemoRecording`, `DemoStartOutcome` | `media/demo-source.js` |
 | Recording diagnostics, `DominantSide` | `ml/live-inference.js` |
-| `ConfidenceLevel`, `FeedbackKind` | `ui/prediction.js` |
+| `ConfidenceLevel`, `FeedbackKind`, `UiText` | `ui/prediction.js` |
 | `CoachLetterData`, `CoachConfusionGroup`, `CoachProgress`, `CoachLetterRecord` | `ui/coach.js` |
 | Fixture and manifest shapes | `ui/model-test.js` |
 
@@ -246,7 +357,8 @@ no J/Z model is loaded by these modules.
 
 ## Comment conventions
 
-Source comments are in English; the interface text is Turkish. A comment
+Source comments are in English; the interface text is Turkish and English,
+kept in the `i18n/` strings files, with the authored markup in Turkish. A comment
 explains a model contract, a browser constraint, a fallback or a non-obvious
 design decision, and does not restate the code line by line.
 

@@ -19,9 +19,11 @@ a class in the markup and the CSS together, changes nothing here.
 ```bash
 make browser-check                         # every check
 make browser-check OFFLINE=1               # skip the checks that need the CDNs
+make browser-check UI_LANG=en              # every page as an English browser's
 
 node tests/browser/run.mjs                 # the same, without make
 node tests/browser/run.mjs --offline
+node tests/browser/run.mjs --lang en
 node tests/browser/run.mjs --only boot,hidden
 node tests/browser/run.mjs --list
 ```
@@ -63,7 +65,10 @@ add a few seconds.
 - Each page gets a fresh browser context, so no check sees storage, cache or
   permissions an earlier one left behind. Pages emulate a light colour scheme
   and no motion preference unless a check says otherwise, so the host's own
-  dark mode cannot change a result.
+  dark mode cannot change a result. They are a Turkish browser's too
+  (`navigator.languages` and `Accept-Language`), so the page opens in Turkish
+  whatever the host's language; `--lang en` opens every page as an English
+  browser's, and a check can set `languages` or a `savedLanguage` itself.
 - Every check except `camera` and `demo-model` refuses requests to other
   origins, so the app's CDN scripts (ONNX Runtime, kjua) are blocked and never
   downloaded. Those two let MediaPipe and ONNX Runtime load from their CDNs,
@@ -101,6 +106,10 @@ Each check was shown to fail on deliberate faults planted in a scratch copy of
 | `guided-actions` | on `#test` the short copy and both quick-test buttons are rendered, the long brief is not, and the advanced section starts closed with the model choice inside it; on `#coach` the reference panel sits above the coach card; on `#word` the demo card starts closed |
 | `demo` | at 390×844, 320×568, 844×390 and 1366×768 (light and dark), the stage's "Örneği izleyin" plays the real `data/demo-letters.json`: the hand is drawn on the overlay (read from its pixels), at least a quarter of the stage high, and where the stage has room clear of the demo's card and the plate; the instruction is rendered inside the stage; nothing scrolls sideways; the stop clears the overlay and hides itself |
 | `demo-model` | the real letter model, through ONNX Runtime from the CDN, reads the recorded hand: the plate shows F, L and Y in turn, a real Space key press adds each, the transcript reads `FLY`, and the end offers the camera; no CSP violation |
+| `language-first-paint` | an English browser's page, with the CDN request held unanswered so the parser stops at the first CDN script and `init()` never runs: `<html lang>` is `en`, and the header shows no Turkish text or spoken name (so the page is translated before the CDN scripts) |
+| `language-hidden-until-translated` | `js/i18n/info.js` is held unanswered so the parser stops at it with the Turkish body above it: for an English browser the body is not rendered, nothing contentful is painted and no Turkish text shows; 3 s in, the body shows anyway (the fail-safe for a translation that never comes); once the file is answered no Turkish is left. A Turkish browser's page under the same hold is rendered and painted |
+| `language-switch` | on a laptop the switch is rendered in the header; a click turns the page to English without a reload, retitles it, names the switch "Türkçeye geç", saves the choice, gives up focus, and a reload keeps English; on a phone the switch shows only in the open "Diğer" menu and switches back |
+| `language-every-screen` | an English browser and a Turkish one each open every route at laptop width, the letter and word reference panel and its viewer, the letter demo while it plays and after its stop, and the phone menu; in English nothing rendered (text, spoken names, tooltips, the document title) reads as Turkish, and in Turkish nothing rendered equals an English interface string that is not also Turkish (key caps such as "Space" are left out), the title is the route's Turkish name, and a few authored labels ("Kısayollar", "Gizle", "Büyüt", "Örneği izleyin") read as written. Everything is checked as rendered, so a state reached only with a live camera stays with the node tests |
 | `camera` | the model each mode runs (letter, then word) loads through the real ONNX Runtime and its WASM files from the CDN, as `window.aslDebug.models` reports it, so a wrong `wasmPaths` or a 404 on the `.wasm` fails; the stage close button is rendered only while the camera is live, has a label and a 24 px target; after a stop no track handed out by `getUserMedia` is live; no CSP violation while MediaPipe and ONNX Runtime load |
 
 `hidden` and `reduced-motion` run a second time with the `legacy` layer (the

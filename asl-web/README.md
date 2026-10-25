@@ -35,8 +35,11 @@ is not an evaluation result.
 
 ## Modes
 
-The interface is in Turkish. The three camera modes are the tabs of the top
-bar; the QR and project screens are in its "Diğer" menu on a phone and are
+The interface is in Turkish and English. It opens in the language the
+visitor chose before, else in the browser's preferred one of the two, else in
+English, and the language switch in the top bar changes it without a reload
+([Interface languages](js/README.md#interface-languages)). The three camera
+modes are the tabs of the top bar; the QR and project screens are in its "Diğer" menu on a phone and are
 links in the bar on a laptop, and the project page links to Model Test.
 
 | Screen (route) | Behaviour |
@@ -80,6 +83,14 @@ The app uses classic scripts that share browser globals, so their order in
 
 ```text
 js/core/theme-boot.js
+js/core/lang-boot.js
+js/core/i18n.js
+js/i18n/shell.js
+js/i18n/letter.js
+js/i18n/word.js
+js/i18n/coach.js
+js/i18n/info.js
+js/core/i18n-boot.js
 js/core/config.js
 js/core/runtime.js
 js/ml/landmarks.js
@@ -272,8 +283,10 @@ asl-web/
 │   ├── screens-info.css   the Model Test, QR and project screens
 │   └── screens-word.css   the word screen and the reference viewer
 ├── js/
-│   ├── core/              theme-boot.js (theme before first paint), config.js,
+│   ├── core/              theme-boot.js and lang-boot.js (theme and language before first paint),
+│   │                      i18n.js and i18n-boot.js (strings, translation, the switch), config.js,
 │   │                      runtime.js (state, element registry), app.js (start-up, routes, camera)
+│   ├── i18n/              shell.js, letter.js, word.js, coach.js, info.js: strings in both languages
 │   ├── media/             camera.js (MediaPipe tasks), overlay.js (landmark drawing)
 │   ├── ml/                landmarks, features, gating, letter and word models, live inference
 │   ├── services/          benchmark.js

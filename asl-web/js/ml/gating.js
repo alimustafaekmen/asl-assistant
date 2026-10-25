@@ -145,10 +145,23 @@ function readConfusionPair(pair) {
  *
  * @param {PredictionCandidate | null} top1
  * @param {PredictionCandidate | null} top2
- * @returns {string | null} Turkish guidance, or null when the margin is
- *   comfortable or the pair is not a published one.
+ * @returns {string | null} Guidance in the page's language, or null when the
+ *   margin is comfortable or the pair is not a published one.
  */
 function getConfusionFeedback(top1, top2) {
+  const copy = confusionFeedbackCopy(top1, top2);
+  return copy ? t(copy.key, copy.params) : null;
+}
+
+/**
+ * The string getConfusionFeedback() says, by key, so a language change can
+ * say it again.
+ *
+ * @param {PredictionCandidate | null} top1
+ * @param {PredictionCandidate | null} top2
+ * @returns {{key: string, params: I18nParams} | null}
+ */
+function confusionFeedbackCopy(top1, top2) {
   if (!top1 || !top2) return null;
   const margin = top1.confidence - top2.confidence;
   if (margin > 0.2) return null;
@@ -163,7 +176,7 @@ function getConfusionFeedback(top1, top2) {
   });
 
   if (pair) {
-    return `${top1.label} ile ${top2.label} sık karışır; işareti daha belirgin yapın.`;
+    return { key: "word.feedback.confusion", params: { first: top1.label, second: top2.label } };
   }
   return null;
 }
@@ -193,13 +206,22 @@ function getWordDifficulty(word) {
 
 /**
  * @param {string} word
- * @returns {string | null} Turkish guidance for a hard word, otherwise null.
+ * @returns {string | null} Guidance for a hard word in the page's language,
+ *   otherwise null.
  */
 function getDifficultyMessage(word) {
-  const diff = getWordDifficulty(word);
-  if (diff === "hard") {
-    return `"${word}" zor tanınan kelimelerden; sonucu dikkatle kontrol edin.`;
-  }
+  const copy = difficultyCopy(word);
+  return copy ? t(copy.key, copy.params) : null;
+}
+
+/**
+ * The string getDifficultyMessage() says, by key.
+ *
+ * @param {string} word
+ * @returns {{key: string, params: I18nParams} | null}
+ */
+function difficultyCopy(word) {
+  if (getWordDifficulty(word) === "hard") return { key: "word.feedback.hard", params: { word } };
   return null;
 }
 

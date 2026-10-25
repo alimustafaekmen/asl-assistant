@@ -38,6 +38,22 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* A page in a language other than the authored Turkish stays hidden until
+     js/core/i18n-boot.js has translated it, so the Turkish is never painted.
+     The animation is the fail-safe: if the translation never runs, the
+     Turkish page shows after 3 s rather than staying blank. Reduced motion
+     shortens durations, not delays, so it fires there too. */
+  html[data-i18n-pending] body {
+    visibility: hidden;
+    animation: i18n-reveal 0s 3s forwards;
+  }
+
+  @keyframes i18n-reveal {
+    to {
+      visibility: visible;
+    }
+  }
+
   /* One visible ring for every focusable thing, in both themes. Components on
      the dark stage swap the colour, not the shape. */
   :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {

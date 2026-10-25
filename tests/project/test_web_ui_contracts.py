@@ -585,6 +585,14 @@ def test_classic_script_order_protects_global_runtime_contract() -> None:
 
     expected_order = [
         "js/core/theme-boot.js",
+        "js/core/lang-boot.js",
+        "js/core/i18n.js",
+        "js/i18n/shell.js",
+        "js/i18n/letter.js",
+        "js/i18n/word.js",
+        "js/i18n/coach.js",
+        "js/i18n/info.js",
+        "js/core/i18n-boot.js",
         "js/core/config.js",
         "js/core/runtime.js",
         "js/ml/landmarks.js",

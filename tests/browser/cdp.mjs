@@ -273,7 +273,24 @@ export class Browser {
  *   CDNs). Off by default: such requests are refused and recorded.
  * @property {boolean} [grantCamera] Grant the camera permission for the origin.
  * @property {Array<{name: string, value: string}>} [media] Emulated media features.
+ * @property {string[]} [languages] The browser's preferred languages, as
+ *   navigator.languages and Accept-Language give them. Turkish by default
+ *   (DEFAULT_LANGUAGES), so a page opens in the language the checks were
+ *   written against unless a check asks for another.
+ * @property {string} [savedLanguage] A language choice already saved in the
+ *   page's storage, as after an earlier visit. A choice the page makes
+ *   later is kept.
+ * @property {boolean} [holdExternal] Leave requests to other origins
+ *   unanswered instead of refusing them, as a CDN that never answers does;
+ *   the page then stops at the first CDN script. Use navigate(), since such
+ *   a page never fires its load event.
+ * @property {string[]} [holdPaths] Leave the page's own requests whose path
+ *   ends with one of these unanswered until release(), as a slow network
+ *   leaves one script; the parser stops at it. Use navigate().
  */
+
+/** The browser's preferred languages in a page that does not choose them. */
+export const DEFAULT_LANGUAGES = Object.freeze(["tr-TR", "tr"]);
 
 // Installed before any page script runs. It records what the page itself
 // cannot report back once it has gone wrong: every CSP violation, including
@@ -386,8 +403,13 @@ export class Page {
   _onRequestPaused({ requestId, request }) {
     const url = request.url;
     const local = this._sameOrigin(url) || url.startsWith("data:") || url.startsWith("blob:");
-    if (local) {
+    if (local && this.holdPaths.some((path) => new URL(url).pathname.endsWith(path))) {
+      this.heldRequests.push(url);
+      this._heldIds.push(requestId);
+    } else if (local) {
       this.send("Fetch.continueRequest", { requestId }).catch(() => {});
+    } else if (this.holdExternal) {
+      this.heldRequests.push(url);
     } else {
       this.blockedRequests.push(url);
       this.send("Fetch.failRequest", { requestId, errorReason: "BlockedByClient" }).catch(() => {});
@@ -407,6 +429,18 @@ export class Page {
     await this.send("Emulation.setFocusEmulationEnabled", { enabled: true });
     await this.send("Page.addScriptToEvaluateOnNewDocument", { source: PAGE_PROBE });
     await this.setViewport(options);
+    await this.setLanguages(options.languages ?? DEFAULT_LANGUAGES);
+    if (options.savedLanguage !== undefined) {
+      const value = JSON.stringify(options.savedLanguage);
+      await this.send("Page.addScriptToEvaluateOnNewDocument", {
+        source: `try { if (localStorage.getItem("asl-lang") === null) localStorage.setItem("asl-lang", ${value}); } catch {}`,
+      });
+    }
+    this.holdExternal = options.holdExternal === true;
+    this.holdPaths = options.holdPaths ?? [];
+    /** Requests left unanswered under holdExternal or holdPaths. */
+    this.heldRequests = [];
+    this._heldIds = [];
     if (options.media) await this.send("Emulation.setEmulatedMedia", { features: options.media });
     if (options.grantCamera) {
       await this.browser.send("Browser.setPermission", {
@@ -433,9 +467,40 @@ export class Page {
     await this.send("Emulation.setTouchEmulationEnabled", { enabled: mobile, maxTouchPoints: mobile ? 5 : 1 });
   }
 
+  /**
+   * Set the browser's preferred languages for this page: navigator.language,
+   * navigator.languages and the Accept-Language header all follow. The user
+   * agent string itself is left as Chrome's own.
+   *
+   * @param {readonly string[]} languages
+   */
+  async setLanguages(languages) {
+    const { userAgent } = await this.browser.send("Browser.getVersion");
+    await this.send("Emulation.setUserAgentOverride", { userAgent, acceptLanguage: languages.join(",") });
+    this.languages = [...languages];
+  }
+
   /** @param {Array<{name: string, value: string}>} features */
   async emulateMedia(features) {
     await this.send("Emulation.setEmulatedMedia", { features });
+  }
+
+  /**
+   * Start a navigation without waiting for the load event, for a page that
+   * may never fire it (holdExternal).
+   *
+   * @param {string} url
+   */
+  async navigate(url) {
+    const result = await this.send("Page.navigate", { url });
+    if (result.errorText) throw new Error(`navigation to ${url} failed: ${result.errorText}`);
+  }
+
+  /** Answer the requests held under holdPaths, and hold no more. */
+  async release() {
+    this.holdPaths = [];
+    const ids = this._heldIds.splice(0);
+    await Promise.all(ids.map((requestId) => this.send("Fetch.continueRequest", { requestId })));
   }
 
   /**

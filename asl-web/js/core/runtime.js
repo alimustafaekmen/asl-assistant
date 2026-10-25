@@ -513,6 +513,7 @@ const els = {
   workspaceMain: queryUi("workspace"),
   appShell: queryUi("app-shell"),
   themeToggle: document.getElementById("themeToggle"),
+  languageToggle: document.getElementById("languageToggle"),
   toast: document.getElementById("toast"),
   toastText: document.getElementById("toastText"),
   toastAction: document.getElementById("toastAction"),

@@ -1,0 +1,466 @@
+// Information screen strings: the project page, the phone (QR) screen and Model Test.
+//
+// Figures are written by ui/model-test.js, which also redraws on a language
+// change what the markup cannot: the project page's filled-in figures.
+
+registerStrings("info", {
+  tr: {
+    "info.format.percent": "%{n}",
+    "info.format.seconds": "{n} sn",
+    "info.newTab": " (yeni sekmede açılır)",
+
+    "info.project.lead":
+      "ASL Assistant, kameraya gösterdiğiniz ASL parmak alfabesi harflerini tarayıcınızda tanır ve metne yazar. Görüntü cihazınızdan çıkmaz.",
+    "info.project.fact.letters": "24 ASL harfi · J ve Z hareketli olduğu için yok",
+    "info.project.fact.words": "50 kelime · deneysel",
+    "info.project.fact.notTid": "ASL (Amerikan İşaret Dili), TİD değil",
+    "info.project.tryCamera": "Kamerayı açıp deneyin",
+    "info.project.watchDemo": "Örneği izleyin",
+    "info.project.steps.title": "Tanıma üç adımda",
+    "info.project.steps.see.title": "Kamera elinizi görür",
+    "info.project.steps.see.text":
+      "Tarayıcı, görüntüdeki elin 21 eklem noktasını bulur. Görüntünün kendisi saklanmaz, hiçbir yere gönderilmez.",
+    "info.project.steps.numbers.title": "Noktalar sayılara dönüşür",
+    "info.project.steps.numbers.text": "Parmakların açıları ve aralarındaki mesafeler 93 sayılık bir özete çevrilir.",
+    "info.project.steps.guess.title": "Model harfi tahmin eder",
+    "info.project.steps.guess.text":
+      "Model, 24 harften hangisine en çok benzediğini ve ne kadar emin olduğunu söyler. Ekle'ye bastığınızda harf metne yazılır.",
+    "info.project.word.title": "Kelime modu (deneysel)",
+    "info.project.word.text":
+      "Yaklaşık 2–3 saniyelik bir hareket kaydedilir; el, yüz ve omuz noktaları birlikte değerlendirilir. Siz onaylamadan metne hiçbir kelime eklenmez.",
+    "info.project.numbers.title": "Ne kadar iyi tanır?",
+    "info.project.numbers.letter":
+      '<strong>Harf:</strong> ayrılmış test verisinde <span data-card="letter.accuracy_held_out" data-format="percent"></span> doğru. Bu veri eğitimle aynı fotoğraf dizilerinden geldiği için kameradaki başarı daha düşük olabilir.',
+    "info.project.numbers.word":
+      '<strong>Kelime:</strong> modelin hiç görmediği kişilerin kayıtlarında <span data-card="word.accuracy" data-format="percent"></span> doğru. Bazı kelimeler birbirine karışabilir.',
+    "info.project.numbers.models":
+      'Modeller <span data-card="letter.classes" data-format="int"></span> harf ve <span data-card="word.classes" data-format="int"></span> kelime arasından seçer. İlk kullanımda harf modeli yaklaşık <span data-card="letter.size_bytes_gzip" data-format="mb"></span>, kelime modeli yaklaşık <span data-card="word.size_bytes" data-format="mb"></span> indirilir.',
+    "info.project.limits.title": "Sınırlar",
+    "info.project.limits.scope": "Yalnızca tek tek harfleri ve 50 kelimeyi tanır; cümle çevirmez.",
+    "info.project.limits.errors": "Farklı el, ışık ve kamera açılarında hata yapabilir.",
+    "info.project.limits.phones": "Gerçek telefonlarda henüz sınanmadı.",
+    "info.project.limits.references":
+      "Referans görselleri yeniden hazırlanıyor; M, N, S, T ve E çizimleri birbirine çok benziyor.",
+    "info.project.privacy.title": "Gizlilik",
+    "info.project.privacy.video":
+      "Görüntü cihazınızdan çıkmaz. Tanıma tarayıcınızda yapılır; görüntü kaydedilmez. Yazdığınız metin yalnızca bu tarayıcıda saklanır.",
+    "info.project.privacy.downloads":
+      "Sayfa açıldığında model indirilmez; kamera, örnek ya da test ilk başladığında indirilir. Çalıştırıcılar herkese açık içerik ağlarından (jsDelivr, Google) gelir.",
+    "info.project.tech.title": "Teknik ayrıntılar",
+    "info.project.tech.letter": "Harf modeli: karar ağaçları (LightGBM); girdisi tek elin 93 sayılık özeti.",
+    "info.project.tech.word":
+      "Kelime modeli: dönüştürücü ağ (SignTransformer); girdisi 45 kare × 168 sayı ve hangi karelerin gerçek olduğunu söyleyen bir maske.",
+    "info.project.tech.local": "İki model de tarayıcıda çalışır; sunucuya ne görüntü ne de sayı gönderilir.",
+    "info.project.developers":
+      'Geliştiriciler için: <a href="#test">modeli örnek dosyalarla test edin (Model Test)</a>',
+    "info.project.credits.title": "Veri kaynakları ve emeği geçenler",
+    "info.project.credits.akash": "Akash Nagaraj, 2018 · GPL-2.0 (sağlayıcının belirttiği lisans)",
+    "info.project.credits.subset": "alt kümesi",
+    "info.project.credits.semcom":
+      '<span lang="en">ASL-Fingerspelling</span> ile ilişkili · koşulları kayıtlı değil; görseller paylaşılmıyor',
+    "info.project.credits.google":
+      '<span lang="en">Deaf Professional Arts Network</span> ve <span lang="en">Georgia Institute of Technology</span> tarafından sağlandı · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0<span class="visually-hidden"> (yeni sekmede açılır)</span></a>, yarışma kurallarına bağlı',
+    "info.project.credits.chart": "ASL harf kartı",
+    "info.project.credits.chartBy":
+      "Ds13, Gallaudet yazı tipinden; Marnanel vektörleştirdi · Wikimedia Commons, kamu malı",
+    "info.project.licence.title": "Lisans",
+    "info.project.licence.text":
+      'Kaynak kodu <a href="https://polyformproject.org/licenses/noncommercial/1.0.0" target="_blank" rel="noreferrer">PolyForm Noncommercial 1.0.0<span class="visually-hidden"> (yeni sekmede açılır)</span></a> lisansı altındadır: kişisel, eğitim ve araştırma amaçlı kullanım serbesttir; ticari kullanım izin gerektirir. Model dosyaları aynı lisansla yayınlanır; eğitim verilerinin koşulları da geçerlidir.',
+    "info.project.software.title": "Kullanılan yazılımlar",
+    "info.project.software.fonts":
+      '<span lang="en">Atkinson Hyperlegible Next</span> ve <span lang="en">Mono</span><span class="visually-hidden"> (yeni sekmede açılır)</span>',
+
+    "info.qr.lead":
+      "Telefonunuzun kamerasıyla kodu okutun; ASL Assistant telefonda açılır. Hiçbir şey yüklemeniz gerekmez. Bağlantıyı paylaşarak da gönderebilirsiniz.",
+    "info.qr.share": "Bağlantıyı paylaş",
+    "info.qr.copy": "Bağlantıyı kopyala",
+    "info.qr.openTab": "Yeni sekmede aç",
+    "info.qr.preparing": "QR hazırlanıyor...",
+    "info.qr.ready": "QR hazır: {url}",
+    "info.qr.codeFor": "QR kodu: {url}",
+    "info.qr.drawFailed": "QR kodu çizilemedi.",
+    "info.qr.drawFailedStatus": "QR kodu çizilemedi; bağlantıyı kopyalayıp telefonunuza gönderebilirsiniz.",
+    "info.qr.copied": "Bağlantı kopyalandı.",
+    "info.qr.copyFailed": "Kopyalanamadı. Bağlantıyı seçip elle kopyalayın.",
+    "info.qr.shareFailed": "Paylaşılamadı. Bağlantıyı kopyalayabilirsiniz.",
+    "info.qr.target.title": "Hangi ekran açılsın?",
+    "info.qr.target.letter": "Harf",
+    "info.qr.target.letterText": "Kameranın karşısında harfleri tanır",
+    "info.qr.target.word": "Kelime",
+    "info.qr.target.wordText": "Deneysel; ışık ve kadraj önemli",
+    "info.qr.steps.scan": "Telefonunuzun kamera uygulamasını açıp kodu çerçeveye alın.",
+    "info.qr.steps.tap": "Çıkan bağlantıya dokunun.",
+    "info.qr.steps.allow": "Kamerayı açın; tarayıcı sorduğunda izin verin.",
+    "info.qr.phoneStep": "Diğer telefonun kamerasını koda tutun ve çıkan bağlantıya dokunun.",
+    "info.qr.download":
+      "Kamerayı ilk açtığınızda yaklaşık 15 MB (kelime modunda en fazla 24 MB) indirilir; sonraki açılışlarda yeniden indirilmez. Mobil veride Wi-Fi önerilir.",
+    "info.qr.canvas": "ASL Assistant canlı demo QR kodu",
+    "info.qr.caption": "Yanınızdaki birine gösterin",
+
+    "info.test.lead":
+      "Yayındaki modeller hazır örnekler üzerinde tarayıcınızda çalışır. Kamera açılmaz; sonuçlar bu cihazda hesaplanır.",
+    "info.test.one.title": "Tek örnek",
+    "info.test.one.text": "Bir örnek seçin; model onu çalıştırır ve sonucu gösterir.",
+    "info.test.readySamples": "Hazır örnekler",
+    "info.test.tryLetter": "Harf örneği dene",
+    "info.test.tryWord": "Kelime örneği dene",
+    "info.test.runAgain": "Seçili örneği yeniden çalıştır",
+    "info.test.statusLabel": "Durum:",
+    "info.test.status.waiting": "Örnek bekleniyor",
+    "info.test.status.loading": "Örnek yükleniyor",
+    "info.test.status.ready": "Örnek hazır",
+    "info.test.status.loadingModel": "Model yükleniyor",
+    "info.test.status.running": "Model çalışıyor",
+    "info.test.status.done": "Tamamlandı",
+    "info.test.status.error": "Hata",
+    "info.test.steps.label": "Örneğin geçtiği adımlar",
+    "info.test.steps.sample": "Örnek",
+    "info.test.steps.validate": "Kontrol",
+    "info.test.steps.inference": "Model",
+    "info.test.steps.result": "Sonuç",
+    "info.test.more": "Başka model, başka örnek ya da kendi dosyanız",
+    "info.test.model.letter": "Harf modeli",
+    "info.test.model.letterText": "Tek el, 24 harf",
+    "info.test.model.word": "Kelime modeli",
+    "info.test.model.wordText": "Kısa hareket, 50 kelime",
+    "info.test.help.letter": "Harf modeli, tek bir el duruşuna bakıp 24 harften birini seçer.",
+    "info.test.help.word": "Kelime modeli, 45 kareden oluşan kısa bir hareket dizisine bakıp 50 kelimeden birini seçer.",
+    "info.test.prepare": "Örneği hazırla",
+    "info.test.drop": "Bir JSON dosyasını buraya bırakın ya da seçin",
+    "info.test.fileHint": "Harf örneği 93 sayı, kelime örneği 45 × 168 sayı ve 45 değerli bir maske içerir.",
+    "info.test.uploadedJson": "Yüklenen JSON",
+    "info.test.all.title": "Tüm örnekler",
+    "info.test.all.hint.letterCounted":
+      "Harf modelinin hazır örneklerini sırayla çalıştırır ve kaçının doğru olduğunu sayar.",
+    "info.test.all.hint.wordCounted":
+      "Kelime modelinin hazır örneklerini sırayla çalıştırır ve kaçının doğru olduğunu sayar.",
+    "info.test.all.hint.letterUncounted":
+      "Harf modelinin hazır örneklerini çalıştırır; hepsi uydurma olduğundan doğruluk sayılmaz.",
+    "info.test.all.hint.wordUncounted":
+      "Kelime modelinin hazır örneğini çalıştırır. Gerçek kelime kayıtları yarışma kuralları gereği paylaşılamadığından doğruluk sayılmaz.",
+    "info.test.all.run": "Tümünü çalıştır",
+    "info.test.result.title": "Sonuç",
+    "info.test.result.prediction": "Tahmin",
+    "info.test.result.expected": "Beklenen",
+    "info.test.result.confidence": "Güven",
+    "info.test.result.time": "Süre",
+    "info.test.result.top": "En olası üç sonuç",
+    "info.test.badge.waiting": "Beklemede",
+    "info.test.badge.notRun": "Çalıştırılmadı",
+    "info.test.badge.check": "Çalışma kontrolü",
+    "info.test.badge.match": "Eşleşti",
+    "info.test.badge.noMatch": "Eşleşmedi",
+    "info.test.badge.error": "Hata",
+    "info.test.noReference": "Referans yok",
+    "info.test.note.idle": "Bir örnek seçtiğinizde sonuç burada görünür.",
+    "info.test.note.synthetic":
+      "Bu örnek gerçek bir işaret kaydı değil; modelin çalıştığını göstermek için rastgele üretildi.",
+    "info.test.note.letterReady":
+      "Harf örneği tek el pozundan hazırlanmıştır. Model çalıştırıldığında tahmin ve top-3 burada görünecek.",
+    "info.test.note.wordReady":
+      "Kelime örneği 45 frame hareket bilgisinden hazırlanmıştır. Model çalıştırıldığında tahmin ve top-3 burada görünecek.",
+    "info.test.note.syntheticRun":
+      "Bu örnek gerçek bir işaret kaydı değil; modelin tarayıcıda çalıştığını göstermek için rastgele üretildi, bu yüzden doğruluk ölçmez.",
+    "info.test.note.syntheticRunWord":
+      "Gerçek kelime kayıtları yarışma kuralları gereği paylaşılamıyor; kelime modunu kamerayla deneyebilirsiniz.",
+    "info.test.note.noReference": "Bu fixture için referans etiket yok.",
+    "info.test.note.matched":
+      "Tahmin beklenen etiketle eşleşti. Bu, seçilen test girdisinde modelin doğru sınıfı seçtiğini gösterir.",
+    "info.test.note.mismatched":
+      "Tahmin beklenen etiketten farklı. Bu durumda top-3 listesi modelin hangi sınıfları karıştırdığını gösterir.",
+    "info.test.note.top": "Top-3: {top}.",
+    "info.test.tech.title": "Teknik ayrıntılar",
+    "info.test.tech.details": "Detay",
+    "info.test.tech.source": "Kaynak",
+    "info.test.tech.schema": "Biçim sürümü",
+    "info.test.tech.input": "Girdi",
+    "info.test.tech.realFrames": "Gerçek kare",
+    "info.test.facts.realFrames": "{n}/45 real frame",
+    "info.test.facts.noMask": "Yok",
+    "info.test.option.expected": "{title} · beklenen {percent}",
+    "info.test.option.noLetter": "Hazır harf fixture yok",
+    "info.test.option.noWord": "Hazır kelime fixture yok",
+    "info.test.sample.letter": "Harf {label}",
+    "info.test.sample.word": "Kelime {label}",
+    "info.test.sample.letterCheck": "Harf modeli çalışma kontrolü",
+    "info.test.sample.wordCheck": "Kelime modeli çalışma kontrolü",
+    "info.test.error.noLetterSample": "Hazır harf demo fixture bulunamadı.",
+    "info.test.error.noWordSample": "Hazır kelime demo fixture bulunamadı.",
+    "info.test.error.noSample": "Bu domain için hazır fixture bulunamadı.",
+    "info.test.error.http": "{name} alınamadı (HTTP {status})",
+    "info.test.error.connection": "Örnek indirilemedi. İnternet bağlantınızı kontrol edip yeniden deneyin.",
+    "info.test.error.failed": "Model çalıştırılamadı. Sayfayı yenileyip yeniden deneyin.",
+    "info.test.error.unreadable": "Dosya okunamadı.",
+    "info.test.error.badJson": "Dosya okunamadı: geçerli bir JSON değil.",
+    "info.test.error.noData": "Bu dosyada örnek verisi bulunamadı.",
+    "info.test.error.letterLength": "Harf örneği 93 sayı içermeli; bu dosyada {count} sayı var.",
+    "info.test.error.wordLength": "Kelime örneği 7560 sayı (45 × 168) içermeli; bu dosyada {count} var.",
+    "info.test.error.maskLength": "Maske 45 değer içermeli; bu dosyada {count} var.",
+    "info.test.error.maskValue": "Maske yalnızca doğru/yanlış (true/false ya da 1/0) değerleri içerebilir.",
+    "info.test.error.notNumber": "Dosyada sayı olmayan bir değer var.",
+    "info.test.error.maskEmpty": "Bu örnekte gerçek kare yok; kelime modeli çalıştırılamaz.",
+    "info.test.error.pickFirst": "Önce bir örnek seçin ya da JSON dosyası yükleyin.",
+    "info.test.error.letterModel": "Harf modeli yüklenemedi",
+    "info.test.error.wordModel": "Kelime modeli yüklenemedi",
+    "info.test.error.noPrediction": "Model tahmin döndürmedi",
+    "info.test.error.noPath": "{name} için dosya yolu yok",
+    "info.test.error.wrongModel": "{name} bu modele uygun değil",
+    "info.test.batch.title": "Tüm örneklerin sonucu",
+    "info.test.batch.noteLetter":
+      "Bu örnekler, eğitimde ayrılan test bölümünden her harf için birer kayıttır. Eğitim fotoğraflarıyla aynı dizilerden geldikleri için kamerada başarı daha düşük olabilir. Süreler bu cihazda ölçüldü; kamerayla canlı tanımada elin bulunması da zaman alır.",
+    "info.test.batch.noteWord":
+      "Kelime modeli, Google'ın ASL yarışma verisiyle eğitildi. Yarışma kuralları bu verinin paylaşılmasına izin vermediği için gerçek kayıtlardan çıkarılan örnekler yayınlanmaz. Yayındaki tek örnek yapaydır ve yalnızca modelin baştan sona çalıştığını gösterir. Projeyi kendi bilgisayarınıza kurarsanız bu örnekleri orada yerel olarak oluşturabilirsiniz.",
+    "info.test.batch.preparing": "Model hazırlanıyor…",
+    "info.test.batch.running": "Çalışıyor: {done} / {total}",
+    "info.test.batch.empty": "Çalıştırılacak örnek bulunamadı.",
+    "info.test.batch.synthetic":
+      "Model çalıştı. Örnek yapay olduğundan doğruluk hesaplanmadı; bu yalnızca modelin baştan sona çalıştığını gösterir.",
+    "info.test.batch.unscored":
+      "Model {count} örnek üzerinde çalıştı; referans etiketi olmadığı için doğruluk hesaplanmadı.",
+    "info.test.batch.accuracy": "{count} örnekten {correct} tanesi doğru ({percent}).",
+    "info.test.batch.median": "Ortanca süre {time}.",
+    "info.test.batch.prep": "Model hazırlığı {time} sürdü; bu süre örneklerin süresine eklenmedi.",
+    "info.test.batch.failed": "{count} örnek çalışmadı.",
+    "info.test.batch.local": "Yerel örnekler bu bilgisayara özeldir; siteyle birlikte yayınlanmamalıdır.",
+    "info.test.batch.localTitle": "{title} · Yerel",
+    "info.test.verdict.correct": "Doğru",
+    "info.test.verdict.wrong": "Yanlış",
+    "info.test.table.caption": "Örneklerin sonuçları",
+    "info.test.table.sample": "Örnek",
+  },
+  en: {
+    "info.format.percent": "{n}%",
+    "info.format.seconds": "{n} s",
+    "info.newTab": " (opens in a new tab)",
+
+    "info.project.lead":
+      "ASL Assistant reads the ASL fingerspelling letters you show your camera, right in your browser, and types them out. Your video never leaves your device.",
+    "info.project.fact.letters": "24 ASL letters · no J or Z, since they move",
+    "info.project.fact.words": "50 words · experimental",
+    "info.project.fact.notTid": "ASL (American Sign Language), not Turkish Sign Language",
+    "info.project.tryCamera": "Turn on the camera and try it",
+    "info.project.watchDemo": "Watch the demo",
+    "info.project.steps.title": "Recognition in three steps",
+    "info.project.steps.see.title": "The camera sees your hand",
+    "info.project.steps.see.text":
+      "Your browser finds the 21 joint points of your hand in the video. The video itself is not kept or sent anywhere.",
+    "info.project.steps.numbers.title": "The points become numbers",
+    "info.project.steps.numbers.text":
+      "The angles of the fingers and the distances between them are turned into a summary of 93 numbers.",
+    "info.project.steps.guess.title": "The model guesses the letter",
+    "info.project.steps.guess.text":
+      "The model says which of the 24 letters your sign looks most like, and how sure it is. When you press Add, the letter goes into your text.",
+    "info.project.word.title": "Word mode (experimental)",
+    "info.project.word.text":
+      "A movement of about 2–3 seconds is recorded, and the hand, face and shoulder points are read together. No word goes into your text unless you accept it.",
+    "info.project.numbers.title": "How well does it recognize signs?",
+    "info.project.numbers.letter":
+      '<strong>Letters:</strong> <span data-card="letter.accuracy_held_out" data-format="percent"></span> correct on held-out test data. That data comes from the same photo series as the training data, so accuracy on a camera may be lower.',
+    "info.project.numbers.word":
+      '<strong>Words:</strong> <span data-card="word.accuracy" data-format="percent"></span> correct on recordings of people the model never saw. Some words can be mixed up.',
+    "info.project.numbers.models":
+      'The models choose from <span data-card="letter.classes" data-format="int"></span> letters and <span data-card="word.classes" data-format="int"></span> words. On first use, about <span data-card="letter.size_bytes_gzip" data-format="mb"></span> is downloaded for the letter model and about <span data-card="word.size_bytes" data-format="mb"></span> for the word model.',
+    "info.project.limits.title": "Limits",
+    "info.project.limits.scope": "It recognizes single letters and 50 words only; it does not translate sentences.",
+    "info.project.limits.errors": "It can make mistakes with different hands, lighting and camera angles.",
+    "info.project.limits.phones": "It has not been tested on real phones yet.",
+    "info.project.limits.references":
+      "The reference images are being redrawn; the drawings of M, N, S, T and E look very much alike.",
+    "info.project.privacy.title": "Privacy",
+    "info.project.privacy.video":
+      "Your video never leaves your device. Recognition runs in your browser, and the video is not saved. The text you write is kept only in this browser.",
+    "info.project.privacy.downloads":
+      "Opening the page downloads no model; a model downloads the first time you start the camera, the demo or a test. The runtimes come from public content delivery networks (jsDelivr, Google).",
+    "info.project.tech.title": "Technical details",
+    "info.project.tech.letter": "Letter model: decision trees (LightGBM); its input is a 93-number summary of one hand.",
+    "info.project.tech.word":
+      "Word model: a transformer network (SignTransformer); its input is 45 frames × 168 numbers and a mask that says which frames are real.",
+    "info.project.tech.local": "Both models run in the browser; neither video nor numbers are sent to a server.",
+    "info.project.developers": 'For developers: <a href="#test">test the model with sample files (Model Test)</a>',
+    "info.project.credits.title": "Data sources and credits",
+    "info.project.credits.akash": "Akash Nagaraj, 2018 · GPL-2.0 (the license the provider states)",
+    "info.project.credits.subset": "subset",
+    "info.project.credits.semcom":
+      'Related to <span lang="en">ASL-Fingerspelling</span> · terms not recorded; the images are not shared',
+    "info.project.credits.google":
+      'Provided by <span lang="en">Deaf Professional Arts Network</span> and <span lang="en">Georgia Institute of Technology</span> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0<span class="visually-hidden"> (opens in a new tab)</span></a>, subject to the competition rules',
+    "info.project.credits.chart": "ASL alphabet chart",
+    "info.project.credits.chartBy":
+      "Ds13, from the Gallaudet font; vectorized by Marnanel · Wikimedia Commons, public domain",
+    "info.project.licence.title": "License",
+    "info.project.licence.text":
+      'The source code is under the <a href="https://polyformproject.org/licenses/noncommercial/1.0.0" target="_blank" rel="noreferrer">PolyForm Noncommercial 1.0.0<span class="visually-hidden"> (opens in a new tab)</span></a> license: personal, educational and research use is free; commercial use needs permission. The model files are published under the same license; the terms of the training data also apply.',
+    "info.project.software.title": "Software used",
+    "info.project.software.fonts":
+      '<span lang="en">Atkinson Hyperlegible Next</span> and <span lang="en">Mono</span><span class="visually-hidden"> (opens in a new tab)</span>',
+
+    "info.qr.lead":
+      "Scan the code with your phone's camera and ASL Assistant opens on the phone. There is nothing to install. You can also share the link.",
+    "info.qr.share": "Share the link",
+    "info.qr.copy": "Copy the link",
+    "info.qr.openTab": "Open in a new tab",
+    "info.qr.preparing": "Preparing the QR code…",
+    "info.qr.ready": "QR code ready: {url}",
+    "info.qr.codeFor": "QR code: {url}",
+    "info.qr.drawFailed": "The QR code could not be drawn.",
+    "info.qr.drawFailedStatus": "The QR code could not be drawn; you can copy the link and send it to your phone.",
+    "info.qr.copied": "Link copied.",
+    "info.qr.copyFailed": "Couldn't copy. Select the link and copy it yourself.",
+    "info.qr.shareFailed": "Couldn't share. You can copy the link instead.",
+    "info.qr.target.title": "Which screen should open?",
+    "info.qr.target.letter": "Letter",
+    "info.qr.target.letterText": "Recognizes letters in front of the camera",
+    "info.qr.target.word": "Word",
+    "info.qr.target.wordText": "Experimental; light and framing matter",
+    "info.qr.steps.scan": "Open your phone's camera app and frame the code.",
+    "info.qr.steps.tap": "Tap the link that appears.",
+    "info.qr.steps.allow": "Turn on the camera; allow it when the browser asks.",
+    "info.qr.phoneStep": "Point the other phone's camera at the code and tap the link that appears.",
+    "info.qr.download":
+      "The first time you turn on the camera, about 15 MB is downloaded (up to 24 MB in word mode); later visits do not download it again. Use Wi-Fi if you can.",
+    "info.qr.canvas": "QR code that opens ASL Assistant",
+    "info.qr.caption": "Show it to someone next to you",
+
+    "info.test.lead":
+      "The published models run on ready-made samples in your browser. The camera stays off; results are computed on this device.",
+    "info.test.one.title": "One sample",
+    "info.test.one.text": "Pick a sample; the model runs it and shows the result.",
+    "info.test.readySamples": "Ready-made samples",
+    "info.test.tryLetter": "Try a letter sample",
+    "info.test.tryWord": "Try a word sample",
+    "info.test.runAgain": "Run the selected sample again",
+    "info.test.statusLabel": "Status:",
+    "info.test.status.waiting": "Waiting for a sample",
+    "info.test.status.loading": "Loading the sample",
+    "info.test.status.ready": "Sample ready",
+    "info.test.status.loadingModel": "Loading the model",
+    "info.test.status.running": "Model running",
+    "info.test.status.done": "Done",
+    "info.test.status.error": "Error",
+    "info.test.steps.label": "The steps the sample goes through",
+    "info.test.steps.sample": "Sample",
+    "info.test.steps.validate": "Check",
+    "info.test.steps.inference": "Model",
+    "info.test.steps.result": "Result",
+    "info.test.more": "Another model, another sample or your own file",
+    "info.test.model.letter": "Letter model",
+    "info.test.model.letterText": "One hand, 24 letters",
+    "info.test.model.word": "Word model",
+    "info.test.model.wordText": "A short movement, 50 words",
+    "info.test.help.letter": "The letter model looks at one hand pose and picks one of 24 letters.",
+    "info.test.help.word": "The word model looks at a short movement of 45 frames and picks one of 50 words.",
+    "info.test.prepare": "Prepare the sample",
+    "info.test.drop": "Drop a JSON file here or choose one",
+    "info.test.fileHint":
+      "A letter sample holds 93 numbers; a word sample holds 45 × 168 numbers and a mask of 45 values.",
+    "info.test.uploadedJson": "Uploaded JSON",
+    "info.test.all.title": "All samples",
+    "info.test.all.hint.letterCounted":
+      "Runs the letter model's ready-made samples one by one and counts how many it gets right.",
+    "info.test.all.hint.wordCounted":
+      "Runs the word model's ready-made samples one by one and counts how many it gets right.",
+    "info.test.all.hint.letterUncounted":
+      "Runs the letter model's ready-made samples; they are all made up, so accuracy is not counted.",
+    "info.test.all.hint.wordUncounted":
+      "Runs the word model's ready-made sample. Real word recordings cannot be shared under the competition rules, so accuracy is not counted.",
+    "info.test.all.run": "Run all",
+    "info.test.result.title": "Result",
+    "info.test.result.prediction": "Prediction",
+    "info.test.result.expected": "Expected",
+    "info.test.result.confidence": "Confidence",
+    "info.test.result.time": "Time",
+    "info.test.result.top": "Top three results",
+    "info.test.badge.waiting": "Waiting",
+    "info.test.badge.notRun": "Not run yet",
+    "info.test.badge.check": "Smoke test",
+    "info.test.badge.match": "Match",
+    "info.test.badge.noMatch": "No match",
+    "info.test.badge.error": "Error",
+    "info.test.noReference": "No reference",
+    "info.test.note.idle": "Pick a sample and its result shows here.",
+    "info.test.note.synthetic":
+      "This sample is not a real sign recording; it was made at random to show that the model runs.",
+    "info.test.note.letterReady":
+      "The letter sample is made from one hand pose. When the model runs, its prediction and top three show here.",
+    "info.test.note.wordReady":
+      "The word sample is made from 45 frames of movement. When the model runs, its prediction and top three show here.",
+    "info.test.note.syntheticRun":
+      "This sample is not a real sign recording; it was made at random to show that the model runs in the browser, so it does not measure accuracy.",
+    "info.test.note.syntheticRunWord":
+      "Real word recordings cannot be shared under the competition rules; you can try word mode with your camera.",
+    "info.test.note.noReference": "This sample has no reference label.",
+    "info.test.note.matched":
+      "The prediction matches the expected label: on this test input, the model picked the right class.",
+    "info.test.note.mismatched":
+      "The prediction differs from the expected label. The top three show which classes the model mixed up.",
+    "info.test.note.top": "Top three: {top}.",
+    "info.test.tech.title": "Technical details",
+    "info.test.tech.details": "Details",
+    "info.test.tech.source": "Source",
+    "info.test.tech.schema": "Format version",
+    "info.test.tech.input": "Input",
+    "info.test.tech.realFrames": "Real frames",
+    "info.test.facts.realFrames": "{n} of 45",
+    "info.test.facts.noMask": "None",
+    "info.test.option.expected": "{title} · expected {percent}",
+    "info.test.option.noLetter": "No ready-made letter samples",
+    "info.test.option.noWord": "No ready-made word samples",
+    "info.test.sample.letter": "Letter {label}",
+    "info.test.sample.word": "Word {label}",
+    "info.test.sample.letterCheck": "Letter model smoke test",
+    "info.test.sample.wordCheck": "Word model smoke test",
+    "info.test.error.noLetterSample": "No ready-made letter sample was found.",
+    "info.test.error.noWordSample": "No ready-made word sample was found.",
+    "info.test.error.noSample": "No ready-made sample was found for this model.",
+    "info.test.error.http": "Could not get {name} (HTTP {status})",
+    "info.test.error.connection": "The sample could not be downloaded. Check your internet connection and try again.",
+    "info.test.error.failed": "The model could not run. Reload the page and try again.",
+    "info.test.error.unreadable": "The file could not be read.",
+    "info.test.error.badJson": "The file could not be read: it is not valid JSON.",
+    "info.test.error.noData": "This file has no sample data.",
+    "info.test.error.letterLength": "A letter sample must hold 93 numbers; this file has {count}.",
+    "info.test.error.wordLength": "A word sample must hold 7560 numbers (45 × 168); this file has {count}.",
+    "info.test.error.maskLength": "The mask must hold 45 values; this file has {count}.",
+    "info.test.error.maskValue": "The mask can hold only true or false values (true/false or 1/0).",
+    "info.test.error.notNumber": "The file has a value that is not a number.",
+    "info.test.error.maskEmpty": "This sample has no real frames, so the word model cannot run.",
+    "info.test.error.pickFirst": "Pick a sample or upload a JSON file first.",
+    "info.test.error.letterModel": "The letter model could not load",
+    "info.test.error.wordModel": "The word model could not load",
+    "info.test.error.noPrediction": "The model returned no prediction",
+    "info.test.error.noPath": "{name} has no file path",
+    "info.test.error.wrongModel": "{name} does not fit this model",
+    "info.test.batch.title": "Results for all samples",
+    "info.test.batch.noteLetter":
+      "These samples are one recording per letter from the test split held out in training. They come from the same series as the training photos, so accuracy on a camera may be lower. Times were measured on this device; live recognition with a camera also takes time to find the hand.",
+    "info.test.batch.noteWord":
+      "The word model was trained on Google's ASL competition data. The competition rules do not allow sharing that data, so samples taken from real recordings are not published. The one published sample is synthetic and only shows that the model runs from start to finish. If you set the project up on your own computer, you can create these samples there.",
+    "info.test.batch.preparing": "Preparing the model…",
+    "info.test.batch.running": "Running {done} of {total}",
+    "info.test.batch.empty": "No samples to run were found.",
+    "info.test.batch.synthetic":
+      "The model ran. The sample is synthetic, so accuracy was not calculated; this only shows that the model runs from start to finish.",
+    "info.test.batch.unscored": {
+      one: "The model ran on 1 sample; it has no reference label, so accuracy was not calculated.",
+      other: "The model ran on {count} samples; they have no reference labels, so accuracy was not calculated.",
+    },
+    "info.test.batch.accuracy": {
+      one: "{correct} of 1 sample correct ({percent}).",
+      other: "{correct} of {count} samples correct ({percent}).",
+    },
+    "info.test.batch.median": "Median time {time}.",
+    "info.test.batch.prep": "Preparing the model took {time}; that time is not added to the samples' times.",
+    "info.test.batch.failed": { one: "1 sample did not run.", other: "{count} samples did not run." },
+    "info.test.batch.local": "Local samples belong to this computer only; do not publish them with the site.",
+    "info.test.batch.localTitle": "{title} · Local",
+    "info.test.verdict.correct": "Correct",
+    "info.test.verdict.wrong": "Wrong",
+    "info.test.table.caption": "Sample results",
+    "info.test.table.sample": "Sample",
+  },
+});
+
+// The figures and lists these screens draw from state are redrawn by
+// ui/model-test.js, which loads later, so the function is looked up when a
+// change comes.
+onLanguageChange(() => renderInfoLanguage());

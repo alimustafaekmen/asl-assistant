@@ -336,7 +336,7 @@ async function startMediaPipe(videoEl) {
     _failedFrames = 0;
     console.log("[MP] started: hand task ready (1/3)");
     if (typeof state !== "undefined" && typeof els !== "undefined" && els.latencyBadge) {
-      els.latencyBadge.textContent = "El izleme hazır";
+      setText(els.latencyBadge, "shell.badge.trackingReady");
     }
     _rafId = requestAnimationFrame(_processFrame);
 
@@ -483,7 +483,7 @@ async function _loadOptionalHolisticLandmarkers() {
   ].filter(Boolean);
   console.log(`[MP] tasks ready: ${ready.join("+")} (${ready.length}/3)`);
   if (typeof state !== "undefined" && typeof els !== "undefined" && els.latencyBadge) {
-    els.latencyBadge.textContent = `Hazırlanıyor (${ready.length}/3)`;
+    setText(els.latencyBadge, "letter.camera.tasksReady", { ready: ready.length, total: 3 });
   }
 }
 

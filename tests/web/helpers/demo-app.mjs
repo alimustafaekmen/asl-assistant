@@ -112,10 +112,12 @@ const quietConsole = { ...console, log() {}, warn() {}, info() {}, error() {} };
  *
  * `respond(path)` answers the recording request; by default it serves
  * `recording`. Each request for the file is recorded in `demoRequests`.
+ * `languages` are the browser's preferred languages, as loadWebApp() takes
+ * them; the page is Turkish without them.
  *
- * @param {{recording?: object, respond?: (path: string) => unknown, hash?: string}} [options]
+ * @param {{recording?: object, respond?: (path: string) => unknown, hash?: string, languages?: readonly string[]}} [options]
  */
-export async function demoApp({ recording = demoRecording(), respond, hash = "#letter" } = {}) {
+export async function demoApp({ recording = demoRecording(), respond, hash = "#letter", languages } = {}) {
   const clock = { now: 1000 };
   const timers = fakeTimers(clock);
   const camera = { requests: 0, imports: 0 };
@@ -123,6 +125,7 @@ export async function demoApp({ recording = demoRecording(), respond, hash = "#l
   const location = new URL(`https://asl-assistant.netlify.app/${hash}`);
   const app = loadWebApp({
     boot: true,
+    ...(languages ? { languages } : {}),
     globals: {
       console: quietConsole,
       location,

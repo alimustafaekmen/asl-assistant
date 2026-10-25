@@ -138,35 +138,34 @@ function renderQrDemo() {
 
   if (!els.qrCanvas) return;
   // The code is a picture, so where it leads has to be in its label.
-  els.qrCanvas.setAttribute("aria-label", `QR kodu: ${url}`);
+  setAttrText(els.qrCanvas, "aria-label", "info.qr.codeFor", { url });
   els.qrCanvas.innerHTML = "";
   const qrNode = drawQrCode(url);
   if (qrNode) {
     els.qrCanvas.appendChild(qrNode);
-    if (els.qrStatus) els.qrStatus.textContent = `QR hazır: ${url}`;
+    setText(els.qrStatus, "info.qr.ready", { url });
     return;
   }
 
   const notice = document.createElement("p");
-  notice.textContent = "QR kodu çizilemedi.";
+  setText(notice, "info.qr.drawFailed");
   const link = document.createElement("p");
   link.textContent = url;
   els.qrCanvas.appendChild(notice);
   els.qrCanvas.appendChild(link);
-  if (els.qrStatus) {
-    els.qrStatus.textContent = "QR kodu çizilemedi; bağlantıyı kopyalayıp telefonunuza gönderebilirsiniz.";
-  }
+  setText(els.qrStatus, "info.qr.drawFailedStatus");
 }
 
 /**
- * Write the status line under the link, and announce it.
+ * Write the status line under the link, and announce it. The line follows a
+ * language change; an announcement already made is not repeated.
  *
- * @param {string} message
+ * @param {string} key
  * @returns {void}
  */
-function setQrStatus(message) {
-  if (els.qrStatus) els.qrStatus.textContent = message;
-  announce(message);
+function setQrStatus(key) {
+  setText(els.qrStatus, key);
+  announce(t(key));
 }
 
 /**
@@ -177,10 +176,10 @@ function setQrStatus(message) {
  */
 async function copyQrDemoUrl() {
   if (await copyTextToClipboard(buildQrDemoUrl())) {
-    setQrStatus("Bağlantı kopyalandı.");
+    setQrStatus("info.qr.copied");
     return;
   }
-  setQrStatus("Kopyalanamadı. Bağlantıyı seçip elle kopyalayın.");
+  setQrStatus("info.qr.copyFailed");
   selectQrDemoUrl();
 }
 
@@ -264,6 +263,6 @@ async function shareQrDemoUrl() {
   } catch (err) {
     // The browser reports a closed sheet as a DOMException named AbortError.
     if (isRecord(err) && err.name === "AbortError") return;
-    setQrStatus("Paylaşılamadı. Bağlantıyı kopyalayabilirsiniz.");
+    setQrStatus("info.qr.shareFailed");
   }
 }

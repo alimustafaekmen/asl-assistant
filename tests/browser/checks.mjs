@@ -10,6 +10,8 @@
 // Each check's summary names what it guards; tests/browser/README.md describes
 // every check.
 
+import { turkishLeft } from "../web/helpers/turkish-left.mjs";
+
 /** The camera modes; each has its own controls, tagged `<mode>-only`. */
 export const CAMERA_MODES = ["letter", "word", "coach"];
 
@@ -31,6 +33,8 @@ const DEFAULT_MEDIA = [
 ];
 
 const LAPTOP = { width: 1366, height: 768, mobile: false };
+const PHONE = { width: 390, height: 844, mobile: true };
+const ENGLISH = ["en-US", "en"];
 
 // Shared in-page helpers, prefixed to the expressions that need them.
 const IN_PAGE = String.raw`
@@ -112,7 +116,7 @@ async function switchMode(page, mode) {
 /** The static resources whose failure leaves a broken page. */
 const STATIC_TYPES = new Set(["Document", "Script", "Stylesheet", "Font", "Image"]);
 
-/** @typedef {{ origin: string, offline: boolean, newPage: (options: object) => Promise<any> }} CheckContext */
+/** @typedef {{ origin: string, offline: boolean, lang: "tr" | "en", newPage: (options: object) => Promise<any> }} CheckContext */
 
 /**
  * @typedef {object} Check
@@ -1057,6 +1061,309 @@ export const CHECKS = [
         problems.push(`CSP ${violation.disposition} violation of ${violation.directive} by ${violation.blocked || "inline code"}`);
       }
       return problems;
+    },
+  },
+
+  {
+    name: "language-first-paint",
+    summary: "an English reader sees the shell in English while the page still waits for a CDN that never answers",
+    async run(ctx) {
+      // The CDN request is held, not refused: the parser stops at the first
+      // CDN script and init() never runs, as on a connection that stalls.
+      // Whatever is English by then was translated before the CDN scripts.
+      const problems = [];
+      const page = await ctx.newPage({ ...LAPTOP, media: DEFAULT_MEDIA, languages: ENGLISH, holdExternal: true });
+      await page.navigate(`${ctx.origin}/#letter`);
+      await page.waitFor("typeof I18N_STRINGS !== 'undefined'", { what: "the strings to load" });
+      await page.waitFor(`document.documentElement.lang === "en" && document.getElementById("skipLink").textContent === I18N_STRINGS.en["shell.skipLink"]`, {
+        what: "the English shell before the CDN scripts",
+        timeoutMs: 5_000,
+      }).catch((error) => problems.push(error.message));
+      if (!page.heldRequests.some((url) => url.includes("cdn.jsdelivr.net"))) {
+        problems.push(`the page asked no CDN for a script, so nothing was held: ${page.heldRequests.join(", ") || "no request"}`);
+      }
+      const state = await page.eval(`(() => {
+        const left = (${turkishLeft})(document.querySelector(".topbar"), { rendered: true });
+        return {
+          readyState: document.readyState,
+          booted: document.getElementById("coachStudy").dataset.hidden !== undefined,
+          left: left.map((finding) => finding.element + " " + finding.where + ": " + finding.text),
+        };
+      })()`);
+      if (state.readyState !== "loading" || state.booted) {
+        problems.push(`the page got past the held CDN script (readyState ${state.readyState}), so this proves nothing`);
+      }
+      for (const finding of state.left) problems.push(`Turkish in the header before the CDN answered: ${finding}`);
+      await page.close();
+      return problems;
+    },
+  },
+
+  {
+    name: "language-hidden-until-translated",
+    summary: "an English reader sees no Turkish while a strings file is still downloading, the page shows itself after 3 s if the translation never comes, and a Turkish reader's page is never held back",
+    async run(ctx) {
+      // One strings file is held, so the parser stops at it with the Turkish
+      // body parsed above it, as on a slow connection. Chrome paints what is
+      // parsed while it waits, unless the page keeps it hidden.
+      const problems = [];
+      const HELD = "js/i18n/info.js";
+      // Turkish is looked for twice: in what the page shows (innerText leaves
+      // out text under visibility: hidden, which checkVisibility() does not),
+      // and, once translated, in every rendered text and spoken name.
+      const look = `(() => {
+        ${IN_PAGE}
+        const shownText = document.createElement("p");
+        shownText.textContent = document.body.innerText;
+        const shown = (${turkishLeft})(shownText);
+        const left = (${turkishLeft})(document.body, { rendered: true });
+        return {
+          readyState: document.readyState,
+          lang: document.documentElement.lang,
+          bodyRendered: rendered(document.body),
+          contentfulPaint: performance.getEntriesByType("paint").some((entry) => entry.name === "first-contentful-paint"),
+          shown: shown.slice(0, 3).map((finding) => finding.text),
+          left: left.slice(0, 3).map((finding) => finding.element + " " + finding.where + ": " + finding.text),
+          leftCount: left.length,
+          sinceStart: performance.now(),
+        };
+      })()`;
+      const held = async (page) => {
+        await page.waitFor("document.readyState === 'loading' && document.getElementById('skipLink') !== null", {
+          what: "the body to be parsed up to the held strings file",
+        });
+        if (!page.heldRequests.some((url) => url.includes(HELD))) {
+          throw new Error(`the page never asked for ${HELD}, so nothing was held`);
+        }
+        // Long enough for Chrome to paint what it has parsed.
+        await page.eval("new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(done, 200))))");
+      };
+
+      const english = await ctx.newPage({ ...LAPTOP, media: DEFAULT_MEDIA, languages: ENGLISH, holdPaths: [HELD] });
+      await english.navigate(`${ctx.origin}/#letter`);
+      await held(english);
+      let seen = await english.eval(look);
+      if (seen.readyState !== "loading") problems.push(`english: the page got past the held file (readyState ${seen.readyState}), so this proves nothing`);
+      if (seen.sinceStart >= 3000) problems.push(`english: the first look came ${Math.round(seen.sinceStart)} ms in, after the fail-safe; this proves nothing`);
+      if (seen.lang !== "en") problems.push(`english: <html lang> is ${seen.lang}`);
+      if (seen.bodyRendered) problems.push("english: the body is rendered before the page is translated");
+      if (seen.contentfulPaint) problems.push("english: content was painted before the page was translated");
+      for (const text of seen.shown) problems.push(`english: Turkish shown before the translation: ${text}`);
+
+      // The fail-safe: a translation that never comes must not leave a blank page.
+      await english.waitFor("performance.now() > 3300", { what: "the fail-safe's 3 s", timeoutMs: 6_000 });
+      await english.eval("new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))");
+      seen = await english.eval(look);
+      if (!seen.bodyRendered) problems.push("english: the body is still hidden 3 s in while the translation waits");
+
+      await english.release();
+      await english.waitFor(`document.readyState !== "loading" && !document.documentElement.hasAttribute("data-i18n-pending")`, {
+        what: "the translation to run once the held file arrives",
+      }).catch((error) => problems.push(`english: ${error.message}`));
+      seen = await english.eval(look);
+      if (seen.leftCount) problems.push(`english: ${seen.leftCount} Turkish text(s) left after the translation, first: ${seen.left[0]}`);
+      await english.close();
+
+      const turkish = await ctx.newPage({ ...LAPTOP, media: DEFAULT_MEDIA, languages: ["tr-TR", "tr"], holdPaths: [HELD] });
+      await turkish.navigate(`${ctx.origin}/#letter`);
+      await held(turkish);
+      seen = await turkish.eval(look);
+      if (seen.lang !== "tr") problems.push(`turkish: <html lang> is ${seen.lang}`);
+      if (!seen.bodyRendered) problems.push("turkish: the body is hidden while a strings file downloads, though a Turkish page needs no translation");
+      if (!seen.contentfulPaint) problems.push("turkish: nothing was painted while a strings file downloads");
+      await turkish.close();
+      return problems;
+    },
+  },
+
+  {
+    name: "language-switch",
+    summary: "the language switch is rendered in the laptop header and the phone menu, switches without a reload, keeps the choice and gives up focus after a click",
+    async run(ctx) {
+      const problems = [];
+      const read = `(() => {
+        ${IN_PAGE}
+        const toggle = document.getElementById("languageToggle");
+        return {
+          lang: document.documentElement.lang,
+          title: document.title,
+          rendered: rendered(toggle),
+          name: toggle.getAttribute("aria-label"),
+          label: toggle.textContent.trim(),
+          focused: document.activeElement === toggle,
+          saved: localStorage.getItem("asl-lang"),
+          marker: window.__sameDocument === true,
+        };
+      })()`;
+
+      const laptop = await openApp(ctx, { route: "letter", viewport: LAPTOP, languages: ["tr-TR", "tr"] });
+      await laptop.eval("window.__sameDocument = true");
+      let seen = await laptop.eval(read);
+      if (!seen.rendered) problems.push("laptop: the switch is not rendered in the header");
+      if (seen.lang !== "tr") problems.push(`laptop: a Turkish browser opened the page in ${seen.lang}`);
+      await laptop.click("#languageToggle");
+      seen = await laptop.eval(read);
+      if (seen.lang !== "en") problems.push(`laptop: after a click the page is in ${seen.lang}, not en`);
+      if (!seen.marker) problems.push("laptop: the switch reloaded the page");
+      if (seen.title !== "Letter recognition · ASL Assistant") problems.push(`laptop: the title is "${seen.title}"`);
+      if (seen.name !== "Türkçeye geç" || seen.label !== "Türkçe") problems.push(`laptop: the switch reads "${seen.label}" named "${seen.name}"`);
+      if (seen.focused) problems.push("laptop: the switch kept focus after a mouse click");
+      if (seen.saved !== "en") problems.push(`laptop: the choice was saved as ${seen.saved}`);
+      const left = await laptop.eval(`(${turkishLeft})(document.querySelector(".topbar"), { rendered: true })`);
+      for (const finding of left) problems.push(`laptop: Turkish left in the header: ${finding.element} ${finding.where}: ${finding.text}`);
+      // A new address, so the browser loads the page again instead of only
+      // moving to a fragment of the same document.
+      await laptop.goto(`${ctx.origin}/?again#letter`);
+      await waitForBoot(laptop, "letter");
+      seen = await laptop.eval(read);
+      if (seen.lang !== "en") problems.push(`laptop: after a reload the page is in ${seen.lang}; the choice was not kept`);
+      await laptop.close();
+
+      const phone = await openApp(ctx, { route: "letter", viewport: PHONE, languages: ENGLISH });
+      seen = await phone.eval(read);
+      if (seen.lang !== "en") problems.push(`phone: an English browser opened the page in ${seen.lang}`);
+      if (seen.rendered) problems.push("phone: the switch shows outside the menu");
+      await phone.click(".topbar__more");
+      await phone.waitFor(`document.getElementById("moreMenu").matches(":popover-open")`, { what: "the phone menu to open" });
+      seen = await phone.eval(read);
+      if (!seen.rendered) problems.push("phone: the switch is not rendered in the open menu");
+      await phone.click("#languageToggle");
+      seen = await phone.eval(read);
+      if (seen.lang !== "tr") problems.push(`phone: after a click the page is in ${seen.lang}, not tr`);
+      if (seen.name !== "Switch to English" || seen.label !== "English") problems.push(`phone: the switch reads "${seen.label}" named "${seen.name}"`);
+      if (phone.exceptions.length) problems.push(`uncaught error: ${phone.exceptions.join(" | ")}`);
+      await phone.close();
+      return problems;
+    },
+  },
+
+  {
+    name: "language-every-screen",
+    summary: "an English browser meets no Turkish on any route, in the phone menu, the demo or the reference viewer, and a Turkish browser meets no English interface string there",
+    timeoutMs: 120_000,
+    async run(ctx) {
+      const problems = [];
+      // What a reader of `lang` meets that belongs to the other language, as
+      // "where: text" lines. Turkish is found as the node suite finds it.
+      // English is any rendered text or spoken name equal to an English
+      // interface string that is not also Turkish (ASL glosses, "ASL
+      // Assistant" and the switch's own "English" are both), so a key left
+      // out of a redraw, or a script that writes English, shows by its text.
+      const scan = (lang) => `(() => {
+        const lines = [];
+        const titleHolder = document.createElement("p");
+        titleHolder.textContent = document.title;
+        if (${JSON.stringify(lang)} === "en") {
+          for (const root of [document.body, titleHolder]) {
+            // The font licence's name, SIL, reads as the Turkish verb "sil".
+            for (const f of (${turkishLeft})(root, { rendered: root === document.body, allow: ["· SIL OFL 1.1"] })) {
+              lines.push((root === titleHolder ? "document.title" : f.element + " " + f.where) + ": " + f.text);
+            }
+          }
+          return lines;
+        }
+        const plain = (value) => String(value).replace(/<[^>]*>/g, "").replace(/\\s+/g, " ").trim();
+        const texts = (table) => Object.values(table).flatMap((value) => (typeof value === "string" ? [value] : Object.values(value))).map(plain);
+        const turkish = new Set(texts(I18N_STRINGS.tr));
+        const english = new Set(texts(I18N_STRINGS.en).filter((text) => text.length > 1 && !text.includes("{") && !turkish.has(text)));
+        const collapse = (text) => String(text ?? "").replace(/\\s+/g, " ").trim();
+        const ATTRIBUTES = ["aria-label", "title", "placeholder", "alt", "aria-description", "aria-valuetext"];
+        if (english.has(collapse(document.title))) lines.push("document.title: " + document.title);
+        const walk = (el) => {
+          if (["SCRIPT", "STYLE", "TEMPLATE", "NOSCRIPT"].includes(el.tagName) || el.hasAttribute("hidden")) return;
+          // A key cap names the key as printed on the keyboard ("Space") in
+          // either language, so it is left out of the text compared.
+          if (!el.checkVisibility() || el.classList.contains("kbd")) return;
+          let own = el.textContent;
+          if (el.querySelector(".kbd")) {
+            const copy = el.cloneNode(true);
+            for (const cap of copy.querySelectorAll(".kbd")) cap.remove();
+            own = copy.textContent;
+          }
+          own = collapse(own);
+          if (english.has(own)) {
+            lines.push((el.id ? "#" + el.id : el.tagName.toLowerCase()) + " text: " + own);
+            return;
+          }
+          for (const attribute of ATTRIBUTES) {
+            const value = collapse(el.getAttribute(attribute));
+            if (english.has(value)) lines.push((el.id ? "#" + el.id : el.tagName.toLowerCase()) + " " + attribute + ": " + value);
+          }
+          for (const child of el.children) walk(child);
+        };
+        walk(document.body);
+        return lines;
+      })()`;
+
+      // Labels a Turkish reader must see as authored, read in each state so
+      // a page that shows nothing at all cannot pass the scan above.
+      const expectTurkish = async (page, label, pairs) => {
+        const seen = await page.eval(`(() => {
+          const out = {};
+          for (const [selector, key] of ${JSON.stringify(pairs)}) {
+            const el = document.querySelector(selector);
+            out[selector] = { text: el ? el.textContent.replace(/\\s+/g, " ").trim() : null, want: I18N_STRINGS.tr[key] };
+          }
+          return out;
+        })()`);
+        for (const [selector, { text, want }] of Object.entries(seen)) {
+          if (text !== want) problems.push(`tr ${label}: ${selector} reads "${text}", not "${want}"`);
+        }
+      };
+
+      const languages = { en: ENGLISH, tr: ["tr-TR", "tr"] };
+      for (const lang of /** @type {const} */ (["en", "tr"])) {
+        const record = async (page, label) => {
+          for (const line of await page.eval(scan(lang))) problems.push(`${lang} ${label}: ${line}`);
+          if (page.exceptions.length) problems.push(`${lang} ${label}: uncaught error: ${page.exceptions.join(" | ")}`);
+        };
+
+        for (const route of ROUTES) {
+          const page = await openApp(ctx, { route, viewport: LAPTOP, languages: languages[lang] });
+          const htmlLang = await page.eval("document.documentElement.lang");
+          if (htmlLang !== lang) problems.push(`${lang} #${route}: <html lang> is ${htmlLang}`);
+          await record(page, `#${route}`);
+          if (lang === "tr") {
+            const title = await page.eval("document.title");
+            const want = await page.eval(`I18N_STRINGS.tr["shell.route.${route}"] + " · ASL Assistant"`);
+            if (title !== want) problems.push(`tr #${route}: the title is "${title}", not "${want}"`);
+          }
+
+          if (route === "letter" || route === "word") {
+            // The reference panel opened, then its viewer as a modal dialog.
+            await page.click("#toggleReference");
+            await page.waitFor(`!document.getElementById("referenceBody").hidden`, { what: `#${route}: the reference panel to open` });
+            await record(page, `#${route} reference shown`);
+            if (lang === "tr") await expectTurkish(page, `#${route} reference`, [["#toggleReference", "word.reference.hide"], ["#referenceOpen", "word.reference.enlarge"]]);
+            await page.click("#referenceOpen");
+            await page.waitFor(`document.getElementById("lightbox").open`, { what: `#${route}: the reference viewer to open` });
+            await record(page, `#${route} reference viewer`);
+            await page.click("#lightboxClose");
+            await page.waitFor(`!document.getElementById("lightbox").open`, { what: `#${route}: the reference viewer to close` });
+          }
+
+          if (route === "letter") {
+            if (lang === "tr") await expectTurkish(page, "#letter", [["#shortcutsTitle", "letter.shortcuts.title"], ['#cameraIntro [data-trigger="demo"]', "letter.stage.watchDemo"]]);
+            await page.click('#cameraIntro [data-trigger="demo"]');
+            await page.waitFor(`(() => { const t = document.getElementById("demoText"); return !document.getElementById("demoPanel").hidden && t.textContent.trim() !== ""; })()`, {
+              what: `${lang}: the demo's instruction`,
+              timeoutMs: 10_000,
+            }).catch((error) => problems.push(error.message));
+            await record(page, "#letter demo");
+            await page.click("#demoStop");
+            await page.waitFor(`document.getElementById("demoPanel").hidden`, { what: `${lang}: the demo to stop` });
+            await record(page, "#letter after the demo");
+          }
+          await page.close();
+        }
+
+        const phone = await openApp(ctx, { route: "letter", viewport: PHONE, languages: languages[lang] });
+        await phone.click(".topbar__more");
+        await phone.waitFor(`document.getElementById("moreMenu").matches(":popover-open")`, { what: `${lang}: the phone menu to open` });
+        await record(phone, "phone menu");
+        await phone.close();
+      }
+      return dedupe(problems);
     },
   },
 ];

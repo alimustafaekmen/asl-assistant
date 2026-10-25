@@ -79,26 +79,26 @@ const DEMO_FRAME_MIN = 0.3;
 const DEMO_FRAME_GAP = 12;
 
 /**
- * The demo's words, in Turkish, addressing the visitor as siz. Ekle and Space
- * name the button and the key the visitor sees in the action bar; "Boşluk" is
- * avoided because the button of that name inserts a space.
+ * The keys of the demo's words (js/i18n/letter.js). Ekle (Add) and Space name
+ * the button and the key the visitor sees in the action bar; "Boşluk" (Space)
+ * is avoided because the button of that name inserts a space.
  *
  * @type {Record<"loading" | "playing" | "done" | "loadFailed" | "modelLoading" | "modelFailed", string>}
  */
 const DEMO_COPY = {
-  loading: "Örnek hazırlanıyor…",
-  playing: "Okunan harfi metne eklemek için Ekle'ye dokunun ya da Space tuşuna basın.",
-  done: "Örnek tamamlandı. Şimdi kamerayı açıp kendi elinizle deneyin.",
-  loadFailed: "Örnek yüklenemedi. Bağlantınızı kontrol edip yeniden deneyin.",
-  modelLoading: "Harf tanıma hazırlanıyor…",
-  modelFailed: "Harf tanıma yüklenemedi. Bağlantınızı kontrol edip örneği yeniden başlatın.",
+  loading: "letter.demo.loading",
+  playing: "letter.demo.playing",
+  done: "letter.demo.done",
+  loadFailed: "letter.demo.loadFailed",
+  modelLoading: "letter.demo.modelLoading",
+  modelFailed: "letter.demo.modelFailed",
 };
 
-/** @type {Record<Exclude<DemoPhase, "off">, string>} */
+/** The keys of the stage chip's text in each phase. @type {Record<Exclude<DemoPhase, "off">, string>} */
 const DEMO_BADGE = {
-  loading: "Örnek hazırlanıyor",
-  playing: "Örnek oynatılıyor",
-  done: "Örnek bitti",
+  loading: "letter.demo.badge.loading",
+  playing: "letter.demo.badge.playing",
+  done: "letter.demo.badge.done",
 };
 
 /** The one shared load; see loadDemoRecording(). @type {Promise<DemoRecording | null> | null} */
@@ -244,7 +244,7 @@ async function startDemo() {
   els.cameraStage.dataset.camera = "demo";
   // A letter left on the plate by an earlier camera session is not the demo's.
   updatePrediction({ label: "?", confidence: 0, alternatives: [] });
-  setMessage(DEMO_COPY.loading, "maybe");
+  setMessage(() => t(DEMO_COPY.loading), "maybe");
   renderDemoPanel();
 
   const modelReady = ensureLetterModel();
@@ -252,7 +252,7 @@ async function startDemo() {
   if (cancelled()) return "cancelled";
   if (!recording) {
     stopDemo();
-    reportProblem(DEMO_COPY.loadFailed);
+    reportProblem(() => t(DEMO_COPY.loadFailed));
     return "failed";
   }
 
@@ -263,11 +263,11 @@ async function startDemo() {
   _demoNoise = _seededRandom(DEMO_SEED);
   state.demo = "playing";
   renderDemoPanel();
-  announce(DEMO_COPY.playing);
-  if (!letterSession) setMessage(DEMO_COPY.modelLoading, "maybe");
+  announce(t(DEMO_COPY.playing));
+  if (!letterSession) setMessage(() => t(DEMO_COPY.modelLoading), "maybe");
   _publishDemoFrame();
 
-  if (!(await modelReady) && !cancelled()) reportProblem(DEMO_COPY.modelFailed);
+  if (!(await modelReady) && !cancelled()) reportProblem(() => t(DEMO_COPY.modelFailed));
   return "playing";
 }
 
@@ -293,7 +293,7 @@ function stopDemo() {
   resetLetterLandmarkSmoother();
   els.cameraEmpty.hidden = false;
   els.cameraStage.dataset.camera = "off";
-  els.latencyBadge.textContent = "Hazır";
+  setText(els.latencyBadge, "shell.badge.ready");
   renderDemoPanel();
   updatePrediction({ label: "?", confidence: 0, alternatives: [] });
   els.cameraStage.dataset.state = "idle";
@@ -404,7 +404,7 @@ function _finishDemo() {
   updatePrediction({ label: "?", confidence: 0, alternatives: [] });
   els.cameraStage.dataset.state = "idle";
   renderDemoPanel();
-  announce(DEMO_COPY.done);
+  announce(t(DEMO_COPY.done));
 }
 
 /**
@@ -462,12 +462,13 @@ function renderDemoPanel() {
   if (els.cameraToggle) els.cameraToggle.hidden = on;
   if (els.demoStop) {
     els.demoStop.hidden = !on;
-    els.demoStop.textContent = state.demo === "done" ? "Kapatın" : "Durdurun";
+    setText(els.demoStop, state.demo === "done" ? "letter.demo.close" : "letter.demo.stop");
   }
   const panel = els.demoPanel;
   if (panel) panel.hidden = !on;
   if (state.demo === "off") return;
-  els.latencyBadge.textContent = DEMO_BADGE[state.demo];
+  // Bound to their keys, so a language change rewrites the panel in place.
+  setText(els.latencyBadge, DEMO_BADGE[state.demo]);
 
   const letters = state.demo === "loading" || !_demoRecording ? [] : _demoRecording.letters;
   if (els.demoWord) {
@@ -483,7 +484,7 @@ function renderDemoPanel() {
   if (els.demoCount) {
     els.demoCount.textContent = letters.length ? `${Math.min(_demoIndex + 1, letters.length)}/${letters.length}` : "";
   }
-  if (els.demoText) els.demoText.textContent = DEMO_COPY[state.demo];
+  setText(els.demoText, DEMO_COPY[state.demo]);
   if (els.demoSkip) els.demoSkip.hidden = state.demo !== "playing";
   if (els.demoCamera) els.demoCamera.hidden = state.demo !== "done";
 }

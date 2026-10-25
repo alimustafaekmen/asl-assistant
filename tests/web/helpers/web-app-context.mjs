@@ -236,6 +236,44 @@ function historyFake(location) {
 
 const DEFAULT_PAGE_URL = "https://asl-assistant.netlify.app/";
 
+/**
+ * The browser's preferred languages when a test does not choose them.
+ *
+ * The page picks its language from these (after a saved choice), and the
+ * suites assert the Turkish copy, so every page here is a Turkish browser's
+ * unless a test says otherwise. Like the camera, the browser's languages are
+ * a fact of the visitor's machine, so they are a boundary fake.
+ */
+export const DEFAULT_LANGUAGES = Object.freeze(["tr-TR", "tr"]);
+
+/**
+ * Give the page a browser locale and, if asked, a saved language choice.
+ *
+ * A test that hands in its own navigator for the camera or the clipboard
+ * still gets the default languages, unless that navigator states its own.
+ * The saved choice goes where the page keeps it, in localStorage, whichever
+ * storage the test supplied; a storage that throws keeps nothing, as in a
+ * browser that blocks it.
+ *
+ * @param {object} context
+ * @param {{languages?: readonly string[], savedLanguage?: string}} options
+ */
+function applyLocale(context, { languages = DEFAULT_LANGUAGES, savedLanguage } = {}) {
+  if (context.navigator === undefined || context.navigator === null) context.navigator = {};
+  const nav = context.navigator;
+  if (typeof nav === "object" && !("languages" in nav) && !("language" in nav) && Object.isExtensible(nav)) {
+    nav.languages = Object.freeze([...languages]);
+    if (languages.length > 0) nav.language = languages[0];
+  }
+  if (savedLanguage !== undefined) {
+    try {
+      context.localStorage.setItem("asl-lang", savedLanguage);
+    } catch {
+      // Blocked storage: nothing is saved.
+    }
+  }
+}
+
 function createSandbox(missingIds, wrongTypeIds) {
   // Every addEventListener call in this context, so a test can show that
   // binding twice does not leave two listeners behind.
@@ -415,12 +453,19 @@ function watchBootstrap(context, { boot, currentScript }) {
  * ones the sandbox leaves out, such as the streams used to decompress a
  * download. They are in place before the first script runs.
  *
+ * `languages` are the browser's preferred languages (DEFAULT_LANGUAGES,
+ * Turkish, when left out), and `savedLanguage` a language choice the visitor
+ * saved on an earlier visit. `{languages: ["en-US", "en"]}` opens the page as
+ * an English reader's browser does.
+ *
  * @param {{
  *   boot?: boolean,
  *   missingIds?: string[],
  *   wrongTypeIds?: string[],
  *   unloadedScripts?: string[],
  *   globals?: Record<string, unknown>,
+ *   languages?: readonly string[],
+ *   savedLanguage?: string,
  * }} [options]
  */
 export function loadWebApp(options = {}) {
@@ -429,6 +474,7 @@ export function loadWebApp(options = {}) {
     new Set(options.wrongTypeIds ?? []),
   );
   Object.assign(context, options.globals ?? {});
+  applyLocale(context, options);
   const scripts = webScriptPaths();
   let evaluating = null;
   const bootstrap = watchBootstrap(context, {
@@ -512,10 +558,11 @@ export function loadWebApp(options = {}) {
  * document is the real markup, and no later script, init() included, has
  * run. A test reads what those scripts left on the document, such as the
  * theme the first frame is drawn in. The host APIs are the same default
- * fakes as loadWebApp()'s, and `globals` replaces them. An exception a script
- * throws propagates, as it would end that script in the browser.
+ * fakes as loadWebApp()'s, and `globals` replaces them; `languages` and
+ * `savedLanguage` are loadWebApp()'s. An exception a script throws
+ * propagates, as it would end that script in the browser.
  *
- * @param {{globals?: Record<string, unknown>}} [options]
+ * @param {{globals?: Record<string, unknown>, languages?: readonly string[], savedLanguage?: string}} [options]
  */
 export function loadBeforeStylesheets(options = {}) {
   const context = vm.createContext({
@@ -529,6 +576,7 @@ export function loadBeforeStylesheets(options = {}) {
   delete context.document.__constructors;
   vm.runInContext("globalThis.window = globalThis;", context);
   Object.assign(context, options.globals ?? {});
+  applyLocale(context, options);
   const scripts = scriptsBeforeStylesheets();
   for (const relPath of scripts) {
     vm.runInContext(readFileSync(join(WEB_DIR, relPath), "utf8"), context, { filename: relPath });

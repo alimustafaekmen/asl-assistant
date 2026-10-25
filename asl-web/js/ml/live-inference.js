@@ -455,11 +455,8 @@ async function realInference(now) {
             window._lastWordCurrentFrame.acceptedForRecording = false;
           }
           // Show the missing-landmark hint once, then re-arm it after recovery.
-          if (!_wordWaitMessageShown && typeof setMessage === "function") {
-            setMessage(
-              "Kelime kaydı için el, yüz ve omuzlar aynı anda görünmeli. Kadrajı biraz genişletin.",
-              "maybe",
-            );
+          if (!_wordWaitMessageShown && typeof showWordMessage === "function") {
+            showWordMessage("word.message.notAllInView", "maybe");
             _wordWaitMessageShown = true;
           }
           if (typeof updateWordState === "function") updateWordState();
@@ -697,7 +694,7 @@ async function _finishWordRecordingReal() {
     // A failed run ends in a RESULT with no word, never with the previous
     // word still on offer.
     updatePrediction({ label: "?", confidence: 0, alternatives: [] });
-    reportProblem("Kayıt işlenemedi. Yeniden kaydedin.");
+    reportWordProblem("word.message.processingFailed");
   } else {
     wordResultSerial = recording;
     updatePrediction(result);
@@ -708,30 +705,28 @@ async function _finishWordRecordingReal() {
     // Prefer actionable confusion feedback over the broader difficulty warning.
     let confusionMsg = null;
     let hardMsg = null;
-    if (typeof getConfusionFeedback === "function" && result.alternatives.length >= 2) {
-      confusionMsg = getConfusionFeedback(result.alternatives[0], result.alternatives[1]);
+    if (typeof confusionFeedbackCopy === "function" && result.alternatives.length >= 2) {
+      confusionMsg = confusionFeedbackCopy(result.alternatives[0], result.alternatives[1]);
     }
-    if (typeof getDifficultyMessage === "function") {
-      hardMsg = getDifficultyMessage(result.label);
+    if (typeof difficultyCopy === "function") {
+      hardMsg = difficultyCopy(result.label);
     }
 
     if (typeof showFeedback === "function") {
       if (confusionMsg) {
-        showFeedback(confusionMsg, "confusion");
+        showWordFeedback(confusionMsg, "confusion");
         wordFeedbackShown = true;
       } else if (hardMsg) {
-        showFeedback(hardMsg, "hard");
+        showWordFeedback(hardMsg, "hard");
         wordFeedbackShown = true;
       } else if (
         result.alternatives?.length > 1 &&
         result.alternatives[0].confidence - result.alternatives[1].confidence < 0.03
       ) {
-        const topText =
-          typeof formatTopPredictions === "function"
-            ? formatTopPredictions(result.alternatives, 2)
-            : `${result.alternatives[0].label} / ${result.alternatives[1].label}`;
-        showFeedback(
-          `İlk iki kelime çok yakın: ${topText}. Aynı işareti daha net ve kadrajı geniş tutarak tekrar deneyin.`,
+        // Worked out when shown, so the percentages follow the language.
+        const alternatives = result.alternatives;
+        showWordFeedback(
+          { key: "word.feedback.closeCall", params: () => ({ top: formatWordCandidates(alternatives, 2) }) },
           "confusion",
         );
         wordFeedbackShown = true;
@@ -787,7 +782,9 @@ async function _finishWordRecordingReal() {
     !wordFeedbackShown &&
     typeof showFeedback === "function"
   ) {
-    showFeedback(WORD_QUALITY_COPY[codes[0]], "low");
+    // Looked up again on a language change, so the warning follows a switch.
+    const code = codes[0];
+    showFeedback(() => WORD_QUALITY_COPY[code], "low");
     wordFeedbackShown = true;
   }
 

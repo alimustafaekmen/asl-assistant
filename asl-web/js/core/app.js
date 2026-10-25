@@ -105,22 +105,22 @@ function liveModelNeeds(mode) {
  * @returns {Promise<boolean>} True when every needed model is ready. Never rejects.
  */
 async function loadModelsWithStatus(needs) {
-  /** @param {string} text */
-  const setBadge = (text) => {
-    if (!state.cameraOn) els.latencyBadge.textContent = text;
+  /** @param {string} key */
+  const setBadge = (key) => {
+    if (!state.cameraOn) setText(els.latencyBadge, key);
   };
   // The camera session this load belongs to, or null when the camera is off.
   const session = state.stream;
   const sessionEnded = () => session !== null && state.stream !== session;
   // Whether each model was already loaded is read before its load is asked
   // for, so a download that starts here is reported.
-  /** @type {{label: string, loaded: boolean, ready: Promise<boolean>}[]} */
+  /** @type {{name: string, loaded: boolean, ready: Promise<boolean>}[]} */
   const models = [];
   if (needs.letter) {
-    models.push({ label: "Harf", loaded: !!letterSession, ready: ensureLetterModel() });
+    models.push({ name: "shell.models.letter", loaded: !!letterSession, ready: ensureLetterModel() });
   }
   if (needs.word) {
-    models.push({ label: "Kelime", loaded: !!wordSession, ready: ensureWordModel() });
+    models.push({ name: "shell.models.word", loaded: !!wordSession, ready: ensureWordModel() });
   }
   const downloading = models.some((model) => !model.loaded);
   // A record press waiting on the word model, now or by the time it settles,
@@ -130,8 +130,8 @@ async function loadModelsWithStatus(needs) {
   const pressesBefore = wordModelPresses;
   const pressWaiting = needs.word === true && _wordModelWait;
   if (downloading) {
-    setMessage("Modeller indiriliyor…", "maybe");
-    setBadge("Hazırlanıyor");
+    setMessage(() => t("shell.models.downloading"), "maybe");
+    setBadge("shell.badge.preparing");
   }
 
   try {
@@ -140,25 +140,23 @@ async function loadModelsWithStatus(needs) {
     if (!downloading || sessionEnded()) return allReady;
     if (needs.word && (pressWaiting || wordModelPresses !== pressesBefore)) return allReady;
 
-    const status = models.filter((_, i) => results[i]).map((model) => model.label.toLocaleLowerCase("tr"));
+    const loaded = models.filter((_, i) => results[i]).map((model) => model.name);
     if (allReady) {
-      setMessage("Hazır. Elinizi kameraya gösterin.", "good");
-      setBadge("Hazır");
-    } else if (status.length) {
-      reportProblem(
-        `Yalnızca ${status.join(" ve ")} modeli indirilebildi. Bağlantınızı kontrol edip sayfayı yenileyin.`,
-      );
-      setBadge("Eksik yükleme");
+      setMessage(() => t("shell.models.ready"), "good");
+      setBadge("shell.badge.ready");
+    } else if (loaded.length) {
+      reportProblem(() => t("shell.models.partial", { models: loaded.map((name) => t(name)).join(t("shell.models.and")) }));
+      setBadge("shell.badge.partialDownload");
     } else {
-      reportProblem("Model indirilemedi. Bağlantınızı kontrol edip sayfayı yenileyin.");
-      setBadge("Model indirilemedi");
+      reportProblem(() => t("shell.models.failed"));
+      setBadge("shell.badge.downloadFailed");
     }
     return allReady;
   } catch (err) {
     console.error("Model loading failed:", err);
     if (sessionEnded()) return false;
-    reportProblem("Model indirilemedi. Bağlantınızı kontrol edip sayfayı yenileyin.");
-    setBadge("Hata");
+    reportProblem(() => t("shell.models.failed"));
+    setBadge("shell.badge.error");
     return false;
   }
 }
@@ -247,6 +245,7 @@ function bindEvents() {
   els.qrShare?.addEventListener("click", shareQrDemoUrl);
 
   els.themeToggle?.addEventListener("click", toggleTheme);
+  els.languageToggle?.addEventListener("click", toggleLanguage);
 
   // The start buttons sit in the empty camera stage, which hides once the
   // camera is on, and the stop button hides once it is off. After a keyboard
@@ -610,6 +609,33 @@ function toggleTheme() {
 }
 
 /**
+ * Switch between Turkish and English, remember the choice, and say so.
+ *
+ * The button's own name changes with the language, which a screen reader
+ * does not read out again, so the change is announced in the new language.
+ *
+ * @returns {void}
+ */
+function toggleLanguage() {
+  setLanguage(currentLanguage() === "tr" ? "en" : "tr");
+  announce(t("shell.language.changed"));
+}
+
+/**
+ * Redraw the shell text that state decides, after a language change.
+ *
+ * The marked markup and the bound badges have been rewritten by then; what
+ * is left is the document title, which follows the screen's heading, and
+ * the camera indicator, written as plain text.
+ *
+ * @returns {void}
+ */
+function renderShellLanguage() {
+  showScreenHeading(state.mode, false);
+  els.cameraStatus.lastChild.textContent = t(state.cameraOn ? "shell.status.cameraOn" : "shell.status.ready");
+}
+
+/**
  * Resolve a URL hash to a mode.
  *
  * Unknown input falls back to letter mode, so a stale or hand-edited link opens
@@ -704,10 +730,8 @@ function setMode(mode, options = {}) {
     return;
   }
 
-  els.modeBadge.textContent =
-    mode === "letter" ? "Harf Modu" : mode === "word" ? "Kelime Modu" : "Öğrenme Koçu";
-  els.resultKind.textContent =
-    mode === "word" ? "Kelime" : mode === "coach" ? "Hedef" : "Harf";
+  setText(els.modeBadge, `shell.modeBadge.${mode}`);
+  setText(els.resultKind, `shell.resultKind.${mode}`);
   els.wordStateCard.dataset.hidden = mode === "letter" ? "true" : "false";
   els.coachStudy.dataset.hidden = mode === "coach" ? "false" : "true";
   if (mode !== "coach" && isCoachSheetOpen()) setCoachSheet(false);
@@ -790,51 +814,16 @@ let _cameraTrackEnded = null;
  */
 
 /**
- * Title and explanation for each camera problem, in Turkish, addressing the
- * user formally (siz). The message line and the announcement carry
- * "title. text".
+ * The parameters of a camera problem's text. Only the insecure page names
+ * something: the published address, from the one place it is kept, written
+ * as a visitor would type it, without the trailing slash.
  *
- * @type {Record<CameraProblemKind, {title: string, text: string}>}
+ * @param {CameraProblemKind} kind
+ * @returns {I18nParams | null}
  */
-const CAMERA_PROBLEMS = {
-  denied: {
-    title: "Kamera izni verilmedi",
-    text: "Tarayıcının site ayarlarından kameraya izin verin (iPhone'da adres çubuğundaki aA, Android'de kilit simgesi), sonra yeniden deneyin.",
-  },
-  system: {
-    title: "Kamera sistem ayarlarında kapalı",
-    text: "Bilgisayarınızın gizlilik ayarları tarayıcının kamerayı kullanmasına izin vermiyor. Sistem ayarlarından izin verin, sonra yeniden deneyin.",
-  },
-  busy: {
-    title: "Kamera başka bir uygulamada açık",
-    text: "Kamerayı kullanan uygulamayı ya da sekmeyi kapatın, sonra yeniden deneyin.",
-  },
-  notfound: {
-    title: "Kamera bulunamadı",
-    text: "Bu cihazda kullanılabilir bir kamera yok. Uygulamanın harfleri nasıl okuduğunu kamerasız bir örnekle izleyebilirsiniz.",
-  },
-  insecure: {
-    title: "Bu adreste kamera açılamıyor",
-    // Built when shown, from the one place the published address is kept,
-    // and written as a visitor would type it, without the trailing slash.
-    get text() {
-      const address = CONFIG.DEMO_PUBLIC_URL.replace(/\/+$/, "");
-      return `Tarayıcılar kameraya yalnızca güvenli (https) adreslerde izin verir. Siteyi ${address} adresinden açın.`;
-    },
-  },
-  unsupported: {
-    title: "Bu tarayıcı kameraya erişemiyor",
-    text: "Siteyi güncel bir tarayıcıda açın. Bu arada uygulamanın harfleri nasıl okuduğunu kamerasız bir örnekle izleyebilirsiniz.",
-  },
-  failed: {
-    title: "Kamera açılamadı",
-    text: "Sayfayı yenileyip yeniden deneyin. Sorun sürerse kamerasız bir örneği izleyebilirsiniz.",
-  },
-  ended: {
-    title: "Kamera bağlantısı kesildi",
-    text: "Kamerayı yeniden açabilirsiniz.",
-  },
-};
+function cameraProblemParams(kind) {
+  return kind === "insecure" ? { address: CONFIG.DEMO_PUBLIC_URL.replace(/\/+$/, "") } : null;
+}
 
 /**
  * Map a getUserMedia rejection to the problem the stage shows.
@@ -903,13 +892,14 @@ function cameraHelpBrowser() {
  * @returns {void}
  */
 function showCameraProblem(kind) {
-  const problem = CAMERA_PROBLEMS[kind];
+  const params = cameraProblemParams(kind);
   els.cameraStage.dataset.camera = kind;
   els.cameraEmpty.hidden = false;
   if (els.cameraIntro) els.cameraIntro.hidden = true;
   if (els.cameraProblem) els.cameraProblem.hidden = false;
-  if (els.cameraProblemTitle) els.cameraProblemTitle.textContent = problem.title;
-  if (els.cameraProblemText) els.cameraProblemText.textContent = problem.text;
+  // Bound to their keys, so a language change rewrites them in place.
+  setText(els.cameraProblemTitle, `shell.cameraProblem.${kind}.title`, params);
+  setText(els.cameraProblemText, `shell.cameraProblem.${kind}.text`, params);
 
   const retry = els.cameraRetry;
   const without = els.cameraNoCamera;
@@ -933,7 +923,7 @@ function showCameraProblem(kind) {
     if (chosen) steps.replaceChildren(chosen, ...items.filter((item) => item !== chosen));
   }
 
-  reportProblem(`${problem.title}. ${problem.text}`);
+  reportProblem(() => `${t(`shell.cameraProblem.${kind}.title`)}. ${t(`shell.cameraProblem.${kind}.text`, params)}`);
 }
 
 /**
@@ -991,7 +981,7 @@ async function toggleCamera() {
   // an insecure page. A secure page without them is an old browser.
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     const insecure = window.isSecureContext === false;
-    els.latencyBadge.textContent = insecure ? "HTTPS gerekli" : "Kamera açılamadı";
+    setText(els.latencyBadge, insecure ? "shell.badge.httpsRequired" : "shell.badge.cameraFailed");
     showCameraProblem(insecure ? "insecure" : "unsupported");
     return;
   }
@@ -1028,8 +1018,8 @@ async function toggleCamera() {
     els.cameraStage.dataset.camera = "on";
     syncActionBar();
     els.cameraStatus.classList.add("is-live");
-    els.cameraStatus.lastChild.textContent = "Kamera açık";
-    els.latencyBadge.textContent = "Kamera açık";
+    els.cameraStatus.lastChild.textContent = t("shell.status.cameraOn");
+    setText(els.latencyBadge, "shell.badge.cameraOn");
 
     // Starting the camera is the first need for the live models. They download
     // alongside MediaPipe rather than after it; neither needs the other.
@@ -1037,20 +1027,20 @@ async function toggleCamera() {
 
     if (typeof startMediaPipe === "function") {
       try {
-        els.latencyBadge.textContent = "El izleme hazırlanıyor";
+        setText(els.latencyBadge, "shell.badge.trackingPreparing");
         await startMediaPipe(els.video);
         if (cancelled()) return;
-        els.latencyBadge.textContent = "El izleme hazır";
+        setText(els.latencyBadge, "shell.badge.trackingReady");
       } catch (err) {
         console.warn("MediaPipe failed to start:", err);
         // A camera stopped meanwhile has nothing left to track hands on.
         if (cancelled()) return;
-        els.latencyBadge.textContent = "El izleme yok";
+        setText(els.latencyBadge, "shell.badge.trackingMissing");
         // Without MediaPipe no model can run, so this must be the message left
         // standing, not a later "models ready".
         await liveModelsLoad;
         if (cancelled()) return;
-        reportProblem("El izleme bileşeni indirilemedi. İnternet bağlantınızı kontrol edip yeniden deneyin.");
+        reportProblem(() => t("shell.tracking.failed"));
       }
     }
   } catch (error) {
@@ -1061,7 +1051,7 @@ async function toggleCamera() {
       return;
     }
     // The browser's own text is for the console; it is English and technical.
-    els.latencyBadge.textContent = "Kamera açılamadı";
+    setText(els.latencyBadge, "shell.badge.cameraFailed");
     showCameraProblem(cameraProblemKind(error));
     console.error("getUserMedia error:", error);
   } finally {
@@ -1093,9 +1083,9 @@ function stopCamera() {
   clearCameraProblem();
   syncActionBar();
   els.cameraStatus.classList.remove("is-live");
-  els.cameraStatus.lastChild.textContent = "Hazır";
+  els.cameraStatus.lastChild.textContent = t("shell.status.ready");
   els.fpsLabel.textContent = "-- fps";
-  els.latencyBadge.textContent = "Hazır";
+  setText(els.latencyBadge, "shell.badge.ready");
 
   if (typeof stopMediaPipe === "function") {
     try { stopMediaPipe(); } catch (e) { /* noop */ }
@@ -1181,28 +1171,23 @@ function updateMediaPipeStatus(now) {
   _lastStatusTick = now;
 
   if (typeof latestMediaPipeResult === "undefined" || !latestMediaPipeResult) {
-    els.latencyBadge.textContent = "Hazırlanıyor";
+    setText(els.latencyBadge, "shell.badge.preparing");
     return;
   }
   const r = latestMediaPipeResult;
   const hasHand = !!(r.rightHandLandmarks || r.leftHandLandmarks);
   if (!hasHand) {
     _noHandSeconds++;
-    els.latencyBadge.textContent = "El aranıyor";
-    if (_noHandSeconds === 5) {
-      setMessage(
-        "El görünmüyor. Kol boyu uzaklıkta, iyi ışıkta, eliniz kadrajın ortasında olsun.",
-        "maybe",
-      );
-    }
+    setText(els.latencyBadge, "shell.badge.searching");
+    if (_noHandSeconds === 5) setMessage(() => t("shell.hand.missing"), "maybe");
   } else {
     if (_noHandSeconds > 0) {
       _noHandSeconds = 0;
-      setMessage("El algılandı.", "good");
+      setMessage(() => t("shell.hand.detected"), "good");
     }
     // Which hand and the frame rate are developer readouts; the debug panel
     // has the frame rate.
-    els.latencyBadge.textContent = "El algılandı";
+    setText(els.latencyBadge, "shell.badge.handDetected");
   }
 
   // Pose and face models load in the background; refresh readiness periodically.
@@ -1340,7 +1325,13 @@ async function waitForVideoReady(videoEl) {
  */
 function reportStartupFailure(error) {
   console.error("The app failed to start:", error);
-  const text = "Uygulama başlatılamadı. Sayfayı yenileyin; sorun sürerse bağlantınızı kontrol edin.";
+  // The strings may be what failed to load, so the Turkish stands by, named
+  // as Turkish and shown even if the page was still waiting to be translated.
+  const translated = typeof t === "function" && t("shell.startupFailed");
+  if (!translated) document.documentElement.setAttribute("lang", "tr");
+  document.documentElement.removeAttribute("data-i18n-pending");
+  const text =
+    translated || "Uygulama başlatılamadı. Sayfayı yenileyin; sorun sürerse bağlantınızı kontrol edin.";
   const notice = document.getElementById("startupError");
   if (notice) {
     notice.textContent = text;

@@ -106,6 +106,7 @@ SCENARIOS: dict[str, Scenario] = {
     "deploy-check/runtime assets": Scenario("deploy-check", fail="check_runtime_assets.py"),
     "browser-check": Scenario("browser-check"),
     "browser-check/offline": Scenario("browser-check", make_args=("OFFLINE=1",)),
+    "browser-check/english": Scenario("browser-check", make_args=("UI_LANG=en",)),
     "browser-check/failing": Scenario("browser-check", fail="tests/browser/run.mjs"),
     "js-check/syntax error": Scenario("js-check", fail="node --check"),
     "js-check/no node": Scenario("js-check", bare_path=True),
@@ -328,6 +329,9 @@ def test_browser_check_runs_the_browser_suite_and_fails_with_it(runs: dict[str, 
     assert "--offline" not in _arguments(call)
     (offline,) = runs["browser-check/offline"].ran("tests/browser/run.mjs")
     assert "--offline" in _arguments(offline)
+    assert "--lang" not in _arguments(call)
+    (english,) = runs["browser-check/english"].ran("tests/browser/run.mjs")
+    assert _arguments(english)[-2:] == ["--lang", "en"]
     assert runs["browser-check/failing"].returncode != 0
 
 

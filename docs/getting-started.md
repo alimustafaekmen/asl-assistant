@@ -56,29 +56,26 @@ so any Python 3 will do and no package needs installing.
    python3 -m http.server 8080 --directory asl-web
    ```
 
-3. Open <http://localhost:8080>. The app starts on the letter screen. Its
-   interface is in Turkish, so the steps below give each label as the app
-   shows it.
-4. Press **Kamerayı aç** (turn on the camera), allow the camera, then show a
-   letter to it.
-5. To see the app read letters without a camera, press **Örneği izleyin**
-   (watch the example). A recorded hand spells FLY; add each letter with Space
-   or **Ekle** (add) when the result shows it. The model reads these poses at
-   100% because their photographs are in its training data, so
-   the demo shows how the app works, not how accurate it is.
+3. Open <http://localhost:8080>. The app starts on the letter screen, in
+   English or Turkish after your browser's language (English if it is
+   neither); the switch at the end of the top bar changes it. The steps below
+   give the English labels.
+4. Press **Turn on camera**, allow the camera, then show a letter to it.
+5. To see the app read letters without a camera, press **Watch the demo**. A
+   recorded hand spells FLY; add each letter with Space or **Add** when the
+   result shows it. The model reads these poses at 100% because their
+   photographs are in its training data, so the demo shows how the app works,
+   not how accurate it is.
 6. To check the models on stored inputs, open Model Test: go to `#test`, or
-   follow **modeli örnek dosyalarla test edin (Model Test)** at the foot of
-   the **Nasıl çalışır** (how it works) page. Press **Tümünü çalıştır** (run
-   all). This runs the letter model on its 24 fixtures (stored test inputs)
-   and counts how many come out right.
-7. To check the word model, open **Başka model, başka örnek ya da kendi
-   dosyanız** (another model, another sample or your own file) on the same
-   screen, choose **Kelime modeli** (word model) and press **Tümünü
-   çalıştır** again. The one bundled word fixture should come out as `give`
-   with a confidence of 0.0760 (shown as %7,6), marked **Çalışma kontrolü**
-   (pipeline check). The fixture is made-up input, so the run checks that the
-   model, its labels, the mask and the browser inference agree; it says
-   nothing about accuracy.
+   follow **test the model with sample files (Model Test)** at the foot of
+   the **How it works** page. Press **Run all**. This runs the letter model on
+   its 24 fixtures (stored test inputs) and counts how many come out right.
+7. To check the word model, open **Another model, another sample or your own
+   file** on the same screen, choose **Word model** and press **Run all**
+   again. The one bundled word fixture should come out as `give` with a
+   confidence of 0.0760 (shown as 7.6%), marked **Smoke test**. The fixture is
+   made-up input, so the run checks that the model, its labels, the mask and
+   the browser inference agree; it says nothing about accuracy.
 
 Stop the server with Ctrl+C.
 

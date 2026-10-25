@@ -29,7 +29,7 @@ function appendCurrentLetter() {
   if (!state.prediction || state.prediction === "?" || state.prediction.length !== 1) return;
   if (state.confidence < CONFIG.LETTER_THRESHOLD) return;
   if (appendTranscriptToken(state.prediction, { debounceKey: `letter:${state.prediction}` })) {
-    announce(`${state.prediction} eklendi`);
+    announce(t("letter.transcript.letterAdded", { letter: state.prediction }));
     // The demo moves to its next letter only when the user has added the
     // one it shows.
     if (typeof noteDemoLetterAdded === "function") noteDemoLetterAdded(state.prediction);
@@ -67,10 +67,10 @@ function appendWordResultToTranscript() {
   syncActionBar();
   // A press the debounce swallowed repeats one already confirmed.
   if (!appended) return;
-  showToast(`“${word}” metne eklendi`, {
+  showToast(() => t("letter.transcript.wordAdded", { word }), {
     returnFocus: els.recordWord,
     action: {
-      label: "Geri al",
+      label: () => t("letter.toast.undo"),
       // Removes the added word only while it is still the end of the text, so
       // anything typed since is left alone. The result stays accepted: undo
       // never offers the same consent twice.
@@ -79,7 +79,7 @@ function appendWordResultToTranscript() {
         state.transcript = state.transcript.slice(0, -token.length);
         saveTranscript();
         renderTranscript();
-        announce(`${word} metinden çıkarıldı`);
+        announce(t("letter.transcript.wordRemoved", { word }));
       },
     },
   });
@@ -138,10 +138,12 @@ function renderTranscript() {
   const text = state.transcript.trim();
   // Lets the stylesheet set the placeholder apart from real text.
   els.transcriptText.dataset.empty = text ? "false" : "true";
-  // Fingerspelled text is English letters; the placeholder is Turkish. The
-  // caret is decoration, not a character to read out.
-  els.transcriptText.lang = text ? "en" : "tr";
-  els.transcriptText.innerHTML = `${escapeHtml(text || "Metin burada görünür")}<span class="cursor" aria-hidden="true">|</span>`;
+  // Fingerspelled text is English letters; the placeholder is in the
+  // interface's language. The caret is decoration, not a character to read
+  // out. The script owns the line's language from here on, not the markup.
+  els.transcriptText.removeAttribute("data-i18n-lang");
+  els.transcriptText.lang = text ? "en" : currentLanguage();
+  els.transcriptText.innerHTML = `${escapeHtml(text || t("letter.transcript.placeholder"))}<span class="cursor" aria-hidden="true">|</span>`;
   // One scrolling line: the end, with the newest letter and the caret, stays
   // in view and the start fades once scrolled off. A screen reader still
   // gets the whole text.
@@ -172,7 +174,7 @@ function clearTranscript() {
   renderTranscript();
   if (!cleared.trim()) return;
   const restorable = _clearedPendingUndo + cleared;
-  showToast("Metin temizlendi", {
+  showToast(() => t("letter.transcript.cleared"), {
     returnFocus: els.clearText,
     // Also runs for the toast this one replaces, which is why the pending
     // text is set again after showToast().
@@ -180,13 +182,13 @@ function clearTranscript() {
       _clearedPendingUndo = "";
     },
     action: {
-      label: "Geri al",
+      label: () => t("letter.toast.undo"),
       // Anything typed since the clear stays, after the restored text.
       run: () => {
         state.transcript = restorable + state.transcript;
         saveTranscript();
         renderTranscript();
-        announce("Metin geri alındı");
+        announce(t("letter.transcript.restored"));
       },
     },
   });
@@ -230,14 +232,14 @@ function restoreTranscript() {
 async function copyTranscript() {
   const text = state.transcript.trim();
   if (!text) {
-    showToast("Kopyalanacak metin yok");
+    showToast(() => t("letter.transcript.nothingToCopy"));
     return;
   }
   try {
     await navigator.clipboard.writeText(text);
-    showToast("Metin kopyalandı");
+    showToast(() => t("letter.transcript.copied"));
   } catch {
-    showToast("Kopyalanamadı. Metni seçip elle kopyalayabilirsiniz.");
+    showToast(() => t("letter.transcript.copyFailed"));
   }
 }
 

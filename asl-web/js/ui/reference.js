@@ -117,9 +117,25 @@ function wordCard(label) {
 /**
  * @param {WordCard} card
  * @returns {string} The Turkish gloss, empty until a signer has reviewed them.
+ *   An English page shows none: the word itself is already English.
  */
 function wordGloss(card) {
+  if (currentLanguage() !== "tr") return "";
   return wordReference?.glossReviewed && card.gloss ? card.gloss : "";
+}
+
+/**
+ * Show text that is not a string of ours, such as a word, and stop a language
+ * change from rewriting it.
+ *
+ * @param {Element} element
+ * @param {string} text
+ * @returns {void}
+ */
+function setPlainText(element, text) {
+  element.removeAttribute("data-i18n");
+  element.removeAttribute("data-i18n-params");
+  element.textContent = text;
 }
 
 /**
@@ -153,9 +169,8 @@ function showWordCard(frame, image, card) {
   frame.style.setProperty("--ref-h", String(h));
   frame.style.setProperty("--ref-aspect", String((w * pageW) / (h * pageH)));
   const gloss = wordGloss(card);
-  image.alt = gloss
-    ? `${card.title} (${gloss}) işaretinin referans kartı`
-    : `${card.title} işaretinin referans kartı`;
+  // Drawn again on a language change, with the rest of the card.
+  image.alt = t(gloss ? "word.reference.cardAltGloss" : "word.reference.cardAlt", { title: card.title, gloss });
   image.src = REFERENCE_ASSETS.wordPages[card.page - 1];
 }
 
@@ -229,9 +244,8 @@ function updateReferenceForMode() {
       referencePendingSrc = "";
       els.referenceImage.src = refAsset;
     }
-    els.referenceImage.alt = isWordRef
-      ? `ASL kelime referans sayfası ${pageIndex + 1}`
-      : REFERENCE_ASSETS.letter.alt;
+    if (isWordRef) setAttrText(els.referenceImage, "alt", "word.reference.pageAlt", { n: pageIndex + 1 });
+    else setAttrText(els.referenceImage, "alt", "word.reference.letterAlt");
     els.referenceImage.loading = "lazy";
     els.referenceImage.decoding = "async";
     referenceView = isWordRef
@@ -240,28 +254,30 @@ function updateReferenceForMode() {
   }
   renderReferenceThumbnails(isWordRef && !card);
 
-  if (els.referenceKicker) {
-    els.referenceKicker.textContent =
-      mode === "coach" ? "Koç referansı" : mode === "word" ? "Kelime referansı" : "Harf referansı";
-  }
+  setText(
+    els.referenceKicker,
+    mode === "coach" ? "word.reference.kicker.coach" : mode === "word" ? "word.reference.kicker.word" : "word.reference.kicker.letter",
+  );
   if (els.referenceTitle) {
-    els.referenceTitle.textContent =
-      mode === "coach"
-        ? (coachIsWord ? `Kelime hedefi: ${target}` : `Harf hedefi: ${target}`)
-        : mode === "word"
-          ? (card ? wordCardTitle(card) : wordModeTarget ? `Seçili kelime: ${wordModeTarget}` : "50 kelime referans kartı")
-          : "ASL harf kartları";
+    if (mode === "coach") {
+      setText(els.referenceTitle, coachIsWord ? "word.reference.title.coachWord" : "word.reference.title.coachLetter", { target });
+    } else if (mode === "word" && card) {
+      setPlainText(els.referenceTitle, wordCardTitle(card));
+    } else if (mode === "word") {
+      if (wordModeTarget) setText(els.referenceTitle, "word.reference.title.selected", { word: wordModeTarget });
+      else setText(els.referenceTitle, "word.reference.title.wordCards");
+    } else {
+      setText(els.referenceTitle, "word.reference.title.letterCards");
+    }
   }
-  if (els.referenceNote) {
-    els.referenceNote.textContent =
-      mode === "word"
-        ? "Kelime kartları 5 sayfada. İşareti yaparken yüzünüz, omuzlarınız ve eliniz kadrajda olsun."
-        : mode === "coach"
-          ? (coachIsWord
-              ? "Kelime hedeflerinde önce referans sayfasına bakın, sonra kaydı başlatın."
-              : "Hedefi yapamazsanız referans görseline ya da video rehbere bakın.")
-          : "Harf karışırsa el şeklinizi referans görseliyle karşılaştırın.";
-  }
+  setText(
+    els.referenceNote,
+    mode === "word"
+      ? "word.reference.note.word"
+      : mode === "coach"
+        ? (coachIsWord ? "word.reference.note.coachWord" : "word.reference.note.coachLetter")
+        : "word.reference.note.letter",
+  );
   if (els.referenceVideoLink) {
     els.referenceVideoLink.href = buildReferenceVideoUrl(
       mode,
@@ -291,14 +307,14 @@ function renderReferenceThumbnails(isWordRef) {
     // Found again by this hook, not by the class that styles them.
     button.dataset.ui = "reference-thumb";
     button.textContent = `${index + 1}`;
-    button.title = `Kelime referans sayfası ${index + 1}`;
+    setAttrText(button, "title", "word.reference.pageTitle", { n: index + 1 });
     const current = referenceView.kind === "page" ? referenceView.index : 0;
     button.dataset.active = index === current ? "true" : "false";
     button.addEventListener("click", () => {
       els.referenceImage.src = src;
       referencePendingSrc = "";
       referenceView = { kind: "page", index, label: "" };
-      els.referenceImage.alt = `ASL kelime referans sayfası ${index + 1}`;
+      setAttrText(els.referenceImage, "alt", "word.reference.pageAlt", { n: index + 1 });
       queryAllUi("reference-thumb", els.referenceThumbs)
         .forEach((thumb) => { thumb.dataset.active = "false"; });
       button.dataset.active = "true";
@@ -339,7 +355,7 @@ function buildReferenceVideoUrl(mode, target) {
  */
 function setReferenceOpen(open) {
   els.referenceBody.hidden = !open;
-  els.toggleReference.textContent = open ? "Gizle" : "Göster";
+  setText(els.toggleReference, open ? "word.reference.hide" : "word.reference.show");
   els.toggleReference.setAttribute("aria-expanded", String(open));
   if (open) applyReferencePendingSrc();
 }
@@ -494,20 +510,21 @@ function renderViewer() {
   let naturalWidth = 1024;
   if (card && wordReference) {
     showWordCard(cardFrame, cardImage, card);
-    heading.textContent = wordCardTitle(card);
-    heading.lang = "en";
+    setPlainText(heading, wordCardTitle(card));
+    heading.setAttribute("lang", "en");
     naturalWidth = card.rect[2] * wordReference.pageSize[0];
   } else if (kind === "page") {
     image.src = REFERENCE_ASSETS.wordPages[index];
-    image.alt = `Kelime sayfası ${index + 1} / ${pageCount}`;
-    heading.textContent = `Kelime sayfası ${index + 1} / ${pageCount}`;
-    heading.lang = "tr";
+    const page = { n: index + 1, count: pageCount };
+    setAttrText(image, "alt", "word.viewer.page", page);
+    setText(heading, "word.viewer.page", page);
+    heading.setAttribute("lang", currentLanguage());
     naturalWidth = wordReference ? wordReference.pageSize[0] : 1024;
   } else {
     image.src = REFERENCE_ASSETS.letter.src;
-    image.alt = REFERENCE_ASSETS.letter.alt;
-    heading.textContent = "ASL harf tablosu";
-    heading.lang = "tr";
+    setAttrText(image, "alt", "word.reference.letterAlt");
+    setText(heading, "word.viewer.letterChart");
+    heading.setAttribute("lang", currentLanguage());
     naturalWidth = image.naturalWidth || 1086;
   }
   document.getElementById("lightboxBody")?.style.setProperty("--viewer-natural", `${Math.round(naturalWidth)}px`);
@@ -516,13 +533,22 @@ function renderViewer() {
   if (next) next.hidden = kind === "letter";
   if (modeButton) {
     modeButton.hidden = !(card || cardOfPage);
-    modeButton.textContent = card ? "Sayfanın tamamı" : "Yalnızca kart";
+    setText(modeButton, card ? "word.viewer.wholePage" : "word.viewer.cardOnly");
   }
   if (video instanceof HTMLAnchorElement) {
     video.hidden = kind === "letter";
     video.href = buildReferenceVideoUrl("word", card ? card.label : label);
   }
   renderViewerZoom();
+}
+
+/**
+ * Draw the viewer again if it is open; a closed viewer loads nothing.
+ *
+ * @returns {void}
+ */
+function renderOpenViewer() {
+  if (viewerState.open) renderViewer();
 }
 
 /**
@@ -541,10 +567,15 @@ function renderViewerZoom() {
     body.dataset.zoom = level ? "set" : "fit";
   }
   if (readout) {
-    const text = level ? `%${Math.round(level * 100)}` : "Sığdır";
-    readout.textContent = text;
     // The visible text stays inside the name; tapping it fits the image.
-    readout.setAttribute("aria-label", level ? `Yakınlaştırma ${text}, sığdırmak için dokunun` : "Yakınlaştırma sığdırılmış");
+    if (level) {
+      const percent = { n: Math.round(level * 100) };
+      setText(readout, "word.percent", percent);
+      setAttrText(readout, "aria-label", "word.viewer.zoomName", percent);
+    } else {
+      setText(readout, "word.viewer.fit");
+      setAttrText(readout, "aria-label", "word.viewer.fitName");
+    }
   }
   if (out) out.disabled = viewerState.zoom === 0;
   if (zoomIn) zoomIn.disabled = viewerState.zoom === VIEWER_ZOOM_LEVELS.length - 1;

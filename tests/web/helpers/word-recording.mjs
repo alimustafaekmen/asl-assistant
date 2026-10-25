@@ -171,8 +171,10 @@ export function fakeTimers() {
  * the test advances (`timers.advance(ms)`). With `boot` the app runs its own
  * init() first, so its buttons are bound and `app.ready` settles when the
  * start-up reads are done; the network is then the harness's default fetch.
+ * `languages` are the browser's preferred languages, as loadWebApp() takes
+ * them; Turkish when left out.
  *
- * @param {{winner?: string, maskDtype?: string, winnerLogit?: number | (() => number), runnerUp?: {label: string, logit: number | (() => number)}, fakeTimers?: boolean, boot?: boolean}} [options]
+ * @param {{winner?: string, maskDtype?: string, winnerLogit?: number | (() => number), runnerUp?: {label: string, logit: number | (() => number)}, fakeTimers?: boolean, boot?: boolean, languages?: readonly string[]}} [options]
  */
 export function wordModeApp(options = {}) {
   const { ort, runs, hold, release } = fakeOrt(options);
@@ -183,7 +185,7 @@ export function wordModeApp(options = {}) {
     globals.setTimeout = timers.setTimeout;
     globals.clearTimeout = timers.clearTimeout;
   }
-  const app = loadWebApp({ boot: options.boot === true, globals });
+  const app = loadWebApp({ boot: options.boot === true, globals, languages: options.languages });
   app.evaluate(`
     globalThis.__clock = 0;
     globalThis.performance = { now: () => __clock };

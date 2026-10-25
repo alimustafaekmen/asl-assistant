@@ -134,7 +134,7 @@ Tarayıcı, düz `<script>` dosyalarını [`asl-web/index.html`](asl-web/index.h
 
 ### 3.2 Modül sınırları ve DOM sözleşmesi
 
-Script'ler `core/` (durum, yönlendirme, kamerayı başlatma ve durdurma, çizim döngüsü), `media/` (MediaPipe görevleri, algılama döngüsü, kamerasız örnek, overlay), `ml/` (özellikler, ONNX oturumları, yumuşatma), `services/` ve `ui/` klasörlerindedir; [`asl-web/js/README.md`](asl-web/js/README.md) onları yükleme sırasıyla listeler. Script'ler öğeleri yalnızca `id` ya da bir `data-ui` kancasıyla bulur, hiçbir zaman bir stil sınıfıyla bulmaz; böylece bir yeniden tasarımda sınıflar serbestçe değişebilir, bir id'yi yeniden adlandırmak ise testlerin fark ettiği bir davranış değişikliğidir. Çizim fonksiyonları görünümü durumdan yeniden kurar; dinleyici, zamanlayıcı, fetch ya da model oturumu başlatmaz.
+Script'ler `core/` (durum, yönlendirme, kamerayı başlatma ve durdurma, çizim döngüsü), `media/` (MediaPipe görevleri, algılama döngüsü, kamerasız örnek, overlay), `ml/` (özellikler, ONNX oturumları, yumuşatma), `i18n/` (Türkçe ve İngilizce arayüz metinleri), `services/` ve `ui/` klasörlerindedir; [`asl-web/js/README.md`](asl-web/js/README.md) onları yükleme sırasıyla listeler. Script'ler öğeleri yalnızca `id` ya da bir `data-ui` kancasıyla bulur, hiçbir zaman bir stil sınıfıyla bulmaz; böylece bir yeniden tasarımda sınıflar serbestçe değişebilir, bir id'yi yeniden adlandırmak ise testlerin fark ettiği bir davranış değişikliğidir. Çizim fonksiyonları görünümü durumdan yeniden kurar; dinleyici, zamanlayıcı, fetch ya da model oturumu başlatmaz.
 
 ### 3.3 Kelime kayıt durum makinesi
 
@@ -184,7 +184,7 @@ Kamera indirmelerinden site yalnızca modelleri (harf 2,2 MB, kelime 1,85 MB) ve
 
 ### 3.7 Erişilebilirlik
 
-Her ekranda, aynı zamanda belge başlığı olan ve gezinmede odağı alan, görsel olarak gizli tek bir `h1` vardır; bir atlama bağlantısı (skip link) ve `polite` öncelikli bir canlı bölge (live region) bulunur, azaltılmış hareket tercihi dikkate alınır. Landmark overlay'i açık bir çekirdeğin altına koyu bir hale çizer, çünkü tek renkli çizgiler bazı videolarda 3:1 kontrastın altına düşüyordu; metin kontrastı iki temada da WCAG 2.2 AA'yı karşılar. Arayüz metni, kullanıcıya "siz" diye seslenen sade Türkçedir; kod, yorumlar ve geliştirici terminal çıktısı İngilizcedir.
+Her ekranda, aynı zamanda belge başlığı olan ve gezinmede odağı alan, görsel olarak gizli tek bir `h1` vardır; bir atlama bağlantısı (skip link) ve `polite` öncelikli bir canlı bölge (live region) bulunur, azaltılmış hareket tercihi dikkate alınır. Landmark overlay'i açık bir çekirdeğin altına koyu bir hale çizer, çünkü tek renkli çizgiler bazı videolarda 3:1 kontrastın altına düşüyordu; metin kontrastı iki temada da WCAG 2.2 AA'yı karşılar. Arayüz, kullanıcıya "siz" diye seslenen sade bir Türkçe ve sade bir İngilizceyle yazılmıştır. Sayfa ziyaretçinin kaydettiği seçimle, yoksa tarayıcının tercih ettiği dille, o da yoksa İngilizceyle açılır; üst çubuktaki düğme görünen her metni, `<html lang>` değerini ve belge başlığını sayfayı yeniden yüklemeden ve kamerayı yeniden başlatmadan değiştirir. Kod, yorumlar ve geliştirici terminal çıktısı İngilizcedir.
 
 ### 3.8 Stil sistemi
 
@@ -568,7 +568,7 @@ Bunların hiçbiri ışığı, izin istemlerini, cihaz hızını ya da canlı i�
 
 Projenin etiketlenmiş bir sürümü yoktur; ayrıntılı kayıt commit geçmişidir. İlk sürüm (0.1.0), iki modeli ONNX Runtime Web üzerinden çalıştıran ve harf çevirisi, bir koç, deneysel kelime pratiği, bir Model Test ve bir QR demosu içeren statik bir sayfaydı. O zamandan bu yana:
 
-- **Arayüz:** ekran ekran yeniden kuruldu: açık ve koyu temalar, telefon ve dizüstü yerleşimleri, sade Türkçe, geri alma, kamera sorunları için yardım ve [bölüm 3.7](#37-erişilebilirlik) içindeki erişilebilirlik çalışması.
+- **Arayüz:** ekran ekran yeniden kuruldu: açık ve koyu temalar, telefon ve dizüstü yerleşimleri, sade Türkçe ve dil düğmesiyle bir İngilizce çeviri, geri alma, kamera sorunları için yardım ve [bölüm 3.7](#37-erişilebilirlik) içindeki erişilebilirlik çalışması.
 - **Çalışma zamanı:** modeller ilk kullanımda yüklenir, harf modeli gzip'li gönderilir ve bir kamera ekranından çıkmak, başlatma sürerken bile kamerayı serbest bırakır.
 - **Harfler:** kamera en-boy düzeltmesi ve referans olarak kamu malı Gallaudet alfabe kartı.
 - **Doğrulama ve yayın:** davranış üzerine yeniden kurulan ve yerleştirilen hatalarda başarısız olduğu gösterilen testler, headless Chrome kontrolleri, özellik golden'ları, tek çıkış kodu sözleşmesi, SRI, yanıt başlıkları ve `make deploy-check`.

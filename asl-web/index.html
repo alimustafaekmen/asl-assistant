@@ -8,8 +8,8 @@
          chosen one when the visitor has picked a theme. -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f3ef" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131416" />
-    <title>Harf tanıma · ASL Assistant</title>
-    <meta name="description" content="ASL Assistant, ASL harflerini ve kelimelerini tarayıcıda tanır; kamera görüntüsü cihazından hiç çıkmaz." />
+    <title data-i18n="shell.documentTitle">Harf tanıma · ASL Assistant</title>
+    <meta name="description" data-i18n-content="shell.metaDescription" content="ASL Assistant, ASL harflerini ve kelimelerini tarayıcıda tanır; kamera görüntüsü cihazından hiç çıkmaz." />
     <link rel="icon" href="favicon.ico" sizes="32x32" />
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
     <!-- Link preview. Most preview crawlers do not resolve relative URLs, so og:url and og:image name the live host. -->
@@ -24,8 +24,10 @@
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preload" href="assets/fonts/atkinson-hyperlegible-next.woff2" as="font" type="font/woff2" crossorigin />
     <!-- Before the stylesheets, so the first frame is already in the visitor's
-         theme; a blocking script after them would wait for them. -->
+         theme and <html lang> names their language; a blocking script after
+         them would wait for them. -->
     <script src="js/core/theme-boot.js?v=12"></script>
+    <script src="js/core/lang-boot.js?v=12"></script>
     <!-- style.css first: it declares the cascade layer order, and the first
          declaration wins. The files after it add layers above the legacy one. -->
     <link rel="stylesheet" href="css/style.css?v=12" />
@@ -41,7 +43,7 @@
     <div class="app-shell" data-ui="app-shell" data-view="app" data-mode="letter">
       <!-- Handled by the app (preventDefault): followed as a link, #main would
            be an unknown route and open letter mode. -->
-      <a class="skip-link" id="skipLink" href="#main">İçeriğe geç</a>
+      <a class="skip-link" id="skipLink" href="#main" data-i18n="shell.skipLink">İçeriğe geç</a>
       <div class="visually-hidden" id="announcer" role="status" aria-live="polite"></div>
       <p class="startup-error" id="startupError" hidden></p>
 
@@ -51,32 +53,35 @@
           <span class="brand__name">ASL Assistant</span>
         </a>
 
-        <nav class="modes topbar__modes" aria-label="Mod">
-          <button class="modes__item is-active" data-ui="mode-tab" type="button" data-mode="letter" aria-current="page">Harf</button>
-          <button class="modes__item" data-ui="mode-tab" type="button" data-mode="coach">Koç</button>
-          <button class="modes__item" data-ui="mode-tab" type="button" data-mode="word">Kelime <span class="modes__tag">deneysel</span></button>
+        <nav class="modes topbar__modes" aria-label="Mod" data-i18n-aria-label="shell.nav.label">
+          <button class="modes__item is-active" data-ui="mode-tab" type="button" data-mode="letter" aria-current="page" data-i18n="shell.nav.letter">Harf</button>
+          <button class="modes__item" data-ui="mode-tab" type="button" data-mode="coach" data-i18n="shell.nav.coach">Koç</button>
+          <button class="modes__item" data-ui="mode-tab" type="button" data-mode="word"><span data-i18n="shell.nav.word">Kelime</span> <span class="modes__tag" data-i18n="shell.nav.experimental">deneysel</span></button>
         </nav>
 
         <div class="topbar__end">
-          <span class="live-indicator" id="cameraStatus"><span aria-hidden="true"></span>Hazır</span>
-          <button class="btn btn--quiet btn--icon topbar__more" type="button" popovertarget="moreMenu" data-icon="more" aria-label="Diğer"></button>
+          <span class="live-indicator" id="cameraStatus"><span aria-hidden="true"></span><span data-i18n="shell.status.ready">Hazır</span></span>
+          <button class="btn btn--quiet btn--icon topbar__more" type="button" popovertarget="moreMenu" data-icon="more" aria-label="Diğer" data-i18n-aria-label="shell.menu.more"></button>
           <div class="topbar__links menu" id="moreMenu" popover>
-            <button class="navlink" data-ui="mode-tab" type="button" data-mode="project">Nasıl çalışır</button>
-            <button class="navlink navlink--icon" data-ui="mode-tab" type="button" data-mode="qr" data-icon="qr" title="Telefonda aç"><span class="navlink__label">Telefonda aç</span></button>
-            <button class="navlink navlink--icon" type="button" id="themeToggle" data-icon="theme" title="Koyu tema" aria-pressed="false"><span class="navlink__label">Koyu tema</span></button>
+            <button class="navlink" data-ui="mode-tab" type="button" data-mode="project" data-i18n="shell.menu.project">Nasıl çalışır</button>
+            <button class="navlink navlink--icon" data-ui="mode-tab" type="button" data-mode="qr" data-icon="qr" title="Telefonda aç" data-i18n-title="shell.menu.qr"><span class="navlink__label" data-i18n="shell.menu.qr">Telefonda aç</span></button>
+            <button class="navlink navlink--icon" type="button" id="themeToggle" data-icon="theme" title="Koyu tema" data-i18n-title="shell.menu.theme" aria-pressed="false"><span class="navlink__label" data-i18n="shell.menu.theme">Koyu tema</span></button>
+            <!-- Named and labelled in the language it switches to, so a visitor
+                 who cannot read the page can still find it. -->
+            <button class="navlink" type="button" id="languageToggle" data-icon="language" lang="en" data-i18n-lang="shell.language.code" aria-label="Switch to English" data-i18n-aria-label="shell.language.action"><span data-i18n="shell.language.label">English</span></button>
           </div>
         </div>
       </header>
 
       <main id="main" tabindex="-1">
         <section class="workspace" data-ui="workspace" id="appWorkspace">
-          <section class="camera-column" data-ui="workspace-pane" aria-label="Kamera">
+          <section class="camera-column" data-ui="workspace-pane" aria-label="Kamera" data-i18n-aria-label="shell.region.camera">
             <!-- One h1 per screen. Its text is the document title (with
                  " · ASL Assistant"), and focus moves to it when the visitor
                  changes route. -->
-            <h1 class="visually-hidden mode-only letter-only" data-screen-title="letter" tabindex="-1">Harf tanıma</h1>
-            <h1 class="visually-hidden mode-only coach-only" data-screen-title="coach" tabindex="-1">Koç</h1>
-            <h1 class="visually-hidden mode-only word-only" data-screen-title="word" tabindex="-1">Kelime (deneysel)</h1>
+            <h1 class="visually-hidden mode-only letter-only" data-screen-title="letter" data-i18n="shell.route.letter" tabindex="-1">Harf tanıma</h1>
+            <h1 class="visually-hidden mode-only coach-only" data-screen-title="coach" data-i18n="shell.route.coach" tabindex="-1">Koç</h1>
+            <h1 class="visually-hidden mode-only word-only" data-screen-title="word" data-i18n="shell.route.word" tabindex="-1">Kelime (deneysel)</h1>
 
             <div class="stage" id="cameraStage" data-state="idle" data-kind="letter" data-camera="off">
               <video id="cameraVideo" class="stage__video" autoplay playsinline muted aria-hidden="true"></video>
@@ -88,27 +93,27 @@
                 <div class="stage__intro" id="cameraIntro">
                   <svg class="stage__illustration" viewBox="6 46 152 182" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"><polyline class="bone" points="100,220 78,200 58,182 40,170 22,160"></polyline><polyline class="bone" points="100,220 88,150 86,110 85,84 84,60"></polyline><polyline class="bone" points="88,150 106,150 112,126 100,134 96,148"></polyline><polyline class="bone" points="106,150 122,154 128,134 116,140 112,152"></polyline><polyline class="bone" points="122,154 136,162 142,146 132,150 128,160"></polyline><polyline class="bone" points="100,220 136,162"></polyline></g><g><circle class="joint" cx="100" cy="220" r="4"></circle><circle class="joint" cx="22" cy="160" r="4"></circle><circle class="joint" cx="84" cy="60" r="4"></circle><circle class="joint" cx="88" cy="150" r="4"></circle><circle class="joint" cx="86" cy="110" r="4"></circle><circle class="joint" cx="58" cy="182" r="4"></circle><circle class="joint" cx="96" cy="148" r="4"></circle><circle class="joint" cx="112" cy="152" r="4"></circle><circle class="joint" cx="128" cy="160" r="4"></circle><circle class="joint" cx="136" cy="162" r="4"></circle></g></svg>
                   <h2 class="stage__headline">
-                    <span class="mode-only letter-only">Kameraya bir ASL harfi gösterin; tanınan harf metne yazılır.</span>
-                    <span class="mode-only coach-only">Gösterilen harfi kameraya yapın; doğru tuttuğunuzda halka dolar.</span>
-                    <span class="mode-only word-only">Bir ASL kelimesi kaydedin; onaylarsanız metne eklenir.</span>
+                    <span class="mode-only letter-only" data-i18n="letter.stage.headline.letter">Kameraya bir ASL harfi gösterin; tanınan harf metne yazılır.</span>
+                    <span class="mode-only coach-only" data-i18n="letter.stage.headline.coach">Gösterilen harfi kameraya yapın; doğru tuttuğunuzda halka dolar.</span>
+                    <span class="mode-only word-only" data-i18n="letter.stage.headline.word">Bir ASL kelimesi kaydedin; onaylarsanız metne eklenir.</span>
                   </h2>
-                  <p class="stage__lead">Kamerayı açınca tarayıcı izin ister. Görüntü cihazınızdan çıkmaz, kaydedilmez.</p>
+                  <p class="stage__lead" data-i18n="letter.stage.lead">Kamerayı açınca tarayıcı izin ister. Görüntü cihazınızdan çıkmaz, kaydedilmez.</p>
                   <div class="stage__cta">
-                    <button class="btn btn--stage-primary" type="button" data-trigger="camera" data-icon="camera"><span class="mode-only letter-only word-only">Kamerayı aç</span><span class="mode-only coach-only">Çalışmayı başlat</span></button>
+                    <button class="btn btn--stage-primary" type="button" data-trigger="camera" data-icon="camera"><span class="mode-only letter-only word-only" data-i18n="letter.camera.turnOn">Kamerayı aç</span><span class="mode-only coach-only" data-i18n="letter.stage.coachStart">Çalışmayı başlat</span></button>
                     <!-- The camera-free demo (js/media/demo-source.js) reads letters
                          from a recorded hand on the letter screen; the coach and
                          word screens send a visitor without a camera there. -->
-                    <button class="btn btn--stage" type="button" data-trigger="demo" data-icon="play">Örneği izleyin</button>
+                    <button class="btn btn--stage" type="button" data-trigger="demo" data-icon="play" data-i18n="letter.stage.watchDemo">Örneği izleyin</button>
                   </div>
                   <ul class="stage__facts">
-                    <li class="mode-only letter-only coach-only" data-icon="info">24 ASL harfi · J ve Z hareketli olduğu için yok</li>
-                    <li class="mode-only word-only" data-icon="info">50 kelime · deneysel; el, yüz ve omuzlar görünmeli</li>
-                    <li data-icon="info">ASL (Amerikan İşaret Dili), TİD değil</li>
+                    <li class="mode-only letter-only coach-only" data-icon="info" data-i18n="letter.stage.fact.letters">24 ASL harfi · J ve Z hareketli olduğu için yok</li>
+                    <li class="mode-only word-only" data-icon="info" data-i18n="letter.stage.fact.words">50 kelime · deneysel; el, yüz ve omuzlar görünmeli</li>
+                    <li data-icon="info" data-i18n="letter.stage.fact.asl">ASL (Amerikan İşaret Dili), TİD değil</li>
                     <!-- Measured with an empty cache: the first camera start fetches about
                          15 MB (hand model, MediaPipe and ONNX Runtime WASM, letter model);
                          word mode adds pose, face and the word model, up to 24 MB in all. -->
-                    <li class="mode-only letter-only coach-only" data-icon="info">İlk kamera açılışında yaklaşık 15 MB iner; sonraki açılışlarda inmez</li>
-                    <li class="mode-only word-only" data-icon="info">İlk kamera açılışında en fazla 24 MB iner; Wi-Fi önerilir</li>
+                    <li class="mode-only letter-only coach-only" data-icon="info" data-i18n="letter.stage.fact.download">İlk kamera açılışında yaklaşık 15 MB iner; sonraki açılışlarda inmez</li>
+                    <li class="mode-only word-only" data-icon="info" data-i18n="letter.stage.fact.wordDownload">İlk kamera açılışında en fazla 24 MB iner; Wi-Fi önerilir</li>
                   </ul>
                 </div>
 
@@ -122,63 +127,63 @@
                   <h2 class="stage__headline stage__problem-title" id="cameraProblemTitle">Kamera açılamadı</h2>
                   <p class="stage__problem-text" id="cameraProblemText"></p>
                   <div class="stage__cta">
-                    <button class="btn btn--stage-primary" type="button" id="cameraRetry" data-icon="retry">Yeniden dene</button>
-                    <button class="btn btn--stage" type="button" id="cameraNoCamera" data-trigger="demo" data-icon="play">Örneği izleyin</button>
+                    <button class="btn btn--stage-primary" type="button" id="cameraRetry" data-icon="retry" data-i18n="letter.help.retry">Yeniden dene</button>
+                    <button class="btn btn--stage" type="button" id="cameraNoCamera" data-trigger="demo" data-icon="play" data-i18n="letter.stage.watchDemo">Örneği izleyin</button>
                   </div>
                   <details class="stage__help" id="cameraHelp">
-                    <summary>Kamera iznini nasıl veririm?</summary>
+                    <summary data-i18n="letter.help.summary">Kamera iznini nasıl veririm?</summary>
                     <ol class="stage__help-steps" id="cameraHelpSteps">
-                      <li data-browser="ios-safari"><strong>iPhone ve iPad (Safari):</strong> Adres çubuğundaki <strong>aA</strong> (yeni sürümlerde <strong>⋯</strong>) düğmesine dokunun → <strong>Web Sitesi Ayarları</strong> → <strong>Kamera</strong> → <strong>İzin Ver</strong>. Sonra <strong>Yeniden dene</strong>'ye dokunun. Seçenek görünmüyorsa: <strong>Ayarlar → Uygulamalar → Safari → Kamera</strong> → <strong>Sor</strong> ya da <strong>İzin Ver</strong>.</li>
-                      <li data-browser="ios-chrome"><strong>iPhone'da Chrome:</strong> <strong>Ayarlar</strong>'da <strong>Chrome</strong>'u bulun ve <strong>Kamera</strong>'yı açın, sonra sayfaya dönüp <strong>Yeniden dene</strong>'ye dokunun.</li>
-                      <li data-browser="android-chrome"><strong>Android (Chrome):</strong> Adres çubuğunun solundaki simgeye (ayar ya da kilit) dokunun → <strong>İzinler</strong> → <strong>Kamera</strong> → <strong>İzin ver</strong>. Kamera listede yoksa: <strong>Ayarlar → Uygulamalar → Chrome → İzinler → Kamera → Uygulamayı kullanırken izin ver</strong>.</li>
-                      <li data-browser="desktop-chrome"><strong>Bilgisayarda Chrome ya da Edge:</strong> Adres çubuğunun solundaki site bilgileri simgesine tıklayın → <strong>Kamera</strong>'yı açın ya da <strong>İzin ver</strong>'i seçin. Yine açılmazsa macOS'ta <strong>Sistem Ayarları → Gizlilik ve Güvenlik → Kamera</strong>, Windows'ta <strong>Ayarlar → Gizlilik ve güvenlik → Kamera</strong> bölümünden tarayıcınıza izin verin. Tarayıcıyı yeniden başlatmanız gerekebilir.</li>
-                      <li data-browser="firefox"><strong>Firefox:</strong> Adres çubuğundaki üzeri çizili kamera simgesine tıklayın → <strong>Engellendi</strong> yazısının yanındaki <strong>×</strong> ile engeli kaldırın → <strong>Yeniden dene</strong>.</li>
-                      <li data-browser="mac-safari"><strong>Mac'te Safari:</strong> Menü çubuğunda <strong>Safari → bu sitenin ayarları</strong> → <strong>Kamera</strong> → <strong>İzin Ver</strong>.</li>
+                      <li data-browser="ios-safari" data-i18n-html="letter.help.iosSafari"><strong>iPhone ve iPad (Safari):</strong> Adres çubuğundaki <strong>aA</strong> (yeni sürümlerde <strong>⋯</strong>) düğmesine dokunun → <strong>Web Sitesi Ayarları</strong> → <strong>Kamera</strong> → <strong>İzin Ver</strong>. Sonra <strong>Yeniden dene</strong>'ye dokunun. Seçenek görünmüyorsa: <strong>Ayarlar → Uygulamalar → Safari → Kamera</strong> → <strong>Sor</strong> ya da <strong>İzin Ver</strong>.</li>
+                      <li data-browser="ios-chrome" data-i18n-html="letter.help.iosChrome"><strong>iPhone'da Chrome:</strong> <strong>Ayarlar</strong>'da <strong>Chrome</strong>'u bulun ve <strong>Kamera</strong>'yı açın, sonra sayfaya dönüp <strong>Yeniden dene</strong>'ye dokunun.</li>
+                      <li data-browser="android-chrome" data-i18n-html="letter.help.androidChrome"><strong>Android (Chrome):</strong> Adres çubuğunun solundaki simgeye (ayar ya da kilit) dokunun → <strong>İzinler</strong> → <strong>Kamera</strong> → <strong>İzin ver</strong>. Kamera listede yoksa: <strong>Ayarlar → Uygulamalar → Chrome → İzinler → Kamera → Uygulamayı kullanırken izin ver</strong>.</li>
+                      <li data-browser="desktop-chrome" data-i18n-html="letter.help.desktopChrome"><strong>Bilgisayarda Chrome ya da Edge:</strong> Adres çubuğunun solundaki site bilgileri simgesine tıklayın → <strong>Kamera</strong>'yı açın ya da <strong>İzin ver</strong>'i seçin. Yine açılmazsa macOS'ta <strong>Sistem Ayarları → Gizlilik ve Güvenlik → Kamera</strong>, Windows'ta <strong>Ayarlar → Gizlilik ve güvenlik → Kamera</strong> bölümünden tarayıcınıza izin verin. Tarayıcıyı yeniden başlatmanız gerekebilir.</li>
+                      <li data-browser="firefox" data-i18n-html="letter.help.firefox"><strong>Firefox:</strong> Adres çubuğundaki üzeri çizili kamera simgesine tıklayın → <strong>Engellendi</strong> yazısının yanındaki <strong>×</strong> ile engeli kaldırın → <strong>Yeniden dene</strong>.</li>
+                      <li data-browser="mac-safari" data-i18n-html="letter.help.macSafari"><strong>Mac'te Safari:</strong> Menü çubuğunda <strong>Safari → bu sitenin ayarları</strong> → <strong>Kamera</strong> → <strong>İzin Ver</strong>.</li>
                     </ol>
                   </details>
                 </div>
               </div>
 
               <div class="stage__top">
-                <span class="stage-chip" id="latencyBadge">Hazır</span>
+                <span class="stage-chip" id="latencyBadge" data-i18n="shell.badge.ready">Hazır</span>
                 <span class="visually-hidden" id="modeBadge">Harf Modu</span>
-                <button class="btn btn--stage stage__close" type="button" id="cameraToggle" data-icon="camera-off">Kamerayı kapat</button>
+                <button class="btn btn--stage stage__close" type="button" id="cameraToggle" data-icon="camera-off" data-i18n="letter.camera.turnOff">Kamerayı kapat</button>
                 <!-- The camera-free demo (js/media/demo-source.js): the word
                      the recorded hand spells, with the letter on the stage
                      marked, what to do, and, at the end, the camera. Its stop
                      follows it and takes the close button's place. -->
                 <section class="stage-demo" id="demoPanel" tabindex="-1" aria-labelledby="demoTitle" hidden>
-                  <h2 class="visually-hidden" id="demoTitle">Kamerasız örnek</h2>
+                  <h2 class="visually-hidden" id="demoTitle" data-i18n="letter.demo.title">Kamerasız örnek</h2>
                   <div class="stage-demo__head">
                     <p class="stage-demo__progress"><span class="stage-demo__word" id="demoWord" lang="en"></span> <span class="stage-demo__count num" id="demoCount"></span></p>
-                    <button class="btn btn--stage stage-demo__skip" type="button" id="demoSkip" data-icon="skip">Atlayın</button>
+                    <button class="btn btn--stage stage-demo__skip" type="button" id="demoSkip" data-icon="skip" data-i18n="letter.demo.skip">Atlayın</button>
                   </div>
                   <p class="stage-demo__text" id="demoText"></p>
-                  <button class="btn btn--stage-primary stage-demo__camera" type="button" id="demoCamera" data-trigger="camera" data-icon="camera" hidden>Kamerayı açın</button>
+                  <button class="btn btn--stage-primary stage-demo__camera" type="button" id="demoCamera" data-trigger="camera" data-icon="camera" data-i18n="letter.demo.camera" hidden>Kamerayı açın</button>
                 </section>
-                <button class="btn btn--stage stage-demo__stop" type="button" id="demoStop" data-icon="x" hidden>Durdurun</button>
+                <button class="btn btn--stage stage-demo__stop" type="button" id="demoStop" data-icon="x" data-i18n="letter.demo.stop" hidden>Durdurun</button>
                 <!-- Word recording readout, at the top of the stage where the
                      head is and no sign is made. Shown from the countdown to
                      the end of the recording (css/screens-word.css). -->
                 <div class="stage-hud" id="wordHud">
                   <div class="stage-hud__line">
-                    <strong id="wordHudStep">Hazırlanın</strong>
-                    <span class="num" id="wordHudPercent">%0</span>
+                    <strong id="wordHudStep" data-i18n="word.hud.getReady">Hazırlanın</strong>
+                    <span class="num" id="wordHudPercent" data-i18n="word.percent" data-i18n-params='{"n":0}'>%0</span>
                   </div>
-                  <div class="meter" id="wordProgress" role="progressbar" aria-label="Kayıt ilerlemesi" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="frameProgress" style="width: 0%"></span></div>
-                  <div class="quality-pills" id="wordQualityPills" aria-label="Kayıt kalitesi">
+                  <div class="meter" id="wordProgress" role="progressbar" aria-label="Kayıt ilerlemesi" data-i18n-aria-label="word.hud.progressName" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="frameProgress" style="width: 0%"></span></div>
+                  <div class="quality-pills" id="wordQualityPills" aria-label="Kayıt kalitesi" data-i18n-aria-label="word.hud.qualityName">
                     <span data-quality="hand">El ?</span><span data-quality="face">Yüz ?</span><span data-quality="pose">Omuz ?</span>
                   </div>
-                  <p class="stage-hud__hint" id="wordStateHint">Kaydı başlatın. Geri sayımdan sonra işareti bir kez, doğal hızda yapın.</p>
+                  <p class="stage-hud__hint" id="wordStateHint" data-i18n="word.hint.start">Kaydı başlatın. Geri sayımdan sonra işareti bir kez, doğal hızda yapın.</p>
                 </div>
               </div>
 
               <!-- The coach's target, beside the learner's own hand: the
                    letter, and a button for the reference image. -->
               <div class="target-tile mode-only coach-only" id="coachTargetTile" data-kind="letter">
-                <button class="target-tile__ref" type="button" id="coachReference" data-icon="image" aria-haspopup="dialog" aria-label="Referans görselini büyüt"><span>Referans</span></button>
+                <button class="target-tile__ref" type="button" id="coachReference" data-icon="image" aria-haspopup="dialog" aria-label="Referans görselini büyüt" data-i18n-aria-label="coach.tile.enlarge"><span data-i18n="coach.tile.reference">Referans</span></button>
                 <div class="target-tile__main" role="group" aria-labelledby="coachTargetLabel coachTargetGlyph">
-                  <span class="target-tile__label" id="coachTargetLabel">Hedef</span>
+                  <span class="target-tile__label" id="coachTargetLabel" data-i18n="coach.tile.target">Hedef</span>
                   <strong class="target-tile__glyph" id="coachTargetGlyph" lang="en">A</strong>
                 </div>
               </div>
@@ -189,7 +194,7 @@
 
               <div class="toast" id="toast" hidden>
                 <span id="toastText"></span>
-                <button class="btn btn--quiet toast__action" type="button" id="toastAction" data-icon="undo" hidden>Geri al</button>
+                <button class="btn btn--quiet toast__action" type="button" id="toastAction" data-icon="undo" data-i18n="letter.toast.undo" hidden>Geri al</button>
               </div>
             </div>
 
@@ -200,12 +205,12 @@
               <!-- Shown in word mode only (css/screens-word.css): the recording
                    step, and that the model is experimental. -->
               <div class="plate__head">
-                <div class="plate__steps" aria-label="Kelime kayıt akışı">
-                  <span data-ui="word-step">Hazırlık</span>
-                  <span data-ui="word-step">Kayıt</span>
-                  <span data-ui="word-step">Onay</span>
+                <div class="plate__steps" aria-label="Kelime kayıt akışı" data-i18n-aria-label="word.plate.stepsName">
+                  <span data-ui="word-step" data-i18n="word.plate.step.prepare">Hazırlık</span>
+                  <span data-ui="word-step" data-i18n="word.plate.step.record">Kayıt</span>
+                  <span data-ui="word-step" data-i18n="word.plate.step.confirm">Onay</span>
                 </div>
-                <span class="plate__tag">deneysel</span>
+                <span class="plate__tag" data-i18n="word.plate.experimental">deneysel</span>
               </div>
               <div class="plate__visual">
                 <div class="confidence-ring" id="confidenceRing" style="--score: 0" aria-hidden="true"></div>
@@ -215,22 +220,22 @@
               <div class="plate__body">
                 <p class="plate__level">
                   <span class="visually-hidden" id="resultKind">Harf</span>
-                  <strong class="plate__decision" id="decisionLabel">Bekleniyor</strong>
+                  <strong class="plate__decision" id="decisionLabel" data-i18n="letter.plate.decision.waiting">Bekleniyor</strong>
                   <span class="signal" aria-hidden="true"><i></i><i></i><i></i></span>
                   <span class="plate__pct num" id="confidenceText">--</span>
                 </p>
                 <p class="plate__near" id="plateNear" hidden></p>
-                <p class="plate__message" id="confidenceMessage">Kamerayı açtığınızda sonuç burada görünür.</p>
+                <p class="plate__message" id="confidenceMessage" data-i18n="letter.plate.idle">Kamerayı açtığınızda sonuç burada görünür.</p>
                 <div class="word-result-guide" id="wordResultGuide" hidden>
-                  <strong id="wordResultDecision">Sonuç bekleniyor</strong>
-                  <span id="wordResultAction">Kayıt tamamlandığında model sonucu burada yorumlanır.</span>
+                  <strong id="wordResultDecision" data-i18n="letter.wordGuide.waiting">Sonuç bekleniyor</strong>
+                  <span id="wordResultAction" data-i18n="letter.wordGuide.waitingAction">Kayıt tamamlandığında model sonucu burada yorumlanır.</span>
                 </div>
                 <!-- The coach's cue and hint for the target. -->
                 <p class="plate__cue mode-only coach-only" id="coachHint"></p>
                 <!-- The wait before the next target, which the learner can stop. -->
                 <div class="plate__advance mode-only coach-only" id="coachAdvance" hidden>
-                  <span class="plate__bar" id="coachAdvanceBar" role="progressbar" aria-label="Sıradaki harfe geçiş"><i></i></span>
-                  <button class="btn btn--stage plate__stay" type="button" id="coachStay">Burada kal</button>
+                  <span class="plate__bar" id="coachAdvanceBar" role="progressbar" aria-label="Sıradaki harfe geçiş" data-i18n-aria-label="coach.advance.label"><i></i></span>
+                  <button class="btn btn--stage plate__stay" type="button" id="coachStay" data-i18n="coach.advance.stay">Burada kal</button>
                 </div>
                 <!-- Success, miss and the end of a session, for a screen reader. Written when the phase changes. -->
                 <p class="visually-hidden mode-only coach-only" id="coachVerdict" role="status" aria-atomic="true"></p>
@@ -239,48 +244,51 @@
 
             <div class="compose">
               <section class="strip mode-only letter-only word-only" aria-labelledby="transcriptHeading">
-                <h2 class="visually-hidden" id="transcriptHeading">Yazılan metin</h2>
-                <p class="strip__text" id="transcriptText" data-empty="true" lang="tr">Metin burada görünür<span class="cursor" aria-hidden="true">|</span></p>
-                <button class="btn btn--quiet btn--icon" type="button" id="copyText" data-icon="copy" title="Metni kopyala" aria-label="Metni kopyala"></button>
-                <button class="btn btn--quiet btn--icon" type="button" id="speakText" data-icon="volume" title="Sesli oku" aria-label="Sesli oku"></button>
-                <button class="btn btn--quiet btn--icon" type="button" id="clearText" data-icon="x" title="Metni temizle" aria-label="Metni temizle"></button>
+                <h2 class="visually-hidden" id="transcriptHeading" data-i18n="letter.transcript.heading">Yazılan metin</h2>
+                <!-- The placeholder is in the interface's language; once the
+                     app runs, renderTranscript() writes the line and its lang
+                     (the typed letters are English). -->
+                <p class="strip__text" id="transcriptText" data-empty="true" lang="tr" data-i18n-lang="letter.transcript.placeholderLang"><span data-i18n="letter.transcript.placeholder">Metin burada görünür</span><span class="cursor" aria-hidden="true">|</span></p>
+                <button class="btn btn--quiet btn--icon" type="button" id="copyText" data-icon="copy" title="Metni kopyala" aria-label="Metni kopyala" data-i18n-title="letter.transcript.copy" data-i18n-aria-label="letter.transcript.copy"></button>
+                <button class="btn btn--quiet btn--icon" type="button" id="speakText" data-icon="volume" title="Sesli oku" aria-label="Sesli oku" data-i18n-title="letter.transcript.speak" data-i18n-aria-label="letter.transcript.speak"></button>
+                <button class="btn btn--quiet btn--icon" type="button" id="clearText" data-icon="x" title="Metni temizle" aria-label="Metni temizle" data-i18n-title="letter.transcript.clear" data-i18n-aria-label="letter.transcript.clear"></button>
               </section>
 
-              <section class="session mode-only coach-only" id="coachSession" data-flow="learn" aria-label="Oturum">
-                <button class="session__button" type="button" id="coachSessionButton" aria-controls="coachStudy" aria-expanded="false" data-icon="chevron"><span id="coachSessionLabel">Öğrenme: sırayla</span></button>
-                <span class="session__flow" id="coachSessionFlow" aria-hidden="true">Öğrenme: sırayla</span>
-                <span class="session__count">Oturum <b class="num" id="coachScore">0/5</b></span>
-                <span class="session-dots" id="coachProgress" role="img" aria-label="Oturum: 5 hedeften 0 tamamlandı"></span>
+              <section class="session mode-only coach-only" id="coachSession" data-flow="learn" aria-label="Oturum" data-i18n-aria-label="coach.session.label">
+                <button class="session__button" type="button" id="coachSessionButton" aria-controls="coachStudy" aria-expanded="false" data-icon="chevron"><span id="coachSessionLabel" data-i18n="coach.session.learn">Öğrenme: sırayla</span></button>
+                <span class="session__flow" id="coachSessionFlow" aria-hidden="true" data-i18n="coach.session.learn">Öğrenme: sırayla</span>
+                <span class="session__count"><span data-i18n="coach.session.label">Oturum</span> <b class="num" id="coachScore">0/5</b></span>
+                <span class="session-dots" id="coachProgress" role="img" aria-label="Oturum: 5 hedeften 0 tamamlandı" data-i18n-aria-label="coach.session.progress" data-i18n-params='{"goal":5,"done":0}'></span>
               </section>
 
-              <div class="dock" id="controlBar" role="group" aria-label="İşlemler">
-                <button class="btn mode-only letter-only" type="button" id="removeLastChar" data-icon="delete" aria-keyshortcuts="Backspace"><span class="btn__label--phone-hidden">Sil</span></button>
-                <button class="btn mode-only letter-only" type="button" id="insertSpace" data-icon="space" aria-keyshortcuts="Enter"><span class="btn__label">Boşluk</span> <span class="kbd" aria-hidden="true">Enter</span></button>
-                <button class="btn btn--primary btn--grow mode-only letter-only" type="button" id="manualAddLetter" data-icon="plus" aria-keyshortcuts="Space">Ekle <span class="kbd" aria-hidden="true">Space</span></button>
+              <div class="dock" id="controlBar" role="group" aria-label="İşlemler" data-i18n-aria-label="letter.dock.label">
+                <button class="btn mode-only letter-only" type="button" id="removeLastChar" data-icon="delete" aria-keyshortcuts="Backspace"><span class="btn__label--phone-hidden" data-i18n="letter.dock.delete">Sil</span></button>
+                <button class="btn mode-only letter-only" type="button" id="insertSpace" data-icon="space" aria-keyshortcuts="Enter"><span class="btn__label" data-i18n="letter.dock.space">Boşluk</span> <span class="kbd" aria-hidden="true">Enter</span></button>
+                <button class="btn btn--primary btn--grow mode-only letter-only" type="button" id="manualAddLetter" data-icon="plus" aria-keyshortcuts="Space"><span data-i18n="letter.dock.add">Ekle</span> <span class="kbd" aria-hidden="true">Space</span></button>
 
                 <!-- Word dock: which of these show depends on the recording
                      step (data-word-step, css/screens-word.css). The labels
                      are written by the scripts into the data-label spans. -->
-                <button class="btn btn--primary btn--grow mode-only word-only" type="button" id="recordWord" data-icon="record"><span data-label>Kaydı başlat</span> <span class="kbd" aria-hidden="true">Enter</span></button>
-                <button class="btn mode-only word-only" type="button" id="retryWord" data-icon="retry"><span data-label>Yeniden kaydet</span> <span class="kbd" aria-hidden="true">Enter</span></button>
-                <button class="btn btn--accent btn--grow mode-only word-only" type="button" id="appendWordResult" data-icon="check"><span data-label>Metne ekle</span> <span class="kbd" aria-hidden="true">Space</span></button>
-                <button class="btn btn--grow mode-only word-only" type="button" id="cancelWord" data-icon="x" hidden>Vazgeç <span class="kbd" aria-hidden="true">Esc</span></button>
-                <a class="btn mode-only word-only" id="actionVideoLink" href="https://www.youtube.com/results?search_query=ASL+basic+words+tutorial" target="_blank" rel="noreferrer" hidden>Video Rehber</a>
+                <button class="btn btn--primary btn--grow mode-only word-only" type="button" id="recordWord" data-icon="record"><span data-label data-i18n="word.record.start">Kaydı başlat</span> <span class="kbd" aria-hidden="true">Enter</span></button>
+                <button class="btn mode-only word-only" type="button" id="retryWord" data-icon="retry"><span data-label data-i18n="word.retry.label">Yeniden kaydet</span> <span class="kbd" aria-hidden="true">Enter</span></button>
+                <button class="btn btn--accent btn--grow mode-only word-only" type="button" id="appendWordResult" data-icon="check"><span data-label data-i18n="word.append.add">Metne ekle</span> <span class="kbd" aria-hidden="true">Space</span></button>
+                <button class="btn btn--grow mode-only word-only" type="button" id="cancelWord" data-icon="x" hidden><span data-i18n="word.cancel.label">Vazgeç</span> <span class="kbd" aria-hidden="true">Esc</span></button>
+                <a class="btn mode-only word-only" id="actionVideoLink" href="https://www.youtube.com/results?search_query=ASL+basic+words+tutorial" target="_blank" rel="noreferrer" data-i18n="word.dock.videoGuide" hidden>Video Rehber</a>
 
-                <button class="btn mode-only coach-only" type="button" id="coachNextTarget" data-icon="skip">Atla</button>
-                <button class="btn btn--grow coach-hint mode-only coach-only" type="button" id="coachHintButton" data-icon="info">İpucu</button>
-                <button class="btn mode-only coach-only" type="button" id="coachRepeat" data-icon="retry" hidden>Tekrar</button>
-                <button class="btn btn--primary btn--grow coach-next mode-only coach-only" type="button" id="coachNext" hidden>Sonraki <span class="kbd" aria-hidden="true">Space</span></button>
-                <button class="btn btn--grow mode-only coach-only" type="button" id="coachCheck" disabled hidden>Kaydı başlat</button>
+                <button class="btn mode-only coach-only" type="button" id="coachNextTarget" data-icon="skip" data-i18n="coach.dock.skip">Atla</button>
+                <button class="btn btn--grow coach-hint mode-only coach-only" type="button" id="coachHintButton" data-icon="info" data-i18n="coach.dock.hint">İpucu</button>
+                <button class="btn mode-only coach-only" type="button" id="coachRepeat" data-icon="retry" data-i18n="coach.dock.repeat" hidden>Tekrar</button>
+                <button class="btn btn--primary btn--grow coach-next mode-only coach-only" type="button" id="coachNext" hidden><span data-i18n="coach.dock.next">Sonraki</span> <span class="kbd" aria-hidden="true">Space</span></button>
+                <button class="btn btn--grow mode-only coach-only" type="button" id="coachCheck" data-i18n="coach.dock.check" disabled hidden>Kaydı başlat</button>
               </div>
             </div>
           </section>
 
-          <aside class="side-panel" data-ui="workspace-pane" aria-label="Ayrıntılar">
+          <aside class="side-panel" data-ui="workspace-pane" aria-label="Ayrıntılar" data-i18n-aria-label="shell.region.details">
             <section class="panel ranked mode-only letter-only word-only">
-              <h2 class="panel__title" id="rankedTitle">En olası sonuçlar</h2>
+              <h2 class="panel__title" id="rankedTitle" data-i18n="letter.ranked.title">En olası sonuçlar</h2>
               <div class="top3-list" id="top3List"></div>
-              <p class="panel__note mode-only word-only">Kayıt bittikten sonra önce sonuçlara bakın; emin değilseniz yeniden kaydedin.</p>
+              <p class="panel__note mode-only word-only" data-i18n="letter.ranked.wordNote">Kayıt bittikten sonra önce sonuçlara bakın; emin değilseniz yeniden kaydedin.</p>
             </section>
 
             <!-- The study controls. A card pair beside the stage on a laptop;
@@ -288,69 +296,69 @@
             <div class="coach-study mode-only coach-only" id="coachStudy">
               <section class="panel" aria-labelledby="coachStudyTitle">
                 <div class="panel__head">
-                  <h2 class="panel__title" id="coachStudyTitle">Çalışma</h2>
-                  <button class="btn btn--quiet btn--icon coach-study__close" type="button" id="coachSheetClose" data-icon="x" aria-label="Kapat"></button>
+                  <h2 class="panel__title" id="coachStudyTitle" data-i18n="coach.study.title">Çalışma</h2>
+                  <button class="btn btn--quiet btn--icon coach-study__close" type="button" id="coachSheetClose" data-icon="x" aria-label="Kapat" data-i18n-aria-label="coach.study.close"></button>
                 </div>
-                <div class="modes modes--panel" id="coachFlowGroup" role="radiogroup" aria-label="Çalışma biçimi">
-                  <button class="modes__item is-active" type="button" role="radio" aria-checked="true" tabindex="0" data-coach-flow="learn">Öğrenme</button>
-                  <button class="modes__item" type="button" role="radio" aria-checked="false" tabindex="-1" data-coach-flow="practice">Pratik</button>
-                  <button class="modes__item" type="button" role="radio" aria-checked="false" tabindex="-1" data-coach-flow="quiz">Sınav</button>
+                <div class="modes modes--panel" id="coachFlowGroup" role="radiogroup" aria-label="Çalışma biçimi" data-i18n-aria-label="coach.study.flowLabel">
+                  <button class="modes__item is-active" type="button" role="radio" aria-checked="true" tabindex="0" data-coach-flow="learn" data-i18n="coach.study.flow.learn">Öğrenme</button>
+                  <button class="modes__item" type="button" role="radio" aria-checked="false" tabindex="-1" data-coach-flow="practice" data-i18n="coach.study.flow.practice">Pratik</button>
+                  <button class="modes__item" type="button" role="radio" aria-checked="false" tabindex="-1" data-coach-flow="quiz" data-i18n="coach.study.flow.quiz">Sınav</button>
                 </div>
-                <div class="modes modes--panel" id="coachContentGroup" role="radiogroup" aria-label="Çalışma içeriği">
-                  <button class="modes__item is-active" type="button" role="radio" aria-checked="true" tabindex="0" id="coachLettersOnly">Harfler</button>
-                  <button class="modes__item" type="button" role="radio" aria-checked="false" tabindex="-1" id="coachWordsOnly">Kelimeler</button>
+                <div class="modes modes--panel" id="coachContentGroup" role="radiogroup" aria-label="Çalışma içeriği" data-i18n-aria-label="coach.study.contentLabel">
+                  <button class="modes__item is-active" type="button" role="radio" aria-checked="true" tabindex="0" id="coachLettersOnly" data-i18n="coach.study.letters">Harfler</button>
+                  <button class="modes__item" type="button" role="radio" aria-checked="false" tabindex="-1" id="coachWordsOnly" data-i18n="coach.study.words">Kelimeler</button>
                 </div>
                 <div class="coach-words" id="coachWordPicker" hidden>
-                  <label class="field-label" for="coachTarget">Kelime hedefi</label>
+                  <label class="field-label" for="coachTarget" data-i18n="coach.study.wordTarget">Kelime hedefi</label>
                   <select id="coachTarget" class="select-input"></select>
                 </div>
               </section>
 
               <section class="panel" id="coachLetterPicker" aria-labelledby="coachLettersTitle">
                 <div class="panel__head">
-                  <h2 class="panel__title" id="coachLettersTitle">Harfler</h2>
-                  <span class="panel__kicker">Tamamlanan: <b class="num" id="coachDone">0/24</b></span>
+                  <h2 class="panel__title" id="coachLettersTitle" data-i18n="coach.study.letters">Harfler</h2>
+                  <span class="panel__kicker"><span data-i18n="coach.letters.done">Tamamlanan:</span> <b class="num" id="coachDone">0/24</b></span>
                 </div>
-                <div class="letter-grid" id="coachGrid" role="group" aria-label="Hedef harf"></div>
-                <p class="panel__note" id="coachGridNote" hidden>Sınav sırasında harf seçilemez.</p>
-                <p class="panel__note" id="coachStorageNote">İlerlemeniz yalnızca bu cihazda saklanır, kimseyle paylaşılmaz.</p>
-                <button class="btn btn--quiet coach-study__reset" type="button" id="coachReset">İlerlemeyi sıfırla</button>
+                <div class="letter-grid" id="coachGrid" role="group" aria-label="Hedef harf" data-i18n-aria-label="coach.letters.gridLabel"></div>
+                <p class="panel__note" id="coachGridNote" data-i18n="coach.letters.quizNote" hidden>Sınav sırasında harf seçilemez.</p>
+                <p class="panel__note" id="coachStorageNote" data-i18n="coach.letters.storageSaved">İlerlemeniz yalnızca bu cihazda saklanır, kimseyle paylaşılmaz.</p>
+                <button class="btn btn--quiet coach-study__reset" type="button" id="coachReset" data-i18n="coach.letters.reset">İlerlemeyi sıfırla</button>
               </section>
             </div>
 
             <section class="panel reference app-reference">
               <div class="panel__head">
                 <div>
-                  <span class="panel__kicker" id="referenceKicker">Hızlı referans</span>
-                  <h2 class="panel__title" id="referenceTitle">Harf kartları</h2>
+                  <span class="panel__kicker" id="referenceKicker" data-i18n="word.reference.kicker.quick">Hızlı referans</span>
+                  <h2 class="panel__title" id="referenceTitle" data-i18n="word.reference.title.default">Harf kartları</h2>
                 </div>
-                <button class="btn btn--quiet" type="button" id="toggleReference" aria-controls="referenceBody" aria-expanded="false">Göster</button>
+                <button class="btn btn--quiet" type="button" id="toggleReference" aria-controls="referenceBody" aria-expanded="false" data-i18n="word.reference.show">Göster</button>
               </div>
-              <p class="panel__note" id="referenceNote">Referans görseli ve video rehber hedefe göre güncellenir.</p>
+              <p class="panel__note" id="referenceNote" data-i18n="word.reference.note.default">Referans görseli ve video rehber hedefe göre güncellenir.</p>
               <div class="reference__body" id="referenceBody" hidden>
-                <img id="referenceImage" src="./assets/signs/letters.png" alt="ASL harf referans görseli" loading="lazy" decoding="async" />
+                <img id="referenceImage" src="./assets/signs/letters.png" alt="ASL harf referans görseli" data-i18n-alt="word.reference.letterAlt" loading="lazy" decoding="async" />
                 <div class="ref-card" id="referenceCard" hidden><img id="referenceCardImage" alt="" decoding="async" /></div>
-                <div class="reference-thumbs" id="referenceThumbs" hidden aria-label="Kelime referans sayfaları"></div>
+                <div class="reference-thumbs" id="referenceThumbs" hidden aria-label="Kelime referans sayfaları" data-i18n-aria-label="word.reference.pagesName"></div>
               </div>
               <div class="reference__actions">
-                <button class="btn" type="button" id="referenceOpen" aria-haspopup="dialog" data-icon="image">Büyüt</button>
-                <a class="btn" id="referenceVideoLink" href="https://www.youtube.com/results?search_query=ASL+alphabet+tutorial" target="_blank" rel="noreferrer" data-icon="external">Video rehber</a>
+                <button class="btn" type="button" id="referenceOpen" aria-haspopup="dialog" data-icon="image" data-i18n="word.reference.enlarge">Büyüt</button>
+                <a class="btn" id="referenceVideoLink" href="https://www.youtube.com/results?search_query=ASL+alphabet+tutorial" target="_blank" rel="noreferrer" data-icon="external" data-i18n="word.reference.videoGuide">Video rehber</a>
               </div>
             </section>
 
             <section class="panel mode-only letter-only">
-              <h2 class="panel__title" id="shortcutsTitle">Kısayollar</h2>
+              <h2 class="panel__title" id="shortcutsTitle" data-i18n="letter.shortcuts.title">Kısayollar</h2>
               <dl class="shortcuts">
-                <dt><span class="kbd">Space</span></dt><dd>Harfi metne ekle</dd>
-                <dt><span class="kbd">Enter</span></dt><dd>Boşluk bırak</dd>
-                <dt><span class="kbd kbd--symbol"><span aria-hidden="true">⌫</span><span class="visually-hidden">Backspace</span></span></dt><dd>Son karakteri sil</dd>
+                <dt><span class="kbd">Space</span></dt><dd data-i18n="letter.shortcuts.add">Harfi metne ekle</dd>
+                <dt><span class="kbd">Enter</span></dt><dd data-i18n="letter.shortcuts.space">Boşluk bırak</dd>
+                <dt><span class="kbd kbd--symbol"><span aria-hidden="true">⌫</span><span class="visually-hidden">Backspace</span></span></dt><dd data-i18n="letter.shortcuts.delete">Son karakteri sil</dd>
               </dl>
-              <p class="panel__note">Bir düğme ya da form alanı seçiliyken tuşlar ona gider.</p>
+              <p class="panel__note" data-i18n="letter.shortcuts.note">Bir düğme ya da form alanı seçiliyken tuşlar ona gider.</p>
             </section>
 
             <section class="card word-state-card mode-only word-only" id="wordStateCard">
               <div class="card-heading">
-                <span>Kelime akışı</span>
+                <span data-i18n="word.stateCard.title">Kelime akışı</span>
                 <strong id="wordStateLabel">IDLE</strong>
               </div>
             </section>
@@ -358,73 +366,73 @@
             <!-- Both word cards are built from data/per_word_stats.json and data/confusion_pairs.json. -->
             <details class="panel word-guide word-demo-card mode-only word-only" id="wordDemoCard" hidden>
               <summary class="word-guide__summary">
-                <h2 class="panel__title">Önce bunları deneyin</h2>
+                <h2 class="panel__title" data-i18n="word.demo.title">Önce bunları deneyin</h2>
                 <span class="panel__kicker" id="wordDemoCount"></span>
               </summary>
               <div class="word-guide__body">
-                <p class="panel__note">Bir kelimeye dokunun, nasıl yapıldığını görün; sonra kaydedin.</p>
-                <ul class="word-chips" id="wordDemoList" aria-label="Kolay tanınan kelimeler"></ul>
-                <h3 class="word-guide__subhead" id="wordConfusionTitle">Sık karışan çiftler</h3>
+                <p class="panel__note" data-i18n="word.demo.note">Bir kelimeye dokunun, nasıl yapıldığını görün; sonra kaydedin.</p>
+                <ul class="word-chips" id="wordDemoList" aria-label="Kolay tanınan kelimeler" data-i18n-aria-label="word.demo.listName"></ul>
+                <h3 class="word-guide__subhead" id="wordConfusionTitle" data-i18n="word.demo.pairsTitle">Sık karışan çiftler</h3>
                 <ul class="word-pairs" id="wordConfusionList" aria-labelledby="wordConfusionTitle"></ul>
               </div>
             </details>
 
             <details class="panel word-guide word-library-card mode-only word-only">
               <summary class="word-guide__summary">
-                <h2 class="panel__title">50 kelime</h2>
-                <span class="panel__kicker">5 grup</span>
+                <h2 class="panel__title" data-i18n="word.library.title">50 kelime</h2>
+                <span class="panel__kicker" data-i18n="word.library.groupCount">5 grup</span>
               </summary>
               <div class="word-guide__body">
-                <label class="word-search__label" for="wordLibrarySearch">Kelime ara</label>
+                <label class="word-search__label" for="wordLibrarySearch" data-i18n="word.library.searchLabel">Kelime ara</label>
                 <input class="word-search" type="search" id="wordLibrarySearch" autocomplete="off" autocapitalize="none" spellcheck="false" lang="en" />
-                <p class="panel__note">Her kelimenin yanında modelin onu test kayıtlarında ne kadar tanıdığı yazar: kolay, orta ya da zor ve doğru tanıma oranı.</p>
+                <p class="panel__note" data-i18n="word.library.note">Her kelimenin yanında modelin onu test kayıtlarında ne kadar tanıdığı yazar: kolay, orta ya da zor ve doğru tanıma oranı.</p>
                 <div class="word-library" id="wordLibraryGroups"></div>
-                <p class="panel__note" id="wordLibraryEmpty" role="status" hidden>Bu adla bir kelime yok.</p>
+                <p class="panel__note" id="wordLibraryEmpty" role="status" hidden data-i18n="word.library.empty">Bu adla bir kelime yok.</p>
               </div>
             </details>
           </aside>
 
           <section class="page pj" id="projectScreen" hidden aria-labelledby="projectTitle">
             <div class="page__head">
-              <h1 class="page__title" id="projectTitle" data-screen-title="project" tabindex="-1">Nasıl çalışır</h1>
-              <p class="page__lead">
+              <h1 class="page__title" id="projectTitle" data-screen-title="project" data-i18n="shell.route.project" tabindex="-1">Nasıl çalışır</h1>
+              <p class="page__lead" data-i18n="info.project.lead">
                 ASL Assistant, kameraya gösterdiğiniz ASL parmak alfabesi harflerini tarayıcınızda tanır
                 ve metne yazar. Görüntü cihazınızdan çıkmaz.
               </p>
               <ul class="facts">
-                <li data-icon="info">24 ASL harfi · J ve Z hareketli olduğu için yok</li>
-                <li data-icon="info">50 kelime · deneysel</li>
-                <li data-icon="info">ASL (Amerikan İşaret Dili), TİD değil</li>
+                <li data-icon="info" data-i18n="info.project.fact.letters">24 ASL harfi · J ve Z hareketli olduğu için yok</li>
+                <li data-icon="info" data-i18n="info.project.fact.words">50 kelime · deneysel</li>
+                <li data-icon="info" data-i18n-html="info.project.fact.notTid">ASL (Amerikan İşaret Dili), TİD değil</li>
               </ul>
               <div class="pj__cta">
-                <button class="btn btn--primary" type="button" data-go-mode="letter" data-icon="camera">Kamerayı açıp deneyin</button>
-                <button class="btn" type="button" data-trigger="demo" data-icon="play">Örneği izleyin</button>
+                <button class="btn btn--primary" type="button" data-go-mode="letter" data-icon="camera" data-i18n="info.project.tryCamera">Kamerayı açıp deneyin</button>
+                <button class="btn" type="button" data-trigger="demo" data-icon="play" data-i18n="info.project.watchDemo">Örneği izleyin</button>
               </div>
             </div>
 
             <div class="pj__grid">
               <div class="pj__main">
                 <section class="pj__section" aria-labelledby="pjStepsTitle">
-                  <h2 id="pjStepsTitle">Tanıma üç adımda</h2>
+                  <h2 id="pjStepsTitle" data-i18n="info.project.steps.title">Tanıma üç adımda</h2>
                   <ol class="pj__steps">
                     <li>
-                      <strong>Kamera elinizi görür</strong>
-                      <span>Tarayıcı, görüntüdeki elin 21 eklem noktasını bulur. Görüntünün kendisi saklanmaz, hiçbir yere gönderilmez.</span>
+                      <strong data-i18n="info.project.steps.see.title">Kamera elinizi görür</strong>
+                      <span data-i18n="info.project.steps.see.text">Tarayıcı, görüntüdeki elin 21 eklem noktasını bulur. Görüntünün kendisi saklanmaz, hiçbir yere gönderilmez.</span>
                     </li>
                     <li>
-                      <strong>Noktalar sayılara dönüşür</strong>
-                      <span>Parmakların açıları ve aralarındaki mesafeler 93 sayılık bir özete çevrilir.</span>
+                      <strong data-i18n="info.project.steps.numbers.title">Noktalar sayılara dönüşür</strong>
+                      <span data-i18n="info.project.steps.numbers.text">Parmakların açıları ve aralarındaki mesafeler 93 sayılık bir özete çevrilir.</span>
                     </li>
                     <li>
-                      <strong>Model harfi tahmin eder</strong>
-                      <span>Model, 24 harften hangisine en çok benzediğini ve ne kadar emin olduğunu söyler. Ekle'ye bastığınızda harf metne yazılır.</span>
+                      <strong data-i18n="info.project.steps.guess.title">Model harfi tahmin eder</strong>
+                      <span data-i18n="info.project.steps.guess.text">Model, 24 harften hangisine en çok benzediğini ve ne kadar emin olduğunu söyler. Ekle'ye bastığınızda harf metne yazılır.</span>
                     </li>
                   </ol>
                 </section>
 
                 <section class="pj__section" aria-labelledby="pjWordTitle">
-                  <h2 id="pjWordTitle">Kelime modu (deneysel)</h2>
-                  <p>
+                  <h2 id="pjWordTitle" data-i18n="info.project.word.title">Kelime modu (deneysel)</h2>
+                  <p data-i18n="info.project.word.text">
                     Yaklaşık 2–3 saniyelik bir hareket kaydedilir; el, yüz ve omuz noktaları birlikte
                     değerlendirilir. Siz onaylamadan metne hiçbir kelime eklenmez.
                   </p>
@@ -432,20 +440,20 @@
 
                 <!-- The figures come from data/model-card.json; the block stays hidden until it has been read. -->
                 <section class="panel pj__numbers" id="projectNumbers" hidden aria-labelledby="pjNumbersTitle">
-                  <h2 class="panel__title" id="pjNumbersTitle">Ne kadar iyi tanır?</h2>
+                  <h2 class="panel__title" id="pjNumbersTitle" data-i18n="info.project.numbers.title">Ne kadar iyi tanır?</h2>
                   <ul class="pj__list">
-                    <li>
+                    <li data-i18n-html="info.project.numbers.letter">
                       <strong>Harf:</strong> ayrılmış test verisinde
                       <span data-card="letter.accuracy_held_out" data-format="percent"></span> doğru.
                       Bu veri eğitimle aynı fotoğraf dizilerinden geldiği için kameradaki başarı daha düşük olabilir.
                     </li>
-                    <li>
+                    <li data-i18n-html="info.project.numbers.word">
                       <strong>Kelime:</strong> modelin hiç görmediği kişilerin kayıtlarında
                       <span data-card="word.accuracy" data-format="percent"></span> doğru.
                       Bazı kelimeler birbirine karışabilir.
                     </li>
                   </ul>
-                  <p class="panel__note">
+                  <p class="panel__note" data-i18n-html="info.project.numbers.models">
                     Modeller <span data-card="letter.classes" data-format="int"></span> harf ve
                     <span data-card="word.classes" data-format="int"></span> kelime arasından seçer.
                     İlk kullanımda harf modeli yaklaşık
@@ -455,59 +463,59 @@
                 </section>
 
                 <section class="pj__section" aria-labelledby="pjLimitsTitle">
-                  <h2 id="pjLimitsTitle">Sınırlar</h2>
+                  <h2 id="pjLimitsTitle" data-i18n="info.project.limits.title">Sınırlar</h2>
                   <ul class="pj__list">
-                    <li>Yalnızca tek tek harfleri ve 50 kelimeyi tanır; cümle çevirmez.</li>
-                    <li>Farklı el, ışık ve kamera açılarında hata yapabilir.</li>
-                    <li>Gerçek telefonlarda henüz sınanmadı.</li>
-                    <li>Referans görselleri yeniden hazırlanıyor; M, N, S, T ve E çizimleri birbirine çok benziyor.</li>
+                    <li data-i18n="info.project.limits.scope">Yalnızca tek tek harfleri ve 50 kelimeyi tanır; cümle çevirmez.</li>
+                    <li data-i18n="info.project.limits.errors">Farklı el, ışık ve kamera açılarında hata yapabilir.</li>
+                    <li data-i18n="info.project.limits.phones">Gerçek telefonlarda henüz sınanmadı.</li>
+                    <li data-i18n="info.project.limits.references">Referans görselleri yeniden hazırlanıyor; M, N, S, T ve E çizimleri birbirine çok benziyor.</li>
                   </ul>
                 </section>
 
                 <section class="pj__section" aria-labelledby="pjPrivacyTitle">
-                  <h2 id="pjPrivacyTitle">Gizlilik</h2>
-                  <p>
+                  <h2 id="pjPrivacyTitle" data-i18n="info.project.privacy.title">Gizlilik</h2>
+                  <p data-i18n="info.project.privacy.video">
                     Görüntü cihazınızdan çıkmaz. Tanıma tarayıcınızda yapılır; görüntü kaydedilmez.
                     Yazdığınız metin yalnızca bu tarayıcıda saklanır.
                   </p>
-                  <p>
+                  <p data-i18n="info.project.privacy.downloads">
                     Sayfa açıldığında model indirilmez; kamera, örnek ya da test ilk başladığında indirilir. Çalıştırıcılar
                     herkese açık içerik ağlarından (jsDelivr, Google) gelir.
                   </p>
                 </section>
 
                 <details class="panel pj__tech">
-                  <summary>Teknik ayrıntılar</summary>
+                  <summary data-i18n="info.project.tech.title">Teknik ayrıntılar</summary>
                   <ul class="pj__list">
-                    <li>Harf modeli: karar ağaçları (LightGBM); girdisi tek elin 93 sayılık özeti.</li>
-                    <li>Kelime modeli: dönüştürücü ağ (SignTransformer); girdisi 45 kare × 168 sayı ve hangi karelerin gerçek olduğunu söyleyen bir maske.</li>
-                    <li>İki model de tarayıcıda çalışır; sunucuya ne görüntü ne de sayı gönderilir.</li>
+                    <li data-i18n="info.project.tech.letter">Harf modeli: karar ağaçları (LightGBM); girdisi tek elin 93 sayılık özeti.</li>
+                    <li data-i18n="info.project.tech.word">Kelime modeli: dönüştürücü ağ (SignTransformer); girdisi 45 kare × 168 sayı ve hangi karelerin gerçek olduğunu söyleyen bir maske.</li>
+                    <li data-i18n="info.project.tech.local">İki model de tarayıcıda çalışır; sunucuya ne görüntü ne de sayı gönderilir.</li>
                   </ul>
                 </details>
 
                 <!-- Model Test stays for developers; visitors get the demo on the letter screen. -->
-                <p class="pj__dev">Geliştiriciler için: <a href="#test">modeli örnek dosyalarla test edin (Model Test)</a></p>
+                <p class="pj__dev" data-i18n-html="info.project.developers">Geliştiriciler için: <a href="#test">modeli örnek dosyalarla test edin (Model Test)</a></p>
               </div>
 
               <div class="pj__aside">
                 <section class="panel" aria-labelledby="pjCreditsTitle">
-                  <h2 class="panel__title" id="pjCreditsTitle">Veri kaynakları ve emeği geçenler</h2>
+                  <h2 class="panel__title" id="pjCreditsTitle" data-i18n="info.project.credits.title">Veri kaynakları ve emeği geçenler</h2>
                   <dl class="pj__credits">
                     <div>
-                      <dt><a href="https://www.kaggle.com/datasets/grassknoted/asl-alphabet" target="_blank" rel="noreferrer"><span lang="en">ASL Alphabet</span><span class="visually-hidden"> (yeni sekmede açılır)</span></a></dt>
-                      <dd>Akash Nagaraj, 2018 · GPL-2.0 (sağlayıcının belirttiği lisans)</dd>
+                      <dt><a href="https://www.kaggle.com/datasets/grassknoted/asl-alphabet" target="_blank" rel="noreferrer"><span lang="en">ASL Alphabet</span><span class="visually-hidden" data-i18n="info.newTab"> (yeni sekmede açılır)</span></a></dt>
+                      <dd data-i18n="info.project.credits.akash">Akash Nagaraj, 2018 · GPL-2.0 (sağlayıcının belirttiği lisans)</dd>
                     </div>
                     <div>
-                      <dt><a href="https://www.kaggle.com/datasets/ayuraj/asl-dataset" target="_blank" rel="noreferrer"><span lang="en">American Sign Language Dataset</span><span class="visually-hidden"> (yeni sekmede açılır)</span></a></dt>
+                      <dt><a href="https://www.kaggle.com/datasets/ayuraj/asl-dataset" target="_blank" rel="noreferrer"><span lang="en">American Sign Language Dataset</span><span class="visually-hidden" data-i18n="info.newTab"> (yeni sekmede açılır)</span></a></dt>
                       <dd>Ayush Thakur · CC0 1.0</dd>
                     </div>
                     <div>
-                      <dt><a href="https://github.com/Mohammed-Shoaib/ASL-Fingerspelling" target="_blank" rel="noreferrer"><span lang="en">ASL_SemCom</span> alt kümesi<span class="visually-hidden"> (yeni sekmede açılır)</span></a></dt>
-                      <dd><span lang="en">ASL-Fingerspelling</span> ile ilişkili · koşulları kayıtlı değil; görseller paylaşılmıyor</dd>
+                      <dt><a href="https://github.com/Mohammed-Shoaib/ASL-Fingerspelling" target="_blank" rel="noreferrer"><span lang="en">ASL_SemCom</span> <span data-i18n="info.project.credits.subset">alt kümesi</span><span class="visually-hidden" data-i18n="info.newTab"> (yeni sekmede açılır)</span></a></dt>
+                      <dd data-i18n-html="info.project.credits.semcom"><span lang="en">ASL-Fingerspelling</span> ile ilişkili · koşulları kayıtlı değil; görseller paylaşılmıyor</dd>
                     </div>
                     <div>
-                      <dt><a href="https://www.kaggle.com/competitions/asl-signs" target="_blank" rel="noreferrer"><span lang="en">Google - Isolated Sign Language Recognition</span> (Kaggle, 2023)<span class="visually-hidden"> (yeni sekmede açılır)</span></a></dt>
-                      <dd>
+                      <dt><a href="https://www.kaggle.com/competitions/asl-signs" target="_blank" rel="noreferrer"><span lang="en">Google - Isolated Sign Language Recognition</span> (Kaggle, 2023)<span class="visually-hidden" data-i18n="info.newTab"> (yeni sekmede açılır)</span></a></dt>
+                      <dd data-i18n-html="info.project.credits.google">
                         <span lang="en">Deaf Professional Arts Network</span> ve
                         <span lang="en">Georgia Institute of Technology</span> tarafından sağlandı ·
                         <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0<span class="visually-hidden"> (yeni sekmede açılır)</span></a>,
@@ -515,15 +523,15 @@
                       </dd>
                     </div>
                     <div>
-                      <dt><a href="https://commons.wikimedia.org/wiki/File:Asl_alphabet_gallaudet.svg" target="_blank" rel="noreferrer">ASL harf kartı<span class="visually-hidden"> (yeni sekmede açılır)</span></a></dt>
-                      <dd>Ds13, Gallaudet yazı tipinden; Marnanel vektörleştirdi · Wikimedia Commons, kamu malı</dd>
+                      <dt><a href="https://commons.wikimedia.org/wiki/File:Asl_alphabet_gallaudet.svg" target="_blank" rel="noreferrer"><span data-i18n="info.project.credits.chart">ASL harf kartı</span><span class="visually-hidden" data-i18n="info.newTab"> (yeni sekmede açılır)</span></a></dt>
+                      <dd data-i18n="info.project.credits.chartBy">Ds13, Gallaudet yazı tipinden; Marnanel vektörleştirdi · Wikimedia Commons, kamu malı</dd>
                     </div>
                   </dl>
                 </section>
 
                 <section class="panel" aria-labelledby="pjLicenceTitle">
-                  <h2 class="panel__title" id="pjLicenceTitle">Lisans</h2>
-                  <p class="panel__note">
+                  <h2 class="panel__title" id="pjLicenceTitle" data-i18n="info.project.licence.title">Lisans</h2>
+                  <p class="panel__note" data-i18n-html="info.project.licence.text">
                     Kaynak kodu <a href="https://polyformproject.org/licenses/noncommercial/1.0.0" target="_blank" rel="noreferrer">PolyForm Noncommercial 1.0.0<span class="visually-hidden"> (yeni sekmede açılır)</span></a>
                     lisansı altındadır: kişisel, eğitim ve araştırma amaçlı kullanım serbesttir; ticari kullanım
                     izin gerektirir. Model dosyaları aynı lisansla yayınlanır; eğitim verilerinin koşulları da geçerlidir.
@@ -531,12 +539,12 @@
                 </section>
 
                 <section class="panel" aria-labelledby="pjSoftwareTitle">
-                  <h2 class="panel__title" id="pjSoftwareTitle">Kullanılan yazılımlar</h2>
+                  <h2 class="panel__title" id="pjSoftwareTitle" data-i18n="info.project.software.title">Kullanılan yazılımlar</h2>
                   <ul class="pj__list pj__list--plain">
-                    <li><a href="https://github.com/microsoft/onnxruntime" target="_blank" rel="noreferrer"><span lang="en">ONNX Runtime Web</span> 1.22.0<span class="visually-hidden"> (yeni sekmede açılır)</span></a> · MIT</li>
-                    <li><a href="https://github.com/google-ai-edge/mediapipe" target="_blank" rel="noreferrer"><span lang="en">MediaPipe Tasks Vision</span> 0.10.18<span class="visually-hidden"> (yeni sekmede açılır)</span></a> · Apache-2.0</li>
-                    <li><a href="https://github.com/lrsjng/kjua" target="_blank" rel="noreferrer"><span lang="en">kjua</span> 0.9.0<span class="visually-hidden"> (yeni sekmede açılır)</span></a> · MIT</li>
-                    <li><a href="https://github.com/googlefonts/atkinson-hyperlegible-next" target="_blank" rel="noreferrer"><span lang="en">Atkinson Hyperlegible Next</span> ve <span lang="en">Mono</span><span class="visually-hidden"> (yeni sekmede açılır)</span></a> · SIL OFL 1.1</li>
+                    <li><a href="https://github.com/microsoft/onnxruntime" target="_blank" rel="noreferrer"><span lang="en">ONNX Runtime Web</span> 1.22.0<span class="visually-hidden" data-i18n="info.newTab"> (yeni sekmede açılır)</span></a> · MIT</li>
+                    <li><a href="https://github.com/google-ai-edge/mediapipe" target="_blank" rel="noreferrer"><span lang="en">MediaPipe Tasks Vision</span> 0.10.18<span class="visually-hidden" data-i18n="info.newTab"> (yeni sekmede açılır)</span></a> · Apache-2.0</li>
+                    <li><a href="https://github.com/lrsjng/kjua" target="_blank" rel="noreferrer"><span lang="en">kjua</span> 0.9.0<span class="visually-hidden" data-i18n="info.newTab"> (yeni sekmede açılır)</span></a> · MIT</li>
+                    <li><a href="https://github.com/googlefonts/atkinson-hyperlegible-next" target="_blank" rel="noreferrer" data-i18n-html="info.project.software.fonts"><span lang="en">Atkinson Hyperlegible Next</span> ve <span lang="en">Mono</span><span class="visually-hidden"> (yeni sekmede açılır)</span></a> · SIL OFL 1.1</li>
                   </ul>
                 </section>
               </div>
@@ -547,8 +555,8 @@
 
           <section class="page mt" id="modelTestScreen" hidden aria-labelledby="modelTestTitle">
             <div class="page__head">
-              <h1 class="page__title" id="modelTestTitle" data-screen-title="test" tabindex="-1">Modeli kamerasız deneyin</h1>
-              <p class="page__lead">
+              <h1 class="page__title" id="modelTestTitle" data-screen-title="test" data-i18n="shell.route.test" tabindex="-1">Modeli kamerasız deneyin</h1>
+              <p class="page__lead" data-i18n="info.test.lead">
                 Yayındaki modeller hazır örnekler üzerinde tarayıcınızda çalışır. Kamera açılmaz;
                 sonuçlar bu cihazda hesaplanır.
               </p>
@@ -557,90 +565,90 @@
             <div class="mt__grid">
               <div class="mt__main">
                 <section class="panel" aria-labelledby="mtTryTitle">
-                  <h2 class="panel__title" id="mtTryTitle">Tek örnek</h2>
-                  <p class="model-test-simple-copy">Bir örnek seçin; model onu çalıştırır ve sonucu gösterir.</p>
-                  <div class="mt__actions" aria-label="Hazır örnekler">
-                    <button class="btn btn--primary" type="button" id="loadDemoLetter">Harf örneği dene</button>
-                    <button class="btn" type="button" id="loadDemoWord">Kelime örneği dene</button>
+                  <h2 class="panel__title" id="mtTryTitle" data-i18n="info.test.one.title">Tek örnek</h2>
+                  <p class="model-test-simple-copy" data-i18n="info.test.one.text">Bir örnek seçin; model onu çalıştırır ve sonucu gösterir.</p>
+                  <div class="mt__actions" aria-label="Hazır örnekler" data-i18n-aria-label="info.test.readySamples">
+                    <button class="btn btn--primary" type="button" id="loadDemoLetter" data-i18n="info.test.tryLetter">Harf örneği dene</button>
+                    <button class="btn" type="button" id="loadDemoWord" data-i18n="info.test.tryWord">Kelime örneği dene</button>
                   </div>
-                  <button class="btn btn--quiet" type="button" id="runModelTestSample" disabled>Seçili örneği yeniden çalıştır</button>
-                  <p class="panel__note">Durum: <strong id="modelTestSampleStatus">Örnek bekleniyor</strong></p>
-                  <div class="mt__steps" id="modelTestProcessSteps" aria-label="Örneğin geçtiği adımlar">
-                    <span data-step="sample">Örnek</span>
-                    <span data-step="validate">Kontrol</span>
-                    <span data-step="inference">Model</span>
-                    <span data-step="result">Sonuç</span>
+                  <button class="btn btn--quiet" type="button" id="runModelTestSample" disabled data-i18n="info.test.runAgain">Seçili örneği yeniden çalıştır</button>
+                  <p class="panel__note"><span data-i18n="info.test.statusLabel">Durum:</span> <strong id="modelTestSampleStatus" data-i18n="info.test.status.waiting">Örnek bekleniyor</strong></p>
+                  <div class="mt__steps" id="modelTestProcessSteps" aria-label="Örneğin geçtiği adımlar" data-i18n-aria-label="info.test.steps.label">
+                    <span data-step="sample" data-i18n="info.test.steps.sample">Örnek</span>
+                    <span data-step="validate" data-i18n="info.test.steps.validate">Kontrol</span>
+                    <span data-step="inference" data-i18n="info.test.steps.inference">Model</span>
+                    <span data-step="result" data-i18n="info.test.steps.result">Sonuç</span>
                   </div>
 
                   <details class="model-test-advanced mt__advanced">
-                    <summary>Başka model, başka örnek ya da kendi dosyanız</summary>
+                    <summary data-i18n="info.test.more">Başka model, başka örnek ya da kendi dosyanız</summary>
                     <div class="model-test-task-switch choices" role="group" aria-label="Model">
                       <button class="choice is-active" type="button" data-model-test-task="letter">
-                        <strong>Harf modeli</strong>
-                        <small>Tek el, 24 harf</small>
+                        <strong data-i18n="info.test.model.letter">Harf modeli</strong>
+                        <small data-i18n="info.test.model.letterText">Tek el, 24 harf</small>
                       </button>
                       <button class="choice" type="button" data-model-test-task="word">
-                        <strong>Kelime modeli</strong>
-                        <small>Kısa hareket, 50 kelime</small>
+                        <strong data-i18n="info.test.model.word">Kelime modeli</strong>
+                        <small data-i18n="info.test.model.wordText">Kısa hareket, 50 kelime</small>
                       </button>
                     </div>
-                    <p class="panel__note" id="modelTestDomainHelp">
+                    <p class="panel__note" id="modelTestDomainHelp" data-i18n="info.test.help.letter">
                       Harf modeli, tek bir el duruşuna bakıp 24 harften birini seçer.
                     </p>
                     <div class="mt__library">
-                      <label class="mt__label" for="modelTestSampleSelect">Hazır örnekler</label>
+                      <label class="mt__label" for="modelTestSampleSelect" data-i18n="info.test.readySamples">Hazır örnekler</label>
                       <div class="mt__library-row">
                         <select id="modelTestSampleSelect" class="mt__select"></select>
-                        <button class="btn" type="button" id="loadSelectedModelTestSample">Örneği hazırla</button>
+                        <button class="btn" type="button" id="loadSelectedModelTestSample" data-i18n="info.test.prepare">Örneği hazırla</button>
                       </div>
                     </div>
                     <label class="mt__drop" id="modelTestDropZone" for="modelTestSampleFile">
-                      <span>Bir JSON dosyasını buraya bırakın ya da seçin</span>
-                      <small id="modelTestFileName">Harf örneği 93 sayı, kelime örneği 45 × 168 sayı ve 45 değerli bir maske içerir.</small>
+                      <span data-i18n="info.test.drop">Bir JSON dosyasını buraya bırakın ya da seçin</span>
+                      <small id="modelTestFileName" data-i18n="info.test.fileHint">Harf örneği 93 sayı, kelime örneği 45 × 168 sayı ve 45 değerli bir maske içerir.</small>
                     </label>
                     <input id="modelTestSampleFile" class="visually-hidden" type="file" accept="application/json,.json" />
                   </details>
                 </section>
 
                 <section class="panel" aria-labelledby="mtAllTitle">
-                  <h2 class="panel__title" id="mtAllTitle">Tüm örnekler</h2>
-                  <p class="panel__note" id="modelTestBatchHint">Harf modelinin hazır örneklerini sırayla çalıştırır ve kaçının doğru olduğunu sayar.</p>
-                  <button class="btn btn--primary" type="button" id="runModelTestBatch">Tümünü çalıştır</button>
+                  <h2 class="panel__title" id="mtAllTitle" data-i18n="info.test.all.title">Tüm örnekler</h2>
+                  <p class="panel__note" id="modelTestBatchHint" data-i18n="info.test.all.hint.letterCounted">Harf modelinin hazır örneklerini sırayla çalıştırır ve kaçının doğru olduğunu sayar.</p>
+                  <button class="btn btn--primary" type="button" id="runModelTestBatch" data-i18n="info.test.all.run">Tümünü çalıştır</button>
                 </section>
               </div>
 
               <div class="mt__side">
                 <section class="panel mt__result" aria-labelledby="mtResultTitle">
                   <div class="panel__head">
-                    <h2 class="panel__title" id="mtResultTitle">Sonuç</h2>
-                    <strong class="mt__badge" id="modelTestMatchBadge">Beklemede</strong>
+                    <h2 class="panel__title" id="mtResultTitle" data-i18n="info.test.result.title">Sonuç</h2>
+                    <strong class="mt__badge" id="modelTestMatchBadge" data-i18n="info.test.badge.waiting">Beklemede</strong>
                   </div>
                   <p class="mt__prediction">
-                    <span class="mt__prediction-label">Tahmin</span>
+                    <span class="mt__prediction-label" data-i18n="info.test.result.prediction">Tahmin</span>
                     <strong class="mt__prediction-value" id="modelTestPredictedLabel">-</strong>
                   </p>
                   <dl class="mt__stats">
-                    <div><dt>Beklenen</dt><dd id="modelTestExpectedLabel">-</dd></div>
-                    <div><dt>Güven</dt><dd class="num" id="modelTestConfidence">-</dd></div>
-                    <div><dt>Süre</dt><dd class="num" id="modelTestLatency">-</dd></div>
+                    <div><dt data-i18n="info.test.result.expected">Beklenen</dt><dd id="modelTestExpectedLabel">-</dd></div>
+                    <div><dt data-i18n="info.test.result.confidence">Güven</dt><dd class="num" id="modelTestConfidence">-</dd></div>
+                    <div><dt data-i18n="info.test.result.time">Süre</dt><dd class="num" id="modelTestLatency">-</dd></div>
                   </dl>
-                  <h3 class="mt__sub">En olası üç sonuç</h3>
+                  <h3 class="mt__sub" data-i18n="info.test.result.top">En olası üç sonuç</h3>
                   <div class="ranked">
                     <div class="top3-list model-test-top3" id="modelTestTop3List"></div>
                   </div>
-                  <p class="panel__note" id="modelTestResultNote">Bir örnek seçtiğinizde sonuç burada görünür.</p>
+                  <p class="panel__note" id="modelTestResultNote" data-i18n="info.test.note.idle">Bir örnek seçtiğinizde sonuç burada görünür.</p>
                 </section>
 
                 <details class="panel mt__tech">
                   <summary>
-                    <span>Teknik ayrıntılar</span>
-                    <strong id="modelTestTaskLabel">Detay</strong>
+                    <span data-i18n="info.test.tech.title">Teknik ayrıntılar</span>
+                    <strong id="modelTestTaskLabel" data-i18n="info.test.tech.details">Detay</strong>
                   </summary>
                   <dl class="mt__facts">
-                    <div><dt>Kaynak</dt><dd id="modelTestSourceLabel">-</dd></div>
-                    <div><dt>Biçim sürümü</dt><dd id="modelTestSchemaLabel">-</dd></div>
-                    <div><dt>Girdi</dt><dd id="modelTestShapeLabel">-</dd></div>
-                    <div><dt>Gerçek kare</dt><dd id="modelTestMaskLabel">-</dd></div>
+                    <div><dt data-i18n="info.test.tech.source">Kaynak</dt><dd id="modelTestSourceLabel">-</dd></div>
+                    <div><dt data-i18n="info.test.tech.schema">Biçim sürümü</dt><dd id="modelTestSchemaLabel">-</dd></div>
+                    <div><dt data-i18n="info.test.tech.input">Girdi</dt><dd id="modelTestShapeLabel">-</dd></div>
+                    <div><dt data-i18n="info.test.tech.realFrames">Gerçek kare</dt><dd id="modelTestMaskLabel">-</dd></div>
                   </dl>
                 </details>
               </div>
@@ -648,29 +656,29 @@
 
             <!-- The run-all result, hidden until a run starts. -->
             <section class="panel mt__batch" id="modelTestBatch" hidden aria-labelledby="mtBatchTitle">
-              <h2 class="panel__title" id="mtBatchTitle">Tüm örneklerin sonucu</h2>
+              <h2 class="panel__title" id="mtBatchTitle" data-i18n="info.test.batch.title">Tüm örneklerin sonucu</h2>
               <p class="mt__summary" id="modelTestSummary"></p>
-              <p class="panel__note" id="modelTestNoteLetter" hidden>
+              <p class="panel__note" id="modelTestNoteLetter" hidden data-i18n="info.test.batch.noteLetter">
                 Bu örnekler, eğitimde ayrılan test bölümünden her harf için birer kayıttır. Eğitim fotoğraflarıyla
                 aynı dizilerden geldikleri için kamerada başarı daha düşük olabilir. Süreler bu cihazda ölçüldü;
                 kamerayla canlı tanımada elin bulunması da zaman alır.
               </p>
-              <p class="panel__note" id="modelTestNoteWord" hidden>
+              <p class="panel__note" id="modelTestNoteWord" hidden data-i18n="info.test.batch.noteWord">
                 Kelime modeli, Google'ın ASL yarışma verisiyle eğitildi. Yarışma kuralları bu verinin paylaşılmasına
                 izin vermediği için gerçek kayıtlardan çıkarılan örnekler yayınlanmaz. Yayındaki tek örnek yapaydır
                 ve yalnızca modelin baştan sona çalıştığını gösterir. Projeyi kendi bilgisayarınıza kurarsanız bu
                 örnekleri orada yerel olarak oluşturabilirsiniz.
               </p>
               <table class="mt__table" id="modelTestTable">
-                <caption class="visually-hidden">Örneklerin sonuçları</caption>
+                <caption class="visually-hidden" data-i18n="info.test.table.caption">Örneklerin sonuçları</caption>
                 <thead>
                   <tr>
-                    <th scope="col">Örnek</th>
-                    <th scope="col">Beklenen</th>
-                    <th scope="col">Tahmin</th>
-                    <th scope="col">Güven</th>
-                    <th scope="col">Süre</th>
-                    <th scope="col">Sonuç</th>
+                    <th scope="col" data-i18n="info.test.table.sample">Örnek</th>
+                    <th scope="col" data-i18n="info.test.result.expected">Beklenen</th>
+                    <th scope="col" data-i18n="info.test.result.prediction">Tahmin</th>
+                    <th scope="col" data-i18n="info.test.result.confidence">Güven</th>
+                    <th scope="col" data-i18n="info.test.result.time">Süre</th>
+                    <th scope="col" data-i18n="info.test.result.title">Sonuç</th>
                   </tr>
                 </thead>
                 <tbody id="modelTestRows"></tbody>
@@ -681,8 +689,8 @@
           <section class="page qr" id="qrScreen" hidden aria-labelledby="qrTitle">
             <div class="qr__copy">
               <div class="page__head">
-                <h1 class="page__title" id="qrTitle" data-screen-title="qr" tabindex="-1">Telefonda açın</h1>
-                <p class="page__lead">
+                <h1 class="page__title" id="qrTitle" data-screen-title="qr" data-i18n="shell.route.qr" tabindex="-1">Telefonda açın</h1>
+                <p class="page__lead" data-i18n="info.qr.lead">
                   Telefonunuzun kamerasıyla kodu okutun; ASL Assistant telefonda açılır. Hiçbir şey
                   yüklemeniz gerekmez. Bağlantıyı paylaşarak da gönderebilirsiniz.
                 </p>
@@ -690,36 +698,36 @@
               <div class="qr__link">
                 <p class="qr__url" id="qrDemoUrl">https://asl-assistant.netlify.app/#letter</p>
                 <div class="qr__actions">
-                  <button class="btn btn--primary" type="button" id="qrShare" hidden>Bağlantıyı paylaş</button>
-                  <button class="btn" type="button" id="qrCopyDemo" data-icon="copy">Bağlantıyı kopyala</button>
-                  <a class="btn btn--quiet qr__open" id="qrOpenDemo" href="https://asl-assistant.netlify.app/#letter" target="_blank" rel="noreferrer" data-icon="external">Yeni sekmede aç</a>
+                  <button class="btn btn--primary" type="button" id="qrShare" hidden data-i18n="info.qr.share">Bağlantıyı paylaş</button>
+                  <button class="btn" type="button" id="qrCopyDemo" data-icon="copy" data-i18n="info.qr.copy">Bağlantıyı kopyala</button>
+                  <a class="btn btn--quiet qr__open" id="qrOpenDemo" href="https://asl-assistant.netlify.app/#letter" target="_blank" rel="noreferrer" data-icon="external" data-i18n="info.qr.openTab">Yeni sekmede aç</a>
                 </div>
-                <p class="panel__note" id="qrStatus">QR hazırlanıyor...</p>
+                <p class="panel__note" id="qrStatus" data-i18n="info.qr.preparing">QR hazırlanıyor...</p>
               </div>
               <fieldset class="choices qr__targets">
-                <legend class="mt__label">Hangi ekran açılsın?</legend>
+                <legend class="mt__label" data-i18n="info.qr.target.title">Hangi ekran açılsın?</legend>
                 <label class="choice">
                   <input class="visually-hidden" type="radio" name="qrTarget" data-qr-target="letter" checked />
-                  <strong>Harf</strong>
-                  <small>Kameranın karşısında harfleri tanır</small>
+                  <strong data-i18n="info.qr.target.letter">Harf</strong>
+                  <small data-i18n="info.qr.target.letterText">Kameranın karşısında harfleri tanır</small>
                 </label>
                 <label class="choice">
                   <input class="visually-hidden" type="radio" name="qrTarget" data-qr-target="word" />
-                  <strong>Kelime</strong>
-                  <small>Deneysel; ışık ve kadraj önemli</small>
+                  <strong data-i18n="info.qr.target.word">Kelime</strong>
+                  <small data-i18n="info.qr.target.wordText">Deneysel; ışık ve kadraj önemli</small>
                 </label>
               </fieldset>
               <ol class="qr__steps">
-                <li>Telefonunuzun kamera uygulamasını açıp kodu çerçeveye alın.</li>
-                <li>Çıkan bağlantıya dokunun.</li>
-                <li>Kamerayı açın; tarayıcı sorduğunda izin verin.</li>
+                <li data-i18n="info.qr.steps.scan">Telefonunuzun kamera uygulamasını açıp kodu çerçeveye alın.</li>
+                <li data-i18n="info.qr.steps.tap">Çıkan bağlantıya dokunun.</li>
+                <li data-i18n="info.qr.steps.allow">Kamerayı açın; tarayıcı sorduğunda izin verin.</li>
               </ol>
-              <p class="qr__phone-step">Diğer telefonun kamerasını koda tutun ve çıkan bağlantıya dokunun.</p>
-              <p class="qr__fact" data-icon="info">Kamerayı ilk açtığınızda yaklaşık 15 MB (kelime modunda en fazla 24 MB) indirilir; sonraki açılışlarda yeniden indirilmez. Mobil veride Wi-Fi önerilir.</p>
+              <p class="qr__phone-step" data-i18n="info.qr.phoneStep">Diğer telefonun kamerasını koda tutun ve çıkan bağlantıya dokunun.</p>
+              <p class="qr__fact" data-icon="info" data-i18n="info.qr.download">Kamerayı ilk açtığınızda yaklaşık 15 MB (kelime modunda en fazla 24 MB) indirilir; sonraki açılışlarda yeniden indirilmez. Mobil veride Wi-Fi önerilir.</p>
             </div>
             <figure class="qr__tile">
-              <div id="qrCanvas" class="qr__canvas" role="img" aria-label="ASL Assistant canlı demo QR kodu"></div>
-              <figcaption class="qr__caption">Yanınızdaki birine gösterin</figcaption>
+              <div id="qrCanvas" class="qr__canvas" role="img" aria-label="ASL Assistant canlı demo QR kodu" data-i18n-aria-label="info.qr.canvas"></div>
+              <figcaption class="qr__caption" data-i18n="info.qr.caption">Yanınızdaki birine gösterin</figcaption>
             </figure>
           </section>
         </section>
@@ -729,14 +737,14 @@
            inert and Tab stays inside. The ids keep their lightbox names. -->
       <dialog class="viewer" id="lightbox" aria-labelledby="lightboxTitle">
         <div class="viewer__bar">
-          <h2 class="viewer__title" id="lightboxTitle">ASL referans görseli</h2>
-          <div class="viewer__tools" role="group" aria-label="Görüntü araçları">
-            <button class="btn btn--quiet btn--icon" type="button" id="lightboxPrev" data-icon="chevron-left" aria-label="Önceki" hidden></button>
-            <button class="btn btn--quiet btn--icon" type="button" id="lightboxNext" data-icon="chevron-right" aria-label="Sonraki" hidden></button>
-            <button class="btn btn--quiet btn--icon" type="button" id="lightboxZoomOut" data-icon="zoom-out" aria-label="Uzaklaştır"></button>
-            <button class="viewer__zoom num" type="button" id="lightboxZoom" title="Sığdır">Sığdır</button>
-            <button class="btn btn--quiet btn--icon" type="button" id="lightboxZoomIn" data-icon="zoom-in" aria-label="Yakınlaştır"></button>
-            <button class="btn btn--quiet btn--icon" type="button" id="lightboxClose" data-icon="x" aria-label="Kapat"></button>
+          <h2 class="viewer__title" id="lightboxTitle" data-i18n="word.viewer.title">ASL referans görseli</h2>
+          <div class="viewer__tools" role="group" aria-label="Görüntü araçları" data-i18n-aria-label="word.viewer.toolsName">
+            <button class="btn btn--quiet btn--icon" type="button" id="lightboxPrev" data-icon="chevron-left" aria-label="Önceki" data-i18n-aria-label="word.viewer.previous" hidden></button>
+            <button class="btn btn--quiet btn--icon" type="button" id="lightboxNext" data-icon="chevron-right" aria-label="Sonraki" data-i18n-aria-label="word.viewer.next" hidden></button>
+            <button class="btn btn--quiet btn--icon" type="button" id="lightboxZoomOut" data-icon="zoom-out" aria-label="Uzaklaştır" data-i18n-aria-label="word.viewer.zoomOut"></button>
+            <button class="viewer__zoom num" type="button" id="lightboxZoom" title="Sığdır" data-i18n-title="word.viewer.fit" data-i18n="word.viewer.fit">Sığdır</button>
+            <button class="btn btn--quiet btn--icon" type="button" id="lightboxZoomIn" data-icon="zoom-in" aria-label="Yakınlaştır" data-i18n-aria-label="word.viewer.zoomIn"></button>
+            <button class="btn btn--quiet btn--icon" type="button" id="lightboxClose" data-icon="x" aria-label="Kapat" data-i18n-aria-label="word.viewer.close"></button>
           </div>
         </div>
         <div class="viewer__body" id="lightboxBody" tabindex="0" data-zoom="fit">
@@ -744,13 +752,13 @@
           <div class="ref-card" id="lightboxCard" hidden><img id="lightboxCardImage" alt="" /></div>
         </div>
         <div class="viewer__foot">
-          <button class="btn" type="button" id="lightboxMode" hidden>Sayfanın tamamı</button>
-          <a class="btn" id="lightboxVideo" href="https://www.youtube.com/results?search_query=ASL+basic+words+tutorial" target="_blank" rel="noreferrer" data-icon="external" hidden>Videoda izle</a>
-          <p class="viewer__note">Referans görselleri yenileniyor; bazı kartlar standart ASL'den farklı olabilir.</p>
+          <button class="btn" type="button" id="lightboxMode" data-i18n="word.viewer.wholePage" hidden>Sayfanın tamamı</button>
+          <a class="btn" id="lightboxVideo" href="https://www.youtube.com/results?search_query=ASL+basic+words+tutorial" target="_blank" rel="noreferrer" data-icon="external" data-i18n="word.viewer.watchVideo" hidden>Videoda izle</a>
+          <p class="viewer__note" data-i18n="word.viewer.note">Referans görselleri yenileniyor; bazı kartlar standart ASL'den farklı olabilir.</p>
         </div>
       </dialog>
 
-      <section class="debug-panel" id="debugPanel" hidden aria-label="Debug paneli">
+      <section class="debug-panel" id="debugPanel" hidden aria-label="Debug paneli" data-i18n-aria-label="shell.region.debug">
         <strong>Debug</strong>
         <span id="debugMode">mode: letter</span>
         <span id="debugConfidence">confidence: 0</span>
@@ -759,6 +767,18 @@
         <span id="fpsLabel">-- fps</span>
       </section>
     </div>
+
+    <!-- The interface strings, and the pass that puts the parsed page into the
+         visitor's language. Before the CDN scripts: the parser waits for each
+         of those to download, and the page must not wait in Turkish for an
+         English reader. Each area keeps its strings in its own file. -->
+    <script src="js/core/i18n.js?v=12"></script>
+    <script src="js/i18n/shell.js?v=12"></script>
+    <script src="js/i18n/letter.js?v=12"></script>
+    <script src="js/i18n/word.js?v=12"></script>
+    <script src="js/i18n/coach.js?v=12"></script>
+    <script src="js/i18n/info.js?v=12"></script>
+    <script src="js/core/i18n-boot.js?v=12"></script>
 
     <!-- ONNX Runtime Web and the kjua QR encoder, pinned: a version change needs a new integrity hash. -->
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.wasm.min.js" integrity="sha384-epp8GDQUoLKx5qHa6SoDHKv7fSHILsEYk4uEsHdPRBztXEIVWCe/lhhrQJUBMZcf" crossorigin="anonymous"></script>

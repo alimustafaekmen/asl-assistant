@@ -6,7 +6,7 @@
 // unreliably; announce() writes to a region that is always present.
 
 /**
- * @typedef {{label: string, run: () => void}} ToastAction
+ * @typedef {{label: UiText, run: () => void}} ToastAction
  * @typedef {{action?: ToastAction, durationMs?: number, returnFocus?: HTMLElement | null, onEnd?: () => void}} ToastOptions
  *   returnFocus is where focus goes after the action: the toast disappears,
  *   so a keyboard user would otherwise be left on the page. onEnd runs once
@@ -19,6 +19,14 @@ let _toastTimer = 0;
 
 /** The shown toast's onEnd, or null. @type {(() => void) | null} */
 let _toastOnEnd = null;
+
+/**
+ * The shown toast's text and action label as they were given, so a language
+ * change can write them again.
+ *
+ * @type {{message: UiText, label: UiText | null} | null}
+ */
+let _toastShown = null;
 
 /**
  * Run and forget the shown toast's onEnd.
@@ -34,22 +42,24 @@ function endToast() {
 /**
  * Show a confirmation, and announce it.
  *
- * @param {string} message
+ * @param {UiText} message A function that looks its string up keeps the
+ *   toast in the current language across a switch.
  * @param {ToastOptions} [options] An action keeps the toast up longer, so there
  *   is time to reach it.
  * @returns {void}
  */
 function showToast(message, options = {}) {
-  announce(message);
+  announce(uiText(message));
   if (!els.toast || !els.toastText || !els.toastAction) return;
   clearTimeout(_toastTimer);
   endToast();
   _toastOnEnd = options.onEnd ?? null;
-  els.toastText.textContent = message;
   const { action } = options;
+  _toastShown = { message, label: action ? action.label : null };
+  els.toastText.textContent = uiText(message);
   els.toastAction.hidden = !action;
   els.toastAction.onclick = null;
-  if (action) els.toastAction.textContent = action.label;
+  if (action) els.toastAction.textContent = uiText(action.label);
   els.toast.hidden = false;
   const durationMs = options.durationMs ?? (action ? 6000 : 3000);
   const startTimer = () => {
@@ -81,7 +91,20 @@ function showToast(message, options = {}) {
 function hideToast() {
   clearTimeout(_toastTimer);
   if (els.toast) els.toast.hidden = true;
+  _toastShown = null;
   endToast();
+}
+
+/**
+ * Write the shown toast again in the language just chosen. Its timer and its
+ * action stay as they are, and it is not announced again.
+ *
+ * @returns {void}
+ */
+function renderToastLanguage() {
+  if (!_toastShown || !els.toast || els.toast.hidden || !els.toastText || !els.toastAction) return;
+  els.toastText.textContent = uiText(_toastShown.message);
+  if (_toastShown.label !== null) els.toastAction.textContent = uiText(_toastShown.label);
 }
 
 /**

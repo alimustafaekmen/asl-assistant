@@ -19,7 +19,8 @@
 // The teaching data (the teaching order, a written cue per letter, and groups
 // of look-alike letters) is read on the first visit to the coach. The coach
 // never waits for it: until it arrives, or if it cannot be read, letters come
-// in alphabetical order without cues.
+// in alphabetical order without cues. Its cues and reasons are kept in both
+// interface languages and picked when they are shown.
 //
 // The word guidance cards read the published evaluation data and never
 // recompute it.
@@ -36,12 +37,19 @@ const _coachHold = createHoldTracker({
 });
 
 /**
+ * A sentence of the teaching data in each interface language it was written
+ * in. Turkish is always there; English may be missing.
+ *
+ * @typedef {{tr: string, en?: string}} CoachText
+ */
+
+/**
  * A group of letters whose handshapes look alike, and what tells them apart.
  *
  * @typedef {Object} CoachConfusionGroup
  * @property {string[]} letters Members, every one of them in LETTERS.
- * @property {string} reason Turkish sentence: what the members share and what differs.
- * @property {Record<string, string>} cues Turkish cue for each member, telling it from the others.
+ * @property {CoachText} reason What the members share and what differs.
+ * @property {Record<string, CoachText>} cues The cue for each member, telling it from the others.
  */
 
 /**
@@ -49,7 +57,7 @@ const _coachHold = createHoldTracker({
  *
  * @typedef {Object} CoachLetterData
  * @property {string[]} order Every letter of LETTERS once, in teaching order.
- * @property {Record<string, string>} cues Turkish handshape cue per letter; a letter may have none.
+ * @property {Record<string, CoachText>} cues Handshape cue per letter; a letter may have none.
  * @property {Record<string, string[]>} confusable Look-alike letters per letter.
  * @property {CoachConfusionGroup[]} groups
  */
@@ -209,9 +217,9 @@ function resetCoachProgress() {
   coachProgress = { v: 1, flow: coachProgress.flow, letters: {} };
   saveCoachProgress();
   updateCoachPanel();
-  showToast("İlerleme sıfırlandı", {
+  showToast(() => t("coach.toast.reset"), {
     action: {
-      label: "Geri al",
+      label: () => t("coach.toast.undo"),
       run: () => {
         coachProgress = previous;
         saveCoachProgress();
@@ -281,8 +289,8 @@ function showCoachHint() {
  */
 function coachHintLine(target) {
   const lookAlikes = coachLetterData.confusable[target] ?? [];
-  const confused = lookAlikes.length ? ` Karışabilir: ${lookAlikes.join(", ")}.` : "";
-  return `İpucu: ${target}. ${coachCueLine(target)}${confused}`;
+  const confused = lookAlikes.length ? ` ${t("coach.hint.lookAlikes", { letters: lookAlikes.join(", ") })}` : "";
+  return `${t("coach.hint.line", { letter: target, cue: coachCueLine(target) })}${confused}`;
 }
 
 /**
@@ -412,14 +420,45 @@ function _followCoachMiss(prediction, now) {
  */
 function coachMissText(seen, target) {
   if (seen === null) return "";
-  if (seen === "?") return "El şekli net seçilemedi. Kol boyu uzaklık, iyi ışık, eliniz kadrajın ortasında.";
-  const named = `Şu an ${seen} görünüyor.`;
+  if (seen === "?") return t("coach.miss.unclear");
+  const named = t("coach.miss.seen", { letter: seen });
   const group = coachLetterData.groups.find(
     (candidate) => candidate.letters.includes(seen) && candidate.letters.includes(target),
   );
-  const cue = (group && group.cues[target]) || coachLetterData.cues[target];
-  if (group) return cue ? `${named} ${group.reason} ${target}: ${cue}` : `${named} ${group.reason}`;
+  const cue = coachText(group?.cues[target]) || coachText(coachLetterData.cues[target]);
+  if (group) {
+    const reason = coachText(group.reason);
+    return cue ? `${named} ${reason} ${target}: ${cue}` : `${named} ${reason}`;
+  }
   return cue ? `${named} ${target}: ${cue}` : named;
+}
+
+/**
+ * A sentence of the teaching data in the interface language.
+ *
+ * Without an English one the Turkish is shown, as t() does for a string
+ * nobody translated: a cue in the other language still teaches more than
+ * none.
+ *
+ * @param {CoachText | undefined} text
+ * @returns {string}
+ */
+function coachText(text) {
+  if (!text) return "";
+  return (currentLanguage() === "en" && text.en) || text.tr;
+}
+
+/**
+ * The Turkish and English text of a teaching data entry, read from its
+ * `<name>_tr` and `<name>_en` fields; null without the Turkish.
+ *
+ * @param {unknown} turkish
+ * @param {unknown} english
+ * @returns {CoachText | null}
+ */
+function _readCoachText(turkish, english) {
+  if (typeof turkish !== "string" || !turkish) return null;
+  return typeof english === "string" && english ? { tr: turkish, en: english } : { tr: turkish };
 }
 
 /**
@@ -440,14 +479,15 @@ function readLetterCurriculum(data) {
     if (typeof letter === "string" && LETTERS.includes(letter) && !order.includes(letter)) order.push(letter);
   }
   for (const letter of LETTERS) if (!order.includes(letter)) order.push(letter);
-  /** @type {Record<string, string>} */
+  /** @type {Record<string, CoachText>} */
   const cues = {};
   /** @type {Record<string, string[]>} */
   const confusable = {};
   for (const entry of Array.isArray(data.letters) ? data.letters : []) {
     if (!isRecord(entry) || typeof entry.letter !== "string" || !LETTERS.includes(entry.letter)) continue;
     const letter = entry.letter;
-    if (typeof entry.cue_tr === "string" && entry.cue_tr) cues[letter] = entry.cue_tr;
+    const cue = _readCoachText(entry.cue_tr, entry.cue_en);
+    if (cue) cues[letter] = cue;
     if (Array.isArray(entry.confusable_with)) {
       confusable[letter] = entry.confusable_with.filter(
         /** @returns {other is string} */
@@ -462,7 +502,8 @@ function readLetterCurriculum(data) {
  * Read the confusion file into its look-alike groups.
  *
  * A group keeps its members of LETTERS; one left with fewer than two, or
- * without a reason, teaches nothing and is dropped.
+ * without a Turkish reason, teaches nothing and is dropped. The Turkish cues
+ * are under `cues` and the English ones under `cues_en`.
  *
  * @param {unknown} data Parsed letter_confusion.json.
  * @returns {CoachConfusionGroup[] | null} Null for another schema.
@@ -472,18 +513,21 @@ function readLetterConfusion(data) {
   /** @type {CoachConfusionGroup[]} */
   const groups = [];
   for (const group of Array.isArray(data.groups) ? data.groups : []) {
-    if (!isRecord(group) || typeof group.reason_tr !== "string" || !group.reason_tr) continue;
+    if (!isRecord(group)) continue;
+    const reason = _readCoachText(group.reason_tr, group.reason_en);
+    if (!reason) continue;
     const listed = Array.isArray(group.letters) ? group.letters : [];
     const letters = LETTERS.filter((letter) => listed.includes(letter));
     if (letters.length < 2) continue;
     const given = isRecord(group.cues) ? group.cues : {};
-    /** @type {Record<string, string>} */
+    const givenEn = isRecord(group.cues_en) ? group.cues_en : {};
+    /** @type {Record<string, CoachText>} */
     const cues = {};
     for (const letter of letters) {
-      const cue = given[letter];
-      if (typeof cue === "string" && cue) cues[letter] = cue;
+      const cue = _readCoachText(given[letter], givenEn[letter]);
+      if (cue) cues[letter] = cue;
     }
-    groups.push({ letters, reason: group.reason_tr, cues });
+    groups.push({ letters, reason, cues });
   }
   return groups;
 }
@@ -552,9 +596,27 @@ function loadCoachLetterData() {
  * @returns {string}
  */
 function coachCueLine(target) {
-  if (coachLetterDataStatus === "failed") return "İpuçları yüklenemedi. Referans görseline bakabilirsiniz.";
-  return coachLetterData.cues[target]
-    || `Hedef harf: ${target}. El şekli kameraya net görünmeli; poz en az 1 saniye sabit kalmalı.`;
+  if (coachLetterDataStatus === "failed") return t("coach.cue.failed");
+  return coachText(coachLetterData.cues[target]) || t("coach.target.letter", { letter: target });
+}
+
+/**
+ * The coach's verdict on the last attempt, kept as the string that says it
+ * so a language change can say it again; null for none. state.coachFeedback
+ * holds it as shown.
+ *
+ * @type {{key: string, params?: I18nParams} | null}
+ */
+let _coachFeedback = null;
+
+/**
+ * @param {string | null} key The verdict's string, or null to clear it.
+ * @param {I18nParams} [params]
+ * @returns {void}
+ */
+function _setCoachFeedback(key, params) {
+  _coachFeedback = key ? { key, params } : null;
+  state.coachFeedback = key ? t(key, params) : "";
 }
 
 /**
@@ -565,7 +627,7 @@ function coachCueLine(target) {
  */
 function _showCoachTarget(target) {
   state.coachTarget = target;
-  state.coachFeedback = "";
+  _setCoachFeedback(null);
   resetCoachAttempt({ newTarget: true });
   if (els.coachTarget) els.coachTarget.value = target;
   if (typeof resetSmoother === "function") resetSmoother();
@@ -600,14 +662,14 @@ function buildCoachOptions() {
   els.coachTarget.innerHTML = "";
 
   const group = document.createElement("optgroup");
-  group.label = type === "word" ? "Kelime hedefleri" : "Harf hedefleri";
+  group.label = t(type === "word" ? "coach.options.words" : "coach.options.letters");
 
   if (type === "word") {
     WORDS.forEach((word) => {
       const option = document.createElement("option");
       option.value = word;
-      const diff = EASY_WORDS.has(word) ? "rahat" : HARD_WORDS.has(word) ? "riskli" : "orta";
-      option.textContent = `${word} (${diff})`;
+      const diff = EASY_WORDS.has(word) ? "easy" : HARD_WORDS.has(word) ? "hard" : "medium";
+      option.textContent = `${word} (${t(`coach.options.${diff}`)})`;
       group.appendChild(option);
     });
     if (!WORDS.includes(state.coachTarget)) state.coachTarget = "water";
@@ -680,7 +742,10 @@ function renderCoachGrid() {
     const current = state.coachTargetType === "letter" && letter === state.coachTarget;
     if (shown) done += 1;
     button.dataset.state = current ? "current" : shown ? "done" : "todo";
-    button.setAttribute("aria-label", current ? `${letter}, şimdiki hedef` : shown ? `${letter}, tamamlandı` : letter);
+    button.setAttribute(
+      "aria-label",
+      current ? t("coach.grid.current", { letter }) : shown ? t("coach.grid.done", { letter }) : letter,
+    );
     button.setAttribute("aria-disabled", String(quiz));
     if (current) button.setAttribute("aria-current", "true");
     else button.removeAttribute("aria-current");
@@ -700,7 +765,7 @@ function setCoachTargetType(type) {
   state.coachTarget = state.coachTargetType === "word" ? "water" : "A";
   state.coachStep = 0;
   state.quizScore = 0;
-  state.coachFeedback = "";
+  _setCoachFeedback(null);
   resetCoachAttempt({ newTarget: true });
   buildCoachOptions();
   buildCoachProgress();
@@ -728,7 +793,7 @@ function setCoachFlow(flow) {
   state.coachGoal = state.coachFlow === "quiz" ? state.quizTotal : 5;
   state.coachStep = 0;
   state.quizScore = 0;
-  state.coachFeedback = "";
+  _setCoachFeedback(null);
   resetCoachAttempt({ newTarget: true });
   if (coachProgress.flow !== state.coachFlow) {
     coachProgress.flow = state.coachFlow;
@@ -818,7 +883,7 @@ function setCoachSheet(open) {
   if (open) {
     els.coachStudy.setAttribute("role", "dialog");
     els.coachStudy.setAttribute("aria-modal", "true");
-    els.coachStudy.setAttribute("aria-label", "Çalışma");
+    els.coachStudy.setAttribute("aria-label", t("coach.study.title"));
     els.coachSheetClose?.focus();
   } else {
     els.coachStudy.removeAttribute("role");
@@ -829,13 +894,13 @@ function setCoachSheet(open) {
 }
 
 /**
- * @returns {string} The study flow and its measure, as the session button
- *   shows them.
+ * @returns {{key: string, params?: I18nParams}} The string for the study
+ *   flow and its measure, as the session button shows them.
  */
 function coachSessionLabel() {
-  if (state.coachFlow === "practice") return `Pratik: ${state.coachGoal} tekrar`;
-  if (state.coachFlow === "quiz") return `Sınav: ${state.quizTotal} soru`;
-  return "Öğrenme: sırayla";
+  if (state.coachFlow === "practice") return { key: "coach.session.practice", params: { count: state.coachGoal } };
+  if (state.coachFlow === "quiz") return { key: "coach.session.quiz", params: { count: state.quizTotal } };
+  return { key: "coach.session.learn" };
 }
 
 /**
@@ -883,8 +948,9 @@ function updateCoachPanel() {
   els.coachTargetTile.dataset.kind = isLetter ? "letter" : "word";
   els.coachTargetGlyph.textContent = isLetter ? target.toUpperCase() : target;
   const targetText = isLetter
-    ? `Hedef harf: ${target}. El şekli kameraya net görünmeli; poz en az 1 saniye sabit kalmalı.`
-    : `Hedef kelime: ${target}. Hareketi 3-5 saniye içinde tamamlayın. El, yüz ve omuzlar kadrajda kalmalı.`;
+    ? t("coach.target.letter", { letter: target })
+    : t("coach.target.word", { word: target });
+  state.coachFeedback = _coachFeedback ? t(_coachFeedback.key, _coachFeedback.params) : "";
   els.coachHint.textContent =
     isLetter && state.coach.hintOpen
       ? coachHintLine(target)
@@ -896,15 +962,12 @@ function updateCoachPanel() {
       ? `${state.quizScore}/${state.quizTotal}`
       : `${Math.min(state.coachStep, state.coachGoal)}/${state.coachGoal}`;
   const counted = state.coachFlow === "quiz" ? state.quizScore : Math.min(state.coachStep, state.coachGoal);
-  els.coachProgress.setAttribute("aria-label", `Oturum: ${state.coachGoal} hedeften ${counted} tamamlandı`);
+  setAttrText(els.coachProgress, "aria-label", "coach.session.progress", { goal: state.coachGoal, done: counted });
   if (els.coachSession) els.coachSession.dataset.flow = state.coachFlow;
-  if (els.coachSessionLabel) els.coachSessionLabel.textContent = coachSessionLabel();
-  if (els.coachSessionFlow) els.coachSessionFlow.textContent = coachSessionLabel();
-  if (els.coachStorageNote) {
-    els.coachStorageNote.textContent = coachProgressSaved
-      ? "İlerlemeniz yalnızca bu cihazda saklanır, kimseyle paylaşılmaz."
-      : "İlerleme bu tarayıcıda saklanamıyor; sayfayı kapatınca sıfırlanır.";
-  }
+  const session = coachSessionLabel();
+  setText(els.coachSessionLabel, session.key, session.params);
+  setText(els.coachSessionFlow, session.key, session.params);
+  setText(els.coachStorageNote, coachProgressSaved ? "coach.letters.storageSaved" : "coach.letters.storageLost");
   // The stylesheet selects "hit" for a done target and "active" for the
   // current one.
   [...els.coachProgress.children].forEach((cell, index) => {
@@ -929,7 +992,7 @@ function updateCoachPanel() {
 function checkCoachTarget() {
   if (!_isCoachWordTarget()) return;
   if (!state.cameraOn) {
-    setMessage("Önce çalışmayı başlatın.", "low");
+    setMessage(t("coach.check.startFirst"), "low");
     return;
   }
   startWordRecording();
@@ -968,7 +1031,7 @@ function nextCoachTarget() {
  */
 function repeatCoachTarget() {
   if (state.mode !== "coach" || _isCoachWordTarget()) return;
-  state.coachFeedback = "";
+  _setCoachFeedback(null);
   resetCoachAttempt();
   if (typeof resetSmoother === "function") resetSmoother();
   if (typeof resetLetterLandmarkSmoother === "function") resetLetterLandmarkSmoother();
@@ -1012,51 +1075,53 @@ const COACH_PLATE = {
     stage: "idle",
     ring: "low",
     level: "low",
-    decision: () => "Bekleniyor",
-    message: () => "Kamerayı açtığınızda sonuç burada görünür.",
+    decision: () => t("coach.plate.waiting"),
+    message: () => t("coach.plate.cameraOff"),
   },
   "no-hand": {
     stage: "low",
     ring: "low",
     level: "low",
-    decision: () => "Bekleniyor",
-    message: () => "Elinizi kadrajın ortasına getirin.",
+    decision: () => t("coach.plate.waiting"),
+    message: () => t("coach.plate.noHand"),
   },
   watching: {
     stage: "maybe",
     ring: "maybe",
     level: "maybe",
-    decision: (target) => `Hedef: ${target}`,
-    message: () => "Halka dolunca kendiliğinden kontrol edilir.",
+    decision: (target) => t("coach.plate.target", { letter: target }),
+    message: () => t("coach.plate.autoCheck"),
   },
   holding: {
     stage: "maybe",
     ring: "good",
     level: "maybe",
-    decision: () => "Tutun…",
-    message: () => "Halka dolunca kendiliğinden kontrol edilir.",
+    decision: () => t("coach.plate.hold"),
+    message: () => t("coach.plate.autoCheck"),
   },
   miss: {
     stage: "maybe",
     ring: "maybe",
     level: "maybe",
-    decision: () => "Henüz olmadı",
+    decision: () => t("coach.plate.notYet"),
     message: (target, attempt) => coachMissText(attempt.missLetter, target),
   },
   success: {
     stage: "good",
     ring: "good",
     level: "good",
-    decision: () => "Doğru!",
+    decision: () => t("coach.plate.correct"),
     message: (target, attempt) =>
-      `${target} harfini net gösterdiniz.${attempt.advancing ? ` Sıradaki: ${_nextCoachLetter()}` : ""}`,
+      `${t("coach.plate.shown", { letter: target })}${
+        attempt.advancing ? ` ${t("coach.plate.upNext", { letter: _nextCoachLetter() })}` : ""
+      }`,
   },
   staying: {
     stage: "good",
     ring: "good",
     level: "good",
-    decision: () => "Doğru!",
-    message: () => "Hazır olduğunuzda Sonraki'ye basın.",
+    decision: () => t("coach.plate.correct"),
+    message: () => t("coach.plate.whenReady"),
   },
 };
 
@@ -1081,11 +1146,24 @@ function renderCoachPlate() {
   const message = plate.message(target, state.coach);
   setMessage(message, plate.level);
   // Written only when it differs, so a screen reader hears each verdict once
-  // and a continuing hold says nothing more.
+  // and a continuing hold says nothing more. A verdict already spoken is not
+  // spoken again in the other language: a language change empties the
+  // region until the verdict itself changes.
   const verdict = _coachVerdictText(plate.decision(target), message);
-  if (els.coachVerdict.textContent !== verdict) els.coachVerdict.textContent = verdict;
+  const about = verdict ? [state.coach.phase, target, state.coach.missLetter, state.coach.advancing].join("|") : "";
+  const language = currentLanguage();
+  if (about !== _coachSpoken.about) _coachSpoken = { about, language, muted: false };
+  else if (language !== _coachSpoken.language) _coachSpoken.muted = true;
+  const spoken = _coachSpoken.muted ? "" : verdict;
+  if (els.coachVerdict.textContent !== spoken) els.coachVerdict.textContent = spoken;
   syncCoachControls();
 }
+
+/**
+ * The verdict in the live region: the attempt it is about, the language it
+ * was spoken in, and whether a language change has emptied the region since.
+ */
+let _coachSpoken = { about: "", language: "", muted: false };
 
 /**
  * What a screen reader is told about the attempt: the success or the miss,
@@ -1155,7 +1233,7 @@ function countCoachLetterHold() {
   } else if (state.coachFlow === "practice") {
     state.coachStep = Math.min(state.coachGoal, state.coachStep + 1);
   }
-  state.coachFeedback = `Doğru! ${state.coachTarget} harfini net gösterdiniz.`;
+  _setCoachFeedback("coach.feedback.letter", { letter: state.coachTarget });
   // The next target comes up on its own once this one is done: at its first
   // success in learn and quiz, at the last repetition in practice.
   const done = state.coachFlow === "practice" ? state.coachStep >= state.coachGoal : firstForTarget;
@@ -1181,9 +1259,9 @@ function updateCoachFromPrediction() {
     if (state.coachFlow !== "learn") {
       state.coachStep = Math.min(state.coachGoal, state.coachStep + 1);
     }
-    state.coachFeedback = "Doğru eşleşme. Hareket akışı ve kadraj koşulları yeterli görünüyor.";
+    _setCoachFeedback("coach.feedback.wordMatch");
   } else {
-    state.coachFeedback = "Hedefle eşleşmedi. Hareket daha yavaş tamamlanmalı; yüz ve omuzlar görünür kalmalı.";
+    _setCoachFeedback("coach.feedback.wordMiss");
   }
   updateCoachPanel();
 }
@@ -1199,8 +1277,25 @@ function updateCoachFromPrediction() {
 const WORD_GUIDE_EASY_COUNT = 10;
 const WORD_GUIDE_PAIR_COUNT = 5;
 
-/** Display names of the published difficulty levels. @type {Record<string, string>} */
-const WORD_DIFFICULTY_LABELS = { easy: "kolay", medium: "orta", hard: "zor" };
+/** The published difficulty levels the library names. */
+const WORD_DIFFICULTY_LEVELS = ["easy", "medium", "hard"];
+
+/** Whether the side cards have been filled; until then a language change leaves them alone. */
+let _wordGuidanceRendered = false;
+
+/**
+ * A probability as a percentage in the interface language: "%7,6" and "%46"
+ * in Turkish, "7.6%" and "46%" in English. One decimal below ten, none from
+ * there up.
+ *
+ * @param {number} value Probability in [0, 1].
+ * @returns {string}
+ */
+function _wordGuidePercent(value) {
+  const percent = value * 100;
+  const text = Math.abs(percent) < 10 ? percent.toFixed(1).replace(/\.0$/, "") : String(Math.round(percent));
+  return t("coach.wordGuide.percent", { n: currentLanguage() === "tr" ? text.replace(".", ",") : text });
+}
 
 /**
  * @param {unknown} value
@@ -1325,6 +1420,7 @@ function _wordChipItem(word) {
  * @returns {void}
  */
 function renderWordGuidancePanel() {
+  _wordGuidanceRendered = true;
   const stats =
     typeof perWordStats !== "undefined" && perWordStats && typeof perWordStats === "object"
       ? perWordStats
@@ -1337,7 +1433,7 @@ function renderWordGuidancePanel() {
   const easy = easiestWords(stats, WORD_GUIDE_EASY_COUNT);
   if (els.wordDemoList && easy.length) {
     els.wordDemoList.replaceChildren(...easy.map(_wordChipItem));
-    if (els.wordDemoCount) els.wordDemoCount.textContent = `${easy.length} kolay kelime`;
+    setText(els.wordDemoCount, "coach.wordGuide.easyCount", { count: easy.length });
     if (els.wordDemoCard) els.wordDemoCard.hidden = false;
   }
 
@@ -1352,7 +1448,7 @@ function renderWordGuidancePanel() {
         second.append(_span(wordDisplayName(b), "", "en"));
         const sep = _span("↔", "word-pair__sep");
         sep.setAttribute("aria-hidden", "true");
-        item.append(first, sep, _span(" ile ", "visually-hidden"), second);
+        item.append(first, sep, _span(` ${t("coach.wordGuide.pairJoin")} `, "visually-hidden"), second);
         return item;
       }),
     );
@@ -1403,10 +1499,13 @@ function _wordLibraryItem(word, stat) {
   button.dataset.gloss = gloss;
   button.dataset.difficulty = stat.difficulty || "unknown";
   button.append(_span(wordDisplayName(word), "word-entry__name", "en"));
-  if (gloss) button.append(_span(` (${gloss})`, "word-entry__gloss"));
-  const parts = [WORD_DIFFICULTY_LABELS[stat.difficulty || ""] || ""];
+  // The gloss is the Turkish word for it, which an English reader does not
+  // need; the search still finds it.
+  if (gloss && currentLanguage() === "tr") button.append(_span(` (${gloss})`, "word-entry__gloss"));
+  const level = stat.difficulty || "";
+  const parts = [WORD_DIFFICULTY_LEVELS.includes(level) ? t(`coach.wordGuide.level.${level}`) : ""];
   const accuracy = _statNumber(stat.accuracy);
-  if (!Number.isNaN(accuracy)) parts.push(formatPercent(accuracy));
+  if (!Number.isNaN(accuracy)) parts.push(_wordGuidePercent(accuracy));
   const hint = parts.filter(Boolean).join(" · ");
   if (hint) {
     // The comma keeps the name and the hint apart when read aloud.
@@ -1450,4 +1549,32 @@ function filterWordLibrary() {
     shown += inGroup;
   }
   if (els.wordLibraryEmpty) els.wordLibraryEmpty.hidden = shown > 0;
+}
+
+/**
+ * Redraw in the new language what the coach drew from state: the target
+ * list and the letter grid, the coach card and session while the coach is
+ * open, the plate while it is the coach's, the study sheet's name, and the
+ * word screen's side cards.
+ *
+ * Called by the strings file after the marked markup has been rewritten. It
+ * only redraws: no listener, timer or fetch starts, and the camera, the
+ * attempt and the progress are left as they are.
+ *
+ * @param {Language} previous The language the page was in.
+ * @returns {void}
+ */
+function renderCoachLanguage(previous) {
+  buildCoachOptions();
+  // Another screen's coach card is redrawn when the coach opens.
+  if (state.mode === "coach") updateCoachPanel();
+  else renderCoachGrid();
+  renderCoachPlate();
+  if (isCoachSheetOpen()) els.coachStudy.setAttribute("aria-label", t("coach.study.title"));
+  // The one plate message the coach writes outside its own plate, for a
+  // word target checked before the camera is on.
+  if (els.confidenceMessage.textContent === translateIn(previous, "coach.check.startFirst")) {
+    setMessage(t("coach.check.startFirst"), "low");
+  }
+  if (_wordGuidanceRendered) renderWordGuidancePanel();
 }

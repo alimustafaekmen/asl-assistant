@@ -75,3 +75,17 @@ test("every confusion group names real letters and a cue for each member", () =>
     );
   }
 });
+
+test("every confusion group has an English cue for each member, as it has a Turkish one", () => {
+  for (const group of readJson("letter_confusion.json").groups) {
+    assert.ok(group.cues_en, `group ${group.letters} has no English cues`);
+    assert.deepEqual(
+      sorted(Object.keys(group.cues_en)),
+      sorted(group.letters),
+      `group ${group.letters}: English cues and members differ`,
+    );
+    for (const letter of group.letters) {
+      assert.ok(group.cues_en[letter], `group ${group.letters} has no English cue for ${letter}`);
+    }
+  }
+});

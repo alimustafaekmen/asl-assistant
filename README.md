@@ -9,26 +9,27 @@ American Sign Language letters live from the camera and turns them into text,
 and it has an experimental mode for 50 isolated ASL words. Hand, face and pose
 landmarks are found with MediaPipe and classified with ONNX models, all inside
 the page: there is no application server, and the camera image never leaves the
-device. The interface is in Turkish.
+device. The interface is in English and Turkish.
 
-![The letter screen on a laptop, light theme. A dark camera stage asks the visitor to show an ASL letter and offers two buttons, Kamerayı aç (open the camera) and Örneği izleyin (watch the example); side cards hold the most likely results, the letter reference and the keyboard shortcuts; the text strip and the Delete, Space and Add buttons sit below.](docs/assets/screenshots/letter-laptop.png)
+![The letter screen on a laptop, light theme. A dark camera stage asks the visitor to show an ASL letter and offers two buttons, Turn on camera and Watch the demo; side cards hold the most likely results, the letter reference and the keyboard shortcuts; the text strip and the Delete, Space and Add buttons sit below, and the top bar ends with the switch to Türkçe.](docs/assets/screenshots/letter-laptop.png)
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone.png" width="240" alt="The letter screen on a phone, light theme: the camera stage with the Kamerayı aç and Örneği izleyin buttons, then the text strip and the Delete, Space and Add buttons."><br><sub>Letter screen on a phone</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone.png" width="240" alt="The letter screen on a phone, light theme: the camera stage with the Turn on camera and Watch the demo buttons, then the text strip and the Delete, Space and Add buttons."><br><sub>Letter screen on a phone</sub></td>
     <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone-dark.png" width="240" alt="The same letter screen on a phone in the dark theme."><br><sub>Dark theme</sub></td>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/camera-help-phone.png" width="240" alt="The camera stage after the camera permission was refused: the title says camera permission was not given, with the Yeniden dene (retry) and Örneği izleyin buttons and expanded step-by-step help for iPhone Safari and Chrome."><br><sub>Help after a refused camera permission</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/camera-help-phone.png" width="240" alt="The camera stage after the camera permission was refused: the title reads Camera not allowed, with the Try again and Watch the demo buttons and expanded step-by-step help for iPhone Safari and Chrome."><br><sub>Help after a refused camera permission</sub></td>
   </tr>
 </table>
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="docs/assets/screenshots/word-laptop.png" width="100%" alt="The word screen on a laptop: the camera stage invites the visitor to record an ASL word that is added only after they accept it; side cards hold the results, the word reference, words to try first and the searchable 50-word list; the dock holds the record, retry and add buttons."><br><sub>Word screen (experimental)</sub></td>
-    <td align="center" width="50%"><img src="docs/assets/screenshots/demo-laptop.png" width="100%" alt="The camera-free demo on a laptop: a recorded hand drawn in landmarks on the dark stage; a card above it spells FLY with L marked as the current letter, 2 of 3, and asks the visitor to add the letter with Ekle or Space; the result card reads L at 100%, the most likely results list L first, and the text strip already holds F."><br><sub>The camera-free demo reading a recorded hand</sub></td>
+    <td align="center" width="50%"><img src="docs/assets/screenshots/word-laptop.png" width="100%" alt="The word screen on a laptop: the camera stage invites the visitor to record an ASL word that is added only after they accept it; side cards hold the results, the word reference, words to try first and the searchable 50-word list; the dock holds the Camera off, Record again and Add to text buttons."><br><sub>Word screen (experimental)</sub></td>
+    <td align="center" width="50%"><img src="docs/assets/screenshots/demo-laptop.png" width="100%" alt="The camera-free demo on a laptop: a recorded hand drawn in landmarks on the dark stage; a card above it spells FLY with L marked as the current letter, 2 of 3, and asks the visitor to add the letter with Add or Space; the result card reads L at 100%, the most likely results list L first, and the text strip already holds F."><br><sub>The camera-free demo reading a recorded hand</sub></td>
   </tr>
 </table>
 
-The screenshots come from headless Chrome without a camera. The demo
+The screenshots come from headless Chrome without a camera, in English;
+the [Turkish README](README.tr.md) shows the same screens in Turkish. The demo
 screenshot is a real run of the published letter model on the recorded hand;
 why it reads 100% is explained under [How it works](#how-it-works).
 
@@ -36,13 +37,14 @@ why it reads 100% is explained under [How it works](#how-it-works).
 
 | Mode (label in the app) | What it does |
 |---|---|
-| Letter (*Harf*) | Recognises 24 static ASL letters from the camera, live. Space adds the shown letter to the text, Enter adds a space, Backspace deletes. The text can be copied or read aloud. This is the main mode. |
-| Word (*Kelime*, experimental) | Records one isolated sign and shows the three most likely of 50 words. Nothing reaches the text until you accept the result. |
-| Coach (*Koç*, early) | Practice with a chosen letter or word. A letter counts when it is held steadily; progress is kept on the device. |
-| Camera-free demo (*Örneği izleyin*) | On the letter screen, plays a recorded hand spelling FLY through the path a camera frame takes: the landmarks drawn on the stage, the letter features, the letter model, the smoothing and the result card. You add each letter with Space or *Ekle*, and at the end the demo offers the camera. It loads the letter model only. |
+| Letter | Recognises 24 static ASL letters from the camera, live. Space adds the shown letter to the text, Enter adds a space, Backspace deletes. The text can be copied or read aloud. This is the main mode. |
+| Word (experimental) | Records one isolated sign and shows the three most likely of 50 words. Nothing reaches the text until you accept the result. |
+| Coach (early) | Practice with a chosen letter or word. A letter counts when it is held steadily; progress is kept on the device. |
+| Camera-free demo (*Watch the demo*) | On the letter screen, plays a recorded hand spelling FLY through the path a camera frame takes: the landmarks drawn on the stage, the letter features, the letter model, the smoothing and the result card. You add each letter with Space or *Add*, and at the end the demo offers the camera. It loads the letter model only. |
 | Model Test (for developers) | Runs bundled samples through the models without a camera, one at a time or all together, and shows the prediction, confidence and time. It is at `#test`, linked from the project page. |
-| QR (*Telefonda aç*) | A QR code that opens the hosted letter or word screen on a phone. |
-| Project (*Nasıl çalışır*) | A short summary of the models and their limits. |
+| QR (*Open on phone*) | A QR code that opens the hosted letter or word screen on a phone. |
+| Project (*How it works*) | A short summary of the models and their limits. |
+| Language (*Türkçe* / *English*) | Every screen is in English and Turkish. The first visit opens in the browser's language, or in English if that is neither; the switch at the end of the top bar (in *More* on a phone) changes it at once, without a reload, and keeps the camera running and the text. The choice is kept on the device. |
 
 ## How it works
 
@@ -133,8 +135,8 @@ make web               # serves asl-web/ at http://localhost:8080
 ```
 
 The camera works on `localhost` or HTTPS, not from a `file://` page. To see
-the app read letters without a camera, press **Örneği izleyin** (watch the
-example) on the letter screen. Model Test, which runs the bundled samples, is
+the app read letters without a camera, press **Watch the demo** on the letter
+screen. Model Test, which runs the bundled samples, is
 at `#test`.
 
 To work on the code (Python 3.12 and Node 24; the Conda file is one way to get

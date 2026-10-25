@@ -11,6 +11,11 @@
         "A": "Başparmak yumruğun yanında.",
         "S": "Başparmak parmakların önünde.",
         "T": "Başparmak işaret ve orta parmak arasında."
+      },
+      "cues_en": {
+        "A": "Thumb at the side of the fist.",
+        "S": "Thumb across the front of the fingers.",
+        "T": "Thumb between the index and middle fingers."
       }
     },
     {
@@ -21,6 +26,11 @@
         "M": "Başparmak üç parmağın altında.",
         "N": "Başparmak iki parmağın altında.",
         "T": "Başparmak yalnız işaret parmağının altında."
+      },
+      "cues_en": {
+        "M": "Thumb under three fingers.",
+        "N": "Thumb under two fingers.",
+        "T": "Thumb under the index finger only."
       }
     },
     {
@@ -31,6 +41,11 @@
         "U": "İşaret ve orta parmak bitişik.",
         "V": "İşaret ve orta parmak ayrık.",
         "R": "İşaret ve orta parmak çapraz."
+      },
+      "cues_en": {
+        "U": "Index and middle fingers together.",
+        "V": "Index and middle fingers apart.",
+        "R": "Index and middle fingers crossed."
       }
     },
     {
@@ -40,6 +55,10 @@
       "cues": {
         "K": "El yukarı bakar.",
         "P": "El aşağı bakar."
+      },
+      "cues_en": {
+        "K": "Hand points up.",
+        "P": "Hand points down."
       }
     },
     {
@@ -49,6 +68,10 @@
       "cues": {
         "G": "İşaret parmağı yana bakar.",
         "Q": "İşaret parmağı aşağı bakar."
+      },
+      "cues_en": {
+        "G": "Index finger points sideways.",
+        "Q": "Index finger points down."
       }
     },
     {
@@ -58,6 +81,10 @@
       "cues": {
         "C": "Parmaklar açık bir 'C' bırakır.",
         "O": "Parmaklar başparmakla tam halka yapar."
+      },
+      "cues_en": {
+        "C": "Fingers leave an open 'C'.",
+        "O": "Fingers meet the thumb in a full circle."
       }
     },
     {
@@ -67,6 +94,10 @@
       "cues": {
         "D": "İşaret yukarı, diğerleri başparmakla halka.",
         "F": "İşaret ve başparmak halka, diğer üçü yukarı."
+      },
+      "cues_en": {
+        "D": "Index up, the others meet the thumb in a circle.",
+        "F": "Index and thumb make a circle, the other three point up."
       }
     }
   ]

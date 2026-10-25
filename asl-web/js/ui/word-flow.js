@@ -36,18 +36,137 @@ function wordResultIsCurrent() {
 }
 
 /**
- * What the user is told when a recording ends before it finished, by reason.
+ * The string the user is told when a recording ends before it finished, by
+ * reason.
  *
  * @type {Record<WordEnd, string>}
  */
 const WORD_END_COPY = {
-  timeout:
-    "El, yüz ve omuzlar birlikte görünmedi; kayıt durduruldu. Kol boyu uzaklıkta, iyi ışıkta yeniden deneyin.",
-  "download-failed":
-    "Kelime tanıma için gereken dosyalar indirilemedi. Bağlantınızı kontrol edip yeniden deneyin.",
-  hidden: "Sayfa arka plana geçtiği için kayıt iptal edildi.",
-  cancelled: "Kayıt iptal edildi.",
+  timeout: "word.end.timeout",
+  "download-failed": "word.end.downloadFailed",
+  hidden: "word.end.hidden",
+  cancelled: "word.end.cancelled",
 };
+
+/**
+ * A string named by its key, with the parameters to fill it with. Parameters
+ * given as a function are worked out each time the string is shown, so a
+ * percentage inside them follows the language too.
+ *
+ * @typedef {Object} WordCopy
+ * @property {string} key
+ * @property {I18nParams | (() => I18nParams) | null} [params]
+ */
+
+/**
+ * The strings this file last put on the message line and the feedback bar,
+ * which prediction.js owns and writes as plain text. A language change says
+ * each again in the new language while the element still shows it; once
+ * something else has written there, the entry is dropped.
+ *
+ * @type {Map<Element, {copy: WordCopy, text: string}>}
+ */
+const _wordLinesShown = new Map();
+
+/**
+ * @param {WordCopy} copy
+ * @returns {string} The string in the current language.
+ */
+function wordCopyText(copy) {
+  const params = typeof copy.params === "function" ? copy.params() : copy.params;
+  return t(copy.key, params ?? null);
+}
+
+/**
+ * Show a string through another module's writer, and remember it for the
+ * next language change.
+ *
+ * @param {Element | null | undefined} element What the writer writes to.
+ * @param {WordCopy} copy
+ * @param {(text: string) => void} write
+ * @returns {void}
+ */
+function showWordLine(element, copy, write) {
+  write(wordCopyText(copy));
+  if (element) _wordLinesShown.set(element, { copy, text: element.textContent ?? "" });
+}
+
+/**
+ * @param {string} key
+ * @param {ConfidenceLevel} level
+ * @returns {void}
+ */
+function showWordMessage(key, level) {
+  showWordLine(els.confidenceMessage, { key }, (text) => setMessage(text, level));
+}
+
+/**
+ * @param {string} key
+ * @returns {void}
+ */
+function reportWordProblem(key) {
+  showWordLine(els.confidenceMessage, { key }, (text) => reportProblem(text));
+}
+
+/**
+ * @param {WordCopy} copy
+ * @param {FeedbackKind} kind
+ * @returns {void}
+ */
+function showWordFeedback(copy, kind) {
+  showWordLine(els.feedbackBar, copy, (text) => showFeedback(text, kind));
+}
+
+/**
+ * A percentage as the current language writes it: "%40" in Turkish, "40%"
+ * in English.
+ *
+ * @param {number} percent
+ * @returns {string}
+ */
+function formatWordPercent(percent) {
+  return t("word.percent", { n: percent });
+}
+
+/**
+ * Ranked words as "1. label %40 · 2. ...", with the percentages written the
+ * current language's way.
+ *
+ * @param {PredictionCandidate[]} items Best first.
+ * @param {number} [limit=3]
+ * @returns {string}
+ */
+function formatWordCandidates(items, limit = 3) {
+  return items
+    .slice(0, limit)
+    .map((item, index) => `${index + 1}. ${item.label} ${formatWordPercent(Math.round((item.confidence || 0) * 100))}`)
+    .join(" · ");
+}
+
+/**
+ * Redraw the word screen and the reference in the current language: what the
+ * recording state shows, the reference panel, an open viewer, and the
+ * messages this file wrote that are still on screen.
+ *
+ * Renders only: the recording, the camera and the transcript are left as
+ * they are, and a message already announced is not announced again.
+ *
+ * @returns {void}
+ */
+function renderWordLanguage() {
+  updateWordState();
+  renderWordQualityPills();
+  for (const [element, line] of Array.from(_wordLinesShown)) {
+    if (element.textContent !== line.text) {
+      _wordLinesShown.delete(element);
+      continue;
+    }
+    element.textContent = wordCopyText(line.copy);
+    line.text = element.textContent ?? "";
+  }
+  updateReferenceForMode();
+  renderOpenViewer();
+}
 
 /**
  * True while a record press waits for the word model. A second press in that
@@ -71,7 +190,7 @@ let wordModelPresses = 0;
  */
 function reportWordEnd(reason) {
   state.wordEnd = reason;
-  reportProblem(WORD_END_COPY[reason]);
+  reportWordProblem(WORD_END_COPY[reason]);
 }
 
 /**
@@ -212,7 +331,7 @@ function handleWordKey(event, fromControl) {
     if (state.wordState !== "RESULT") return false;
     event.preventDefault();
     const assessment = wordResultAccepted ? null : assessWordResult();
-    if (assessment && !assessment.canAppend) announce("Sonuç yeterince net olmadığı için eklenemez.");
+    if (assessment && !assessment.canAppend) announce(t("word.announce.notClear"));
     else appendWordResultToTranscript();
     return true;
   }
@@ -239,12 +358,12 @@ function handleWordKey(event, fromControl) {
  */
 async function startWordRecording() {
   if (!state.cameraOn) {
-    setMessage("Önce kamerayı açın.", "low");
+    showWordMessage("word.message.cameraFirst", "low");
     return;
   }
 
   if (state.mode === "coach" && state.coachTarget.length === 1) {
-    setMessage("Kelime pratiği için koç hedefinden bir kelime seçin.", "maybe");
+    showWordMessage("word.message.coachPickWord", "maybe");
     return;
   }
   if (!canCaptureWordInCurrentMode()) setMode("word");
@@ -254,7 +373,7 @@ async function startWordRecording() {
   // downloads again: the user is asked to try again, never to reload.
   if (_wordModelWait) return;
   const cameraSession = state.stream;
-  if (!wordSession) setMessage("Kelime tanıma indiriliyor…", "maybe");
+  if (!wordSession) showWordMessage("word.message.downloading", "maybe");
   _wordModelWait = true;
   wordModelPresses += 1;
   let modelReady = false;
@@ -273,7 +392,7 @@ async function startWordRecording() {
   // camera.js declares these; a page that could not fetch it has no tracking
   // at all, so undeclared counts as not ready, never as ready.
   if (typeof mpRunning === "undefined" || !mpRunning) {
-    setMessage("Kelime kaydı için el izlemenin hazır olmasını bekleyin.", "maybe");
+    showWordMessage("word.message.waitForTracking", "maybe");
     return;
   }
   if (
@@ -282,7 +401,7 @@ async function startWordRecording() {
     !poseLandmarker ||
     !faceLandmarker
   ) {
-    setMessage("Kelime kaydı için yüz ve omuz izleme gerekiyor, ama henüz hazır değil.", "low");
+    showWordMessage("word.message.facePoseNotReady", "low");
     return;
   }
   if (state.wordState !== "IDLE" && state.wordState !== "RESULT") return;
@@ -369,14 +488,16 @@ function canCaptureWordInCurrentMode() {
  * @returns {void}
  */
 function updateWordState() {
+  /** @type {Record<string, string>} */
   const labels = {
-    IDLE: "Hazır",
-    COUNTDOWN: "Geri sayım",
-    RECORDING: "Kayıt",
-    PROCESSING: "İşleniyor",
-    RESULT: "Sonuç",
+    IDLE: "word.state.idle",
+    COUNTDOWN: "word.state.countdown",
+    RECORDING: "word.state.recording",
+    PROCESSING: "word.state.processing",
+    RESULT: "word.state.result",
   };
-  els.wordStateLabel.textContent = labels[state.wordState] || state.wordState;
+  if (labels[state.wordState]) setText(els.wordStateLabel, labels[state.wordState]);
+  else els.wordStateLabel.textContent = state.wordState;
   // The stylesheet shows and hides the plate, the readout and the dock's
   // buttons from this attribute; data-state belongs to the letter screen's
   // confidence colours.
@@ -385,21 +506,19 @@ function updateWordState() {
   els.controlBar.dataset.wordStep = step;
   const percent = clampPercent((state.wordFrames / CONFIG.WORD_FRAME_COUNT) * 100);
   els.frameProgress.style.width = `${percent}%`;
-  if (els.wordHudPercent) els.wordHudPercent.textContent = `%${percent}`;
-  if (els.wordHudStep) els.wordHudStep.textContent = state.wordState === "COUNTDOWN" ? "Hazırlanın" : "Kayıt";
+  setText(els.wordHudPercent, "word.percent", { n: percent });
+  setText(els.wordHudStep, state.wordState === "COUNTDOWN" ? "word.hud.getReady" : "word.hud.recording");
   // Exposed as a value, not a live region: a bar that spoke every frame would
   // drown everything else.
   els.wordProgress?.setAttribute("aria-valuenow", String(percent));
   updateWordRecordingHud();
-  if (state.wordState === "PROCESSING")
-    els.wordStateHint.textContent = "Kayıt tamamlandı; sonuç hazırlanıyor.";
+  if (state.wordState === "PROCESSING") setText(els.wordStateHint, "word.hint.processing");
   if (state.wordState === "RESULT") {
-    els.wordStateHint.textContent = state.top3.length
-      ? `En olası sonuçlar: ${formatTopPredictions(state.top3)}. Doğruysa metne ekleyin; değilse yeniden kaydedin.`
-      : "Bu kayıttan sonuç çıkmadı. Yeniden kaydedin.";
+    if (state.top3.length) setText(els.wordStateHint, "word.hint.result", { top: formatWordCandidates(state.top3) });
+    else setText(els.wordStateHint, "word.hint.noResult");
   }
   if (state.wordState === "IDLE") {
-    els.wordStateHint.textContent = "Kaydı başlatın. Geri sayımdan sonra işareti bir kez, doğal hızda yapın; kayıt dolunca sonuç kendiliğinden gelir.";
+    setText(els.wordStateHint, "word.hint.idle");
     updateWordQualityPills(false, false, false);
   }
   updateWordFlowSteps();
@@ -429,16 +548,16 @@ function updateWordFlowSteps() {
 }
 
 /**
- * The hint for each landmark group the camera is missing, and for more than
- * one at a time.
+ * The string of the hint for each landmark group the camera is missing, and
+ * for more than one at a time.
  *
  * @type {Record<WordQualityPill | "several", string>}
  */
 const WORD_FRAMING_HINTS = {
-  hand: "Eliniz görünmüyor; kadrajın ortasına getirin.",
-  face: "Yüzünüz görünmüyor; kameraya bakın.",
-  pose: "Omuzlarınız görünmüyor; biraz geri çekilin.",
-  several: "Eliniz, yüzünüz ve omuzlarınız birlikte görünmeli; biraz geri çekilin.",
+  hand: "word.framing.hand",
+  face: "word.framing.face",
+  pose: "word.framing.pose",
+  several: "word.framing.several",
 };
 
 /** @type {WordQualityPill[]} */
@@ -481,12 +600,13 @@ function updateWordRecordingHud() {
   const framingHint =
     missing.length === 0 ? "" : missing.length === 1 ? WORD_FRAMING_HINTS[missing[0]] : WORD_FRAMING_HINTS.several;
   if (state.wordState === "COUNTDOWN") {
-    els.wordStateHint.textContent =
-      framingHint || "Geri sayım bitince işareti yapın; eliniz, yüzünüz ve omuzlarınız kadrajda kalsın.";
+    setText(els.wordStateHint, framingHint || "word.hint.countdown");
   } else {
     const percent = clampPercent((state.wordFrames / CONFIG.WORD_FRAME_COUNT) * 100);
-    els.wordStateHint.textContent =
-      `Kayıt %${percent}. ` + (framingHint || "İşareti doğal hızda tamamlayın; kayıt kendiliğinden biter.");
+    setText(els.wordStateHint, "word.hint.recording", {
+      percent: formatWordPercent(percent),
+      hint: t(framingHint || "word.hint.keepGoing"),
+    });
   }
   if (framing) updateWordQualityPills(framing.hand, framing.pose, framing.face);
 }
@@ -509,25 +629,41 @@ function updateWordRecordingHud() {
  * @returns {void}
  */
 function updateWordQualityPills(handVisible, poseVisible, faceVisible) {
-  if (!els.wordQualityPills) return;
-  const pending = state.wordState === "IDLE" && !state.cameraOn;
-  // One entry per WordQualityPill; a pill with any other data-quality is left
-  // untouched.
-  /** @type {Record<string, {label: string, ok: boolean}>} */
-  const pills = {
-    hand: { label: "El", ok: handVisible },
-    face: { label: "Yüz", ok: faceVisible },
-    pose: { label: "Omuz", ok: poseVisible },
+  _wordPillsShown = {
+    visible: { hand: handVisible, face: faceVisible, pose: poseVisible },
+    pending: state.wordState === "IDLE" && !state.cameraOn,
   };
+  renderWordQualityPills();
+}
+
+/**
+ * What the quality pills show, kept so a language change can draw them again
+ * as they were. Null until they are first drawn: the authored pills stand
+ * until then.
+ *
+ * @type {{visible: Record<WordQualityPill, boolean>, pending: boolean} | null}
+ */
+let _wordPillsShown = null;
+
+/**
+ * Draw the quality pills from what they show, in the current language.
+ *
+ * @returns {void}
+ */
+function renderWordQualityPills() {
+  if (!_wordPillsShown || !els.wordQualityPills) return;
+  const { visible, pending } = _wordPillsShown;
   queryElements("[data-quality]", els.wordQualityPills).forEach((pill) => {
-    const entry = pills[pill.dataset.quality ?? ""];
-    if (!entry) return;
+    // One entry per WordQualityPill; a pill with any other data-quality is
+    // left untouched.
+    const group = pill.dataset.quality ?? "";
+    if (group !== "hand" && group !== "face" && group !== "pose") return;
     if (pending) {
-      pill.textContent = `${entry.label} ·`;
+      pill.textContent = `${t(`word.pill.${group}`)} ·`;
       delete pill.dataset.ok; // Neither the ok nor the missing style applies.
     } else {
-      pill.textContent = `${entry.label} ${entry.ok ? "✓" : "✗"}`;
-      pill.dataset.ok = entry.ok ? "true" : "false";
+      pill.textContent = `${t(`word.pill.${group}`)} ${visible[group] ? "✓" : "✗"}`;
+      pill.dataset.ok = visible[group] ? "true" : "false";
     }
   });
 }
@@ -566,19 +702,19 @@ function syncRecordButton() {
   // The pose and face tasks start with the camera, so before it nothing is
   // loading: ask for the camera rather than claim progress.
   if (wordCapableMode && !state.cameraOn) {
-    els.recordWord.title = "Kelime kaydı için önce kamerayı açın.";
-    setButtonLabel(els.recordWord, "Kamera kapalı");
+    setButtonTitle(els.recordWord, "word.record.title.cameraOff");
+    setButtonLabel(els.recordWord, "word.record.cameraOff");
   } else if (wordCapableMode && !wordPipelineReady) {
-    els.recordWord.title = "Yüz ve omuz izleme yükleniyor…";
-    setButtonLabel(els.recordWord, state.mode === "coach" ? "Kelime Pratiği Yükleniyor" : "Yükleniyor…");
+    setButtonTitle(els.recordWord, "word.record.title.loading");
+    setButtonLabel(els.recordWord, state.mode === "coach" ? "word.record.coachLoading" : "word.record.loading");
   } else if (wordFlowBusy) {
-    els.recordWord.title = "Bu kayıt akışı tamamlanınca yeni kayıt alınabilir.";
-    setButtonLabel(els.recordWord, state.wordState === "PROCESSING" ? "Sonuç hazırlanıyor…" : "Kayıt sürüyor");
+    setButtonTitle(els.recordWord, "word.record.title.busy");
+    setButtonLabel(els.recordWord, state.wordState === "PROCESSING" ? "word.record.processing" : "word.record.recording");
   } else {
-    els.recordWord.title = "";
+    setButtonTitle(els.recordWord, null);
     setButtonLabel(
       els.recordWord,
-      state.mode === "coach" ? "Kelime Pratiği" : state.wordState === "RESULT" ? "Yeni kayıt" : "Kaydı başlat",
+      state.mode === "coach" ? "word.record.coach" : state.wordState === "RESULT" ? "word.record.again" : "word.record.start",
     );
   }
 }
@@ -590,13 +726,27 @@ function syncRecordButton() {
  * that has none has its whole text replaced.
  *
  * @param {HTMLElement} button
- * @param {string} text
+ * @param {string} key The label's string.
  * @returns {void}
  */
-function setButtonLabel(button, text) {
-  const label = button.querySelector("[data-label]");
-  if (label) label.textContent = text;
-  else button.textContent = text;
+function setButtonLabel(button, key) {
+  setText(button.querySelector("[data-label]") ?? button, key);
+}
+
+/**
+ * Give a button its tooltip, or take it away.
+ *
+ * @param {HTMLElement} button
+ * @param {string | null} key The tooltip's string; null for none.
+ * @returns {void}
+ */
+function setButtonTitle(button, key) {
+  if (key) {
+    setAttrText(button, "title", key);
+  } else {
+    button.removeAttribute("data-i18n-title");
+    button.setAttribute("title", "");
+  }
 }
 
 /**
@@ -609,9 +759,7 @@ function setButtonLabel(button, text) {
  * @returns {void}
  */
 function syncActionBar() {
-  if (els.cameraToggle) {
-    els.cameraToggle.textContent = state.cameraOn ? "Kamerayı kapat" : "Kamerayı aç";
-  }
+  setText(els.cameraToggle, state.cameraOn ? "letter.camera.turnOff" : "letter.camera.turnOn");
   const videoTarget =
     state.mode === "word"
       ? (state.prediction && state.prediction.length > 1 ? state.prediction : "")
@@ -627,12 +775,15 @@ function syncActionBar() {
       !assessment.canAppend ||
       !wordResultIsCurrent() ||
       wordResultAccepted;
-    els.appendWordResult.title = wordResultAccepted
-      ? "Bu sonuç metne eklendi."
-      : els.appendWordResult.disabled
-        ? "Sonuç yeterince net olduğunda metne eklenebilir."
-        : "Sonuç doğruysa metne ekleyin.";
-    setButtonLabel(els.appendWordResult, wordResultAccepted ? "Eklendi" : "Metne ekle");
+    setButtonTitle(
+      els.appendWordResult,
+      wordResultAccepted
+        ? "word.append.title.added"
+        : els.appendWordResult.disabled
+          ? "word.append.title.notYet"
+          : "word.append.title.ready",
+    );
+    setButtonLabel(els.appendWordResult, wordResultAccepted ? "word.append.added" : "word.append.add");
   }
   // Once the result is accepted the dock offers a new recording first.
   els.controlBar.dataset.wordAccepted = String(wordResultAccepted && state.wordState === "RESULT");
@@ -645,9 +796,7 @@ function syncActionBar() {
       state.wordState === "COUNTDOWN" ||
       state.wordState === "RECORDING" ||
       state.wordState === "PROCESSING";
-    els.retryWord.title = els.retryWord.disabled
-      ? "Kamera açıkken ve kayıt bitince tekrar denenebilir."
-      : "Sonuç farklıysa yeniden kaydedin.";
+    setButtonTitle(els.retryWord, els.retryWord.disabled ? "word.retry.title.notYet" : "word.retry.title.ready");
   }
 }
 

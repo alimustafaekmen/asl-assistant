@@ -93,20 +93,28 @@ edited in place and have no separate source.
 
 ### Classic scripts in a fixed order
 
-`asl-web/index.html` holds every screen and loads 23 plain `<script>` files.
+`asl-web/index.html` holds every screen and loads 31 plain `<script>` files.
 They are classic scripts, not ES modules: they share one global scope, and a
 file can use what an earlier file defined. That makes the order a runtime
 contract:
 
-- `core/theme-boot.js` runs in `<head>`, before the stylesheets, so the first
-  paint already has the visitor's theme.
+- `core/theme-boot.js` and `core/lang-boot.js` run in `<head>`, before the
+  stylesheets, so the first paint already has the visitor's theme and
+  `<html lang>` names their language.
+- `core/i18n.js`, the strings files under `i18n/` and `core/i18n-boot.js`
+  open the body's scripts, before the CDN script tags, so the page is in the
+  visitor's language before the browser waits on a CDN. Until they have
+  run, a page in English is kept hidden (`data-i18n-pending` on `<html>`,
+  with a 3 s fail-safe in `css/base.css`), so the Turkish markup is never
+  painted.
 - `core/config.js` and then `core/runtime.js` come next. `runtime.js` creates
   the shared `state` object, the `els` registry of page elements and the word
   recording buffers, once.
 - The `ml/`, `media/`, `services/` and `ui/` files only declare functions and
   values.
 - `core/app.js` comes last. It is the only script with startup side effects:
-  it calls `init()`.
+  it calls `init()`. The boot scripts only write onto `<html>` or translate
+  the parsed markup, and the strings files only register.
 
 ONNX Runtime Web and `kjua` are script tags placed before the app's own, with
 Subresource Integrity hashes (the browser checks the file against a hash
@@ -123,7 +131,8 @@ way the browser does.
 
 | Folder | Files | What they do |
 |---|---|---|
-| `core/` | `theme-boot.js`, `config.js`, `runtime.js`, `app.js` | Theme before the first paint; settings and label lists; shared state and the element registry; startup, routing, camera start and stop, the render loop and the `window.aslDebug` console helper |
+| `core/` | `theme-boot.js`, `lang-boot.js`, `i18n.js`, `i18n-boot.js`, `config.js`, `runtime.js`, `app.js` | Theme and language before the first paint; the strings registry, translation and the language switch; settings and label lists; shared state and the element registry; startup, routing, camera start and stop, the render loop and the `window.aslDebug` console helper |
+| `i18n/` | `shell.js`, `letter.js`, `word.js`, `coach.js`, `info.js` | The interface strings of each area, Turkish and English side by side |
 | `media/` | `camera.js`, `demo-source.js`, `overlay.js` | The MediaPipe tasks and the detection loop; the camera-free demo, which plays a recorded hand as a second frame source; the landmarks drawn over the video or the demo's square |
 | `ml/` | `landmarks.js`, `features.js`, `gating.js`, `hold.js`, `letter-model.js`, `word-model.js`, `live-inference.js` | The 321-value landmark frame; letter and word features; letter smoothing and word feedback data; hold detection for the coach; the two ONNX sessions; running them on live frames |
 | `services/` | `benchmark.js` | Latency measurements shown in the debug panel |

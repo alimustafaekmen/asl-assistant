@@ -24,18 +24,46 @@
  */
 
 /**
+ * Text for the interface that is either written once or redrawn in the
+ * current language. A function is called again after a language change, so
+ * what it writes follows the switch; a string stays as it was written.
+ *
+ * @typedef {string | (() => string)} UiText
+ */
+
+/**
+ * @param {UiText} text
+ * @returns {string} The text as it reads now.
+ */
+function uiText(text) {
+  return typeof text === "function" ? text() : text;
+}
+
+/**
+ * A whole percentage as the current language writes it: "%90" in Turkish,
+ * "90%" in English.
+ *
+ * @param {number} value A whole percentage, not a fraction.
+ * @returns {string}
+ */
+function percentText(value) {
+  return t("letter.plate.percent", { n: value });
+}
+
+/**
  * The user's wording of each recording quality warning; the technical reasons
- * stay in the debug snapshot (window._lastWordDebug).
+ * stay in the debug snapshot (window._lastWordDebug). Each is looked up when
+ * it is read, so it is in the language shown at that moment.
  *
  * @type {Record<WordQualityCode, string>}
  */
 const WORD_QUALITY_COPY = {
-  pose: "Omuzlarınız az göründü.",
-  face: "Yüzünüz az göründü.",
-  hand: "Eliniz aralıklarla kayboldu.",
-  "few-frames": "Kayıt kısa kaldı.",
-  slow: "Kayıt yavaş doldu; ışığı artırın.",
-  still: "Hareket algılanmadı; işareti tam yapın.",
+  get pose() { return t("letter.wordQuality.pose"); },
+  get face() { return t("letter.wordQuality.face"); },
+  get hand() { return t("letter.wordQuality.hand"); },
+  get "few-frames"() { return t("letter.wordQuality.fewFrames"); },
+  get slow() { return t("letter.wordQuality.slow"); },
+  get still() { return t("letter.wordQuality.still"); },
 };
 
 /**
@@ -69,28 +97,13 @@ function updatePrediction(prediction) {
     return;
   }
 
-  els.confidenceText.textContent = pct ? `%${pct}` : "--";
   els.confidenceRing.style.setProperty("--score", String(pct));
 
   const level = getConfidenceLevel(state.confidence);
   els.confidenceRing.className = `confidence-ring ${level}`;
   els.cameraStage.dataset.state = state.wordState === "RECORDING" ? "recording" : level;
 
-  const th = _thresholdsForMode();
-  // Uncertainty comes before a close call: a word too weak to accept is not
-  // a choice between two usable words, whatever the runner-up scored.
-  if (prediction.label === "?") {
-    els.decisionLabel.textContent = "Bekleniyor";
-  } else if (state.confidence < th.unknown) {
-    els.decisionLabel.textContent = "Emin değil";
-  } else if (isWordLikeMode() && getTopMargin() < 0.03 && state.top3.length > 1) {
-    els.decisionLabel.textContent = "Çok yakın";
-  } else if (state.confidence < th.confident) {
-    els.decisionLabel.textContent = "Büyük olasılıkla";
-  } else {
-    els.decisionLabel.textContent = "Emin";
-  }
-
+  renderPlateLevel();
   renderTop3();
   updateMessageForPrediction();
   renderWordResultGuide();
@@ -98,6 +111,38 @@ function updatePrediction(prediction) {
   // Only the word reference follows the prediction; the letter chart does
   // not, so letter frames skip this.
   if (state.mode === "word") updateReferenceForMode();
+}
+
+/**
+ * Write the plate's percentage and its short decision for the result in
+ * state. Not called in the coach's letter context, whose plate the coach
+ * writes.
+ *
+ * @returns {void}
+ */
+function renderPlateLevel() {
+  const pct = Math.round(state.confidence * 100);
+  if (pct) {
+    setText(els.confidenceText, "letter.plate.percent", { n: pct });
+  } else {
+    els.confidenceText.removeAttribute("data-i18n");
+    els.confidenceText.textContent = "--";
+  }
+
+  const th = _thresholdsForMode();
+  // Uncertainty comes before a close call: a word too weak to accept is not
+  // a choice between two usable words, whatever the runner-up scored.
+  let decision = "sure";
+  if (state.prediction === "?") {
+    decision = "waiting";
+  } else if (state.confidence < th.unknown) {
+    decision = "unsure";
+  } else if (isWordLikeMode() && getTopMargin() < 0.03 && state.top3.length > 1) {
+    decision = "close";
+  } else if (state.confidence < th.confident) {
+    decision = "likely";
+  }
+  setText(els.decisionLabel, `letter.plate.decision.${decision}`);
 }
 
 /**
@@ -111,7 +156,7 @@ function renderTop3() {
     // A sentence, because a placeholder row such as "1. - %0" reads as a result.
     const hint = document.createElement("p");
     hint.className = "top3-empty";
-    hint.textContent = "Kamera açılınca en olası sonuçlar burada görünür.";
+    setText(hint, "letter.ranked.empty");
     els.top3List.appendChild(hint);
     return;
   }
@@ -135,7 +180,7 @@ function renderTop3() {
     bar.appendChild(fill);
 
     const confidence = document.createElement("span");
-    confidence.textContent = `%${pct}`;
+    setText(confidence, "letter.plate.percent", { n: pct });
 
     row.append(rank, label, bar, confidence);
     els.top3List.appendChild(row);
@@ -153,36 +198,38 @@ function renderTop3() {
  */
 function updateMessageForPrediction() {
   if (state.prediction === "?") {
-    setMessage("Kamerayı açtığınızda sonuç burada görünür.", "low");
+    setMessage(() => t("letter.plate.idle"), "low");
     return;
   }
 
   if (isWordLikeMode() && state.top3.length) {
-    const topText = formatTopPredictions(state.top3);
+    // This result's candidates, kept for a redraw in another language.
+    const top = state.top3.slice();
     if (state.confidence < CONFIG.WORD_UNKNOWN_THRESHOLD) {
-      setMessage(`Emin olunamadı. En yakın sonuçlar: ${topText}. Eliniz, yüzünüz ve omuzlarınız görünür olacak şekilde yeniden kaydedin.`, "low");
+      setMessage(() => t("letter.plate.wordUnsure", { top: formatTopPredictions(top) }), "low");
       return;
     }
     if (getTopMargin() < 0.03 && state.top3.length > 1) {
-      setMessage(`İlk iki sonuç çok yakın: ${topText}. Doğru olanı kontrol edin.`, "maybe");
+      setMessage(() => t("letter.plate.wordClose", { top: formatTopPredictions(top) }), "maybe");
       return;
     }
-    setMessage(`En olası sonuçlar: ${topText}.`, getConfidenceLevel(state.confidence));
+    setMessage(() => t("letter.plate.wordLikely", { top: formatTopPredictions(top) }), getConfidenceLevel(state.confidence));
     return;
   }
 
   const th = _thresholdsForMode();
   if (state.confidence < th.unknown) {
-    setMessage("Emin olunamadı. Işığı artırmayı ya da elinizi biraz yaklaştırmayı deneyin.", "low");
+    setMessage(() => t("letter.plate.letterUnsure"), "low");
     return;
   }
 
+  const letter = state.prediction;
   if (state.confidence < th.confident) {
-    setMessage(`Büyük olasılıkla ${state.prediction}. Biraz daha sabit tutun.`, "maybe");
+    setMessage(() => t("letter.plate.letterLikely", { letter }), "maybe");
     return;
   }
 
-  setMessage(`${state.prediction} harfi net görünüyor.`, "good");
+  setMessage(() => t("letter.plate.letterClear", { letter }), "good");
 }
 
 /**
@@ -203,7 +250,8 @@ function getTopMargin() {
 }
 
 /**
- * Format ranked candidates as "1. label %pct · 2. ...".
+ * Format ranked candidates as "1. label %pct · 2. ...", each percentage as
+ * the current language writes it.
  *
  * @param {PredictionCandidate[]} items Ranked candidates, best first.
  * @param {number} [limit=3] How many to include.
@@ -212,7 +260,7 @@ function getTopMargin() {
 function formatTopPredictions(items, limit = 3) {
   return items
     .slice(0, limit)
-    .map((item, index) => `${index + 1}. ${item.label} %${Math.round((item.confidence || 0) * 100)}`)
+    .map((item, index) => `${index + 1}. ${item.label} ${percentText(Math.round((item.confidence || 0) * 100))}`)
     .join(" · ");
 }
 
@@ -228,8 +276,8 @@ function assessWordResult() {
   if (!state.prediction || state.prediction === "?" || state.prediction.length <= 1) {
     return {
       level: "low",
-      decision: "Sonuç çıkmadı",
-      action: "Kamerayı, ışığı ve kadrajı kontrol edip yeniden kaydedin.",
+      decision: t("letter.wordGuide.noResult"),
+      action: t("letter.wordGuide.noResultAction"),
       canAppend: false,
     };
   }
@@ -244,19 +292,19 @@ function assessWordResult() {
   if (belowAccept) {
     return {
       level: "low",
-      decision: "Emin olunamadı",
-      action: `En yakın sonuç ${state.prediction}, ama metne eklemek için yeterince net değil. Daha net bir kayıtla yeniden deneyin: eliniz, yüzünüz ve omuzlarınız görünür olsun.`,
+      decision: t("letter.wordGuide.unsure"),
+      action: t("letter.wordGuide.unsureAction", { word: state.prediction }),
       canAppend: false,
     };
   }
 
   if (isClose || hasQualityRisk) {
     const reason = isClose
-      ? `İlk iki sonuç çok yakın. Doğrusu ${state.prediction} ise ekleyin; değilse yeniden kaydedin.`
-      : `${WORD_QUALITY_COPY[warnings[0]]} Sonucu kontrol ederek ekleyin.`;
+      ? t("letter.wordGuide.closeAction", { word: state.prediction })
+      : t("letter.wordGuide.qualityAction", { warning: WORD_QUALITY_COPY[warnings[0]] });
     return {
       level: "maybe",
-      decision: "Kontrol ederek ekleyin",
+      decision: t("letter.wordGuide.check"),
       action: reason,
       canAppend: true,
     };
@@ -264,8 +312,8 @@ function assessWordResult() {
 
   return {
     level: "good",
-    decision: "Sonuç kullanılabilir",
-    action: "Doğruysa metne ekleyin; değilse yeniden kaydedin.",
+    decision: t("letter.wordGuide.usable"),
+    action: t("letter.wordGuide.usableAction"),
     canAppend: true,
   };
 }
@@ -289,9 +337,9 @@ function renderPlateNear() {
   const others = state.top3.slice(1, 3).map((item) => {
     const card = wordCard(item.label);
     const gloss = card ? wordGloss(card) : "";
-    return `${item.label}${gloss ? ` (${gloss})` : ""} %${Math.round((item.confidence || 0) * 100)}`;
+    return `${item.label}${gloss ? ` (${gloss})` : ""} ${percentText(Math.round((item.confidence || 0) * 100))}`;
   });
-  near.textContent = `Yakın: ${others.join(" · ")}`;
+  near.textContent = t("letter.plate.near", { words: others.join(" · ") });
 }
 
 /**
@@ -318,14 +366,26 @@ function renderWordResultGuide() {
 }
 
 /**
+ * The status line's text as it was given, so a language change can write it
+ * again: a function is called anew, a string stays.
+ *
+ * @type {UiText | null}
+ */
+let _messageText = null;
+
+/**
  * Write the status line under the prediction.
  *
- * @param {string} text Turkish text shown to the user.
+ * @param {UiText} text Shown to the user. A function that looks its string
+ *   up keeps the line in the current language across a switch.
  * @param {ConfidenceLevel} level Drives the message's colour state.
  * @returns {void}
  */
 function setMessage(text, level) {
-  els.confidenceMessage.textContent = text;
+  _messageText = text;
+  // The script owns the line from here on, not the markup's string.
+  els.confidenceMessage.removeAttribute("data-i18n");
+  els.confidenceMessage.textContent = uiText(text);
   els.confidenceMessage.dataset.level = level;
 }
 
@@ -335,24 +395,28 @@ function setMessage(text, level) {
  * The message line is deliberately not a live region, since it changes with
  * every prediction; a camera or download failure has to be spoken.
  *
- * @param {string} text Turkish text shown to the user.
+ * @param {UiText} text Shown to the user, as setMessage() takes it.
  * @returns {void}
  */
 function reportProblem(text) {
   setMessage(text, "low");
-  announce(text);
+  announce(uiText(text));
 }
+
+/** The feedback bar's text as it was given; see _messageText. @type {UiText | null} */
+let _feedbackText = null;
 
 /**
  * Show the feedback bar above the workspace.
  *
- * @param {string} text Turkish text shown to the user.
+ * @param {UiText} text Shown to the user, as setMessage() takes it.
  * @param {FeedbackKind} kind Selects the feedback-bar CSS modifier.
  * @returns {void}
  */
 function showFeedback(text, kind) {
   if (!els.feedbackBar) return;
-  els.feedbackBar.textContent = text;
+  _feedbackText = text;
+  els.feedbackBar.textContent = uiText(text);
   els.feedbackBar.className = `feedback-bar feedback-bar--${kind}`;
   els.feedbackBar.hidden = false;
 }
@@ -360,8 +424,27 @@ function showFeedback(text, kind) {
 /** @returns {void} */
 function clearFeedback() {
   if (!els.feedbackBar) return;
+  _feedbackText = null;
   els.feedbackBar.hidden = true;
   els.feedbackBar.textContent = "";
+}
+
+/**
+ * Redraw what this file wrote as composed text, in the language just
+ * chosen: the status line and the feedback bar where they were given as
+ * functions, and the word result guide with its near results. Render only,
+ * from state; nothing is announced again. The decision word and the
+ * percentages are bound to their strings with setText, so the switch itself
+ * rewrites them.
+ *
+ * @returns {void}
+ */
+function renderPredictionLanguage() {
+  if (_messageText !== null) els.confidenceMessage.textContent = uiText(_messageText);
+  if (_feedbackText !== null && els.feedbackBar && !els.feedbackBar.hidden) {
+    els.feedbackBar.textContent = uiText(_feedbackText);
+  }
+  renderWordResultGuide();
 }
 
 /**

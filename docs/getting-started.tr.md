@@ -57,9 +57,10 @@ paket kurulmaz.
    python3 -m http.server 8080 --directory asl-web
    ```
 
-3. <http://localhost:8080> adresini açın. Uygulama harf ekranıyla açılır.
-   Arayüz Türkçedir; aşağıdaki adımlar her etiketi uygulamada göründüğü gibi
-   verir.
+3. <http://localhost:8080> adresini açın. Uygulama harf ekranıyla,
+   tarayıcınızın diline göre Türkçe ya da İngilizce açılır (dil ikisinden biri
+   değilse İngilizce); üst çubuğun sonundaki düğme dili değiştirir. Aşağıdaki
+   adımlar Türkçe etiketleri verir.
 4. **Kamerayı aç** düğmesine basıp kameraya izin verin, sonra kameraya bir
    harf gösterin.
 5. Uygulamanın harfleri kamerasız nasıl okuduğunu görmek için **Örneği

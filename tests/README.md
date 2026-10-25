@@ -119,8 +119,11 @@ context, in the order `index.html` lists them, against a document built from
 the real `index.html`, with a fake camera and a fake ONNX Runtime
 (`tests/web/helpers/`). They check behaviour such as the word mask polarity and
 frame order sent to the model, that a word is never appended to the transcript
-without the user accepting it, and that stopping the camera releases every
-track. The context has no layout, no cascade and no real media, which is why
+without the user accepting it, that stopping the camera releases every
+track, and that the interface language is resolved in the documented order and a switch
+redraws every screen in the other language without restarting the camera or
+losing the text (`language-resolution`, `i18n-core` and the `*-language*`
+tests). The context has no layout, no cascade and no real media, which is why
 the browser layer exists.
 
 The page wiring is checked in two places:

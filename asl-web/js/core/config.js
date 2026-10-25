@@ -62,7 +62,7 @@
 /**
  * @typedef {Object} ReferenceAsset
  * @property {string} src Image path relative to asl-web/.
- * @property {string} alt Turkish alt text shown to the user.
+ * @property {string} alt Alt text in the page's language, read when shown.
  */
 
 /**
@@ -208,21 +208,31 @@ const HARD_WORDS = new Set([
 ]);
 
 // The groups the word screen lists the 50 words under, in the order shown.
-// Each label of WORDS belongs to exactly one group.
+// Each label of WORDS belongs to exactly one group. A title is read when the
+// list is drawn, in the page's language at that moment (js/i18n/word.js).
 /** @type {{title: string, words: string[]}[]} */
 const WORD_CATEGORIES = [
   {
-    title: "Günlük",
+    get title() { return t("word.library.group.everyday"); },
     words: [
       "water", "home", "food", "drink", "book", "finish", "wait", "open",
       "go", "look", "listen", "hear", "talk", "thankyou", "please",
     ],
   },
-  { title: "Duygu / durum", words: ["sad", "happy", "sleep", "sleepy", "sick", "hungry", "hot"] },
-  { title: "Hayvan", words: ["bird", "cow", "dog", "donkey", "duck", "mouse"] },
-  { title: "Aile / insan", words: ["dad", "mom", "uncle", "brother", "child", "fireman", "who"] },
   {
-    title: "Diğer",
+    get title() { return t("word.library.group.feelings"); },
+    words: ["sad", "happy", "sleep", "sleepy", "sick", "hungry", "hot"],
+  },
+  {
+    get title() { return t("word.library.group.animals"); },
+    words: ["bird", "cow", "dog", "donkey", "duck", "mouse"],
+  },
+  {
+    get title() { return t("word.library.group.people"); },
+    words: ["dad", "mom", "uncle", "brother", "child", "fireman", "who"],
+  },
+  {
+    get title() { return t("word.library.group.other"); },
     words: [
       "all", "before", "brown", "bye", "can", "give", "have", "hello",
       "like", "lips", "no", "pretend", "shhh", "toothbrush", "yes",
@@ -234,7 +244,7 @@ const WORD_CATEGORIES = [
 const REFERENCE_ASSETS = {
   letter: {
     src: "./assets/signs/letters.png",
-    alt: "ASL harf referans görseli",
+    get alt() { return t("word.reference.letterAlt"); },
   },
   wordPages: [
     "./assets/signs/word-50-1.webp",
