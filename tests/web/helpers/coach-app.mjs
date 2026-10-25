@@ -5,10 +5,10 @@
 // MediaPipe frame loop run on queued animation frames, MediaPipe's hand task
 // reports the hand the test chose, and ONNX Runtime answers the letter the
 // test chose at the confidence it chose. The clock, the timers, the camera,
-// the MediaPipe CDN import, ONNX Runtime and storage are the boundaries
-// faked here; everything between them is the app's own code, from the
-// camera start button through feature extraction and smoothing to the
-// coach's verdict.
+// the MediaPipe CDN import and its model server, ONNX Runtime and storage
+// are the boundaries faked here; everything between them is the app's own
+// code, from the camera start button through feature extraction and
+// smoothing to the coach's verdict.
 //
 // play(ms) advances the clock in 16 ms browser frames. Each frame first runs
 // the timers that fell due, then every queued animation frame callback once,
@@ -17,6 +17,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { serveModelFiles } from "./fake-camera.mjs";
 import { WEB_DIR, loadWebApp } from "./web-app-context.mjs";
 
 const readJson = (path) => JSON.parse(readFileSync(join(WEB_DIR, path), "utf8"));
@@ -194,6 +195,7 @@ export async function coachApp(options = {}) {
   // The CDN import is the MediaPipe boundary; the video element's playback
   // and size are the camera's.
   app.evaluate("globalThis").__vision = vision;
+  serveModelFiles(app);
   app.evaluate(`
     _importTasksVision = async () => __vision;
     els.video.play = async () => {};

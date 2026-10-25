@@ -715,6 +715,13 @@ function moveCoachRadio(event) {
   next.click();
 }
 
+/**
+ * Lets the phone's Back gesture close the sheet without a history entry.
+ *
+ * @type {{ destroy(): void, onclose: (() => void) | null } | null}
+ */
+let _coachSheetWatcher = null;
+
 /** @returns {boolean} */
 function isCoachSheetOpen() {
   return els.coachStudy.dataset.open === "true";
@@ -735,7 +742,15 @@ function setCoachSheet(open) {
     els.coachStudy.setAttribute("aria-modal", "true");
     els.coachStudy.setAttribute("aria-label", t("coach.study.title"));
     els.coachSheetClose?.focus();
+    // Not in the TypeScript DOM library yet.
+    const Watcher = /** @type {any} */ (globalThis).CloseWatcher;
+    if (typeof Watcher === "function") {
+      _coachSheetWatcher = new Watcher();
+      _coachSheetWatcher.onclose = () => setCoachSheet(false);
+    }
   } else {
+    _coachSheetWatcher?.destroy();
+    _coachSheetWatcher = null;
     els.coachStudy.removeAttribute("role");
     els.coachStudy.removeAttribute("aria-modal");
     els.coachStudy.removeAttribute("aria-label");

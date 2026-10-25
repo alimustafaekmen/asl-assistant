@@ -198,8 +198,14 @@ async function copyTranscript() {
  * @returns {void}
  */
 function speakTranscript() {
-  const text = state.transcript.trim() || state.prediction;
-  if (!text || !("speechSynthesis" in window)) return;
+  // "?" is the plate's "nothing detected", not a letter to read aloud.
+  const letter = state.prediction === "?" ? "" : state.prediction;
+  const text = state.transcript.trim() || letter;
+  if (!text) {
+    showToast(() => t("letter.transcript.nothingToSpeak"));
+    return;
+  }
+  if (!("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "en-US";

@@ -2,18 +2,38 @@
 //
 // A camera start crosses five boundaries, each asynchronous: the permission
 // prompt (getUserMedia), the first video frame (video.play), the MediaPipe CDN
-// import, its WASM fileset, and one model download per task. A stop can land
-// in any of those waits. This helper fakes each boundary so a test can hold
-// one open, press Stop, and then let it finish, and it records what the app
-// did with what it was given: which tasks it created and closed, which frames
-// it scheduled, which tracks it stopped. Everything between the boundaries is
-// the app's own code.
+// import, its WASM fileset, and one model download per task (held through
+// `models`, or through the task itself). A stop can land in any of those
+// waits. This helper fakes each boundary so a test can hold one open, press
+// Stop, and then let it finish, and it records what the app did with what it
+// was given: which tasks it created and closed, which frames it scheduled,
+// which tracks it stopped. Everything between the boundaries is the app's own
+// code.
 //
 // Animation frames are queued rather than run. runFrame() plays one browser
 // frame: every callback pending at that moment runs once, so two detection
 // loops show up as two detections per frame.
 
 import { loadWebApp } from "./web-app-context.mjs";
+
+/** Where every MediaPipe model file is downloaded from. */
+export const MODEL_STORAGE = "https://storage.googleapis.com/mediapipe-models/";
+
+/** A model file as the storage server answers it. */
+export const modelFile = () => ({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(16) });
+
+/**
+ * Stand in for the model server: the app's requests for MediaPipe model
+ * files get `answer(url)`, and every other request goes to its own fetch.
+ *
+ * @param {{evaluate: (expression: string) => any}} app
+ * @param {(url: string) => Promise<unknown>} [answer]
+ */
+export function serveModelFiles(app, answer = async () => modelFile()) {
+  const pageFetch = app.evaluate("fetch");
+  app.evaluate("globalThis").fetch = (input, init) =>
+    String(input).startsWith(MODEL_STORAGE) ? answer(String(input)) : pageFetch(input, init);
+}
 
 /** Let pending promise continuations run. */
 export const flush = async (rounds = 8) => {
@@ -61,6 +81,16 @@ function fakeTrack() {
       this.readyState = "ended";
       for (const listener of [...(listeners.get("ended") ?? [])]) listener({ type: "ended", target: this });
     },
+    muted: false,
+    /** The source stops sending frames but the track stays live, as an interruption does. */
+    mute() {
+      this.muted = true;
+      for (const listener of [...(listeners.get("mute") ?? [])]) listener({ type: "mute", target: this });
+    },
+    unmute() {
+      this.muted = false;
+      for (const listener of [...(listeners.get("unmute") ?? [])]) listener({ type: "unmute", target: this });
+    },
   };
 }
 
@@ -72,14 +102,22 @@ function fakeTrack() {
  * @property {{detections: number, closed: number}} task Counters of the task it yields.
  * @property {() => void} resolve Hand the task over.
  * @property {(error: unknown) => void} reject Fail the download.
+ *
+ * @typedef {Object} Download One request for a MediaPipe model file.
+ * @property {string} url
+ * @property {() => void} resolve Answer it with the model bytes.
+ * @property {(error: unknown) => void} reject Fail it, as offline.
  */
 
 /**
  * @param {{
  *   mode?: string,
- *   hold?: Partial<Record<TaskKind | "import" | "wasm" | "play" | "onnx", boolean>>,
+ *   hold?: Partial<Record<TaskKind | "import" | "wasm" | "play" | "onnx" | "models", boolean>>,
+ *   languages?: readonly string[],
  * }} [options] `hold` keeps that boundary open until the test settles it;
- *   everything not held resolves at once.
+ *   everything not held resolves at once. `models` holds the downloads of
+ *   the MediaPipe model files. `languages` are the browser's, as for
+ *   loadWebApp().
  */
 export function appWithFakeCamera(options = {}) {
   const hold = options.hold ?? {};
@@ -91,13 +129,34 @@ export function appWithFakeCamera(options = {}) {
   const imports = [];
   const wasmLoads = [];
   const plays = [];
+  /** @type {Download[]} */
+  const downloads = [];
   /** Every ONNX session the app asked for; each one fails, as offline. */
   const onnx = { sessions: 0, pending: [] };
   let clock = 0;
 
+  // The model files live on Google's storage; this is that server.
+  const modelFetch = (url) => {
+    const gate = deferred();
+    downloads.push({
+      url,
+      resolve: () => gate.resolve(modelFile()),
+      reject: gate.reject,
+    });
+    if (!hold.models) downloads.at(-1).resolve();
+    return gate.promise;
+  };
+
   /** @param {TaskKind} kind */
   const factory = (kind) => ({
-    createFromOptions() {
+    createFromOptions(resolver, taskOptions) {
+      // As the real runtime does, a task handed a model address downloads it.
+      const path = taskOptions?.baseOptions?.modelAssetPath;
+      const downloaded = path
+        ? app.evaluate("fetch")(path).then((res) => {
+            if (!res.ok) throw new Error(`Failed to fetch model: ${path} (${res.status})`);
+          })
+        : Promise.resolve();
       const gate = deferred();
       const counters = { detections: 0, closed: 0 };
       const task = {
@@ -111,7 +170,7 @@ export function appWithFakeCamera(options = {}) {
       };
       creations.push({ kind, task: counters, resolve: () => gate.resolve(task), reject: gate.reject });
       if (!hold[kind]) gate.resolve(task);
-      return gate.promise;
+      return downloaded.then(() => gate.promise);
     },
   });
 
@@ -130,6 +189,7 @@ export function appWithFakeCamera(options = {}) {
   };
 
   const app = loadWebApp({
+    languages: options.languages,
     globals: {
       console: { ...console, log() {}, warn() {}, error() {} },
       navigator: {
@@ -201,6 +261,7 @@ export function appWithFakeCamera(options = {}) {
     ctx.clearRect = () => {};
   `);
   app.get("state").mode = options.mode ?? "letter";
+  serveModelFiles(app, modelFetch);
 
   /** @param {TaskKind} kind */
   const created = (kind) => creations.filter((c) => c.kind === kind);
@@ -231,6 +292,7 @@ export function appWithFakeCamera(options = {}) {
     frames,
     imports,
     wasmLoads,
+    downloads,
     plays,
     onnx,
     runFrame,

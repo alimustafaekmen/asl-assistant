@@ -143,8 +143,9 @@
     font-size: var(--fs-xs);
   }
 
-  /* Phones: the viewer takes the whole screen, with the safe areas respected. */
-  @media (max-width: 47.99rem) {
+  /* Phones, upright or on their side: the viewer takes the whole screen,
+     with the safe areas respected. */
+  @media (max-width: 47.99rem), (orientation: landscape) and (max-height: 32rem) and (max-width: 63.99rem) {
     .viewer {
       width: 100dvw;
       height: 100dvh;
@@ -155,6 +156,7 @@
       border-radius: 0;
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
+      padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
     }
     .viewer__bar { padding-left: var(--sp-4); }
     .viewer__body { padding: var(--sp-2); }
@@ -172,7 +174,10 @@
     background: var(--color-primary);
     color: var(--color-on-primary);
   }
-  .btn--accent:not(:disabled):hover { background: color-mix(in srgb, var(--color-primary) 86%, var(--color-surface)); }
+  @media (hover: hover) {
+    .btn--accent:not(:disabled):hover { background: color-mix(in srgb, var(--color-primary) 86%, var(--color-surface)); }
+  }
+  .btn--accent:not(:disabled):active { background: color-mix(in srgb, var(--color-primary) 86%, var(--color-surface)); }
   .btn--accent:not(:disabled) .kbd { border-color: transparent; padding-inline: 0; opacity: 0.9; }
 
   /* At the top of the stage: no sign is made there, while the bottom is where
@@ -299,6 +304,14 @@
   /* A result shows the guide's action instead of the ranked sentence. */
   .app-shell[data-mode="word"] .stage[data-word-step="result"] + .plate .plate__message { display: none; }
 
+  /* A short stage has no room for the bar above the result, and the plate's
+     guide already says what to do next. */
+  @media (max-width: 63.99rem) {
+    @container stage (max-height: 25rem), (max-width: 21rem) and (max-height: 27rem) {
+      .app-shell[data-mode="word"] .stage[data-word-step="result"] .feedback-bar { display: none; }
+    }
+  }
+
   /* The stage and the plate already show this card's steps. */
   .app-shell[data-mode="word"] .word-state-card { display: none; }
 
@@ -394,8 +407,10 @@
     font-weight: var(--fw-semibold);
     cursor: pointer;
   }
-  .word-chip:hover,
-  .word-entry:hover { background: var(--color-sunken); }
+  @media (hover: hover) {
+    .word-chip:hover,
+    .word-entry:hover { background: var(--color-sunken); }
+  }
 
   /* The 50-word list. */
   .word-search__label { font-size: var(--fs-sm); font-weight: var(--fw-semibold); }

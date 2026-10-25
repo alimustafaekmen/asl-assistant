@@ -50,6 +50,12 @@
   /* Without the Popover API the app uses data-open, and the browser neither
      hides nor places the menu. */
   .topbar__links.menu[data-open="false"] { display: none; }
+  /* Such a browser also shows the menu until the scripts have run. */
+  @supports not selector(:popover-open) {
+    @media (max-width: 63.99rem) {
+      .topbar__links.menu:not([data-open="true"]) { display: none; }
+    }
+  }
   .topbar__links.menu[data-open="true"] {
     position: fixed;
     z-index: var(--z-popover);
@@ -57,6 +63,9 @@
   }
   .topbar__links .navlink { justify-content: flex-start; }
   .topbar__links .lang-switch { padding-inline: var(--sp-1); }
+  @media (max-width: 63.99rem) {
+    .topbar__links .lang-switch__option { min-width: var(--size-target); }
+  }
 
   /* Workspace */
   .app-shell[data-view="app"] .workspace {
@@ -131,7 +140,7 @@
     overflow: visible;
     display: grid;
     gap: var(--sp-3);
-    padding: var(--sp-3);
+    padding: var(--sp-3) max(var(--sp-3), env(safe-area-inset-right)) var(--sp-3) max(var(--sp-3), env(safe-area-inset-left));
     background: transparent;
     border: 0;
     box-shadow: none;
@@ -149,7 +158,9 @@
     color: var(--color-text-3);
   }
   .site-footer a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
-  .site-footer a:hover { color: var(--color-text); }
+  @media (hover: hover) {
+    .site-footer a:hover { color: var(--color-text); }
+  }
   .app-shell[data-mode="project"] .site-footer { display: none; }
 
   /* Upright phones and tablets: by the stage's height, the first-visit
@@ -161,6 +172,15 @@
     .stage__empty { bottom: var(--size-stage-message); padding-bottom: var(--sp-2); }
     /* The problem hides the message line, so it may use the whole stage. */
     .stage__empty:has(> .stage__problem:not([hidden])) { bottom: 0; padding-bottom: var(--sp-6); }
+    /* Zoom or large text can push the start below the stage; it stays at the
+       stage's bottom edge while the rest scrolls behind it. */
+    .stage__intro > .stage__cta,
+    .stage__problem > .stage__cta {
+      position: sticky;
+      bottom: 0;
+      background: var(--stage-bg);
+      box-shadow: 0 0 0 var(--sp-2) var(--stage-bg);
+    }
     @container stage (max-height: 42.5rem) {
       .stage__empty { gap: var(--sp-4); padding-top: var(--sp-12); }
       .stage__illustration { width: 72px; }
@@ -206,6 +226,17 @@
       .stage-demo__stop { width: var(--size-target); min-height: var(--size-target); padding: 0; gap: 0; font-size: 0; }
     }
   }
+  /* A narrow upright stage: the result stops below the camera button, which
+     wraps under the chip in word mode; the rest scrolls inside it. */
+  @media (max-width: 18rem) and (orientation: portrait) {
+    .camera-column > .plate {
+      max-height: calc(100% - 2 * var(--sp-3) - var(--size-control) - var(--sp-2));
+      overflow-y: auto;
+    }
+    .app-shell[data-mode="word"] .camera-column > .plate {
+      max-height: calc(100% - 2 * var(--sp-3) - 2 * var(--sp-2) - 32px - var(--size-control));
+    }
+  }
   /* A short laptop window: the same steps, by the window's height. */
   @media (min-width: 64rem) and (max-height: 46rem) {
     .stage__illustration { display: none; }
@@ -219,6 +250,15 @@
   /* The narrowest phones: tighter tabs so they stay clear of "Diğer". */
   @media (max-width: 22.5rem) {
     .topbar .modes__item { padding-inline: var(--sp-2); }
+  }
+  /* Narrower still, or large text: the tabs take the brand's place (the Harf
+     tab opens the same screen); tabs give up their padding before their text. */
+  @media (max-width: 19.5rem) and (orientation: portrait) {
+    .topbar { grid-template-columns: minmax(0, 1fr) auto; }
+    .topbar .brand { display: none; }
+    .modes__item { flex-basis: auto; min-width: 0; overflow: hidden; justify-content: safe center; }
+    /* The coach sheet has room below: its choices wrap instead. */
+    .modes--panel { flex-wrap: wrap; }
   }
 
   /* Phone landscape: the stage on the left, a column on the right, no top
@@ -266,6 +306,12 @@
       margin: var(--sp-2) max(var(--sp-3), env(safe-area-inset-right)) 0 var(--sp-3);
     }
     .compose > .strip { grid-area: strip; min-height: var(--size-land-strip); }
+    /* Coach hides the strip and the other modes hide the session, so they
+       share its row. Without an area it lands under the mode switch. */
+    .compose > .session {
+      grid-area: strip;
+      margin: var(--sp-2) max(var(--sp-3), env(safe-area-inset-right)) 0 var(--sp-3);
+    }
     .compose > .dock {
       grid-area: dock;
       display: grid;
@@ -498,6 +544,23 @@
     .stage__cta { flex-direction: row; justify-content: center; width: auto; }
     .stage__cta .btn { width: auto; min-width: 11rem; }
     .stage__empty { gap: var(--sp-4); padding-top: var(--sp-12); }
+  }
+
+  /* Narrow laptops and tablets: the letter and word actions take the whole
+     row, so the transcript gets one of its own above them. */
+  @media (min-width: 64rem) and (max-width: 79.99rem) {
+    .app-shell:not([data-mode="coach"]) .compose { grid-template-columns: minmax(0, 1fr); }
+  }
+  /* That row takes about 3.25rem from the stage, so the steps by height
+     start sooner. The selector outranks the word screen's display: block. */
+  @media (min-width: 64rem) and (max-width: 79.99rem) and (max-height: 56rem) {
+    .app-shell:not([data-mode="coach"]) .stage__illustration { display: none; }
+  }
+  @media (min-width: 64rem) and (max-width: 79.99rem) and (max-height: 45rem) {
+    .app-shell:not([data-mode="coach"]) .stage__facts { display: none; }
+  }
+  @media (min-width: 64rem) and (max-width: 79.99rem) and (max-height: 39.25rem) {
+    .app-shell:not([data-mode="coach"]) .stage__lead { display: none; }
   }
 
   @media (min-width: 90rem) {

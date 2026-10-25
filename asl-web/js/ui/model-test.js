@@ -1311,9 +1311,12 @@ function renderModelTestBatch() {
       formatMilliseconds(item.ms),
       verdictLabel,
     ];
+    // The phone layout drops the header row and shows these in front of the values.
+    const labels = [null, t("info.test.result.expected"), t("info.test.result.prediction")];
     cells.forEach((text, index) => {
       const cell = document.createElement(index === 0 ? "th" : "td");
       cell.textContent = text;
+      if (labels[index]) cell.dataset.label = labels[index];
       row.appendChild(cell);
     });
     els.modelTestRows.appendChild(row);

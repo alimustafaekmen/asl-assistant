@@ -48,6 +48,11 @@ could not run, for example without Chrome.
 | `demo-model` | The real letter model reads the recorded hand, and Space adds F, L and Y |
 | `language-first-paint`, `language-hidden-until-translated`, `language-switch`, `language-every-screen` | An English page is translated before the CDN scripts and never shows Turkish; the switch works without a reload; every screen reads in one language |
 | `camera` | Each mode's model loads through the real ONNX Runtime; after a stop no camera track is live |
+| `webgl-context-loss` | After the browser drops MediaPipe's WebGL contexts, hand tracking comes back within 3 s with one detection loop (loads the CDNs) |
+| `route-scroll` | A screen change from a scrolled page opens the new screen at its top, the letter stage in view (touch, 390x844 and 360x640) |
+| `coach-sheet-tap` | A tap beside the open coach sheet closes it without pressing the control under the dimming; a laptop-wide window still takes the next click |
+| `menu-fallback-dismiss` | Without the Popover API the phone menu closes on a tap outside it and when the screen changes |
+| `model-test-row-labels` | On a phone, Model Test's row labels follow the page language, after a switch too |
 
 Each check was shown to fail on a fault planted in a copy of `asl-web/`. A new
 check should assert what a visitor's browser shows, open pages through

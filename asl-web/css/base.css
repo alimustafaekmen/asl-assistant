@@ -24,6 +24,12 @@
     background: var(--color-page);
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    /* Keyboard focus and anchor jumps stop below the sticky top bar. */
+    scroll-padding-top: calc(var(--size-topbar) + 1px + env(safe-area-inset-top) + var(--sp-2));
+  }
+  /* Phone landscape: the top bar does not stick, so nothing is covered. */
+  @media (orientation: landscape) and (max-height: 32rem) and (max-width: 63.99rem) {
+    html { scroll-padding-top: 0; }
   }
 
   body {

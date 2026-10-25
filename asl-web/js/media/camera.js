@@ -120,6 +120,10 @@ let mpOptionalLoading = false;
 let mpPoseFactory = null;
 /** @type {LandmarkerFactory<FaceLandmarkerResult> | null} */
 let mpFaceFactory = null;
+/** @type {LandmarkerFactory<HandLandmarkerResult> | null} */
+let mpHandFactory = null;
+/** @type {"GPU" | "CPU"} */
+let _handDelegate = "GPU";
 // The start lock prevents a second loop while async model startup is pending.
 /** @type {number | null} */
 let _rafId = null;
@@ -128,6 +132,10 @@ let mpStarting = false;
 // generation; a start that finds it changed closes what it created and
 // leaves the flags to the current start.
 let _mpGeneration = 0;
+/** @type {(() => void) | null} */
+let _restartWhenShown = null;
+/** @type {Promise<Uint8Array> | null} */
+let _handModelBytes = null;
 
 const MP_TASKS_VERSION = "0.10.18";
 
@@ -169,6 +177,92 @@ async function _createWithFallback(name, factory, options) {
       throw cpuErr;
     }
   }
+}
+
+/**
+ * A private window caches nothing, so each start would download the 7.8 MB
+ * model again; one download serves the visit, and a stop does not cancel it.
+ *
+ * @param {string} url
+ * @returns {Promise<Uint8Array>}
+ * @throws {Error} When the download fails; the next start tries again.
+ */
+function _loadHandModel(url) {
+  if (!_handModelBytes) {
+    const download = fetch(url).then(async (res) => {
+      if (!res.ok) throw new Error(`hand model download failed (${res.status})`);
+      return new Uint8Array(await res.arrayBuffer());
+    });
+    download.catch(() => {
+      if (_handModelBytes === download) _handModelBytes = null;
+    });
+    _handModelBytes = download;
+  }
+  return _handModelBytes;
+}
+
+/** @type {WeakMap<object, HTMLCanvasElement>} */
+const _taskCanvases = new WeakMap();
+
+/**
+ * MediaPipe makes its own canvas when given none, and only the canvas owner
+ * hears that the browser took its WebGL context away.
+ *
+ * @template {object} TTask
+ * @param {(canvas: HTMLCanvasElement) => Promise<TTask>} create
+ * @returns {Promise<TTask>}
+ */
+async function _createOnOwnCanvas(create) {
+  const canvas = document.createElement("canvas");
+  canvas.addEventListener("webglcontextlost", () => _onContextLost(canvas));
+  const task = await create(canvas);
+  _taskCanvases.set(task, canvas);
+  return task;
+}
+
+/**
+ * A task on a lost context returns empty results without throwing, so the
+ * camera would stay on with no hand ever found; every task is rebuilt. Only
+ * a task in use counts: a stopped, replaced or still loading one is ignored.
+ *
+ * @param {HTMLCanvasElement} canvas
+ * @returns {void}
+ */
+function _onContextLost(canvas) {
+  const inUse = [handLandmarker, poseLandmarker, faceLandmarker];
+  if (!inUse.some((task) => task !== null && _taskCanvases.get(task) === canvas)) return;
+  console.warn("[MP] WebGL context lost; restarting hand tracking");
+  if (document.visibilityState !== "hidden") {
+    _restartMediaPipe();
+    return;
+  }
+  if (_restartWhenShown) return;
+  _restartWhenShown = () => {
+    if (document.visibilityState === "hidden") return;
+    _cancelRestartWhenShown();
+    _restartMediaPipe();
+  };
+  document.addEventListener("visibilitychange", _restartWhenShown);
+}
+
+/** @returns {void} */
+function _cancelRestartWhenShown() {
+  if (_restartWhenShown) document.removeEventListener("visibilitychange", _restartWhenShown);
+  _restartWhenShown = null;
+}
+
+/** @returns {void} */
+function _restartMediaPipe() {
+  const video = mpVideoEl;
+  stopMediaPipe();
+  if (!video) return;
+  const generation = _mpGeneration;
+  startMediaPipe(video).catch((err) => {
+    console.error("[MP] restart failed:", err);
+    if (generation === _mpGeneration && typeof reportProblem === "function") {
+      reportProblem(() => t("shell.tracking.failed"));
+    }
+  });
 }
 
 /**
@@ -234,36 +328,58 @@ async function startMediaPipe(videoEl) {
     console.log(
       `[MP] Hand thresholds: detection=${handDetConf}, presence=${handPresConf}, tracking=${handTrackConf}, numHands=2`,
     );
+    /** @type {Uint8Array} */
+    let handModel;
+    try {
+      handModel = await _loadHandModel(HAND_MODEL);
+    } catch (err) {
+      console.error("[MP] the hand model could not be downloaded:", err);
+      throw err;
+    }
+    if (cancelled()) return;
+    /** @type {"GPU" | "CPU"} */
+    let handDelegate = "GPU";
     /** @type {LandmarkerFactory<HandLandmarkerResult>} */
-    const handFactory = (delegate) =>
-      HandLandmarker.createFromOptions(resolver, {
-        baseOptions: { modelAssetPath: HAND_MODEL, delegate },
-        numHands: 2,
-        runningMode: "VIDEO",
-        minHandDetectionConfidence: handDetConf,
-        minHandPresenceConfidence: handPresConf,
-        minTrackingConfidence: handTrackConf,
-      });
+    const handFactory = (delegate) => {
+      handDelegate = delegate;
+      return _createOnOwnCanvas((canvas) =>
+        HandLandmarker.createFromOptions(resolver, {
+          canvas,
+          baseOptions: { modelAssetBuffer: handModel, delegate },
+          numHands: 2,
+          runningMode: "VIDEO",
+          minHandDetectionConfidence: handDetConf,
+          minHandPresenceConfidence: handPresConf,
+          minTrackingConfidence: handTrackConf,
+        }),
+      );
+    };
     /** @type {LandmarkerFactory<PoseLandmarkerResult>} */
     const poseFactory = (delegate) =>
-      PoseLandmarker.createFromOptions(resolver, {
-        baseOptions: { modelAssetPath: POSE_MODEL, delegate },
-        runningMode: "VIDEO",
-        numPoses: 1,
-        minPoseDetectionConfidence: 0.3,
-        minPosePresenceConfidence: 0.3,
-        minTrackingConfidence: 0.3,
-      });
+      _createOnOwnCanvas((canvas) =>
+        PoseLandmarker.createFromOptions(resolver, {
+          canvas,
+          baseOptions: { modelAssetPath: POSE_MODEL, delegate },
+          runningMode: "VIDEO",
+          numPoses: 1,
+          minPoseDetectionConfidence: 0.3,
+          minPosePresenceConfidence: 0.3,
+          minTrackingConfidence: 0.3,
+        }),
+      );
     /** @type {LandmarkerFactory<FaceLandmarkerResult>} */
     const faceFactory = (delegate) =>
-      FaceLandmarker.createFromOptions(resolver, {
-        baseOptions: { modelAssetPath: FACE_MODEL, delegate },
-        runningMode: "VIDEO",
-        numFaces: 1,
-        minFaceDetectionConfidence: 0.3,
-        minFacePresenceConfidence: 0.3,
-        minTrackingConfidence: 0.3,
-      });
+      _createOnOwnCanvas((canvas) =>
+        FaceLandmarker.createFromOptions(resolver, {
+          canvas,
+          baseOptions: { modelAssetPath: FACE_MODEL, delegate },
+          runningMode: "VIDEO",
+          numFaces: 1,
+          minFaceDetectionConfidence: 0.3,
+          minFacePresenceConfidence: 0.3,
+          minTrackingConfidence: 0.3,
+        }),
+      );
     mpPoseFactory = poseFactory;
     mpFaceFactory = faceFactory;
 
@@ -283,6 +399,9 @@ async function startMediaPipe(videoEl) {
       return;
     }
     handLandmarker = hand;
+    mpHandFactory = handFactory;
+    _handDelegate = handDelegate;
+    _handFailedFrames = 0;
 
     mpRunning = true;
     lastHandTs = 0;
@@ -341,6 +460,7 @@ function stopMediaPipe() {
   _mpGeneration++;
   mpRunning = false;
   mpStarting = false;
+  _cancelRestartWhenShown();
   if (_rafId !== null) {
     cancelAnimationFrame(_rafId);
     _rafId = null;
@@ -355,6 +475,7 @@ function stopMediaPipe() {
   faceLandmarker = null;
   mpPoseFactory = null;
   mpFaceFactory = null;
+  mpHandFactory = null;
   latestMediaPipeResult = null;
 }
 
@@ -441,6 +562,9 @@ let _frameStats = { processed: 0, handsDetected: 0, lastSummary: 0 };
 let _failedFrames = 0;
 /** Failed frames in a row between two console reminders. */
 const MP_FAILURE_REPORT_EVERY = 300;
+let _handFailedFrames = 0;
+/** Failed hand frames in a row after which the GPU hand task is given up. */
+const HAND_FAILURES_BEFORE_CPU = 30;
 
 /**
  * Always reschedules through _rafId so the loop stays cancellable. Frames are
@@ -489,6 +613,7 @@ function _processFrame() {
   /** @type {unknown[]} */
   const failures = [];
   const handRes = _detectOrNull(handLandmarker, mpVideoEl, ts, failures);
+  _noteHandFrame(failures.length > 0);
   let poseRes = null;
   let faceRes = null;
   if (_needsHolisticLandmarks()) {
@@ -640,6 +765,60 @@ function _noteDetectionFailures(failures) {
   } else if (_failedFrames % MP_FAILURE_REPORT_EVERY === 0) {
     console.warn(`[MP] detection still failing: ${_failedFrames} frames in a row`);
   }
+}
+
+/**
+ * Some GPUs build the graph and then abort on every frame; the CPU is slower
+ * but still tracks.
+ *
+ * @param {boolean} failed Whether the hand task threw on this frame.
+ * @returns {void}
+ */
+function _noteHandFrame(failed) {
+  if (!failed) {
+    _handFailedFrames = 0;
+    return;
+  }
+  _handFailedFrames++;
+  if (_handFailedFrames !== HAND_FAILURES_BEFORE_CPU) return;
+  if (_handDelegate === "GPU") _rebuildHandOnCpu();
+  else _reportTrackingFailed();
+}
+
+/**
+ * The failing task keeps detecting until its replacement is ready.
+ *
+ * @returns {Promise<void>}
+ */
+async function _rebuildHandOnCpu() {
+  const factory = mpHandFactory;
+  if (!factory) return;
+  const generation = _mpGeneration;
+  _handDelegate = "CPU";
+  console.warn(`[MP] hand detection failed ${HAND_FAILURES_BEFORE_CPU} frames in a row on the GPU; moving it to the CPU`);
+  /** @type {VideoLandmarkerTask<HandLandmarkerResult>} */
+  let task;
+  try {
+    task = await factory("CPU");
+  } catch (err) {
+    console.error("[MP] the CPU hand task failed to start:", err);
+    if (generation === _mpGeneration) _reportTrackingFailed();
+    return;
+  }
+  if (generation !== _mpGeneration) {
+    try { task.close(); } catch (e) { /* noop */ }
+    return;
+  }
+  const failing = handLandmarker;
+  handLandmarker = task;
+  _handFailedFrames = 0;
+  try { failing?.close(); } catch (e) { /* noop */ }
+}
+
+/** @returns {void} */
+function _reportTrackingFailed() {
+  console.error("[MP] hand detection keeps failing; tracking is unavailable");
+  if (typeof reportProblem === "function") reportProblem(() => t("shell.tracking.failed"));
 }
 
 /**

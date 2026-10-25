@@ -1472,8 +1472,295 @@ export const CHECKS = [
       return dedupe(problems);
     },
   },
+
+  {
+    name: "webgl-context-loss",
+    summary: "hand tracking comes back, with one detection loop, after the browser drops every WebGL context MediaPipe uses",
+    network: true,
+    timeoutMs: 150_000,
+    async run(ctx) {
+      const problems = [];
+      const page = await ctx.newPage({ ...PHONE, media: DEFAULT_MEDIA, grantCamera: true, allowExternal: true });
+      // Every WebGL context the page creates, and every animation frame it
+      // asks for, recorded before any page script runs.
+      await page.send("Page.addScriptToEvaluateOnNewDocument", {
+        source: `(() => {
+          const probe = { contexts: [], requests: 0, nativeFrame: window.requestAnimationFrame.bind(window) };
+          Object.defineProperty(window, "__glProbe", { value: probe });
+          for (const Canvas of [window.HTMLCanvasElement, window.OffscreenCanvas]) {
+            if (!Canvas) continue;
+            const getContext = Canvas.prototype.getContext;
+            Canvas.prototype.getContext = function (type, ...rest) {
+              const context = getContext.call(this, type, ...rest);
+              if (context && /webgl/.test(type) && !probe.contexts.includes(context)) probe.contexts.push(context);
+              return context;
+            };
+          }
+          window.requestAnimationFrame = (callback) => {
+            probe.requests += 1;
+            return probe.nativeFrame(callback);
+          };
+        })()`,
+      });
+      await page.goto(`${ctx.origin}/#letter`);
+      await waitForBoot(page, "letter");
+
+      const tracking = `aslDebug.mediapipe.handLandmarker === true && aslDebug.mediapipe.mpRunning === true`;
+      // Frames the page asks for per painted frame: the render loop plus one
+      // detection loop. A second detection loop raises it by one.
+      const requestsPerFrame = `(async () => {
+        const probe = window.__glProbe;
+        const before = probe.requests;
+        let frames = 0;
+        await new Promise((resolve) => {
+          const started = performance.now();
+          const tick = (now) => {
+            frames += 1;
+            if (now - started < 1500) probe.nativeFrame(tick);
+            else resolve();
+          };
+          probe.nativeFrame(tick);
+        });
+        return (probe.requests - before) / frames;
+      })()`;
+
+      await page.click('[data-trigger="camera"]');
+      await page.waitFor(tracking, { what: "hand tracking to start", timeoutMs: 90_000 });
+      const loopsBefore = await page.eval(requestsPerFrame);
+
+      const lost = await page.eval(`(() => {
+        const probe = window.__glProbe;
+        const live = probe.contexts.filter((gl) => !gl.isContextLost());
+        const losers = live.map((gl) => gl.getExtension("WEBGL_lose_context")).filter(Boolean);
+        probe.lostAt = probe.contexts.length;
+        losers.forEach((extension) => extension.loseContext());
+        return losers.length;
+      })()`);
+      if (lost === 0) {
+        problems.push("MediaPipe opened no WebGL context to lose");
+        return problems;
+      }
+      const lostTime = Date.now();
+      try {
+        await page.waitFor(`(() => {
+          const probe = window.__glProbe;
+          const fresh = probe.contexts.slice(probe.lostAt).some((gl) => !gl.isContextLost());
+          return fresh && ${tracking};
+        })()`, { what: "a new WebGL context and running hand tracking after the loss", timeoutMs: 15_000 });
+      } catch (error) {
+        problems.push(error.message);
+        return problems;
+      }
+      const recoveredMs = Date.now() - lostTime;
+      if (recoveredMs > 3_000) problems.push(`hand tracking took ${recoveredMs} ms to come back after the loss`);
+
+      const published = await page.eval(`aslDebug.latestResult?.timestamp ?? 0`);
+      await page.waitFor(`(aslDebug.latestResult?.timestamp ?? 0) > ${published}`, { what: "frames to be detected again after the loss" })
+        .catch((error) => problems.push(error.message));
+      const loopsAfter = await page.eval(requestsPerFrame);
+      if (Math.abs(loopsAfter - loopsBefore) > 0.5) {
+        problems.push(`${loopsBefore.toFixed(2)} animation frame requests per frame before the loss, ${loopsAfter.toFixed(2)} after it`);
+      }
+
+      await page.click("#cameraToggle");
+      await page.waitFor(`!document.getElementById("cameraEmpty").hidden && aslDebug.mediapipe.mpRunning === false`, { what: "the camera to stop" });
+      if (page.exceptions.length) problems.push(`uncaught error: ${page.exceptions.join(" | ")}`);
+      return problems;
+    },
+  },
+
+  {
+    name: "route-scroll",
+    summary: "a phone visitor who changes screen from a scrolled page lands at the top, with the letter stage in view",
+    async run(ctx) {
+      const problems = [];
+      for (const viewport of [PHONE, { width: 360, height: 640, mobile: true }]) {
+        const size = `${viewport.width}x${viewport.height}`;
+        const page = await openApp(ctx, { route: "project", viewport });
+        await page.send("Input.synthesizeScrollGesture", {
+          x: Math.round(viewport.width / 2),
+          y: Math.round(viewport.height * 0.7),
+          yDistance: -6000,
+          gestureSourceType: "touch",
+          speed: 4000,
+        });
+        await page.waitFor("scrollY > 0 && Math.abs(scrollY - (document.documentElement.scrollHeight - innerHeight)) < 2", {
+          what: `${size}: #project to scroll to its end`,
+        });
+        await touchTapSelector(page, '.topbar [data-ui="mode-tab"][data-mode="letter"]');
+        await waitForBoot(page, "letter");
+        const after = await page.eval(`(() => ({
+          scrollY: Math.round(scrollY),
+          stageTop: Math.round(document.getElementById("cameraStage").getBoundingClientRect().top),
+          topbarBottom: Math.round(document.querySelector(".topbar").getBoundingClientRect().bottom),
+        }))()`);
+        if (after.scrollY !== 0) problems.push(`${size}: #letter opens at scrollY ${after.scrollY}, not at the top`);
+        if (after.stageTop < after.topbarBottom) {
+          problems.push(`${size}: the stage starts at ${after.stageTop}px, under the top bar ending at ${after.topbarBottom}px`);
+        }
+        await page.close();
+      }
+      return problems;
+    },
+  },
+
+  {
+    name: "coach-sheet-tap",
+    summary: "a tap beside the open coach sheet only closes it, and a laptop-wide window left with the sheet open still takes clicks",
+    async run(ctx) {
+      const problems = [];
+      const wordTab = '.topbar [data-ui="mode-tab"][data-mode="word"]';
+      const modeOf = (page) => page.eval(`document.querySelector('[data-ui="app-shell"]').dataset.mode`);
+      const sheetOpen = (page) => page.eval(`document.getElementById("coachStudy").dataset.open === "true"`);
+      // A fresh #coach page with the sheet open, as a visitor opens it.
+      const withSheet = async () => {
+        const page = await openApp(ctx, { route: "coach", viewport: PHONE });
+        await touchTapSelector(page, "#coachSessionButton");
+        await page.waitFor(`document.getElementById("coachStudy").dataset.open === "true"`, { what: "the coach sheet to open" });
+        return page;
+      };
+      // The target lies in the dimmed band above the sheet, where a visitor taps to close it.
+      const reachable = (page, selector) => page.eval(`(() => {
+        const el = [...document.querySelectorAll(${JSON.stringify(selector)})].find((e) => e.checkVisibility());
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        return el.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2));
+      })()`);
+
+      let page = await withSheet();
+      if (!(await reachable(page, wordTab))) throw new Error("precondition: the word tab is not in the dimmed band");
+      await touchTapSelector(page, wordTab);
+      if (await sheetOpen(page)) problems.push("a tap on the dimmed word tab left the sheet open");
+      const mode = await modeOf(page);
+      if (mode !== "coach") problems.push(`a tap meant to close the sheet switched to #${mode}`);
+      await page.close();
+
+      page = await withSheet();
+      if (!(await reachable(page, "#coachReference"))) throw new Error("precondition: the target tile is not in the dimmed band");
+      await touchTapSelector(page, "#coachReference");
+      if (await sheetOpen(page)) problems.push("a tap on the dimmed target tile left the sheet open");
+      if (await page.eval(`document.querySelector("dialog[open]") !== null`)) {
+        problems.push("a tap meant to close the sheet opened the reference viewer");
+      }
+      await page.close();
+
+      // A window widened past the sheet layout while the sheet was open.
+      page = await withSheet();
+      await page.setViewport(LAPTOP);
+      await page.click(wordTab);
+      await page.waitFor(`document.querySelector('[data-ui="app-shell"]').dataset.mode === "word"`, {
+        what: "a laptop click on the word tab to switch mode",
+        timeoutMs: 2000,
+      }).catch(() => problems.push("at laptop width the first click after the sheet was left open was swallowed"));
+      await page.close();
+      return problems;
+    },
+  },
+
+  {
+    name: "menu-fallback-dismiss",
+    summary: "without the Popover API (Safari before 17) the phone menu closes on a tap outside it and on a screen change",
+    async run(ctx) {
+      const problems = [];
+      const menuShown = (page) => page.eval(`document.getElementById("moreMenu").checkVisibility()`);
+      // A menu the last step failed to close is left as it is.
+      const openMenu = async (page) => {
+        if (!(await menuShown(page))) await touchTapSelector(page, ".topbar__more");
+        await page.waitFor(`document.getElementById("moreMenu").checkVisibility()`, { what: "the fallback menu to open" });
+      };
+      const page = await ctx.newPage({ ...PHONE, media: DEFAULT_MEDIA });
+      await page.send("Page.addScriptToEvaluateOnNewDocument", {
+        source: "for (const name of ['showPopover', 'hidePopover', 'togglePopover']) delete HTMLElement.prototype[name];",
+      });
+      await page.goto(`${ctx.origin}/#letter`);
+      await waitForBoot(page, "letter");
+      if (await page.eval(`typeof HTMLElement.prototype.showPopover === "function"`)) {
+        throw new Error("precondition: the Popover API is still there");
+      }
+
+      await openMenu(page);
+      await touchTapPoint(page, PHONE.width / 2, 500);
+      if (await menuShown(page)) problems.push("a tap on the stage left the menu open");
+
+      await openMenu(page);
+      await touchTapSelector(page, '.topbar [data-ui="mode-tab"][data-mode="coach"]');
+      await waitForBoot(page, "coach");
+      if (await menuShown(page)) problems.push("the menu stayed open over #coach after a tab change");
+
+      await openMenu(page);
+      await page.eval(`location.hash = "#word"`);
+      await waitForBoot(page, "word");
+      if (await menuShown(page)) problems.push("the menu stayed open over #word after a hash change");
+      await page.close();
+      return problems;
+    },
+  },
+
+  {
+    name: "model-test-row-labels",
+    summary: "on a phone, the labels in front of a Model Test row's expected and predicted values are in the page's language, after a switch too",
+    async run(ctx) {
+      const problems = [];
+      const labels = `(() => {
+        const row = document.querySelector("#modelTestRows tr");
+        if (!row) return null;
+        const before = (index) => getComputedStyle(row.children[index], "::before").content;
+        return { expected: before(1), prediction: before(2) };
+      })()`;
+      const want = (lang) => `({ expected: JSON.stringify(I18N_STRINGS.${lang}["info.test.result.expected"] + " "), prediction: JSON.stringify(I18N_STRINGS.${lang}["info.test.result.prediction"] + " ") })`;
+      const compare = async (page, lang, when) => {
+        const [shown, expected] = [await page.eval(labels), await page.eval(want(lang))];
+        if (!shown) return problems.push(`${when}: no result row was drawn`);
+        for (const key of ["expected", "prediction"]) {
+          if (shown[key] !== expected[key]) problems.push(`${when}: the ${key} label reads ${shown[key]}, not ${expected[key]}`);
+        }
+      };
+      for (const [lang, languages, other] of [["en", ENGLISH, "tr"], ["tr", ["tr-TR", "tr"], "en"]]) {
+        const page = await openApp(ctx, { route: "test", viewport: PHONE, languages });
+        await page.eval(`(() => {
+          state.modelTestBatch = { task: "letter", rows: [{ title: "A", expected: "A", predicted: "B", confidence: 0.4, ms: 12, verdict: "wrong" }] };
+          renderModelTestBatch();
+        })()`);
+        await compare(page, lang, `${lang} phone`);
+        await page.eval(`setLanguage(${JSON.stringify(other)})`);
+        await compare(page, other, `${lang} phone switched to ${other}`);
+        await page.close();
+      }
+      return problems;
+    },
+  },
 ];
 
 function dedupe(list) {
   return [...new Set(list)];
+}
+
+/**
+ * One finger tap at a point, as a phone sends it, so the browser's own hit
+ * test decides what is pressed. Resolves once the tap's click has been
+ * dispatched, even if a listener stops it.
+ */
+async function touchTapPoint(page, x, y) {
+  const before = await page.eval(`(() => {
+    if (!window.__touchClicks) {
+      window.__touchClicks = { count: 0 };
+      window.addEventListener("click", () => { window.__touchClicks.count += 1; }, true);
+    }
+    return window.__touchClicks.count;
+  })()`);
+  await page.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+  await page.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await page.waitFor(`window.__touchClicks.count > ${before}`, { what: `the tap at ${Math.round(x)},${Math.round(y)} to click` });
+}
+
+/** Tap the centre of the first rendered element matching `selector`, where it is now. */
+async function touchTapSelector(page, selector) {
+  const point = await page.eval(`(() => {
+    const el = [...document.querySelectorAll(${JSON.stringify(selector)})].find((e) => e.checkVisibility());
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  })()`);
+  if (!point) throw new Error(`tap: nothing rendered matches ${selector}`);
+  await touchTapPoint(page, point.x, point.y);
 }

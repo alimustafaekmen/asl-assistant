@@ -155,6 +155,12 @@
     :root { --fs-2xl: 1.5rem; }
   }
 
+  /* A narrow upright stage (zoom, large text): a smaller ring leaves the
+     message room beside it. In rem, so it grows with the text. */
+  @media (max-width: 18rem) and (orientation: portrait) {
+    :root { --size-ring: 4rem; --fs-glyph: 2.75rem; }
+  }
+
   /* Phone landscape: the ring steps down with the height, so the right
      column fits 390, 360 and 320 px. */
   @media (orientation: landscape) and (max-height: 32rem) and (max-width: 63.99rem) {

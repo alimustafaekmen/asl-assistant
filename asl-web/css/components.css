@@ -72,13 +72,20 @@
     cursor: pointer;
     transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
   }
-  .btn:hover { background: var(--color-sunken); }
+  @media (hover: hover) {
+    .btn:hover { background: var(--color-sunken); }
+  }
+  /* Touch screens have no hover, so a press shows the same fill. */
+  .btn:active { background: var(--color-sunken); }
   .btn--primary {
     border-color: transparent;
     background: var(--color-primary);
     color: var(--color-on-primary);
   }
-  .btn--primary:hover { background: color-mix(in srgb, var(--color-primary) 86%, var(--color-surface)); }
+  @media (hover: hover) {
+    .btn--primary:hover { background: color-mix(in srgb, var(--color-primary) 86%, var(--color-surface)); }
+  }
+  .btn--primary:active { background: color-mix(in srgb, var(--color-primary) 86%, var(--color-surface)); }
   .btn--quiet { border-color: transparent; background: transparent; }
   .btn--icon { width: var(--size-control); padding: 0; flex: none; }
   .btn:disabled,
@@ -96,14 +103,20 @@
     background: var(--stage-raised);
     color: var(--stage-text);
   }
-  .btn--stage:hover { background: color-mix(in srgb, var(--stage-raised) 80%, white); }
+  @media (hover: hover) {
+    .btn--stage:hover { background: color-mix(in srgb, var(--stage-raised) 80%, white); }
+  }
+  .btn--stage:active { background: color-mix(in srgb, var(--stage-raised) 80%, white); }
   .btn--stage-primary {
     border-color: transparent;
     background: var(--stage-button);
     color: var(--stage-on-button);
   }
-  .btn--stage-primary:hover { background: color-mix(in srgb, var(--stage-button) 88%, white); }
-  .stage :focus-visible { outline-color: var(--stage-lock); }
+  @media (hover: hover) {
+    .btn--stage-primary:hover { background: color-mix(in srgb, var(--stage-button) 88%, white); }
+  }
+  .btn--stage-primary:active { background: color-mix(in srgb, var(--stage-button) 88%, white); }
+  .stage :focus-visible, .plate :focus-visible { outline-color: var(--stage-lock); }
 
   /* A keyboard hint inside a button or a list. */
   .kbd {
@@ -149,7 +162,10 @@
     white-space: nowrap;
     cursor: pointer;
   }
-  .modes__item:hover { color: var(--color-text); }
+  @media (hover: hover) {
+    .modes__item:hover { color: var(--color-text); }
+  }
+  .modes__item:active { background: var(--color-sunken); color: var(--color-text); }
   .modes__item.is-active {
     background: var(--color-selected-bg);
     color: var(--color-selected-fg);
@@ -173,7 +189,9 @@
     white-space: nowrap;
     cursor: pointer;
   }
-  .navlink:hover { background: var(--color-sunken); }
+  @media (hover: hover) {
+    .navlink:hover { background: var(--color-sunken); }
+  }
   .navlink.is-active { text-decoration: underline; text-underline-offset: 4px; }
 
   /* Both languages side by side, the one shown bright. It follows
@@ -192,7 +210,9 @@
     letter-spacing: 0.04em;
     cursor: pointer;
   }
-  .lang-switch__option:hover { color: var(--color-text); }
+  @media (hover: hover) {
+    .lang-switch__option:hover { color: var(--color-text); }
+  }
   :root[lang="tr"] .lang-switch__option[data-language="tr"],
   :root[lang="en"] .lang-switch__option[data-language="en"] {
     color: var(--color-text);
@@ -476,6 +496,9 @@
     text-wrap: pretty;
   }
   .stage-demo__skip { flex: none; min-height: 40px; padding-inline: var(--sp-3); font-size: var(--fs-sm); }
+  @media (max-width: 63.99rem) {
+    .stage-demo__skip { min-height: var(--size-target); }
+  }
   .stage-demo__camera { justify-self: start; }
   .stage[data-demo="done"] .stage-demo__text { font-size: var(--fs-md); font-weight: var(--fw-semibold); }
   /* At the end the plate keeps only its message line. */
@@ -648,6 +671,13 @@
     font-size: var(--fs-sm);
   }
   .toast[hidden] { display: none; }
+  /* While a word is recorded the HUD takes the top and the plate gives way,
+     so the undo goes to the bottom, as on a laptop. */
+  @media (max-width: 63.99rem) {
+    .app-shell[data-mode="word"] .stage:is([data-word-step="countdown"], [data-word-step="recording"]) .toast {
+      inset: auto var(--sp-3) var(--sp-3);
+    }
+  }
   .toast__action { --size-icon: 18px; min-height: 36px; padding-inline: var(--sp-3); }
   /* A light surface: the stage's saffron ring would be 1.6:1 here. */
   .toast :focus-visible { outline-color: var(--color-focus); }

@@ -97,6 +97,8 @@ async function loadModelsWithStatus(needs) {
 
     const loaded = models.filter((_, i) => results[i]).map((model) => model.name);
     if (allReady) {
+      // While hand tracking still loads, toggleCamera() says ready once it is.
+      if (handTrackingPending()) return allReady;
       setMessage(() => t("shell.models.ready"), "good");
       setBadge("shell.badge.ready");
     } else if (loaded.length) {
@@ -114,6 +116,30 @@ async function loadModelsWithStatus(needs) {
     setBadge("shell.badge.error");
     return false;
   }
+}
+
+/**
+ * @returns {boolean} True while the camera is on and hand tracking is not running yet.
+ */
+function handTrackingPending() {
+  return state.cameraOn && typeof mpRunning !== "undefined" && !mpRunning;
+}
+
+/**
+ * @param {AppMode} mode
+ * @returns {boolean} Whether every model the mode runs live is loaded.
+ */
+function liveModelsLoaded(mode) {
+  const needs = liveModelNeeds(mode);
+  return (!needs.letter || !!letterSession) && (!needs.word || !!wordSession);
+}
+
+/**
+ * @param {...string} keys
+ * @returns {boolean} Whether the message line shows one of these strings.
+ */
+function messageShows(...keys) {
+  return keys.some((key) => els.confidenceMessage.textContent === t(key));
 }
 
 let _eventsBound = false;
@@ -260,6 +286,7 @@ function bindEvents() {
   // Reaching for the coach's buttons stays on the target instead of auto-advancing.
   els.controlBar.addEventListener("focusin", () => stayOnCoachTarget());
   document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") resumeCamera();
     if (document.visibilityState !== "hidden") return;
     stayOnCoachTarget();
     if (typeof stopDemo === "function") stopDemo();
@@ -273,11 +300,16 @@ function bindEvents() {
   els.coachContentGroup?.addEventListener("keydown", moveCoachRadio);
   els.coachSessionButton?.addEventListener("click", () => setCoachSheet(!isCoachSheetOpen()));
   els.coachSheetClose?.addEventListener("click", () => setCoachSheet(false));
+  // Captured, so the tap that closes the sheet does not also press what the
+  // dimming covers. Wider than a tablet the sheet is a plain panel.
   document.addEventListener("click", (event) => {
     if (!isCoachSheetOpen() || !(event.target instanceof Node)) return;
     if (els.coachStudy.contains(event.target) || els.coachSessionButton?.contains(event.target)) return;
     setCoachSheet(false);
-  });
+    if (!matchMedia("(max-width: 63.99rem)").matches) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
   queryElements("[data-model-test-task]").forEach((button) => {
     button.addEventListener("click", () => setModelTestTask(button.dataset.modelTestTask));
   });
@@ -398,6 +430,12 @@ function bindMenuFallback() {
   parts.button.addEventListener("click", () => {
     setFallbackMenuOpen(parts, parts.menu.dataset.open !== "true");
   });
+  // The light dismiss the Popover API would give.
+  document.addEventListener("pointerdown", (event) => {
+    if (parts.menu.dataset.open !== "true" || !(event.target instanceof Node)) return;
+    if (parts.menu.contains(event.target) || parts.button.contains(event.target)) return;
+    setFallbackMenuOpen(parts, false);
+  }, true);
 }
 
 /**
@@ -554,6 +592,10 @@ function setMode(mode, options = {}) {
   // Every route change ends the demo. Guarded: the page still switches screens
   // if demo-source.js did not load.
   if (typeof stopDemo === "function") stopDemo();
+  const menuParts = fallbackMenu();
+  if (menuParts) setFallbackMenuOpen(menuParts, false);
+  // A new screen opens at its top; the old offset would hide the stage.
+  if (mode !== state.mode) window.scrollTo(0, 0);
   const shell = els.appShell || queryUi("app-shell");
   if (shell) { shell.dataset.view = "app"; shell.dataset.mode = mode; }
   if (typeof resetSmoother === "function") resetSmoother();
@@ -668,8 +710,33 @@ let _cameraStartAttempt = null;
 let _cameraTrackEnded = null;
 
 /**
- * @typedef {"denied" | "system" | "busy" | "notfound" | "insecure" | "unsupported" | "failed" | "ended"} CameraProblemKind
+ * Mute and unmute listeners of the live track. A muted track stays live but
+ * MediaPipe keeps re-reading its last frame, so the reading pauses meanwhile.
+ *
+ * @type {{mute: () => void, unmute: () => void} | null}
  */
+let _cameraTrackMute = null;
+let _cameraPaused = false;
+
+/**
+ * @typedef {"denied" | "system" | "busy" | "notfound" | "insecure" | "unsupported" | "outdated" | "failed" | "ended"} CameraProblemKind
+ */
+
+// The smallest module with a SIMD instruction; ONNX Runtime Web needs SIMD.
+const SIMD_PROBE = new Uint8Array([
+  0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11,
+]);
+
+/**
+ * @returns {boolean}
+ */
+function browserRunsModels() {
+  try {
+    return typeof WebAssembly === "object" && WebAssembly.validate(SIMD_PROBE);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Only the insecure page names something: the published address, without the
@@ -751,9 +818,13 @@ function showCameraProblem(kind) {
   const retry = els.cameraRetry;
   const without = els.cameraNoCamera;
   if (retry && without) {
-    const canRetry = kind !== "insecure" && kind !== "unsupported";
+    const canRetry = kind !== "insecure" && kind !== "unsupported" && kind !== "outdated";
     const withoutFirst = !canRetry || kind === "notfound";
     retry.hidden = !canRetry;
+    // The demo runs the same model, and the camera permission is not the problem.
+    without.hidden = kind === "outdated";
+    const help = document.getElementById("cameraHelp");
+    if (help) help.hidden = kind === "outdated";
     retry.classList.toggle("btn--stage-primary", !withoutFirst);
     retry.classList.toggle("btn--stage", withoutFirst);
     without.classList.toggle("btn--stage-primary", withoutFirst);
@@ -813,8 +884,13 @@ async function toggleCamera() {
 
   // Browsers hide the camera API on an insecure page; a secure page without
   // it is an old browser.
+  const insecure = window.isSecureContext === false;
+  if (!insecure && !browserRunsModels()) {
+    setText(els.latencyBadge, "shell.badge.cameraFailed");
+    showCameraProblem("outdated");
+    return;
+  }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    const insecure = window.isSecureContext === false;
     setText(els.latencyBadge, insecure ? "shell.badge.httpsRequired" : "shell.badge.cameraFailed");
     showCameraProblem(insecure ? "insecure" : "unsupported");
     return;
@@ -842,6 +918,12 @@ async function toggleCamera() {
     };
     stream.getTracks().forEach((track) => track.addEventListener("ended", onTrackEnded));
     _cameraTrackEnded = onTrackEnded;
+    const onTrackMute = { mute: pauseCamera, unmute: resumeCamera };
+    stream.getTracks().forEach((track) => {
+      track.addEventListener("mute", onTrackMute.mute);
+      track.addEventListener("unmute", onTrackMute.unmute);
+    });
+    _cameraTrackMute = onTrackMute;
     await waitForVideoReady(els.video);
     // The stream is now state.stream, so the stop already released it.
     if (cancelled()) return;
@@ -852,6 +934,8 @@ async function toggleCamera() {
     els.cameraStatus.classList.add("is-live");
     els.cameraStatus.lastChild.textContent = t("shell.status.cameraOn");
     setText(els.latencyBadge, "shell.badge.cameraOn");
+    // Replaces what the last camera left, such as a lost-camera problem.
+    if (typeof startMediaPipe === "function") setMessage(() => t("shell.tracking.preparing"), "maybe");
 
     // The models download alongside MediaPipe; neither needs the other.
     const liveModelsLoad = loadModelsWithStatus(liveModelNeeds(state.mode));
@@ -862,13 +946,18 @@ async function toggleCamera() {
         await startMediaPipe(els.video);
         if (cancelled()) return;
         setText(els.latencyBadge, "shell.badge.trackingReady");
+        // Replaces only this start's own message, never a word refusal.
+        if (liveModelsLoaded(state.mode) && messageShows("shell.models.downloading", "shell.tracking.preparing")) {
+          setMessage(() => t("shell.models.ready"), "good");
+        }
       } catch (err) {
         console.warn("MediaPipe failed to start:", err);
         if (cancelled()) return;
         setText(els.latencyBadge, "shell.badge.trackingMissing");
         // This must be the message left standing, not a later "models ready".
-        await liveModelsLoad;
-        if (cancelled()) return;
+        // A failed model keeps its reload text, which recovers both.
+        const modelsReady = await liveModelsLoad;
+        if (cancelled() || !modelsReady) return;
         reportProblem(() => t("shell.tracking.failed"));
       }
     }
@@ -895,9 +984,16 @@ async function toggleCamera() {
 function stopCamera() {
   _cameraStartAttempt = null;
   const onTrackEnded = _cameraTrackEnded;
+  const onTrackMute = _cameraTrackMute;
   _cameraTrackEnded = null;
+  _cameraTrackMute = null;
+  _cameraPaused = false;
   state.stream?.getTracks().forEach((track) => {
     if (onTrackEnded) track.removeEventListener("ended", onTrackEnded);
+    if (onTrackMute) {
+      track.removeEventListener("mute", onTrackMute.mute);
+      track.removeEventListener("unmute", onTrackMute.unmute);
+    }
     track.stop();
   });
   state.stream = null;
@@ -924,6 +1020,8 @@ function stopCamera() {
   if (typeof resetSmoother === "function") resetSmoother();
   resetLetterLandmarkSmoother();
   resetCoachAttempt();
+  // The message described the camera that just stopped.
+  setMessage(() => t("letter.plate.idle"), "low");
   updateWordState();
   syncRecordButton();
 
@@ -932,6 +1030,39 @@ function stopCamera() {
   previousFrame = null;
   _noHandSeconds = 0;
   _lastStatusTick = 0;
+}
+
+/**
+ * A word recording in progress is abandoned: its frames would have a gap.
+ *
+ * @returns {void}
+ */
+function pauseCamera() {
+  if (!state.cameraOn || _cameraPaused) return;
+  _cameraPaused = true;
+  if (typeof endWordRecordingEarly === "function") endWordRecordingEarly("cancelled");
+  if (typeof resetSmoother === "function") resetSmoother();
+  resetLetterLandmarkSmoother();
+  if (isLetterContext()) updatePrediction({ label: "?", confidence: 0, alternatives: [] });
+  setText(els.latencyBadge, "shell.badge.paused");
+  // A download or its failure keeps the plate until the models load.
+  if (liveModelsLoaded(state.mode)) setMessage(() => t("shell.camera.paused"), "maybe");
+}
+
+/**
+ * Also run when the page comes back, since a phone may pause the video of a
+ * hidden page.
+ *
+ * @returns {void}
+ */
+function resumeCamera() {
+  const tracks = state.stream?.getVideoTracks();
+  if (!state.cameraOn || !tracks || tracks.some((track) => track.muted)) return;
+  els.video.play()?.catch((err) => console.warn("Camera video did not resume:", err));
+  if (!_cameraPaused) return;
+  _cameraPaused = false;
+  setText(els.latencyBadge, "shell.badge.cameraOn");
+  if (liveModelsLoaded(state.mode) && !handTrackingPending()) setMessage(() => t("shell.models.ready"), "good");
 }
 
 /**
@@ -955,7 +1086,7 @@ function renderLoop(now) {
   drawOverlay();
   if (typeof updatePlateSide === "function") updatePlateSide(now);
 
-  if (framesLive() && typeof realInference === "function" && isInferenceDue(now)) {
+  if (framesLive() && !_cameraPaused && typeof realInference === "function" && isInferenceDue(now)) {
     // Only a letter tick moves the throttle, so the first letter frame after a
     // word context runs at once.
     if (isLetterContext()) state.lastTick = now;
@@ -977,24 +1108,27 @@ let _noHandSeconds = 0;
  * @returns {void}
  */
 function updateMediaPipeStatus(now) {
-  if (!state.cameraOn) return;
+  if (!state.cameraOn || _cameraPaused) return;
   if (now - _lastStatusTick < 1000) return;
   _lastStatusTick = now;
 
   if (typeof latestMediaPipeResult === "undefined" || !latestMediaPipeResult) {
-    setText(els.latencyBadge, "shell.badge.preparing");
+    // A failed tracking start keeps its own badge.
+    if (typeof mpStarting === "undefined" || mpStarting || mpRunning) setText(els.latencyBadge, "shell.badge.preparing");
     return;
   }
   const r = latestMediaPipeResult;
   const hasHand = !!(r.rightHandLandmarks || r.leftHandLandmarks);
+  // Until the models load, the plate says they are downloading or failed.
+  const hints = liveModelsLoaded(state.mode);
   if (!hasHand) {
     _noHandSeconds++;
     setText(els.latencyBadge, "shell.badge.searching");
-    if (_noHandSeconds === 5) setMessage(() => t("shell.hand.missing"), "maybe");
+    if (_noHandSeconds === 5 && hints) setMessage(() => t("shell.hand.missing"), "maybe");
   } else {
     if (_noHandSeconds > 0) {
       _noHandSeconds = 0;
-      setMessage(() => t("shell.hand.detected"), "good");
+      if (hints) setMessage(() => t("shell.hand.detected"), "good");
     }
     setText(els.latencyBadge, "shell.badge.handDetected");
   }

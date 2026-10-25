@@ -62,7 +62,9 @@
     text-align: start;
     cursor: pointer;
   }
-  .choice:hover { background: var(--color-sunken); }
+  @media (hover: hover) {
+    .choice:hover { background: var(--color-sunken); }
+  }
   .choice strong { font-weight: var(--fw-semibold); }
   .choice small { font-size: var(--fs-xs); color: var(--color-text-2); }
   .choice:is(.is-active, :has(input:checked)) {
@@ -149,7 +151,10 @@
     text-align: center;
     cursor: pointer;
   }
-  .mt__drop:is(:hover, .is-dragging) { background: var(--color-sunken); }
+  .mt__drop.is-dragging { background: var(--color-sunken); }
+  @media (hover: hover) {
+    .mt__drop:hover { background: var(--color-sunken); }
+  }
   .mt__drop span { font-weight: var(--fw-semibold); }
   .mt__drop small { font-size: var(--fs-xs); color: var(--color-text-2); }
   .mt__drop:has(+ input:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 2px; }
@@ -227,8 +232,7 @@
     .mt__table tbody th { flex: 0 0 calc(100% - 7rem); min-width: 0; overflow-wrap: anywhere; }
     .mt__table td:last-child { order: -1; flex: 0 0 6rem; margin-left: auto; text-align: end; }
     .mt__table tbody th { order: -2; }
-    .mt__table td:nth-child(2)::before { content: "Beklenen "; }
-    .mt__table td:nth-child(3)::before { content: "Tahmin "; }
+    .mt__table td:is(:nth-child(2), :nth-child(3))::before { content: attr(data-label) " "; }
     .mt__table td:nth-child(2)::before,
     .mt__table td:nth-child(3)::before { font-size: var(--fs-xs); color: var(--color-text-3); }
     .mt__table td:nth-child(3) { overflow-wrap: anywhere; }
@@ -309,6 +313,12 @@
   /* Project screen (#project) */
 
   .page a:not(.btn) { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+  /* Phone or large text: a long label wraps instead of widening the page. */
+  @media (max-width: 63.99rem) {
+    .page .btn { padding-block: var(--sp-2); white-space: normal; text-align: center; }
+    /* Stays display: list-item, which keeps the disclosure marker. */
+    .page details > summary { box-sizing: border-box; min-height: var(--size-target); padding-block: 10px; }
+  }
   .pj__cta { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
   .pj__grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-6); }
   .pj__main { display: grid; align-content: start; gap: var(--sp-6); min-width: 0; max-width: 40rem; }

@@ -303,6 +303,8 @@ function createSandbox(missingIds, wrongTypeIds) {
     },
     clearTimeout,
     URL,
+    // No layout, so nothing to scroll.
+    scrollTo() {},
     // window is globalThis here, so this is what window.addEventListener hits.
     addEventListener: (type, handler) => {
       listenerLog.push(`window:${type}`);

@@ -15,7 +15,7 @@
   /* Target tile */
   .target-tile {
     position: absolute;
-    inset: var(--sp-3) auto auto var(--sp-3);
+    inset: var(--sp-3) auto auto max(var(--sp-3), env(safe-area-inset-left));
     z-index: var(--z-stage-hud);
     display: flex;
     align-items: stretch;
@@ -45,7 +45,9 @@
     text-align: center;
     cursor: pointer;
   }
-  .target-tile__ref:hover { color: var(--stage-text); }
+  @media (hover: hover) {
+    .target-tile__ref:hover { color: var(--stage-text); }
+  }
   .target-tile__main {
     display: grid;
     align-content: center;
@@ -188,7 +190,12 @@
     background: var(--color-primary);
     color: var(--color-on-primary);
   }
-  .dock .coach-hint:not(:disabled):hover {
+  @media (hover: hover) {
+    .dock .coach-hint:not(:disabled):hover {
+      background: color-mix(in srgb, var(--color-primary) 86%, var(--color-surface));
+    }
+  }
+  .dock .coach-hint:not(:disabled):active {
     background: color-mix(in srgb, var(--color-primary) 86%, var(--color-surface));
   }
   .coach-next::after {
@@ -245,7 +252,10 @@
     font-weight: var(--fw-bold);
     cursor: pointer;
   }
-  .letter-grid__item:hover { background: var(--color-sunken); }
+  @media (hover: hover) {
+    .letter-grid__item:hover { background: var(--color-sunken); }
+  }
+  .letter-grid__item:active { background: var(--color-sunken); }
   /* Done: a check as well as a fill, so colour is never the only sign. */
   .letter-grid__item[data-state="done"] { border-color: transparent; background: var(--color-sunken); }
   .letter-grid__item[data-state="done"]::after {
@@ -275,15 +285,19 @@
       z-index: var(--z-popover);
       max-height: 85dvh;
       overflow: auto;
-      padding: var(--sp-3) var(--sp-3) calc(var(--sp-3) + env(safe-area-inset-bottom));
+      padding: var(--sp-3) max(var(--sp-3), env(safe-area-inset-right)) calc(var(--sp-3) + env(safe-area-inset-bottom)) max(var(--sp-3), env(safe-area-inset-left));
       border-radius: var(--r-l) var(--r-l) 0 0;
       background: var(--color-page);
       /* The spread dims the screen behind the sheet. */
       box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.5);
     }
     .coach-study[data-open="true"] { display: grid; }
+    /* The page behind stays put, whether a drag starts on the sheet or on
+       the dimmed part. */
+    :root:has(.coach-study[data-open="true"]) { overflow: hidden; }
     .coach-study__close { display: inline-flex; }
     .letter-grid__item { min-height: var(--size-target); }
+    .coach-study .modes__item, .coach-study__reset { min-height: var(--size-target); }
     .letter-grid { gap: var(--sp-2); }
     /* The toast sits below the target tile, not over it. */
     .app-shell[data-mode="coach"] .toast { inset-block-start: calc(var(--sp-3) + 100px); }
@@ -298,9 +312,31 @@
     .app-shell[data-mode="coach"] .stage__empty { padding-top: calc(var(--sp-3) + 80px + var(--sp-4)); }
   }
 
-  /* A short phone cannot fit the tile above the first-visit content, and the
+  /* By the stage's height: the facts give way first, then the tile, whose
      target means nothing until the camera is on. */
-  @media (max-width: 63.99rem) and (max-height: 44rem) {
+  @media (max-width: 63.99rem) {
+    @container stage (max-height: 39rem) {
+      .app-shell[data-mode="coach"] .stage__facts { display: none; }
+    }
+    @container stage (max-height: 31rem) {
+      .app-shell[data-mode="coach"] .stage:has(> .stage__empty:not([hidden])) > .target-tile { display: none; }
+      .app-shell[data-mode="coach"] .stage__empty { padding-top: revert-layer; }
+    }
+    /* The shortest narrow stage: the tile keeps its label for screen readers
+       only, so it clears the plate. */
+    @container stage (max-width: 21rem) and (max-height: 18rem) {
+      .target-tile__label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+    }
+  }
+  /* The landscape stage is sized by its width only, so the window decides. */
+  @media (orientation: landscape) and (max-height: 32rem) and (max-width: 63.99rem) {
     .app-shell[data-mode="coach"] .stage:has(> .stage__empty:not([hidden])) > .target-tile { display: none; }
     .app-shell[data-mode="coach"] .stage__empty { padding-top: revert-layer; }
   }

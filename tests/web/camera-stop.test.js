@@ -3,8 +3,9 @@
 // The camera is started through the app's own toggle with fakes at the
 // boundaries only: getUserMedia hands out a stream whose tracks count their
 // stop() calls, the MediaPipe import resolves to fake tasks that count their
-// detections, and animation frames are queued rather than run, so a test can
-// see which detection frame is pending and whether it was cancelled.
+// detections, the model server answers every model file, and animation
+// frames are queued rather than run, so a test can see which detection frame
+// is pending and whether it was cancelled.
 //
 // Hiding the camera screen is never the same as releasing it; these check the
 // release itself. Real media and a real frame clock need a browser.
@@ -12,6 +13,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { serveModelFiles } from "./helpers/fake-camera.mjs";
 import { loadWebApp } from "./helpers/web-app-context.mjs";
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -85,6 +87,7 @@ function appWithFakeCamera() {
     ctx.clearRect = () => {};
     state.mode = "word";
   `);
+  serveModelFiles(app);
 
   /** Run the one pending animation frame, as the browser would. */
   const runFrame = () => {
