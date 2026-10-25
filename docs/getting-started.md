@@ -93,11 +93,44 @@ It needs a camera and a desktop session, and loads the models in
 
 ## Training and data
 
-The datasets are not in the repository; download them yourself into `data/raw/`,
-which Git ignores. [Data](../data/README.md) lists the sources and their terms,
-[data preparation](../scripts/data_preparation/README.md) and
-[model training](../scripts/model_training/README.md) the letter pipeline. The
-50-word model is trained in `notebooks/word_50_training.ipynb`.
+The datasets are not in the repository. `data/` is a local workspace that Git
+ignores, because its contents are large, generated or under other licences;
+the scripts create its folders when they first write to them. The web app does
+not read it, and the models hold learned parameters only.
+
+```text
+data/
+├── raw/         downloaded images, videos and parquet subsets
+├── processed/   generated landmark CSVs
+└── reference/   local reference mappings
+```
+
+What trained the published models:
+
+| Model | Source | Rows or recordings used | Terms |
+|---|---|---:|---|
+| Letters | [ASL Alphabet](https://www.kaggle.com/datasets/grassknoted/asl-alphabet) | 52,419 | GPL-2.0, as labelled |
+| Letters | [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset) | 962 | CC0 |
+| Letters | `ASL_SemCom` images associated with [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) | 1,580 | Not recorded |
+| Words | [Google Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs) | 19,299 for the 50-word model | CC BY 4.0, subject to the competition rules |
+
+The letter rows are landmarks extracted successfully, merged into 54,961 rows
+and split into 46,716 for training and 8,245 held out. The raw-data layout and
+the `ASL_SemCom` terms are not recorded well enough to publish the images or to
+promise a one-command rebuild. Explored but not used: MediaPipe Processed ASL
+(no usable hands found), MS-ASL (download scripts only), and a small
+competition subset in `data/raw/asl-signs-sample-subset/`, used only for Model
+Test samples. Attribution is in the [README](../README.md#data-and-attribution).
+
+Never commit raw images, videos, participant-level parquet files, generated
+CSVs, Kaggle credentials or archives. Small reviewed JSON under `asl-web/data/`,
+deterministic fixtures with no camera frames, and the model files `.gitignore`
+allows are fine. Check each dataset's terms before you download, use or share
+it.
+
+[Data preparation](../scripts/data_preparation/README.md) and
+[model training](../scripts/model_training/README.md) cover the letter
+pipeline. The 50-word model is trained in `notebooks/word_50_training.ipynb`.
 
 Real word samples for Model Test come from competition data that may not be
 redistributed. [Evaluation](../scripts/evaluation/README.md) explains how to

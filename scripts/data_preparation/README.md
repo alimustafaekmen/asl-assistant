@@ -18,7 +18,7 @@ These scripts turn downloaded datasets into landmark tables. They write under
 It expects the images in `data/raw/ASL Alphabet/asl_alphabet_train/asl_alphabet_train`.
 By default the merge undersamples every class to the smallest; the published
 model's tables were not balanced, so pass `--no-balance` to reproduce them. The
-published model used three sources (see [data](../../data/README.md)); this
+published model used three sources (see [training and data](../../docs/getting-started.md#training-and-data)); this
 script covers the ASL Alphabet part.
 
 ## Words (experimental)

@@ -16,6 +16,5 @@ Each part of the repository also has a short README next to its files:
 | [`asl-desktop/`](../asl-desktop/README.md) | The desktop prototype |
 | [`models/`](../models/README.md) | The source copy of every published model |
 | [`notebooks/`](../notebooks/README.md) | The word-model training notebooks and their results |
-| [`data/`](../data/README.md) | The local data workspace and what may be committed |
 | [`scripts/`](../scripts/README.md) | Data preparation, training, fixture export and validation |
 | [`tests/`](../tests/README.md) | The test layers and the browser checks |
