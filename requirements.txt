@@ -19,8 +19,7 @@ lightgbm==4.6.0
 joblib==1.5.1
 
 # Sequence models
-torch==2.2.2
-torchvision==0.17.2
+torch==2.13.0
 
 # Desktop interface and speech
 customtkinter==6.0.0
