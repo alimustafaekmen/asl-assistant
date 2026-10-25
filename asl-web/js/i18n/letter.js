@@ -1,8 +1,5 @@
-// Letter screen strings: the stage, camera help, plate, transcript, action bar, side cards, demo and toast.
-//
-// The plate and the ranked list are shared by the camera screens, so their
-// word-result wording lives here too. A percentage is a string of its own,
-// because Turkish writes the sign first ("%90") and English after ("90%").
+// Letter screen strings, and the plate's word-result wording, which the camera
+// screens share. A percentage is its own string: Turkish writes "%90".
 
 registerStrings("letter", {
   tr: {
@@ -234,9 +231,8 @@ registerStrings("letter", {
   },
 });
 
-// What the letter area drew from state is redrawn from state; the functions
-// live in the modules, which load later, so each is looked up when a change
-// comes. Separate listeners, so one failing does not stop the others.
+// Looked up when called, as the modules load later. Separate listeners, so
+// one failing does not stop the others.
 onLanguageChange(() => renderPredictionLanguage());
 onLanguageChange(() => renderToastLanguage());
 onLanguageChange(() => renderTranscript());

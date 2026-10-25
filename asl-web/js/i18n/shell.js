@@ -1,9 +1,4 @@
-// Shell strings: the header, navigation, language and theme controls, screen
-// titles, the camera status and problems, model downloads and start-up.
-//
-// Screen titles double as the document title (" · ASL Assistant" is added).
-// The camera problems and badges are written by core/app.js, which redraws
-// what it shows on a language change (renderShellLanguage).
+// Shell strings. Screen titles double as the document title.
 
 registerStrings("shell", {
   tr: {
@@ -22,9 +17,7 @@ registerStrings("shell", {
     "shell.menu.qr": "Telefonda aç",
     "shell.menu.theme": "Koyu tema",
 
-    "shell.language.label": "English",
-    "shell.language.action": "Switch to English",
-    "shell.language.code": "en",
+    "shell.language.group": "Dil",
     "shell.language.changed": "Sayfa artık Türkçe.",
 
     "shell.route.letter": "Harf tanıma",
@@ -37,6 +30,7 @@ registerStrings("shell", {
     "shell.region.camera": "Kamera",
     "shell.region.details": "Ayrıntılar",
     "shell.region.debug": "Debug paneli",
+    "shell.footer.source": "Kaynak kodu GitHub'da",
 
     "shell.modeBadge.letter": "Harf Modu",
     "shell.modeBadge.word": "Kelime Modu",
@@ -112,9 +106,7 @@ registerStrings("shell", {
     "shell.menu.qr": "Open on phone",
     "shell.menu.theme": "Dark theme",
 
-    "shell.language.label": "Türkçe",
-    "shell.language.action": "Türkçeye geç",
-    "shell.language.code": "tr",
+    "shell.language.group": "Language",
     "shell.language.changed": "The page is now in English.",
 
     "shell.route.letter": "Letter recognition",
@@ -127,6 +119,7 @@ registerStrings("shell", {
     "shell.region.camera": "Camera",
     "shell.region.details": "Details",
     "shell.region.debug": "Debug panel",
+    "shell.footer.source": "Source code on GitHub",
 
     "shell.modeBadge.letter": "Letter mode",
     "shell.modeBadge.word": "Word mode",
@@ -188,6 +181,5 @@ registerStrings("shell", {
   },
 });
 
-// The shell's dynamic text is redrawn from state; renderShellLanguage lives
-// in core/app.js, which loads later, so it is looked up when a change comes.
+// Looked up when called: core/app.js loads later.
 onLanguageChange(() => renderShellLanguage());

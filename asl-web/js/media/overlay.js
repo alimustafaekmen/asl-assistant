@@ -1,24 +1,13 @@
-// Landmark overlay drawing for the camera canvas.
+// Landmark overlay for the camera canvas. The video is mirrored by CSS only and
+// drawn with `object-fit: cover`, while MediaPipe coordinates refer to the
+// uncropped frame: every point is mapped through the cover rectangle and then
+// flipped, or the whole overlay is misplaced.
 //
-// The <video> element is mirrored by CSS only, and it is rendered with
-// `object-fit: cover`. MediaPipe reports normalized coordinates against the
-// original, uncropped frame, so every point is first mapped through the cover
-// rectangle and then flipped horizontally. Skipping either step misplaces the
-// whole overlay.
-//
-// Drawing is intentionally sparse: full hands, plus a small set of pose and
-// face guidance points in word contexts, where framing matters.
-//
-// Every stroke and dot is drawn twice, a dark halo under a light core, so the
-// skeleton reads on light skin, a white wall or a plant as well as on a dark
-// room; a single-colour stroke falls under 3:1 contrast on most of those. The
-// colours are the design tokens, read once: the stage is dark in both themes.
+// Every stroke is drawn twice, a dark halo under a light core, so the skeleton
+// keeps 3:1 contrast on light skin or a white wall as well as in a dark room.
 
 /**
- * Where the video actually sits inside its box under `object-fit: cover`.
- *
- * With cover, one axis fills the box and the other overflows, so x or y is
- * negative and width or height exceeds the box.
+ * Under cover one axis overflows the box, so x or y is negative.
  *
  * @typedef {Object} VideoCoverRect
  * @property {number} x Left edge relative to the box; negative when cropped.
@@ -39,9 +28,7 @@
 let _overlayPalette = null;
 
 /**
- * The overlay colours, from the CSS custom properties in tokens.css, so the
- * canvas and the stylesheet cannot drift apart. The defaults apply only if a
- * token is missing.
+ * Read from the tokens.css custom properties, so canvas and stylesheet cannot drift.
  *
  * @returns {OverlayPalette}
  */
@@ -59,7 +46,6 @@ function overlayPalette() {
   return _overlayPalette;
 }
 
-/** Hand bones as landmark index pairs. */
 const HAND_CONNECTIONS = [
   [0, 1], [1, 2], [2, 3], [3, 4],
   [0, 5], [5, 6], [6, 7], [7, 8],
@@ -70,19 +56,16 @@ const HAND_CONNECTIONS = [
 ];
 
 /**
- * Draw the latest landmarks over the camera canvas, mapped through the cover
- * rectangle and mirrored as the file header describes. Pose and face guidance
- * points are drawn only in word contexts, where framing is what the user
- * needs to fix.
+ * Pose and face guidance points are drawn only in word contexts, where framing
+ * is what the user needs to fix.
  *
  * @param {CanvasRenderingContext2D} ctx Target canvas context.
  * @param {MediaPipeFrameResult | null} result Latest frame, or null to draw nothing.
  * @param {number} width Canvas width in CSS pixels.
  * @param {number} height Canvas height in CSS pixels.
  * @param {HTMLVideoElement | null} [videoEl] Source video, for the cover crop.
- * @param {VideoCoverRect | null} [frameRect] Where the landmarks' image sits
- *   in the box when no video is shown behind them, as for the demo's
- *   recorded square; the video's cover rectangle otherwise.
+ * @param {VideoCoverRect | null} [frameRect] Where the landmark image sits when
+ *   no video is shown behind it (the demo); the video's cover rectangle otherwise.
  * @returns {void}
  */
 function drawLandmarks(ctx, result, width, height, videoEl = null, frameRect = null) {
@@ -97,13 +80,11 @@ function drawLandmarks(ctx, result, width, height, videoEl = null, frameRect = n
   const projectPoint = (pt) => {
     const rawX = videoRect.x + pt.x * videoRect.width;
     const rawY = videoRect.y + pt.y * videoRect.height;
-    // The video is flipped by CSS only, so the overlay mirrors x itself.
     return { x: width - rawX, y: rawY };
   };
 
   /**
-   * @param {NormalizedLandmark | null | undefined} pt Skipped when absent; an
-   *   index into a shorter list than expected yields undefined.
+   * @param {NormalizedLandmark | null | undefined} pt Skipped when absent.
    * @param {string} color Any CSS colour.
    * @param {number} [radius]
    * @returns {void}
@@ -137,13 +118,11 @@ function drawLandmarks(ctx, result, width, height, videoEl = null, frameRect = n
   };
 
   const palette = overlayPalette();
-  // The frame and the skeleton lock together: the stage's state is what the
-  // prediction code wrote, so both always agree.
+  // The skeleton follows the stage state the prediction code wrote, so both agree.
   const core = els.cameraStage?.dataset.state === "good" ? palette.lock : palette.core;
 
   /**
-   * Draw hands in layers: every halo first, then every core, so where two
-   * hands overlap no halo covers a core.
+   * Every halo first, then every core, so where two hands overlap no halo covers a core.
    *
    * @param {(LandmarkList | null)[]} hands The 21-point hands to draw.
    * @returns {void}
@@ -164,21 +143,17 @@ function drawLandmarks(ctx, result, width, height, videoEl = null, frameRect = n
     }
   };
 
-  // Word contexts need hand, face and pose in view. A few guidance points say
-  // so while keeping the overlay readable and cheap to draw.
   const shouldDrawHolistic =
     typeof state !== "undefined" &&
     (state.mode === "word" ||
       (state.mode === "coach" && typeof state.coachTarget === "string" && state.coachTarget.length > 1));
 
   /**
-   * @param {LandmarkList | null | undefined} pose Full pose list; only the
-   *   shoulder, elbow, wrist and nose indices are read.
+   * @param {LandmarkList | null | undefined} pose
    * @returns {void}
    */
   const drawPoseKeypoints = (pose) => {
     if (!pose || !pose.length) return;
-    // MediaPipe pose indices: shoulders 11/12, elbows 13/14, wrists 15/16, nose 0.
     const pairs = [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16]];
     for (const pass of [{ color: palette.halo, width: 5 }, { color: palette.guide, width: 2 }]) {
       for (const [a, b] of pairs) drawLine(pose[a], pose[b], pass.color, pass.width);
@@ -189,14 +164,12 @@ function drawLandmarks(ctx, result, width, height, videoEl = null, frameRect = n
   };
 
   /**
-   * @param {LandmarkList | null | undefined} face Full face mesh; only a few
-   *   framing points are read.
+   * @param {LandmarkList | null | undefined} face
    * @returns {void}
    */
   const drawFaceKeypoints = (face) => {
     if (!face || !face.length) return;
-    // Not the full mesh: nose, forehead, chin, eye corners and mouth are
-    // enough to show face direction and framing.
+    // A few points are enough to show face direction and framing.
     const idxs = [1, 10, 152, 33, 263, 13, 14, 61, 291].filter((i) => i < face.length);
     idxs.forEach((idx) => drawDot(face[idx], palette.halo, 4.5));
     idxs.forEach((idx) => drawDot(face[idx], palette.guide, 2.5));
@@ -207,11 +180,8 @@ function drawLandmarks(ctx, result, width, height, videoEl = null, frameRect = n
     drawFaceKeypoints(result.faceLandmarks);
   }
 
-  // Each side arrives as a list of detected hands, and the first is drawn.
-  // The else branch accepts an already-flat list or null, the shape of the
-  // older Holistic API; camera.js does not produce it, and the branch is kept
-  // as tolerance. A type guard cannot classify an array by one element, so
-  // the narrowing is a cast.
+  // The else branch tolerates a flat list (the older Holistic API shape). A
+  // type guard cannot classify an array by one element, so this is a cast.
   const rh = /** @type {LandmarkList | null} */ (
     Array.isArray(result.rightHandLandmarks) && Array.isArray(result.rightHandLandmarks[0])
       ? result.rightHandLandmarks[0]
@@ -223,21 +193,18 @@ function drawLandmarks(ctx, result, width, height, videoEl = null, frameRect = n
       : result.leftHandLandmarks
   );
 
-  // One colour for both hands: position tells them apart, and colour alone
-  // would not reach everyone.
+  // One colour for both hands: colour alone would not reach everyone.
   drawHands([rh, lh]);
 
   ctx.restore();
 }
 
 /**
- * Compute the cover rectangle for a video inside a box.
- *
  * @param {HTMLVideoElement | null | undefined} videoEl
  * @param {number} boxWidth
  * @param {number} boxHeight
- * @returns {VideoCoverRect} The full box when the video has not reported its
- *   dimensions yet, so the overlay degrades instead of dividing by zero.
+ * @returns {VideoCoverRect} The full box until the video reports its size,
+ *   instead of dividing by zero.
  */
 function _getVideoCoverRect(videoEl, boxWidth, boxHeight) {
   const videoWidth = videoEl?.videoWidth || 0;

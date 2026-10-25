@@ -132,11 +132,11 @@ class TestSetupPolicy:
         message = block_message(reason, facts(conda_prefix="/other", virtual_env="/other"))
 
         assert message.startswith("[BLOCK]")
-        assert "make setup" in message or "make doctor" in message
+        assert "make setup" in message
 
 
 class TestFaultReporting:
-    """Which environments leave `make doctor` non-zero.
+    """Which environments leave `doctor.py` non-zero.
 
     The distinction is between a step the user has yet to take and something
     that is actually wrong, and it is read from the checks rather than from the

@@ -9,8 +9,9 @@
 //   old language after a switch, and a switch that rewrites a badge another
 //   script has since written;
 // - the switch missing from the header menu (the "Diğer" popover on a phone,
-//   the header row on a laptop), named in the wrong language, or failing to
-//   save the choice and say so;
+//   the header row on a laptop), an option named in the wrong language, the
+//   wrong option marked as pressed, or a switch that fails to save the
+//   choice and say so;
 // - a switch that restarts the camera or loses the transcript.
 //
 // The browser's languages, storage, the camera and ONNX Runtime are faked at
@@ -47,7 +48,7 @@ const TITLES = {
 
 /** The app booted on `hash`; `options` are loadWebApp()'s. */
 async function bootedApp(hash = "#letter", options = {}) {
-  const location = new URL(`https://asl-assistant.netlify.app/${hash}`);
+  const location = new URL(`https://asl-assistant.pages.dev/${hash}`);
   const app = loadWebApp({
     boot: true,
     ...options,
@@ -121,48 +122,73 @@ test("a route opened after a switch takes its title in the new language", async 
   assert.equal(app.evaluate("els.resultKind.textContent"), "Word");
 });
 
-test("the switch is in the header menu, named in the language it switches to", async () => {
+/** The switch's options as [text, name, lang, pressed] rows. */
+function options(app) {
+  return Array.from(byId(app, "languageSwitch").querySelectorAll("button")).map((option) => [
+    option.textContent.trim(),
+    option.getAttribute("aria-label"),
+    option.getAttribute("lang"),
+    option.getAttribute("aria-pressed"),
+  ]);
+}
+
+const option = (app, language) => byId(app, "languageSwitch").querySelector(`[data-language="${language}"]`);
+
+test("the switch offers TR and EN in the header menu, each named in its own language", async () => {
   const app = await bootedApp();
-  const toggle = byId(app, "languageToggle");
+  const group = byId(app, "languageSwitch");
 
-  assert.ok(toggle, "the page has a language switch");
-  assert.equal(toggle.tagName, "BUTTON");
-  assert.equal(toggle.closest("[popover]")?.id, "moreMenu", "it is in the menu the phone's Diğer button opens");
-  assert.ok(toggle.closest(".topbar"), "and in the header row a laptop shows");
-  assert.equal(toggle.getAttribute("aria-label"), "Switch to English");
-  assert.equal(toggle.getAttribute("lang"), "en");
-  assert.equal(toggle.textContent.trim(), "English");
-  assert.ok(toggle.getAttribute("aria-label").includes(toggle.textContent.trim()), "the visible label is in the name");
+  assert.ok(group, "the page has a language switch");
+  assert.equal(group.closest("[popover]")?.id, "moreMenu", "it is in the menu the phone's Diğer button opens");
+  assert.ok(group.closest(".topbar"), "and in the header row a laptop shows");
+  assert.equal(group.getAttribute("role"), "group");
+  assert.equal(group.getAttribute("aria-label"), "Dil");
+  assert.deepEqual(options(app), [
+    ["TR", "Türkçe", "tr", "true"],
+    ["EN", "English", "en", "false"],
+  ]);
 
-  press(app, toggle);
+  press(app, option(app, "en"));
   assert.equal(lang(app), "en");
-  assert.equal(toggle.getAttribute("aria-label"), "Türkçeye geç");
-  assert.equal(toggle.getAttribute("lang"), "tr");
-  assert.equal(toggle.textContent.trim(), "Türkçe");
-  assert.ok(toggle.getAttribute("aria-label").includes(toggle.textContent.trim()));
+  assert.equal(group.getAttribute("aria-label"), "Language");
+  assert.deepEqual(options(app), [
+    ["TR", "Türkçe", "tr", "false"],
+    ["EN", "English", "en", "true"],
+  ]);
 });
 
-test("pressing the switch saves the choice, announces it, and switches back", async () => {
+test("pressing an option saves the choice, announces it, and the other switches back", async () => {
   const app = await bootedApp();
-  const toggle = byId(app, "languageToggle");
 
-  press(app, toggle);
+  press(app, option(app, "en"));
   assert.equal(app.evaluate('localStorage.getItem("asl-lang")'), "en");
   assert.equal(app.evaluate("els.announcer.textContent").trim(), "The page is now in English.");
   assert.equal(byId(app, "skipLink").textContent, "Skip to content");
 
-  press(app, toggle);
+  press(app, option(app, "tr"));
   assert.equal(lang(app), "tr");
   assert.equal(app.evaluate('localStorage.getItem("asl-lang")'), "tr");
   assert.equal(app.evaluate("els.announcer.textContent").trim(), "Sayfa artık Türkçe.");
   assert.equal(byId(app, "skipLink").textContent, "İçeriğe geç");
 });
 
+test("pressing the language already shown keeps it, saves it and announces nothing", async () => {
+  const app = await bootedApp();
+  const announced = app.evaluate("els.announcer.textContent");
+
+  press(app, option(app, "tr"));
+  assert.equal(lang(app), "tr");
+  assert.equal(app.evaluate('localStorage.getItem("asl-lang")'), "tr");
+  assert.equal(app.evaluate("els.announcer.textContent"), announced);
+  assert.equal(option(app, "tr").getAttribute("aria-pressed"), "true");
+});
+
 test("a saved choice opens the next visit in that language", async () => {
   const app = await bootedApp("#letter", { savedLanguage: "en" });
 
   assert.equal(lang(app), "en");
-  assert.equal(byId(app, "languageToggle").textContent.trim(), "Türkçe");
+  assert.equal(option(app, "en").getAttribute("aria-pressed"), "true");
+  assert.equal(option(app, "tr").getAttribute("aria-pressed"), "false");
 });
 
 /** The camera faked at every boundary, with the page's own bindings. */
@@ -182,7 +208,7 @@ test("a camera problem on screen is rewritten in the new language", async () => 
   assert.equal(byId(app, "cameraProblemTitle").textContent, "The camera cannot open at this address");
   assert.equal(
     byId(app, "cameraProblemText").textContent,
-    "Browsers allow the camera only on secure (https) addresses. Open the site at https://asl-assistant.netlify.app.",
+    "Browsers allow the camera only on secure (https) addresses. Open the site at https://asl-assistant.pages.dev.",
   );
   assert.equal(app.evaluate("els.latencyBadge.textContent"), "HTTPS required");
 });

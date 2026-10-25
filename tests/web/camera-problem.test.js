@@ -148,7 +148,7 @@ test("the address problem sends the visitor to the published address the config 
   const stage = stageOf(app);
   assert.equal(stage.camera, "insecure", "precondition: the address problem is shown");
   assert.match(stage.text, /https:\/\/moved\.example\.org\/asl adresinden açın\./);
-  assert.doesNotMatch(stage.text, /asl-assistant\.netlify\.app/, "the old address is still in the copy");
+  assert.doesNotMatch(stage.text, /asl-assistant\.pages\.dev/, "the old address is still in the copy");
 });
 
 test("a secure page whose browser has no camera API says the browser cannot", async () => {

@@ -20,7 +20,8 @@ const SMOKE_WORD = readJson("data/model-test-samples/words/word-give-smoke.json"
 
 /** An unbooted app whose manifests are the ones given; the fixtures come from disk. */
 async function appWithManifests({ published, local, localFixtures = {} }) {
-  const app = await appWithFakeOrt();
+  // A development server: the only host the local folder can be served from.
+  const app = await appWithFakeOrt({ globals: { location: new URL("http://localhost:8080/") } });
   routeFetch(app, (path) => {
     if (path.includes(PUBLISHED)) return jsonResponse(published);
     if (path.includes(LOCAL)) return local ? jsonResponse(local) : jsonResponse({}, 404);

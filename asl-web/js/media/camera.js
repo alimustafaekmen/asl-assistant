@@ -1,16 +1,8 @@
-// MediaPipe Tasks Vision orchestration for hands, pose, and face.
-//
-// The web API exposes separate HandLandmarker, PoseLandmarker, and
-// FaceLandmarker tasks. This module combines their latest results into the
-// shared `latestMediaPipeResult` object used by rendering and inference.
-//
-// MediaPipe normally reports handedness from the user's perspective. The
-// optional CONFIG.SELFIE_HANDEDNESS_SWAP flag handles devices that consistently
-// report the opposite convention.
+// MediaPipe Tasks Vision: runs the hand, pose and face tasks and publishes
+// their latest results as `latestMediaPipeResult`.
 
 /**
- * One MediaPipe landmark. Coordinates are normalized against the original,
- * unmirrored video frame.
+ * Coordinates are normalized against the unmirrored video frame.
  *
  * @typedef {Object} NormalizedLandmark
  * @property {number} x
@@ -21,14 +13,11 @@
  */
 
 /**
- * One detected body part as an ordered landmark list.
- *
  * @typedef {NormalizedLandmark[]} LandmarkList
  */
 
 /**
- * Why one detected hand was assigned to a side, or rejected. Read-only
- * diagnostics; nothing downstream branches on it.
+ * Diagnostics only; nothing downstream branches on it.
  *
  * @typedef {Object} HandednessDebugEntry
  * @property {string} raw Side as MediaPipe reported it.
@@ -40,13 +29,9 @@
  */
 
 /**
- * The latest combined frame this module publishes for rendering and inference.
- *
- * Hand fields hold a list per detected person, because MediaPipe reports up to
- * two hands; the single-user app reads the first. Pose and face fields are
- * already flattened to the first detected person. Any group may be null when
- * that task is missing or still loading, which is why letter mode keeps working
- * without pose and face.
+ * Hand fields hold one list per detected hand; pose and face are already the
+ * first person. Any group may be null while its task loads, so letter mode
+ * works without pose and face.
  *
  * @typedef {Object} MediaPipeFrameResult
  * @property {LandmarkList[] | null} rightHandLandmarks
@@ -55,18 +40,14 @@
  * @property {LandmarkList | null} poseLandmarks
  * @property {LandmarkList | null} faceLandmarks
  * @property {number} timestamp Frame timestamp in milliseconds.
- * @property {number} [aspect] Width over height of the image the landmarks
- *   were measured in, for a source that knows it: the demo's recorded square
- *   says 1. The camera leaves it out, and its video's size is read instead.
+ * @property {number} [aspect] Width over height of the landmark image, when the
+ *   source knows it (the demo's square says 1); otherwise the video size is read.
  */
 
-// The MediaPipe Tasks surface below describes only the members this adapter
-// uses. The upstream package is loaded from a CDN at runtime and its full type
-// tree is deliberately not copied into the source.
+// Only the members this adapter uses; the package itself loads from a CDN.
 
 /**
- * How MediaPipe reports which hand it detected. Older task builds omit the
- * score, so both fields are optional.
+ * Older task builds omit the score.
  *
  * @typedef {Object} HandednessCategory
  * @property {string} [categoryName]
@@ -90,8 +71,6 @@
  */
 
 /**
- * A MediaPipe task running in VIDEO mode.
- *
  * @template TResult
  * @typedef {Object} VideoLandmarkerTask
  * @property {(video: HTMLVideoElement, timestampMs: number) => TResult} detectForVideo
@@ -99,16 +78,11 @@
  */
 
 /**
- * Creates one task with the given delegate, so the GPU and CPU attempts share a
- * single call path.
- *
  * @template TResult
  * @typedef {(delegate: "GPU" | "CPU") => Promise<VideoLandmarkerTask<TResult>>} LandmarkerFactory
  */
 
 /**
- * The parts of the Tasks Vision ESM bundle this adapter reads.
- *
  * @typedef {Object} MediaPipeVisionModule
  * @property {{forVisionTasks: (wasmPath: string) => Promise<unknown>}} FilesetResolver
  * @property {{createFromOptions: (resolver: unknown, options: unknown) => Promise<VideoLandmarkerTask<HandLandmarkerResult>>}} HandLandmarker
@@ -127,17 +101,15 @@ let mpRunning = false;
 let mpVideoEl = null;
 /** Last timestamp handed to MediaPipe; it rejects a repeated timestamp. */
 let lastHandTs = 0;
-// Camera frames the browser has presented, counted through
-// requestVideoFrameCallback where it exists, and the count at the last
-// detection. Without that API every animation frame is detected, as before.
+// Presented camera frames (requestVideoFrameCallback) and the count at the last
+// detection. Without that API every animation frame is detected.
 let _videoFramesPresented = 0;
 let _videoFramesDetected = -1;
 /** @type {number | null} */
 let _videoFrameCallbackId = null;
 /** @type {HTMLVideoElement | null} */
 let _watchedVideo = null;
-// Longest wait for a new camera frame before detecting anyway: a video that
-// stops reporting frames must slow tracking, never stop it.
+// A video that stops reporting frames must slow tracking, never stop it.
 const STALLED_VIDEO_DETECT_MS = 200;
 /** @type {MediaPipeFrameResult | null} */
 let latestMediaPipeResult = null;
@@ -148,21 +120,19 @@ let mpOptionalLoading = false;
 let mpPoseFactory = null;
 /** @type {LandmarkerFactory<FaceLandmarkerResult> | null} */
 let mpFaceFactory = null;
-// The animation-frame handle stops orphaned loops; the start lock prevents a
-// second loop from being created while asynchronous model startup is pending.
+// The start lock prevents a second loop while async model startup is pending.
 /** @type {number | null} */
 let _rafId = null;
 let mpStarting = false;
-// Every start awaits the network several times, and a stop can land in any of
-// those waits. stopMediaPipe() bumps the generation; a start or optional load
-// that finds it changed after an await was cancelled, closes what it created,
-// and leaves every flag to whichever start is current.
+// A stop can land in any await of a start. stopMediaPipe() bumps the
+// generation; a start that finds it changed closes what it created and
+// leaves the flags to the current start.
 let _mpGeneration = 0;
 
 const MP_TASKS_VERSION = "0.10.18";
 
 /**
- * Import the MediaPipe Tasks Vision bundle, on first camera start only.
+ * Loaded on first camera start only.
  *
  * @returns {Promise<MediaPipeVisionModule>}
  * @throws {Error} When the CDN is unreachable.
@@ -175,8 +145,6 @@ async function _importTasksVision() {
 }
 
 /**
- * Create one task, preferring the GPU delegate and falling back to CPU.
- *
  * @template TResult
  * @param {string} name Task name, for the console trail.
  * @param {LandmarkerFactory<TResult>} factory
@@ -204,15 +172,9 @@ async function _createWithFallback(name, factory, options) {
 }
 
 /**
- * Start hand detection and begin loading the optional pose and face tasks.
- *
- * Hands are required by every mode, so a hand failure is fatal and reaches the
- * caller. Pose and face are only needed for words and load in the background,
- * which is what keeps letter mode usable on a slow connection.
- *
- * Re-entry is refused while a start is in flight, so a second detection loop
- * cannot be created. A stop while this awaits cancels it: the start closes
- * whatever task it was given and resolves without detecting anything.
+ * Hands are required, so a hand failure reaches the caller. Pose and face are
+ * only for words and load in the background, which keeps letter mode usable on
+ * a slow connection. Re-entry is refused while a start is in flight.
  *
  * @param {HTMLVideoElement} videoEl Live camera video.
  * @returns {Promise<void>}
@@ -250,7 +212,6 @@ async function startMediaPipe(videoEl) {
     console.log("[MP] WASM fileset ready");
 
     // Pinned like the bundle: a /latest/ model could change under it unseen.
-    // When pinned, /1/ and /latest/ served identical bytes (same md5).
     const HAND_MODEL =
       "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
     const POSE_MODEL =
@@ -306,7 +267,6 @@ async function startMediaPipe(videoEl) {
     mpPoseFactory = poseFactory;
     mpFaceFactory = faceFactory;
 
-    // Hand startup errors are fatal and must reach the caller for user feedback.
     /** @type {VideoLandmarkerTask<HandLandmarkerResult>} */
     let hand;
     try {
@@ -324,8 +284,6 @@ async function startMediaPipe(videoEl) {
     }
     handLandmarker = hand;
 
-    // Start hand detection immediately. Pose and face assets are larger and
-    // may continue loading in the background without blocking letter mode.
     mpRunning = true;
     lastHandTs = 0;
     _watchVideoFrames(mpVideoEl);
@@ -342,16 +300,13 @@ async function startMediaPipe(videoEl) {
 
     _ensureOptionalHolisticLandmarkers();
   } finally {
-    // A failed start must not keep the lock, or no later start could run. A
-    // cancelled one leaves it alone: stopMediaPipe() already released it, and
+    // A cancelled start leaves the lock alone: stopMediaPipe() released it and
     // a newer start may hold it now.
     if (!cancelled()) mpStarting = false;
   }
 }
 
 /**
- * Count the camera frames `video` presents, where the browser can say so.
- *
  * @param {HTMLVideoElement | null} video
  * @returns {void}
  */
@@ -378,15 +333,11 @@ function _unwatchVideoFrames() {
 }
 
 /**
- * Stop detection and release every task.
- *
- * The pending animation frame is cancelled here; without that, a stop followed
- * by a start would leave two loops running.
+ * Cancels the pending animation frame, or a stop and a start would leave two loops.
  *
  * @returns {void}
  */
 function stopMediaPipe() {
-  // Any start or optional load still awaiting the network is now cancelled.
   _mpGeneration++;
   mpRunning = false;
   mpStarting = false;
@@ -408,8 +359,6 @@ function stopMediaPipe() {
 }
 
 /**
- * Start loading pose and face if a word context needs them and they are absent.
- *
  * @returns {void}
  */
 function _ensureOptionalHolisticLandmarkers() {
@@ -421,11 +370,7 @@ function _ensureOptionalHolisticLandmarkers() {
 }
 
 /**
- * Load the pose and face tasks in the background.
- *
- * Either task may fail without stopping the app; word recording stays disabled
- * until both are present. A task that finishes after the camera stopped is
- * closed rather than kept.
+ * Either task may fail; word recording stays disabled until both are present.
  *
  * @returns {Promise<void>} Resolves even when a task failed to load.
  */
@@ -437,8 +382,8 @@ async function _loadOptionalHolisticLandmarkers() {
   if (!poseFactory || !faceFactory) return;
   mpOptionalLoading = true;
   const generation = _mpGeneration;
-  // mpRunning alone cannot tell this load's session from a newer one: a stop
-  // and a start during the download set it back to true.
+  // mpRunning cannot tell this session from a newer one: a stop and a start
+  // during the download set it back to true.
   const cancelled = () => generation !== _mpGeneration;
 
   let pose = null;
@@ -487,26 +432,19 @@ async function _loadOptionalHolisticLandmarkers() {
   }
 }
 
-// Console diagnostics for _processFrame: one-shot messages per session, and a
-// periodic hand hit-rate summary.
 let _firstFrameLogged = false;
 let _firstHandLogged = false;
 let _handStartTs = 0;
 let _noHandWarnLogged = false;
 /** @type {{processed: number, handsDetected: number, lastSummary: number}} */
 let _frameStats = { processed: 0, handsDetected: 0, lastSummary: 0 };
-/** Frames in a row in which a task threw; 0 once a frame detects cleanly. */
 let _failedFrames = 0;
-/** How many failed frames in a row pass between two reminders in the console. */
+/** Failed frames in a row between two console reminders. */
 const MP_FAILURE_REPORT_EVERY = 300;
 
 /**
- * Detect one frame and publish the combined result.
- *
- * Runs on every animation frame while the camera is on, and always schedules
- * the next frame through _rafId so the loop stays cancellable. Frames are
- * skipped, never queued, when the video is not ready or the timestamp did not
- * advance, because MediaPipe rejects a repeated timestamp.
+ * Always reschedules through _rafId so the loop stays cancellable. Frames are
+ * skipped, never queued, because MediaPipe rejects a repeated timestamp.
  *
  * @returns {void}
  */
@@ -525,9 +463,8 @@ function _processFrame() {
     );
   }
   const ts = performance.now();
-  // A webcam presents 20 to 30 frames a second while a screen runs 60 to 120
-  // animation frames, so without this the same picture is detected two to six
-  // times over. The stall limit keeps tracking alive if frames stop arriving.
+  // A webcam presents 20-30 frames a second against 60-120 animation frames,
+  // so this keeps one picture from being detected several times over.
   if (
     _videoFrameCallbackId !== null &&
     _videoFramesPresented === _videoFramesDetected &&
@@ -546,10 +483,9 @@ function _processFrame() {
   lastHandTs = ts;
   _videoFramesDetected = _videoFramesPresented;
 
-  // A task that throws contributes nothing to this frame, and the frame is
-  // still published. Keeping the last good result instead would freeze it: a
-  // broken runtime (a lost GPU context) throws on every frame, and the app
-  // would go on scoring that one still hand.
+  // A failed task contributes nothing, but the frame is still published:
+  // keeping the last good result would freeze a broken runtime (a lost GPU
+  // context) on one still hand.
   /** @type {unknown[]} */
   const failures = [];
   const handRes = _detectOrNull(handLandmarker, mpVideoEl, ts, failures);
@@ -562,12 +498,8 @@ function _processFrame() {
   }
   _noteDetectionFailures(failures);
 
-  // The video is mirrored only by CSS. MediaPipe and model features use the
-  // original frame coordinates; the overlay handles visual mirroring separately.
-
-  // HandLandmarker returns parallel landmark and handedness arrays. Reject a
-  // side assignment below the configured score, but accept results that do not
-  // provide a score for compatibility with older task outputs.
+  // The video is mirrored only by CSS; landmarks use the original frame.
+  // Results without a handedness score are accepted (older task outputs).
   const rightHandLandmarks = [];
   const leftHandLandmarks = [];
   const handednessDebug = [];
@@ -621,7 +553,6 @@ function _processFrame() {
     }
   }
 
-  // Report prolonged hand absence once rather than once per frame.
   if (
     !_firstHandLogged &&
     !_noHandWarnLogged &&
@@ -635,7 +566,6 @@ function _processFrame() {
     );
   }
 
-  // The hand hit rate, at most every five seconds.
   if (performance.now() - _frameStats.lastSummary > 5000 && _frameStats.processed > 30) {
     _frameStats.lastSummary = performance.now();
     const rate = ((_frameStats.handsDetected / _frameStats.processed) * 100).toFixed(0);
@@ -661,8 +591,7 @@ function _processFrame() {
     timestamp: ts,
   };
 
-  // Render the latest MediaPipe result independently of prediction smoothing so
-  // the overlay stays responsive even when model inference is throttled.
+  // Drawn here as well so the overlay stays responsive while inference is throttled.
   if (typeof drawOverlay === "function") {
     drawOverlay();
   }
@@ -675,8 +604,6 @@ function _processFrame() {
 }
 
 /**
- * Run one task on the frame.
- *
  * @template TResult
  * @param {VideoLandmarkerTask<TResult> | null} task Null while it is absent or loading.
  * @param {HTMLVideoElement} video
@@ -695,12 +622,8 @@ function _detectOrNull(task, video, ts, failures) {
 }
 
 /**
- * Report detection failures without writing a line per frame.
- *
- * A broken runtime fails on every frame, about 60 times a second, so the first
- * failure is logged with its error and later ones only as a running count,
- * every MP_FAILURE_REPORT_EVERY frames. A clean frame ends the run, so the
- * next failure is reported in full again.
+ * A broken runtime fails on every frame, so only the first failure is logged
+ * in full and later ones as a count every MP_FAILURE_REPORT_EVERY frames.
  *
  * @param {unknown[]} failures This frame's errors; empty for a clean frame.
  * @returns {void}
@@ -720,8 +643,8 @@ function _noteDetectionFailures(failures) {
 }
 
 /**
- * @returns {boolean} Whether to swap MediaPipe's left and right labels.
- *   Defaults to true when the flag is absent, matching the pre-config behaviour.
+ * @returns {boolean} Whether to swap MediaPipe's left and right labels; true
+ *   when the flag is absent.
  */
 function _shouldSwapHandedness() {
   if (typeof CONFIG !== "undefined" && "SELFIE_HANDEDNESS_SWAP" in CONFIG) {
@@ -731,8 +654,7 @@ function _shouldSwapHandedness() {
 }
 
 /**
- * @returns {boolean} True in word contexts, which are word mode and a coach
- *   target longer than one character.
+ * @returns {boolean} True in word mode and for a multi-character coach target.
  */
 function _needsHolisticLandmarks() {
   if (typeof state === "undefined") return true;
@@ -744,10 +666,8 @@ function _needsHolisticLandmarks() {
 }
 
 /**
- * Whether a frame may be recorded for word inference.
- *
- * All three groups are required: the 321D layout has a fixed slot for each, so
- * a missing group would reach the model as zeros.
+ * The 321D layout has a fixed slot for each group, so a missing one would reach
+ * the model as zeros.
  *
  * @param {MediaPipeFrameResult | null | undefined} result
  * @returns {boolean}

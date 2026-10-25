@@ -1,17 +1,7 @@
-// Shared browser runtime: mutable application state, the DOM registry, the
-// overlay canvas context, and the word recording buffers.
-//
-// Every other script reads and writes these globals, so this file owns them and
-// must load right after config.js. It only builds the initial values; it starts
-// nothing and binds no events. Bootstrapping stays in core/app.js.
-//
-// The DOM registry is resolved at load time, which is safe because index.html
-// declares its scripts at the end of <body>.
-
-// Shared application types. The scripts share one global scope, so these
-// typedefs are visible to every module. They live here because runtime state
-// is where their meaning is fixed; other files reference them instead of
-// redefining them.
+// Shared state, the DOM registry, the overlay context and the word recording
+// buffers, plus the app-wide typedefs. Loads right after config.js and starts
+// nothing; the registry resolves at load time because the scripts sit at the
+// end of <body>.
 
 /**
  * A screen the app can route to. The value is also the URL hash.
@@ -20,42 +10,26 @@
  */
 
 /**
- * Word recording state machine. Transitions run in this order and return to
- * IDLE on retry, mode change, or the camera stopping.
+ * Returns to IDLE on retry, mode change, or the camera stopping.
  *
  * @typedef {"IDLE" | "COUNTDOWN" | "RECORDING" | "PROCESSING" | "RESULT"} WordState
  */
 
 /**
- * Why the last word recording went back to IDLE before it finished. The
- * state machine has no state for it: the recording returns to IDLE and this
- * says why, until the next recording starts.
- *
- * "timeout": no usable frame arrived in time, or the recording never filled.
- * "download-failed": the word model could not be downloaded, so the
- * recording never started.
- * "hidden": the page went to the background during the countdown or the
- * recording.
- * "cancelled": the user cancelled the countdown or the recording.
+ * Why the last recording went back to IDLE early; kept until the next one starts.
+ * "download-failed" means the word model never loaded, so recording never began.
  *
  * @typedef {"timeout" | "download-failed" | "hidden" | "cancelled"} WordEnd
  */
 
 /**
- * A recording quality warning, as a code. prediction.js holds the sentence
- * the user sees for each; the technical reason stays in the debug snapshot.
- *
- * "pose" and "face": shoulders or face seen in under half of the frames.
- * "hand": a hand seen in under 70 % of them. "few-frames": under 30 frames
- * accepted. "slow": the window took over 6 s to fill. "still": almost no
- * movement between frames.
+ * A recording quality warning code; prediction.js holds the user-facing text.
  *
  * @typedef {"pose" | "face" | "hand" | "few-frames" | "slow" | "still"} WordQualityCode
  */
 
 /**
- * Which landmark groups the latest MediaPipe result showed, read while a word
- * is counted down and recorded. Read-only: it never touches the recording.
+ * Landmark groups in the latest result while a word is counted down and recorded.
  *
  * @typedef {Object} WordFraming
  * @property {boolean} hand
@@ -68,40 +42,24 @@
 /** @typedef {"learn" | "practice" | "quiz"} CoachFlow */
 
 /**
- * Where the coach is with the current target letter.
- *
- * "camera-off": nothing is watched. "no-hand": the camera is on and no hand is
- * in view. "watching": a hand is in view and the target is not being held.
- * "holding": the target is being held and the hold is filling. "miss":
- * another letter, or an unreadable hand, has been seen for a while, and the
- * coach says what tells it from the target; a hold may still start. "success":
- * the hold completed and was counted. "staying": after a success, the learner
- * chose to stay on the target instead of moving on.
+ * "miss": another letter or an unreadable hand has shown for a while; a hold may
+ * still start. "staying": the learner chose to stay on the target after a success.
  *
  * @typedef {"camera-off" | "no-hand" | "watching" | "holding" | "miss" | "success" | "staying"} CoachPhase
  */
 
 /**
- * The coach's attempt at the current target letter.
- *
  * @typedef {Object} CoachAttempt
  * @property {CoachPhase} phase
  * @property {number} holdProgress How full the hold is, in [0, 1].
- * @property {boolean} targetCounted Whether a hold of this target has been
- *   counted; a quiz question scores once however often it is held.
- * @property {string | null} missLetter The letter a miss names, "?" for a hand
- *   the model cannot read, or null while there is no miss.
- * @property {boolean} advancing Whether the next target is about to come up
- *   on its own after a success.
+ * @property {boolean} targetCounted A quiz question scores once however often it is held.
+ * @property {string | null} missLetter The letter a miss names, "?" for an unreadable hand.
+ * @property {boolean} advancing The next target comes up on its own after a success.
  * @property {boolean} hintOpen Whether the hint for this target has been opened.
  */
 
 /**
- * Where the camera-free letter demo is.
- *
- * "off": not running. "loading": the recording is being fetched. "playing":
- * recorded frames are published to the live pipeline. "done": every letter
- * has been added or skipped, and the stage offers the camera.
+ * "done": every letter was added or skipped and the stage offers the camera.
  *
  * @typedef {"off" | "loading" | "playing" | "done"} DemoPhase
  */
@@ -111,16 +69,13 @@
 /** Modes the QR demo link can deep-link into. @typedef {"letter" | "word" | "test"} QrTarget */
 
 /**
- * One ranked label from a model, as shown in the top-3 list.
- *
  * @typedef {Object} PredictionCandidate
  * @property {string} label
  * @property {number} confidence Probability in [0, 1].
  */
 
 /**
- * A model result. Letter and word adapters return the same shape, and "no
- * prediction" is expressed as null rather than an empty result.
+ * Letter and word adapters return the same shape; no prediction is null.
  *
  * @typedef {Object} PredictionResult
  * @property {string} label
@@ -129,8 +84,7 @@
  */
 
 /**
- * The advice shown under a finished word recording. It never appends anything
- * on its own; canAppend only enables the user's accept action.
+ * canAppend only enables the user's accept action; nothing is appended on its own.
  *
  * @typedef {Object} WordResultAssessment
  * @property {ConfidenceLevel} level Drives the guide's colour state.
@@ -140,8 +94,7 @@
  */
 
 /**
- * Optional reference video links, in the same JSON shape the desktop prototype
- * uses. Missing entries fall back to a generated search URL.
+ * Same JSON shape as the desktop prototype; missing entries fall back to a search URL.
  *
  * @typedef {Object} ReferenceVideoLinks
  * @property {string} alphabet_video
@@ -149,8 +102,7 @@
  */
 
 /**
- * Where one word's card sits on its reference page, from data/word_reference.json.
- *
+ * One word's card on its reference page, from data/word_reference.json.
  * @typedef {Object} WordCard
  * @property {string} label The word as the model names it, e.g. "thankyou".
  * @property {number} card 1-based position, also the number printed on the card.
@@ -168,10 +120,7 @@
  */
 
 /**
- * Mutable application state shared by every module.
- *
- * fpsStart and the transcript debounce fields are absent until first written,
- * so they are optional here: the typedef matches the real object.
+ * The optional fields are absent until first written.
  *
  * @typedef {Object} AppState
  * @property {AppMode} mode
@@ -213,10 +162,7 @@
  */
 
 /**
- * Narrow an unvalidated value to something whose properties can be read.
- *
- * Arrays and class instances pass, exactly as a bare typeof check does; this
- * only establishes that property access is safe, never that the shape is right.
+ * Establishes only that property access is safe, never that the shape is right.
  *
  * @param {unknown} value
  * @returns {value is Record<string, unknown>}
@@ -226,9 +172,7 @@ function isRecord(value) {
 }
 
 /**
- * Whether a source is publishing frames to the live pipeline: the camera, or
- * the camera-free demo while it plays. The render loop's inference, the
- * overlay and live inference itself run only then.
+ * Whether the camera or the playing demo is publishing frames to the live pipeline.
  *
  * @returns {boolean}
  */
@@ -237,8 +181,28 @@ function framesLive() {
 }
 
 /**
- * Find the first HTML element matching a selector.
+ * Adds a pinned CDN script. The browser runs it only if its bytes match the
+ * integrity hash, which needs a CORS request.
  *
+ * @param {{src: string, integrity: string}} script
+ * @returns {Promise<void>} Settles when the script has run or failed to load.
+ */
+function loadCdnScript({ src, integrity }) {
+  return new Promise((resolve, reject) => {
+    const element = document.createElement("script");
+    element.src = src;
+    element.integrity = integrity;
+    element.crossOrigin = "anonymous";
+    element.addEventListener("load", () => resolve());
+    element.addEventListener("error", () => {
+      element.remove();
+      reject(new Error(`could not load ${src}`));
+    });
+    document.head.appendChild(element);
+  });
+}
+
+/**
  * @param {string} selector
  * @param {ParentNode} [root] Search root; defaults to the document.
  * @returns {HTMLElement | null}
@@ -249,12 +213,7 @@ function queryElement(selector, root) {
 }
 
 /**
- * Find the HTML elements matching a selector.
- *
- * querySelectorAll resolves to Element, which carries neither dataset nor
- * hidden, the two properties nearly every caller here reads. Every selector
- * the app uses targets HTML elements, so anything else is dropped rather than
- * handed to a caller that would read properties it does not have.
+ * Drops anything that is not an HTMLElement, so callers can read dataset and hidden.
  *
  * @param {string} selector
  * @param {ParentNode} [root] Search root; defaults to the document.
@@ -268,12 +227,8 @@ function queryElements(selector, root) {
 }
 
 /**
- * Whether a key event belongs to the focused element rather than to the page.
- *
- * The app's shortcuts would otherwise fight the user. Typing into a <select>
- * performs type-ahead; Space must press a focused button, not be cancelled
- * before it can; Enter must follow a focused link, open a focused <summary>,
- * and reach an element that acts as a button (the reference image).
+ * Whether a key event belongs to the focused element, so page shortcuts must
+ * leave it alone (type-ahead, Space on a button, Enter on a link or summary).
  *
  * @param {EventTarget | null} target The event's target.
  * @returns {boolean} True when the focused element handles these keys itself.
@@ -286,11 +241,7 @@ function isEditableTarget(target) {
 }
 
 /**
- * Find every element carrying a stable UI hook.
- *
- * A hook is a data-ui attribute that exists only so the scripts can find the
- * element. Nothing styles it, so renaming a CSS class cannot detach behaviour,
- * and dropping the hook while editing the markup is a visible edit.
+ * data-ui hooks exist only for scripts, so renaming a CSS class cannot detach behaviour.
  *
  * @param {string} name Hook name, without the attribute syntax.
  * @param {ParentNode} [root] Search root; defaults to the document.
@@ -301,8 +252,6 @@ function queryAllUi(name, root) {
 }
 
 /**
- * Find the one element carrying a stable UI hook.
- *
  * @param {string} name Hook name, without the attribute syntax.
  * @param {ParentNode} [root] Search root; defaults to the document.
  * @returns {HTMLElement | null} Null when the hook is absent.
@@ -312,15 +261,8 @@ function queryUi(name, root) {
 }
 
 /**
- * Resolve a DOM element the app cannot run without.
- *
- * Every id here is pinned by a contract test against index.html, so a failure
- * means the markup and the script disagree. Reporting that at startup is far
- * easier to act on than the null dereference it would otherwise cause later,
- * halfway through a camera session.
- *
- * The expected constructor is checked rather than asserted, so a field also
- * carries its real element type.
+ * A missing required element means the markup and the script disagree; failing
+ * at startup beats a null dereference halfway through a camera session.
  *
  * @template {typeof HTMLElement} T
  * @param {string} id
@@ -341,10 +283,7 @@ function requireElement(id, type) {
 }
 
 /**
- * Resolve an optional DOM element, keeping its real element type.
- *
- * Used for controls whose absence the app already tolerates. A wrong element
- * type is reported as absent, which is how every caller already guards.
+ * A wrong element type reads as absent, which every caller already guards.
  *
  * @template {typeof HTMLElement} T
  * @param {string} id
@@ -397,12 +336,10 @@ const els = {
   video: requireElement("cameraVideo", HTMLVideoElement),
   canvas: requireElement("overlayCanvas", HTMLCanvasElement),
   cameraStage: requireElement("cameraStage"),
-  // The result plate as a whole, for the laptop's corner switching
-  // (plate-side.js); without it the plate stays put.
+  // Optional: without it the plate does not switch corners (plate-side.js).
   resultPlate: document.getElementById("resultPlate"),
   cameraEmpty: requireElement("cameraEmpty"),
-  // The empty stage's two faces: the first-visit content, and the problem
-  // that takes its place when the camera cannot open.
+  // The empty stage's first-visit content and the problem that replaces it.
   cameraIntro: document.getElementById("cameraIntro"),
   cameraProblem: document.getElementById("cameraProblem"),
   cameraProblemTitle: document.getElementById("cameraProblemTitle"),
@@ -413,8 +350,7 @@ const els = {
   cameraStatus: requireElement("cameraStatus"),
   controlBar: requireElement("controlBar"),
   cameraToggle: document.getElementById("cameraToggle"),
-  // The camera-free demo's panel on the stage. Optional: without it the demo
-  // still plays, with nothing to say what it spells.
+  // Optional: without the panel the demo still plays.
   demoPanel: document.getElementById("demoPanel"),
   demoWord: document.getElementById("demoWord"),
   demoCount: document.getElementById("demoCount"),
@@ -445,7 +381,6 @@ const els = {
   wordStateCard: requireElement("wordStateCard"),
   wordStateLabel: requireElement("wordStateLabel"),
   frameProgress: requireElement("frameProgress"),
-  // The recording readout at the top of the stage.
   wordProgress: document.getElementById("wordProgress"),
   wordHudStep: document.getElementById("wordHudStep"),
   wordHudPercent: document.getElementById("wordHudPercent"),
@@ -453,9 +388,8 @@ const els = {
   wordResultGuide: document.getElementById("wordResultGuide"),
   wordResultDecision: document.getElementById("wordResultDecision"),
   wordResultAction: document.getElementById("wordResultAction"),
-  // The coach screen. The tile, the verdict, the grid and the study cards are
-  // the screen itself, so a page without them cannot start; the dock and the
-  // plate's extras are optional, like the other action buttons.
+  // The tile, verdict, grid and study cards are the coach screen itself, so
+  // they are required; the rest is optional.
   coachStudy: requireElement("coachStudy"),
   coachTargetTile: requireElement("coachTargetTile"),
   coachTargetGlyph: requireElement("coachTargetGlyph"),
@@ -513,7 +447,7 @@ const els = {
   workspaceMain: queryUi("workspace"),
   appShell: queryUi("app-shell"),
   themeToggle: document.getElementById("themeToggle"),
-  languageToggle: document.getElementById("languageToggle"),
+  languageSwitch: document.getElementById("languageSwitch"),
   toast: document.getElementById("toast"),
   toastText: document.getElementById("toastText"),
   toastAction: document.getElementById("toastAction"),
@@ -569,9 +503,8 @@ if (!ctx) {
   throw new Error("Could not get the overlay canvas 2D context.");
 }
 
-// Word recording buffers consumed by realInference(). frameBuffer holds the
-// compact model input; normalizedFrameBuffer keeps the normalized frames so
-// features can be rebuilt at sequence level when the recording completes.
+// normalizedFrameBuffer keeps normalized frames so the word features can be
+// rebuilt at sequence level when the recording completes.
 /** @type {Frame321D | null} */
 let previousFrame = null;
 /** @type {WordFeatures168[]} */
@@ -579,11 +512,9 @@ let frameBuffer = [];
 /** @type {Frame321D[]} */
 let normalizedFrameBuffer = [];
 
-// Empty until data/asl_video_links.json has loaded; see ReferenceVideoLinks.
 /** @type {ReferenceVideoLinks} */
 let referenceVideoLinks = { alphabet_video: "", words: {} };
 
-// Where each word's card sits on the reference pages; null until the optional
-// data file has loaded.
+// Null until the optional data file has loaded.
 /** @type {WordReference | null} */
 let wordReference = null;

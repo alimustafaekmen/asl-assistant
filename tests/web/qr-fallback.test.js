@@ -8,12 +8,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { flush } from "./helpers/fake-camera.mjs";
 import { LETTER_URL, clipboard, qrApp, status } from "./helpers/qr-app.mjs";
 
-test("when the QR library did not load, the screen shows the link in its place", () => {
+test("when the QR library did not load, the screen shows the link in its place", async () => {
   const { app } = qrApp({ kjua: false });
 
   app.get("renderQrDemo")();
+  // The page asks for the library; the refusal arrives after the call.
+  await flush();
 
   assert.match(app.evaluate("els.qrCanvas.textContent"), /QR kodu çizilemedi/);
   assert.ok(app.evaluate("els.qrCanvas.textContent").includes(LETTER_URL), "the link itself must be in the place of the code");

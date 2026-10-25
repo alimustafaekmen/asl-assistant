@@ -122,7 +122,7 @@ export async function demoApp({ recording = demoRecording(), respond, hash = "#l
   const timers = fakeTimers(clock);
   const camera = { requests: 0, imports: 0 };
   const tracks = [];
-  const location = new URL(`https://asl-assistant.netlify.app/${hash}`);
+  const location = new URL(`https://asl-assistant.pages.dev/${hash}`);
   const app = loadWebApp({
     boot: true,
     ...(languages ? { languages } : {}),

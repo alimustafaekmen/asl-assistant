@@ -35,8 +35,8 @@ const I18N_AREAS = [];
 
 /**
  * The attributes the markup can name a string for, each as
- * data-i18n-<attribute>="key". `lang` is there for the language switch,
- * whose label is written in the language it switches to.
+ * data-i18n-<attribute>="key". `lang` is there for text whose language
+ * follows the interface's, such as the transcript placeholder.
  */
 const I18N_ATTRIBUTES = ["aria-label", "title", "placeholder", "alt", "content", "lang"];
 

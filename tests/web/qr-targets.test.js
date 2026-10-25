@@ -30,8 +30,8 @@ test("choosing a radio opens that target in the code and the link", () => {
   app.get("handleQrTargetChange")({ target: radio(app, "word", true) });
 
   assert.equal(app.evaluate("state.qrTarget"), "word");
-  assert.equal(drawn.at(-1).text, "https://asl-assistant.netlify.app/#word");
-  assert.equal(app.evaluate("els.qrDemoUrl.textContent"), "https://asl-assistant.netlify.app/#word");
+  assert.equal(drawn.at(-1).text, "https://asl-assistant.pages.dev/#word");
+  assert.equal(app.evaluate("els.qrDemoUrl.textContent"), "https://asl-assistant.pages.dev/#word");
 });
 
 test("a change event from a radio that is not checked changes nothing", () => {

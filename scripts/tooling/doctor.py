@@ -78,7 +78,7 @@ def _warnings(facts: EnvironmentFacts) -> list[list[str]]:
                 "WARNING: conda is active ($CONDA_PREFIX is set) but the chosen Python is NOT in its environment.",
                 f"  CONDA_PREFIX   = {facts.conda_prefix}",
                 f"  sys.executable = {facts.executable}",
-                "  Fix: make doctor PYTHON=$CONDA_PREFIX/bin/python",
+                "  Fix: $CONDA_PREFIX/bin/python scripts/tooling/doctor.py",
             ]
         )
     if facts.virtual_env and facts.virtual_env not in facts.executable:
@@ -87,7 +87,7 @@ def _warnings(facts: EnvironmentFacts) -> list[list[str]]:
                 "WARNING: a venv is active ($VIRTUAL_ENV is set) but the chosen Python is NOT inside it.",
                 f"  VIRTUAL_ENV    = {facts.virtual_env}",
                 f"  sys.executable = {facts.executable}",
-                "  Fix: make doctor PYTHON=$VIRTUAL_ENV/bin/python",
+                "  Fix: $VIRTUAL_ENV/bin/python scripts/tooling/doctor.py",
             ]
         )
     if facts.system == "Windows":
@@ -111,10 +111,10 @@ def _next_step(state: str, facts: EnvironmentFacts, faults: list[str]) -> list[s
             "",
             "Fix:",
             "  conda activate YOUR_ENV_NAME",
-            "  make doctor",
+            "  python scripts/tooling/doctor.py",
             "",
             "If it is still wrong:",
-            "  make doctor PYTHON=$CONDA_PREFIX/bin/python",
+            "  $CONDA_PREFIX/bin/python scripts/tooling/doctor.py",
         ]
     if state == "base":
         return [
@@ -122,11 +122,11 @@ def _next_step(state: str, facts: EnvironmentFacts, faults: list[str]) -> list[s
             "",
             "Fix:",
             "  conda activate YOUR_ENV_NAME",
-            "  make doctor",
+            "  python scripts/tooling/doctor.py",
             "",
             "Or create a venv:",
             "  python3 -m venv .venv && source .venv/bin/activate",
-            "  make doctor",
+            "  python scripts/tooling/doctor.py",
         ]
     if state == "mismatch":
         which = active_environment_mismatch(facts)
@@ -135,7 +135,7 @@ def _next_step(state: str, facts: EnvironmentFacts, faults: list[str]) -> list[s
             "  The active environment and the chosen Python do not match.",
             "",
             "Fix:",
-            f"  make doctor PYTHON={variable}/bin/python",
+            f"  {variable}/bin/python scripts/tooling/doctor.py",
         ]
     if state == "basic_missing":
         return [
@@ -143,7 +143,7 @@ def _next_step(state: str, facts: EnvironmentFacts, faults: list[str]) -> list[s
             "",
             "Next step:",
             "  make setup",
-            "  make doctor",
+            "  python scripts/tooling/doctor.py",
         ]
     if state == "basic_broken":
         return [
@@ -160,7 +160,7 @@ def _next_step(state: str, facts: EnvironmentFacts, faults: list[str]) -> list[s
             "",
             "Next step:",
             "  make setup",
-            "  make doctor",
+            "  python scripts/tooling/doctor.py",
             "",
             "For the web demo (no project package needed):",
             "  make web",
@@ -171,7 +171,7 @@ def _next_step(state: str, facts: EnvironmentFacts, faults: list[str]) -> list[s
             "  The project packages were found but cannot be imported.",
             *faults,
             "",
-            "Next step: make setup, then make doctor",
+            "Next step: make setup, then python scripts/tooling/doctor.py",
         ]
 
     ready = "  + The Python environment is ready."
@@ -184,9 +184,8 @@ def _next_step(state: str, facts: EnvironmentFacts, faults: list[str]) -> list[s
         "",
         "Everyday commands:",
         "  make web                # serve the web demo locally",
-        "  make validate           # asset, model and data health check",
-        "  make test               # fast unit tests",
-        "  make validate-full      # full asset audit",
+        "  make test               # Python and web tests, parity",
+        "  make check              # lint, types, runtime files, then the tests",
     ]
 
 

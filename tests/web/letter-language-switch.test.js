@@ -172,7 +172,7 @@ test("a plate message the shell wrote follows a switch", async () => {
   switchTo(insecure, "en");
   assert.equal(
     text(insecure, "confidenceMessage"),
-    "The camera cannot open at this address. Browsers allow the camera only on secure (https) addresses. Open the site at https://asl-assistant.netlify.app.",
+    "The camera cannot open at this address. Browsers allow the camera only on secure (https) addresses. Open the site at https://asl-assistant.pages.dev.",
   );
 
   const downloading = camera({ hold: { onnx: true } }).app;

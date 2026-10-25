@@ -1,9 +1,7 @@
-// Feature engineering for the 168D word and 93D letter model inputs.
-//
-// The segment order is the training order: reordering one changes the model
-// contract. The Python references are asl_features.word for the word input and
-// asl_features.landmarks with asl_features.letter for the letter input;
-// `make parity` compares this file against them.
+// Feature engineering for the 168D word and 93D letter model inputs. Segment
+// order is the training order and part of the model contract. Python
+// references: asl_features.word, asl_features.landmarks and asl_features.letter;
+// `make test` compares them.
 //
 // 168D word layout:
 //   [0..62]    dominant-hand landmarks  63D
@@ -14,34 +12,29 @@
 // The 93D letter layout opens the letter section below.
 
 /**
- * One 3D point as a plain array, used by the geometry helpers.
- *
  * @typedef {[number, number, number] | number[]} Vec3
  */
 
 /**
- * One hand as 21 landmarks x 3 coordinates. Runtime invariant: length is 63.
+ * 21 landmarks x 3 coordinates; length 63.
  *
  * @typedef {Float32Array} Hand63
  */
 
 /**
- * Letter model input. Runtime invariant: length is 93, laid out as a normalized
- * hand 0..62 followed by the 30D geometry block.
+ * Length 93: normalized hand 0..62, then the 30D geometry block.
  *
  * @typedef {Float32Array} LetterFeatures93
  */
 
 /**
- * One frame of word model input. Runtime invariant: length is 168, laid out as
- * dominant hand 0..62, shape 63..92, hand-to-face 93..104, motion 105..167.
+ * Length 168: dominant hand 0..62, shape 63..92, hand-to-face 93..104, motion 105..167.
  *
  * @typedef {Float32Array} WordFeatures168
  */
 
 /**
- * Letter motion diagnostics for one frame, measured on standardized raw
- * landmarks before smoothing so it stays independent of the EMA state.
+ * Measured on raw standardized landmarks, so it is independent of the EMA state.
  *
  * @typedef {Object} LetterMotionStats
  * @property {number} meanAbsDelta Mean absolute change against the previous frame.
@@ -50,7 +43,6 @@
 
 /**
  * Read-only view of the letter landmark smoother, for the debug API.
- *
  * @typedef {Object} LetterSmoothingState
  * @property {boolean} enabled
  * @property {number} alpha EMA weight given to the current frame.
@@ -58,10 +50,7 @@
  */
 
 /**
- * Build one frame of word model input.
- *
- * Motion is the delta against the previous frame, so the first frame of a
- * recording has an all-zero motion segment.
+ * Motion is the delta against the previous frame; zero on the first frame.
  *
  * @param {Frame321D} frame321d Normalized holistic frame; length must be 321.
  * @param {Frame321D | null} prevFrame321d Previous normalized frame, or null.
@@ -95,11 +84,8 @@ function buildCompactFeatures(frame321d, prevFrame321d) {
 }
 
 /**
- * Build word model input for a whole recording.
- *
- * Unlike buildCompactFeatures() called per frame, this chooses the dominant
- * hand once for the whole recording, as training does. Per-frame selection can
- * switch hands mid-sign and silently change the model input.
+ * Chooses the dominant hand once for the whole recording, as training does;
+ * per-frame selection could switch hands mid-sign.
  *
  * @param {Frame321D[]} seq321dFrames Normalized frames in recording order.
  * @returns {WordFeatures168[]} One compact frame per input frame; empty for an
@@ -140,11 +126,8 @@ function buildCompactSequenceFeatures(seq321dFrames) {
 }
 
 /**
- * Pick the more visible hand from one frame, in the word convention.
- *
- * A dominant left hand is mirrored by negating x, which is how the word model
- * was trained. The letter path uses a different mirroring; see
- * selectPrimaryHandForLetter().
+ * A dominant left hand is mirrored by negating x, as the word model was
+ * trained; the letter path mirrors differently.
  *
  * @param {Frame321D} frame321d
  * @returns {Hand63} The dominant hand; length is 63.
@@ -172,10 +155,8 @@ function computeDominantHand(frame321d) {
 }
 
 /**
- * Pick one dominant hand for a whole recording and return it per frame.
- *
- * The side is decided from the visibility totals across every frame, so a hand
- * that disappears briefly does not flip the choice mid-recording.
+ * The side comes from visibility totals over every frame, so a hand that
+ * disappears briefly does not flip the choice.
  *
  * @param {Frame321D[]} seq321dFrames
  * @returns {Hand63[]} One hand per input frame, all from the same side.
@@ -208,12 +189,8 @@ function computeDominantHandSequence(seq321dFrames) {
 }
 
 /**
- * Build the word-model hand geometry block, as
- * asl_features.word.compute_per_frame_shape_features does.
- *
- * Points are centred on the wrist and scaled by the wrist-to-middle-MCP
- * distance (landmark 9), so the block does not depend on hand size or screen
- * position.
+ * As asl_features.word.compute_per_frame_shape_features: centred on the wrist
+ * and scaled by the wrist-to-middle-MCP distance.
  *
  * @param {Hand63} hand63
  * @returns {Float32Array} Geometry block; length is 30.
@@ -305,8 +282,7 @@ function computeShapeFeatures(hand63) {
 }
 
 /**
- * Measure each hand's index fingertip and wrist against the nose, mouth and
- * forehead.
+ * Each hand's index fingertip and wrist against the nose, mouth and forehead.
  *
  * @param {Frame321D} frame321d
  * @returns {Float32Array} Six values per hand, right then left; length is 12.
@@ -352,19 +328,15 @@ function computeHandBodyRelations(frame321d) {
 //   [86..87]   hand bounding-box aspect ratio and area (2)
 //   [88..92]   finger-extension flags (5)
 //
-// Letter-only EMA and motion state run after handedness standardization and
-// before normalization. Word features do not use this state.
+// Letter-only EMA and motion state; word features do not use it.
 /** @type {Hand63 | null} */
 let _letterPrevHandSmoothed = null;
 /** @type {LetterMotionStats | null} */
 let _letterLastMotion = null;
 
 /**
- * Apply the letter-only EMA to one standardized hand.
- *
- * An all-zero hand means tracking was lost, so the smoother resets rather than
- * easing the previous pose toward zero and reporting a pose that was never
- * made.
+ * An all-zero hand means tracking was lost, so the smoother resets instead of
+ * easing toward a pose that was never made.
  *
  * @param {Hand63} current63
  * @returns {Hand63} The smoothed hand, or the input when smoothing is off or
@@ -408,9 +380,7 @@ function _smoothLetterHand63(current63) {
 }
 
 /**
- * Measure frame-to-frame letter motion as the mean absolute delta between
- * standardized, unsmoothed hands. It keeps its own previous frame, so the
- * number does not depend on the EMA state.
+ * Mean absolute delta between unsmoothed hands, with its own previous frame.
  *
  * @param {Hand63} current63
  * @returns {LetterMotionStats} Zero delta on the first frame after a reset.
@@ -439,8 +409,6 @@ function getLastLetterMotion() {
 }
 
 /**
- * Expose read-only smoothing state for diagnostics.
- *
  * @returns {LetterSmoothingState}
  */
 function getLetterSmoothingState() {
@@ -456,10 +424,8 @@ function getLetterSmoothingState() {
 }
 
 /**
- * Clear letter EMA and motion state.
- *
- * Called on mode changes, camera resets, and hand loss so a previous sign
- * cannot leak into the next one.
+ * Called on mode changes, camera resets and hand loss, so one sign cannot leak
+ * into the next.
  *
  * @returns {void}
  */
@@ -470,9 +436,8 @@ function resetLetterLandmarkSmoother() {
 }
 
 /**
- * The frame with both hands' x and z multiplied by `aspect`, so one unit means
- * the same length along every axis, as in the square training photographs
- * (asl_features.landmarks.to_square_units).
+ * Multiplies x and z by `aspect` so one unit is the same length on every axis,
+ * as in the square training photographs (asl_features.landmarks.to_square_units).
  *
  * @param {Frame321D} frame321d
  * @param {number} aspect Frame width divided by height.
@@ -490,16 +455,9 @@ function _isotropicHands(frame321d, aspect) {
 }
 
 /**
- * Build the letter model input from one frame.
- *
- * Stateful: it updates the motion measurement and the EMA before normalizing.
- * Call resetLetterLandmarkSmoother() when the history should not carry over.
- *
- * MediaPipe gives x as a fraction of the frame's width and y of its height,
- * so a 16:9 camera squeezes the hand sideways and a portrait one stretches
- * it, while the model was trained on square photographs. `aspect` undoes that
- * on the hand slots before anything else; z is on the scale of x and is
- * scaled with it. Missing landmarks stay at zero.
+ * Stateful: updates the motion measurement and the EMA. MediaPipe x and y are
+ * fractions of width and height, so a 16:9 frame squeezes the hand while the
+ * model was trained on square photographs; `aspect` undoes that first.
  *
  * @param {Frame321D} frame321d
  * @param {number} [aspect] Frame width divided by height; 1 for a square frame.
@@ -509,7 +467,6 @@ function computeLetterFeatures(frame321d, aspect = 1) {
   const t0 = performance.now();
   const frame = _isotropicHands(frame321d, aspect);
   const handPrimary = selectPrimaryHandForLetter(frame);
-  // Motion is measured before the EMA, so it sees the unsmoothed hand.
   _letterLastMotion = _computeLetterMotion63(handPrimary);
   const handSmoothed = _smoothLetterHand63(handPrimary);
   const hand = normalizeHandForLetter(handSmoothed);
@@ -526,19 +483,10 @@ function computeLetterFeatures(frame321d, aspect = 1) {
 }
 
 /**
- * Pick the more visible hand from one frame, in the letter convention.
- *
- * The training data is right-handed, so a dominant left hand is mirrored into
- * the right-hand convention before normalization. MediaPipe x is in [0, 1],
- * so the mirror is 1 - x rather than the word path's negation, and a missing
- * landmark stays at zero instead of being mirrored to x = 1. The desktop
- * prototype mirrors a left hand too, from its own MediaPipe API's labels.
- *
- * The more visible hand wins. MediaPipe reports all 21 landmarks of any hand
- * it finds, so with both hands in view that is a tie, and the clearly raised
- * hand wins it: a fingerspelling hand is held up while the other rests, and a
- * left-handed signer's resting right hand must not be read instead. Wrists
- * at about one height keep the old tie rule, the right hand.
+ * The training data is right-handed, so a left hand is mirrored as 1 - x
+ * (MediaPipe x is in [0, 1]); a missing landmark stays zero. With both hands
+ * fully visible the clearly raised hand wins, so a left-handed signer's
+ * resting right hand is not read; otherwise the tie goes to the right hand.
  *
  * @param {Frame321D} frame321d
  * @returns {Hand63} The primary hand, or 63 zeros when neither hand is visible.
@@ -567,13 +515,11 @@ function selectPrimaryHandForLetter(frame321d) {
   return mirrored;
 }
 
-// How much higher one wrist must be, as a fraction of the frame's height,
-// before the raised hand is taken over the right one.
+// How much higher a wrist must be, as a fraction of frame height, to win the tie.
 const LETTER_RAISED_HAND_MARGIN = 0.1;
 
 /**
- * Whether hand `a`'s wrist is clearly above hand `b`'s (smaller y), with both
- * wrists present.
+ * Smaller y is higher; both wrists must be present.
  *
  * @param {Hand63} a
  * @param {Hand63} b
@@ -587,8 +533,6 @@ function _wristClearlyHigher(a, b) {
 }
 
 /**
- * Count visible landmarks, not visible coordinates.
- *
  * @param {Hand63} hand63
  * @returns {number} How many of the 21 landmarks have any non-zero coordinate.
  */
@@ -607,8 +551,7 @@ function _nonZeroTriplets(hand63) {
 }
 
 /**
- * Centre a hand on the wrist and scale by the middle-MCP distance, as
- * asl_features.landmarks.normalize_landmarks does.
+ * As asl_features.landmarks.normalize_landmarks.
  *
  * @param {Hand63} hand63
  * @returns {Hand63} Normalized hand, or 63 zeros when the reference distance is
@@ -639,8 +582,6 @@ function normalizeHandForLetter(hand63) {
 }
 
 /**
- * Build the letter-model hand geometry block.
- *
  * @param {Hand63} hand63 Already normalized by normalizeHandForLetter().
  * @returns {Float32Array} Geometry block; length is 30.
  */
@@ -722,10 +663,8 @@ function safeNorm(v) {
 }
 
 /**
- * Angle in radians between vectors a-b and c-b, for the word contract.
- *
- * Degenerate vectors are floored by safeNorm(), so this returns a finite angle
- * rather than NaN.
+ * Word contract: degenerate vectors are floored by safeNorm(), so the angle is
+ * finite rather than NaN.
  *
  * @param {Vec3} a
  * @param {Vec3} b Vertex.
@@ -743,9 +682,7 @@ function wordJointAngle(a, b, c) {
 }
 
 /**
- * Angle in radians between vectors a-b and c-b, for the letter contract.
- *
- * Unlike the word variant, a missing or degenerate joint is reported as zero.
+ * Letter contract: a missing or degenerate joint is reported as zero.
  *
  * @param {Vec3} a
  * @param {Vec3} b Vertex.

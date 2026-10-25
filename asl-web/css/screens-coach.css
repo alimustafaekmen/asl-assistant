@@ -1,11 +1,5 @@
-/* Coach screen: the target tile on the stage, the plate's coach parts, the
- * session row, the dock and the study cards.
- *
- * Everything here builds on the shared stage, plate, dock, panel and toast;
- * nothing restyles them for the other screens. Rules that name the coach start
- * from .app-shell[data-mode="coach"] or from a coach-only part, so no other
- * screen can pick one up. The layer comes after layout and components, so a
- * rule here wins over theirs for the same property.
+/* Every rule starts from .app-shell[data-mode="coach"] or a coach-only part,
+ * so no other screen can pick one up.
  */
 
 @layer screens {
@@ -14,8 +8,7 @@
   [data-icon="skip"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 5l9 7-9 7z'/%3E%3Cpath d='M19 5v14'/%3E%3C/svg%3E"); }
   [data-icon="chevron"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); }
 
-  /* Stage: the status chip steps aside for the target tile; in the coach
-     the plate and the empty state carry the status. */
+  /* The chip steps aside for the target tile; the plate carries the status. */
   .app-shell[data-mode="coach"] .stage-chip { display: none; }
   .app-shell[data-mode="coach"] .stage__top { justify-content: flex-end; }
 
@@ -89,8 +82,7 @@
   }
   .stage:has(> .stage__empty:not([hidden])) + .plate .plate__cue { text-align: center; }
 
-  /* A counted hold: a lock-coloured check in place of the ring and the seen
-     letter. */
+  /* A counted hold */
   .plate__check {
     display: none;
     place-items: center;
@@ -127,8 +119,7 @@
     animation: coach-advance var(--advance-ms, 2500ms) linear forwards;
   }
   @keyframes coach-advance { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-  /* Reduced motion: the bar does not move. The wait itself still runs, and
-     the plate names the next letter in words. */
+  /* Reduced motion: the wait still runs; the plate names the next letter. */
   @media (prefers-reduced-motion: reduce) {
     .plate__bar > i { animation: none; transform: none; }
   }
@@ -159,8 +150,7 @@
     font-weight: var(--fw-bold);
     cursor: pointer;
   }
-  /* The chevron comes after the label, so it moves from the shared ::before
-     to ::after. */
+  /* The chevron comes after the label. */
   .session__button[data-icon]::before { content: none; }
   .session__button[data-icon]::after {
     content: "";
@@ -192,8 +182,7 @@
   /* Dock */
   .app-shell[data-mode="coach"] .dock > .btn { flex: 0 0 auto; }
   .app-shell[data-mode="coach"] .dock > .btn--grow { flex: 1 1 8rem; }
-  /* One control carries .btn--primary in the markup, the one that moves on;
-     the hint takes the same look while it is the step on offer. */
+  /* The hint looks primary while it is the step on offer. */
   .dock .coach-hint:not(:disabled) {
     border-color: transparent;
     background: var(--color-primary);
@@ -217,6 +206,23 @@
   .coach-study .modes { display: flex; }
   .coach-study .modes__item { min-height: 40px; padding-inline: var(--sp-3); }
   .coach-words { display: grid; gap: var(--sp-2); }
+  .coach-words .field-label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--color-text-2);
+    font-size: 0.75rem;
+    font-weight: var(--fw-heavy);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .coach-words .select-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--color-control);
+    border-radius: var(--r-strip);
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
   .coach-study__close { display: none; }
   .coach-study__reset { justify-self: start; min-height: 40px; padding-inline: var(--sp-3); color: var(--color-text-2); }
 
@@ -283,9 +289,8 @@
     .app-shell[data-mode="coach"] .toast { inset-block-start: calc(var(--sp-3) + 100px); }
   }
 
-  /* The coach's first-visit headline is long, and the tile already takes the
-     top of the stage: the illustration makes room, and the cue waits for the
-     camera so it does not run into the facts. */
+  /* The headline is long and the tile takes the top of the stage, so the
+     illustration makes room and the cue waits for the camera. */
   @media (max-width: 63.99rem) {
     .app-shell[data-mode="coach"] .stage__illustration { display: none; }
     .app-shell[data-mode="coach"] .stage:has(> .stage__empty:not([hidden])) + .plate .plate__cue { display: none; }
@@ -293,16 +298,14 @@
     .app-shell[data-mode="coach"] .stage__empty { padding-top: calc(var(--sp-3) + 80px + var(--sp-4)); }
   }
 
-  /* A short phone, portrait or landscape, cannot fit the tile above the
-     first-visit content. The target means nothing until the camera is on, so
-     the tile waits for it there and the content keeps the stage's own room. */
+  /* A short phone cannot fit the tile above the first-visit content, and the
+     target means nothing until the camera is on. */
   @media (max-width: 63.99rem) and (max-height: 44rem) {
     .app-shell[data-mode="coach"] .stage:has(> .stage__empty:not([hidden])) > .target-tile { display: none; }
     .app-shell[data-mode="coach"] .stage__empty { padding-top: revert-layer; }
   }
 
-  /* The narrowest phones: the camera button keeps its icon and its name for a
-     screen reader, so it leaves room for the tile beside it. */
+  /* The narrowest phones: the camera button keeps only its icon visible. */
   @media (max-width: 22.5rem) {
     .app-shell[data-mode="coach"] .stage__close {
       width: var(--size-target);
@@ -328,8 +331,7 @@
     .app-shell[data-mode="coach"] .toast { inset-block-start: calc(var(--sp-3) + 76px); }
   }
 
-  /* Phone landscape: the target stays small, and the right column has no
-     room for the session's long label. */
+  /* Phone landscape: no room for the session's long label. */
   @media (orientation: landscape) and (max-height: 32rem) {
     .session { min-height: 44px; padding-inline: var(--sp-3); }
     .session__button { font-size: var(--fs-sm); }

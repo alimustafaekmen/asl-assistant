@@ -1,16 +1,10 @@
-// QR demo screen: deep-link URL construction and QR rendering.
-//
-// The QR code opens the live app in a target mode through the hash route, so
-// the URL must be absolute. The code is drawn by kjua, a CDN script loaded by
-// index.html; without it the screen still works through the copyable link.
+// kjua is fetched the first time the screen draws; without it the screen still
+// works through the copyable link.
 
 /**
- * Resolve the base URL a scanned QR code should open.
+ * A local page has no shareable origin, so it links to the published site.
  *
- * A page served from localhost or file:// has no shareable origin, so the
- * published demo URL from CONFIG is used instead.
- *
- * @returns {string} Absolute URL ending in a directory.
+ * @returns {string}
  */
 function getDemoBaseUrl() {
   const host = window.location.hostname;
@@ -28,10 +22,8 @@ function getDemoBaseUrl() {
 }
 
 /**
- * Build the deep link for a target mode.
- *
- * @param {string} [target] Anything unrecognised falls back to "letter".
- * @returns {string} Absolute URL with the mode hash.
+ * @param {string} [target]
+ * @returns {string}
  */
 function buildQrDemoUrl(target = state.qrTarget) {
   const normalizedTarget = ["letter", "word", "test"].includes(target) ? target : "letter";
@@ -39,10 +31,8 @@ function buildQrDemoUrl(target = state.qrTarget) {
 }
 
 /**
- * Select the target of the radio the visitor chose.
- *
- * Bound to change, not click: moving between radios with the arrow keys
- * fires change and, on some browsers, no click.
+ * Bound to change, not click: arrow keys between radios fire no click on some
+ * browsers.
  *
  * @param {{target: EventTarget | null}} event
  * @returns {void}
@@ -53,9 +43,7 @@ function handleQrTargetChange(event) {
 }
 
 /**
- * Select which mode the QR code opens, and redraw it.
- *
- * @param {string} target Anything unrecognised falls back to "letter".
+ * @param {string} target
  * @returns {void}
  */
 function setQrTarget(target) {
@@ -66,15 +54,11 @@ function setQrTarget(target) {
   renderQrDemo();
 }
 
-// The code's ink and paper ignore the theme, because a scanner needs dark on
-// light. The stylesheet may set them as custom properties; these are the
-// fallbacks.
+// Not themed: a scanner needs dark on light.
 const QR_INK_FALLBACK = "#17181b";
 const QR_PAPER_FALLBACK = "#ffffff";
 
 /**
- * Read an unthemed colour of the QR code from the page's custom properties.
- *
  * @param {string} property
  * @param {string} fallback
  * @returns {string}
@@ -86,11 +70,8 @@ function readQrColour(property, fallback) {
 }
 
 /**
- * Draw the QR code with kjua.
- *
  * @param {string} url
- * @returns {HTMLElement | null} Null when the library did not load or could
- *   not draw this text.
+ * @returns {HTMLElement | null}
  */
 function drawQrCode(url) {
   if (typeof window.kjua !== "function") return null;
@@ -115,12 +96,23 @@ function drawQrCode(url) {
   }
 }
 
+/** @type {Promise<void> | null} */
+let _qrLibraryLoad = null;
+
 /**
- * Draw the QR code and show its link.
- *
- * When the code cannot be drawn, its place shows the link as text and the
- * status line points to copying it.
- *
+ * @returns {void}
+ */
+function loadQrLibrary() {
+  _qrLibraryLoad ??= loadCdnScript(QR_LIBRARY_SCRIPT)
+    .catch((err) => console.warn("Could not load the QR library:", err))
+    .then(() => {
+      _qrLibraryLoad = null;
+      if (typeof window.kjua === "function") renderQrDemo();
+      else showQrFallback(buildQrDemoUrl());
+    });
+}
+
+/**
  * @returns {void}
  */
 function renderQrDemo() {
@@ -128,10 +120,8 @@ function renderQrDemo() {
   queryElements("[data-qr-target]").forEach((button) => {
     const isTarget = button.dataset.qrTarget === state.qrTarget;
     button.classList.toggle("is-active", isTarget);
-    // Checked from state, whatever changed the target last.
     if (button instanceof HTMLInputElement) button.checked = isTarget;
   });
-  // Shown only where the browser has a share sheet to open.
   if (els.qrShare) els.qrShare.hidden = !canShareQrDemoUrl();
   if (els.qrDemoUrl) els.qrDemoUrl.textContent = url;
   if (els.qrOpenDemo) els.qrOpenDemo.href = url;
@@ -140,13 +130,27 @@ function renderQrDemo() {
   // The code is a picture, so where it leads has to be in its label.
   setAttrText(els.qrCanvas, "aria-label", "info.qr.codeFor", { url });
   els.qrCanvas.innerHTML = "";
+  if (typeof window.kjua !== "function") {
+    setText(els.qrStatus, "info.qr.preparing");
+    loadQrLibrary();
+    return;
+  }
   const qrNode = drawQrCode(url);
   if (qrNode) {
     els.qrCanvas.appendChild(qrNode);
     setText(els.qrStatus, "info.qr.ready", { url });
     return;
   }
+  showQrFallback(url);
+}
 
+/**
+ * @param {string} url
+ * @returns {void}
+ */
+function showQrFallback(url) {
+  if (!els.qrCanvas) return;
+  els.qrCanvas.innerHTML = "";
   const notice = document.createElement("p");
   setText(notice, "info.qr.drawFailed");
   const link = document.createElement("p");
@@ -157,9 +161,6 @@ function renderQrDemo() {
 }
 
 /**
- * Write the status line under the link, and announce it. The line follows a
- * language change; an announcement already made is not repeated.
- *
  * @param {string} key
  * @returns {void}
  */
@@ -169,8 +170,7 @@ function setQrStatus(key) {
 }
 
 /**
- * Copy the demo link, and say whether it worked. When no copy method works,
- * the link is selected so the visitor can copy it by hand.
+ * When no copy method works, the link is selected for copying by hand.
  *
  * @returns {Promise<void>}
  */
@@ -184,10 +184,8 @@ async function copyQrDemoUrl() {
 }
 
 /**
- * Copy through the clipboard API, falling back to the legacy copy command.
- *
  * @param {string} text
- * @returns {Promise<boolean>} True only when the browser reports the copy done.
+ * @returns {Promise<boolean>}
  */
 async function copyTextToClipboard(text) {
   if (navigator.clipboard?.writeText) {
@@ -202,10 +200,8 @@ async function copyTextToClipboard(text) {
 }
 
 /**
- * Select the text in a hidden input and run the legacy copy command.
- *
  * @param {string} text
- * @returns {boolean} The command's own answer; false when it throws.
+ * @returns {boolean}
  */
 function copyTextWithCommand(text) {
   const input = document.createElement("input");
@@ -225,8 +221,6 @@ function copyTextWithCommand(text) {
 }
 
 /**
- * Select the link's text, so a visitor whose browser refused to copy can do it.
- *
  * @returns {void}
  */
 function selectQrDemoUrl() {
@@ -240,16 +234,14 @@ function selectQrDemoUrl() {
 }
 
 /**
- * @returns {boolean} Whether this browser has the Web Share API; not every
- *   browser does.
+ * @returns {boolean}
  */
 function canShareQrDemoUrl() {
   return typeof navigator !== "undefined" && typeof navigator.share === "function";
 }
 
 /**
- * Hand the link to the system share sheet, or copy it where there is none.
- * Closing the sheet is the visitor's choice, not a failure, so it says nothing.
+ * Closing the share sheet is the visitor's choice, not a failure.
  *
  * @returns {Promise<void>}
  */
@@ -261,7 +253,6 @@ async function shareQrDemoUrl() {
   try {
     await navigator.share({ title: "ASL Assistant", url: buildQrDemoUrl() });
   } catch (err) {
-    // The browser reports a closed sheet as a DOMException named AbortError.
     if (isRecord(err) && err.name === "AbortError") return;
     setQrStatus("info.qr.shareFailed");
   }

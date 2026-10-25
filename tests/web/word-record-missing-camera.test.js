@@ -27,7 +27,7 @@ async function wordScreenWithoutCameraCode() {
     unloadedScripts: ["js/media/camera.js"],
     globals: {
       console: quietConsole,
-      location: new URL("https://asl-assistant.netlify.app/#word"),
+      location: new URL("https://asl-assistant.pages.dev/#word"),
       navigator: {
         mediaDevices: {
           getUserMedia: async () => {

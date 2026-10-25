@@ -347,7 +347,7 @@ async function wordScreen(options = {}) {
   const app = loadWebApp({
     boot: true,
     ...options,
-    globals: { console: quietConsole, location: new URL("https://asl-assistant.netlify.app/#word") },
+    globals: { console: quietConsole, location: new URL("https://asl-assistant.pages.dev/#word") },
   });
   await app.ready;
   return app;
@@ -395,7 +395,7 @@ test("a switch rewrites the word side cards and a switch back restores the Turki
 
 /** fetch() serving asl-web/ from disk, with the word glosses marked reviewed. */
 async function fetchWithReviewedGlosses(input) {
-  const path = decodeURIComponent(new URL(String(input), "https://asl-assistant.netlify.app/").pathname);
+  const path = decodeURIComponent(new URL(String(input), "https://asl-assistant.pages.dev/").pathname);
   let body;
   if (path.endsWith("/word_reference.json")) {
     body = JSON.stringify({ ...readJson("data/word_reference.json"), gloss_reviewed: true });
@@ -415,7 +415,7 @@ test("a reviewed Turkish gloss is left off an English reader's word list, and co
     languages: ENGLISH,
     globals: {
       console: quietConsole,
-      location: new URL("https://asl-assistant.netlify.app/#word"),
+      location: new URL("https://asl-assistant.pages.dev/#word"),
       fetch: fetchWithReviewedGlosses,
     },
   });

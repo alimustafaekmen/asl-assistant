@@ -1,274 +1,103 @@
 # ASL Assistant
 
-[Canlı demo](https://asl-assistant.netlify.app/) · [Başlangıç rehberi](docs/getting-started.tr.md) · [Dokümantasyon](docs/README.md) · [Teknik rapor](TECHNICAL_REPORT.tr.md) · [English](README.md)
+[![CI](https://github.com/alimustafaekmen/asl-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/alimustafaekmen/asl-assistant/actions/workflows/ci.yml)
 
-**Canlı demo:** https://asl-assistant.netlify.app/
+**Canlı demo:** https://asl-assistant.pages.dev/ · [Teknik rapor (İngilizce)](TECHNICAL_REPORT.md) · [English](README.md)
 
-ASL Assistant, tarayıcıda çalışan bir işaret dili asistanıdır. Amerikan İşaret
-Dili (ASL) harflerini kameradan canlı olarak tanır ve metne dönüştürür; 50
-izole ASL kelimesi için de deneysel bir modu vardır. El, yüz ve gövde
-landmark'ları MediaPipe ile bulunur ve ONNX modelleriyle sınıflandırılır. Bunun
-tamamı sayfanın içinde olur: uygulama sunucusu yoktur ve kamera görüntüsü
-cihazdan çıkmaz. Arayüz Türkçe ve İngilizcedir.
+ASL Assistant, Amerikan İşaret Dili (ASL) harflerini kameradan okuyup metne çeviren bir web uygulaması. Her şey tarayıcıda olur: MediaPipe el, yüz ve vücut noktalarını (landmark) bulur, iki küçük ONNX modeli de bu noktaları sayfanın içinde sınıflandırır. Sunucu yoktur, kamera görüntüsü cihazdan çıkmaz. Asıl mod harf tanıma; ayrıca 50 ASL kelimesini tek tek tanıyan deneysel bir mod var. Arayüz Türkçe ve İngilizce.
 
-![Dizüstü bilgisayarda harf ekranı, açık tema. Koyu kamera alanı ziyaretçiden bir ASL harfi göstermesini istiyor ve Kamerayı aç ile Örneği izleyin düğmelerini sunuyor; yan kartlarda en olası sonuçlar, harf referansı ve klavye kısayolları var; altta metin şeridi ile Sil, Boşluk ve Ekle düğmeleri duruyor; üst çubuğun sonunda English'e geçiş düğmesi var.](docs/assets/screenshots/letter-laptop.tr.png)
+![Dizüstü bilgisayarda harf ekranı: Kamerayı aç ve Örneği izleyin düğmeleriyle koyu kamera alanı, yanda en olası sonuçlar, harf referansı ve klavye kısayolları, altta Sil, Boşluk ve Ekle düğmeleriyle metin şeridi.](docs/assets/screenshots/letter-laptop.tr.png)
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone.tr.png" width="240" alt="Telefonda harf ekranı, açık tema: Kamerayı aç ve Örneği izleyin düğmeleriyle kamera alanı, altında metin şeridi ile Sil, Boşluk ve Ekle düğmeleri."><br><sub>Telefonda harf ekranı</sub></td>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone-dark.tr.png" width="240" alt="Aynı harf ekranı, telefonda koyu temada."><br><sub>Koyu tema</sub></td>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/camera-help-phone.tr.png" width="240" alt="Kamera izni reddedildikten sonra kamera alanı: “Kamera izni verilmedi” başlığı, Yeniden dene ve Örneği izleyin düğmeleri, iPhone Safari ve Chrome için açılmış adım adım yardım."><br><sub>Kamera izni reddedildiğinde yardım</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone.tr.png" width="240" alt="Telefonda harf ekranı, açık tema."><br><sub>Telefonda harf ekranı</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone-dark.tr.png" width="240" alt="Telefonda harf ekranı, koyu tema."><br><sub>Koyu tema</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/camera-help-phone.tr.png" width="240" alt="Kamera izni verilmediğinde kamera alanı: iPhone Safari ve Chrome için adım adım yardım."><br><sub>Kamera izni verilmediğinde</sub></td>
   </tr>
-</table>
-
-<table>
   <tr>
-    <td align="center" width="50%"><img src="docs/assets/screenshots/word-laptop.tr.png" width="100%" alt="Dizüstü bilgisayarda kelime ekranı: kamera alanı ziyaretçiyi, ancak onayladıktan sonra metne eklenecek bir ASL kelimesi kaydetmeye çağırıyor; yan kartlarda sonuçlar, kelime referansı, önce denenecek kelimeler ve aranabilir 50 kelimelik liste var; alt çubukta Kamera kapalı, Yeniden kaydet ve Metne ekle düğmeleri duruyor."><br><sub>Kelime ekranı (deneysel)</sub></td>
-    <td align="center" width="50%"><img src="docs/assets/screenshots/demo-laptop.tr.png" width="100%" alt="Dizüstü bilgisayarda kamerasız örnek: koyu kamera alanında landmark'larıyla çizilmiş kayıtlı bir el; üstündeki kart FLY kelimesini gösteriyor, sıradaki harf L işaretli (2/3) ve ziyaretçiden harfi Ekle'ye dokunarak ya da Space tuşuyla eklemesini istiyor; sonuç kartı %100 ile L okuyor, en olası sonuçlarda L ilk sırada, metin şeridinde de F var."><br><sub>Kayıtlı bir eli okuyan kamerasız örnek</sub></td>
+    <td align="center" colspan="2"><img src="docs/assets/screenshots/demo-laptop.tr.png" width="100%" alt="Kamerasız örnek: noktalarıyla çizilmiş kayıtlı bir el FLY kelimesini heceliyor; sonuç kartında L var, metinde F yazılı."><br><sub>Kamerasız örnek</sub></td>
+    <td align="center"><img src="docs/assets/screenshots/word-laptop.tr.png" width="100%" alt="Dizüstü bilgisayarda kelime ekranı: sonuçlar, kelime referansı ve 50 kelimelik liste."><br><sub>Kelime ekranı (deneysel)</sub></td>
   </tr>
 </table>
 
-Ekran görüntüleri kamerasız bir headless Chrome'da, Türkçe arayüzle alındı;
-[İngilizce README](README.md) aynı ekranları İngilizce gösterir. Kamerasız örnekten
-alınan görüntüdeki sonuç, kayıtlı elin yayımlanan harf modelinden gerçekten
-geçirilmesiyle elde edildi; neden %100 okunduğu [Nasıl çalışır](#nasıl-çalışır)
-bölümünde.
+## Neler yapıyor?
 
-## Neler yapar?
+- **Harf.** 24 statik ASL harfini kameradan canlı tanır. Space ekrandaki harfi ekler, Enter boşluk koyar, Backspace siler. Metin kopyalanabilir ya da sesli okunabilir.
+- **Kamerasız örnek.** *Örneği izleyin*, FLY kelimesini heceleyen kayıtlı bir eli kameradaki elle aynı adımlardan geçirir. Harfler yine tek tek elle eklenir.
+- **Kelime (deneysel).** Tek bir işareti kaydeder ve 50 kelime arasından en olası üç tanesini gösterir. Sonuç onaylanmadan metne eklenmez.
+- **Koç.** Seçilen bir harf ya da kelimeyle alıştırma yapılır; ilerleme cihazda saklanır.
+- **Ayrıca:** uygulamayı telefonda açmak için bir QR kodu, kısa bir proje sayfası ve hazır örnekleri modellerden geçiren Model Test (`#test`).
 
-| Mod (uygulamadaki adı) | Ne yapar |
-|---|---|
-| Harf | 24 statik ASL harfini kameradan canlı tanır. Space gösterilen harfi metne ekler, Enter boşluk bırakır, Backspace siler. Metin kopyalanabilir ya da sesli okunabilir. Ana mod budur. |
-| Kelime (deneysel) | Tek bir izole işareti kaydeder ve 50 kelime içinden en olası üçünü gösterir. Siz onaylamadan metne hiçbir şey eklenmez. |
-| Koç (erken aşamada) | Seçilen bir harf ya da kelimeyle pratik. Harf, sabit tutulduğunda sayılır; ilerleme cihazda saklanır. |
-| Kamerasız örnek (*Örneği izleyin*) | Harf ekranında, FLY kelimesini heceleyen kayıtlı bir eli kamera karesiyle aynı yoldan geçirir: kamera alanında çizilen landmark'lar, harf özellikleri, harf modeli, yumuşatma ve sonuç kartı. Her harfi siz Space ya da *Ekle* ile eklersiniz; sonunda örnek kamerayı açmayı önerir. Yalnızca harf modelini yükler. |
-| Model Test (geliştiriciler için) | Depodaki örnekleri kamera olmadan modellerden geçirir, tek tek ya da hepsini birden; tahmini, güveni ve süreyi gösterir. `#test` adresindedir, proje sayfasından bağlantı verilir. |
-| QR (*Telefonda aç*) | Yayındaki harf ya da kelime ekranını telefonda açan bir QR kodu. |
-| Proje (*Nasıl çalışır*) | Modellerin ve sınırlarının kısa özeti. |
-| Dil (*English* / *Türkçe*) | Her ekran Türkçe ve İngilizcedir. İlk ziyaret tarayıcının diliyle açılır, bu dil ikisinden biri değilse İngilizceyle; üst çubuğun sonundaki düğme (telefonda *Diğer* menüsünde) dili sayfayı yeniden yüklemeden hemen değiştirir, kamera açık kalır, metin de kaybolmaz. Seçim cihazda saklanır. |
-
-## Nasıl çalışır
+## Nasıl çalışıyor?
 
 ```text
-kamera karesi (sayfada kalır)
-  -> MediaPipe Tasks Vision: el, gövde ve yüz landmark'ları
-  -> harf:   21 el landmark'ı, sol el aynalanır, yumuşatılır  -> 93 özellik
-             -> ONNX'e aktarılmış LightGBM                      -> 24 harf
-  -> kelime: en çok 45 kare için 321 boyutlu kareler (eller, yüz, gövde)
-             -> 45 x 168 özellik + 45 değerli dolgu maskesi
-             -> ONNX'e aktarılmış SignTransformer               -> 50 kelimeden ilk 3
-  -> ONNX Runtime Web (WebAssembly)
-  -> kullanıcı harfi ekler ya da kelimeyi onaylar
+kamera karesi -> MediaPipe Tasks Vision (el, vücut ve yüz noktaları)
+  harf:   21 el noktası -> 93 özellik -> LightGBM (ONNX) -> 24 harf
+  kelime: 45 kare x 168 özellik + maske -> SignTransformer (ONNX) -> 50 kelimeden ilk 3
+  -> ONNX Runtime Web (WebAssembly) -> kullanıcı harfi ekler ya da kelimeyi onaylar
 ```
 
-Uygulama düz HTML, CSS ve JavaScript'tir. Tarayıcı klasik `<script>`
-dosyalarını sabit bir sırayla yükler; framework, bundler, transpiler ya da
-derleme adımı yoktur ve `asl-web/` içindeki dosyalar yayımlanan dosyaların
-kendisidir. ONNX Runtime ve QR kütüphanesi jsDelivr'dan bütünlük (SRI)
-hash'leriyle, MediaPipe jsDelivr'dan, landmark modelleri Google Cloud
-Storage'dan gelir. `asl-web/models/` içindeki modeller yalnızca bir şey onlara
-ihtiyaç duyduğunda iner; ne kamerayı ne de örneği açan bir ziyaretçi hiç model
-indirmez.
-
-Kayıtlı sonuçlar, [`asl-web/data/model-card.json`](asl-web/data/model-card.json) dosyasından:
+Uygulama düz HTML, CSS ve JavaScript ile yazıldı; framework ya da derleme adımı yok, script'ler klasik `<script>` etiketleriyle yükleniyor. Özellikler eğitim için Python'da (`asl-features/`) hesaplanıyor, tarayıcıda ise aynı hesap JavaScript ile yapılıyor; iki tarafın sonuçları testlerde 1e-4 farkla karşılaştırılıyor. Modeller ancak gerektiğinde indiriliyor, bu yüzden sayfayı açmak yaklaşık 0,35 MB tutuyor.
 
 | | Harf modeli | Kelime modeli |
 |---|---|---|
-| Model | LightGBM | SignTransformer encoder, 446.195 parametre |
-| Sınıf | 24 statik harf (J ve Z hareket gerektirdiği için yok) | 50 izole işaret |
-| Girdi | 93 tasarlanmış özellik | 45 × 168 özellik ve maske |
-| Kayıtlı test sonucu | 8.245 ayrılmış satırda %99,35 doğruluk | 3.918 kayıtta %71,92 doğruluk, 0,714 macro-F1 |
-| Ayırma | Landmark satırları üzerinden rastgele; kişiden bağımsız **değil** | Kişiden bağımsız; test kümesi eğitimde görülmemiş 4 kişi |
-| Dosya | 13,2 MB ONNX, gzip'li olarak 2,2 MB sunulur | 1,9 MB ONNX |
+| Model | LightGBM, 93 özellik | SignTransformer, 45 × 168 özellik ve maske |
+| Sınıf | 24 statik harf | 50 tekil işaret |
+| Sonuç | Rastgele ayrılmış test verisinde %99,35; başka bir veri setinden gelen ellerde yaklaşık %70 | Eğitimde görülmemiş 4 kişide %71,92 doğruluk, 0,714 macro-F1 |
 
-İki sonucu sınırlarıyla birlikte okuyun. Harf ayrımı birleştirilmiş görüntü
-veri setlerinden rastgele seçildi; aynı kişinin neredeyse aynı kareleri
-ayrımın iki tarafında da bulunabilir, bu yüzden %99,35 yeni bir kişi için
-başarıyı büyük olasılıkla olduğundan yüksek gösterir. Kelime sonucu, ayrılmış
-kişilerin izole işaretleri içindir, sürekli işaretleşme için değil; canlı
-güven çoğu zaman çok daha düşüktür. Örnekteki %100 de bir sonuç değildir: üç
-el duruşunun fotoğrafları harf modelinin eğitim verisinde yer alır; bu
-yüzden örnek uygulamanın nasıl çalıştığını gösterir, ne kadar doğru olduğunu
-değil. Özellik sırası, ONNX sözleşmeleri ve değerlendirmenin tam
-kapsamı [Models and data](docs/models-and-data.md) belgesindedir.
-
-## Teknolojiler ve araçlar
-
-| Alan | Kullanılanlar |
-|---|---|
-| Tarayıcı çalışma zamanı | [MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe) 0.10.18 (el, gövde ve yüz landmark modelleri), WebAssembly üzerinde [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) 1.22.0, QR kodları için [kjua](https://github.com/lrsjng/kjua) 0.9.0, metni sesli okumak için Web Speech |
-| Arayüz | HTML, CSS cascade layer'ları ve klasik script'ler, derleme adımı olmadan; kendi sunucusundan [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next) ve [Mono](https://github.com/googlefonts/atkinson-hyperlegible-next-mono); JSDoc türleri TypeScript 5.9.3 ile dosya üretmeden denetlenir (yalnızca geliştirmede) |
-| Makine öğrenmesi | Python 3.12, LightGBM, PyTorch, onnx ve onnxruntime, landmark çıkarmak için MediaPipe, scikit-learn; sürümler [`requirements.txt`](requirements.txt) içinde sabitlenmiştir. Kelime modeli bir Kaggle notebook'unda tek bir T4 GPU ile eğitildi. |
-| Test | Gerçek tarayıcı script'lerini yükleyen bir `node:vm` düzeneğiyle `node:test`, pytest, npm bağımlılığı olmadan DevTools Protocol üzerinden headless Chrome kontrolleri, Ruff |
-| Barındırma | Netlify, elle yüklenen statik site; yanıt başlıkları `asl-web/_headers` içinde |
-
-## Mühendislik uygulamaları
-
-- **Başarısız olduğu gösterilmiş testler.** En önemli kuralların her birinin,
-  bilerek bozulmuş bir kopyaya karşı çalıştırılıp başarısız olduğu görülmüş
-  bir davranış testi vardır: kullanıcı onaylamadan kelime eklenmez, kelime
-  maskesi ters çevrilmez, kareler modele sırasıyla gider ve kamera ekranından
-  çıkınca kamera serbest bırakılır. [Headless Chrome
-  kontrollerinin](tests/browser/README.md) de bilinçli hatalarda başarısız
-  olduğu aynı yolla gösterildi. Yeni testler kaynak metni değil davranışı denetler
-  ve yalnızca sistem sınırlarını taklit eder: kamera, ağ, saat, MediaPipe ve
-  ONNX Runtime. Bazı eski testler hâlâ kaynak metni eşler; her biri, yerine
-  gelen testin aynı hataları yakaladığı gösterildiğinde kaldırılır.
-- **Python ve tarayıcı aynı özellikleri hesaplar.** Özellik mühendisliği eğitim
-  için Python'da (`asl-features/`), uygulama için JavaScript'te yaşar. Yanlış sıradaki
-  bir vektör de çalışır ve sessizce anlamsız tahminler üretir; bu yüzden
-  `make parity` aynı deterministik girdileri ikisine de verir ve harfler ile
-  kelimeler için 1e-4 içinde uyuşmalarını ister. Yayımlanan her model ayrıca
-  kaynağıyla SHA-256 üzerinden ve beklenen ONNX girdi ve çıktılarıyla
-  karşılaştırılır.
-- **Yayın envanteri.** Site, `asl-web/` klasörü barındırma arayüzüne
-  sürüklenerek yayımlanır ve diskte ne varsa yüklenir. `make deploy-check` bu
-  yüklemenin taşıyacağı her dosyayı listeler; Git'in yok saydığı ya da gizli
-  dosyalarda, bilinmeyen dosya türlerinde ve yeniden dağıtılamayan veriden
-  türetilmiş yerel örneklerde başarısız olur.
-- **Gizlilik.** Sunucu, hesap ya da analiz aracı yoktur.
-  Görüntü sayfada işlenir; kaydedilmez ve hiçbir yere gönderilmez. Tarayıcı
-  `localStorage` içinde üç şey tutar: tema, metin ve koç ilerlemesi. CDN
-  script'leri tam sürüme ve bütünlük hash'lerine sabitlenmiştir.
+Örnekteki el pozları %100 okunuyor, çünkü fotoğrafları harf modelinin eğitim verisinde var. Yani örnek uygulamanın nasıl çalıştığını gösteriyor, ne kadar doğru olduğunu değil. Veri, deneyler ve tarayıcı tarafının ayrıntıları [teknik raporda](TECHNICAL_REPORT.md) (İngilizce).
 
 ## Hızlı başlangıç
 
-Uygulamayı çalıştırmak için herhangi bir statik dosya sunucusu yeterlidir;
-hiçbir şey kurmanız gerekmez:
+```bash
+make web    # asl-web/ klasörünü http://localhost:8080 adresinde açar; kurulum gerekmez
+```
+
+Kamera yalnızca `localhost` ya da HTTPS üzerinde çalışır. Kod üzerinde çalışmak için Python 3.12 ve Node 24 gerekiyor; `environment.yml` ikisini de kurar:
 
 ```bash
-make web               # asl-web/ klasörünü http://localhost:8080 adresinde sunar
+conda env create -f environment.yml && conda activate asl-assistant   # ya da Python 3.12 venv içinde: make setup
+npm ci                 # tür denetimi için TypeScript
+make check             # lint, biçim, tür denetimi, çalışma dosyaları, Python ve JS testleri, parite
+make browser-check     # headless Chrome kontrolleri (Chrome gerekir)
 ```
 
-Kamera `localhost` ya da HTTPS üzerinde çalışır, `file://` ile açılan bir
-sayfada çalışmaz. Uygulamanın harfleri kamerasız nasıl okuduğunu görmek için
-harf ekranında **Örneği izleyin** düğmesine basın. Depodaki örnekleri çalıştıran
-Model Test `#test` adresindedir.
+`make help` bütün hedefleri listeler; ayrıntılar [başlangıç rehberinde](docs/getting-started.md) (İngilizce).
 
-Kod üzerinde çalışmak için (Python 3.12 ve Node 24; Conda dosyası ikisini
-birden kurmanın bir yoludur):
+## Kullanılan teknolojiler
 
-```bash
-conda env create -f environment.yml
-conda activate asl-assistant
-make setup             # sabitlenmiş bağımlılıklar ve yerel paketler
-make check             # lint, testler, doğrulama, parity, tür denetimi (önce bir kez npm ci)
-make browser-check     # headless Chrome kontrolleri; Chrome gerekir
-make deploy-check      # asl-web/ her yüklenmeden önce
-```
-
-`venv`, Windows, tüm `make` hedefleri, yayın ve sorun giderme için
-[Başlangıç rehberine](docs/getting-started.tr.md) bakın.
-
-## Depo yapısı
-
-```text
-asl-web/       uygulama: index.html, css/, js/ (core, media, ml, services, ui), models/, data/
-asl-features/  harf ve kelime için Python özellik mühendisliği; iki pipeline için de doğruluk kaynağı
-asl-desktop/   Python ile yazılmış eski masaüstü prototipi, çalışır durumda tutuluyor
-scripts/       veri hazırlama, eğitim, örnek dışa aktarma, doğrulama
-tests/         tarayıcı birim testleri (tests/web), headless Chrome kontrolleri, Python ve depo testleri
-notebooks/     kelime modeli eğitim kayıtları ve sonuçları
-models/        seçilmiş model dosyaları ve meta verileri
-docs/          mimari, başlangıç, modeller ve veri, projenin geçmişi
-```
-
-[Dokümantasyon dizini](docs/README.md), tarayıcı mimarisinden projenin
-geçmişine kadar hangi sorunun hangi belgede yanıtlandığını gösterir.
+- **Tarayıcı:** MediaPipe Tasks Vision 0.10.18, ONNX Runtime Web 1.22.0, QR kodları için kjua, Web Speech; JSDoc tipleri TypeScript ile denetleniyor.
+- **Makine öğrenmesi:** Python 3.12, LightGBM, PyTorch, scikit-learn, ONNX; kelime modeli bir Kaggle notebook'unda eğitildi.
+- **Test:** gerçek tarayıcı script'leri üzerinde `node:test`, pytest, DevTools Protocol ile headless Chrome, Ruff.
+- **Yayın:** Cloudflare Pages; derleme adımı olmayan statik bir klasör.
 
 ## Sınırlamalar
 
-- Uygulama henüz gerçek bir telefonda denenmedi. Otomatik kontroller, sanal
-  kamerayla headless masaüstü Chrome'da çalışır; iOS Safari ve Android Chrome
-  denenmedi.
-- Kelime modeli deneyseldir. İzole işaretleri tanır, sürekli işaretleşmeyi
-  değil; güven eşiğinin altındaki bir sonuç onaylanamaz.
-- Harf modelinde 24 statik harf vardır; J, Z ve "işaret yok" sınıfı yoktur.
-  %99,35'lik sonuç, eğitimle aynı kişileri paylaşan bir ayırmadan gelir;
-  modelin hiç görmediği ellerde %69 ölçüldü, en zayıfı yumruk harfleri (M, N,
-  T, S, E, A). Ayrıntı: [Models and data](docs/models-and-data.md).
-- Uygulamadaki kelime referans görselleri henüz bir ASL sözlüğüyle
-  karşılaştırılmadı; emin olmadığınızda el şeklini standart bir sözlükle
-  karşılaştırın.
-- İçerik Güvenliği Politikası (CSP) yalnızca raporlama modunda. Yayındaki
-  sitede gerçek bir tarayıcıda okunduktan sonra zorunlu hâle getirilecek.
-- İlk ziyaret ağ bağlantısı ister: ONNX Runtime ve MediaPipe herkese açık
-  CDN'lerden gelir; ilk harf oturumunda yaklaşık 15 MB.
-- Harf modelini ONNX'e dönüştüren komut depoda yok.
-
-## Gelecek çalışmalar
-
-- Gerçek cihazlarda, gerçek eller ve ışıkla iOS Safari ve Android Chrome
-  üzerinde denemek.
-- Harf modelini hiç görmediği kişilerle değerlendirmek.
-- Daha çok kelime eklemek ve izole işaretlerden sürekli işaretleşmeye geçmek.
-- Kelime kelime değil, cümle düzeyinde çeviri yapmak.
-- Modelleri siteyi yeniden yayımlamadan cihazda güncellemek.
-- CSP'yi zorunlu hâle getirmek.
-- Progressive web app (PWA) olarak internetsiz çalışmak.
-- Erişilebilirliği ve faydayı Sağır kullanıcılarla birlikte gözden geçirmek.
+- Harf modeli 24 statik harfi tanıyor. J ve Z hareket gerektiriyor; bu ikisi için bir model eğitmedim.
+- Harf modeli kendi eğitim verisinden rastgele ayrılan kısımda %99, başka bir veri setinden gelen ellerde ise yaklaşık %70 doğruluk veriyor. Eğitim fotoğrafları birbirine çok benzeyen uzun kare dizilerinden oluştuğu için rastgele ayırmada test satırlarının neredeyse aynısı eğitimde de kalıyor.
+- Kelime modeli deneysel: 50 tekil işaret tanıyor, hiç görmediği 4 kişide %72 doğruluk veriyor. Kullanıcı onaylamadan metne hiçbir kelime eklemiyor.
+- Şu ana kadar masaüstü Chrome'da test ettim.
 
 ## Lisans
 
-Kaynak kod ve eğitilmiş model dosyaları
-[PolyForm Noncommercial License 1.0.0](LICENSE) ile yayımlanır. Kişisel, eğitim
-ve araştırma amaçlı kullanım serbesttir; ticari kullanım için telif hakkı
-sahibinin izni gerekir.
-
-`asl-web/models/` ve `models/` altındaki model dosyaları yazılımın parçası
-sayılır; aşağıda listelenen eğitim verisi koşulları da geçerlidir. Bu proje,
-bir veri seti lisansının (örneğin ana harf kaynağındaki GPL-2.0 etiketinin)
-eğitilmiş ağırlıklara geçip geçmediği konusunda bir iddiada bulunmaz.
-Kullanımınız için kesinlik gerekiyorsa kaynak koşullarını kontrol edin ya da
-buradaki betiklerle kendi modelinizi eğitin. `.pkl` ve `.pt` dosyaları Python
-pickle biçimindedir; yalnızca güvendiğiniz bir kopyadan yükleyin.
-
-<a id="data-and-attribution"></a>
+Kaynak kod ve eğitilmiş model dosyaları [PolyForm Noncommercial License 1.0.0](LICENSE) ile yayımlandı: kişisel, eğitim ve araştırma amaçlı kullanım serbest, ticari kullanım için iznim gerekiyor. Model dosyalarına aşağıdaki eğitim verilerinin koşulları da uygulanır. `.pkl` ve `.pt` dosyaları Python pickle dosyalarıdır; yalnızca güvenilir bir kopyadan yüklenmeleri gerekir.
 
 ## Veri ve atıf
 
-Ham veri setleri bu depoda yoktur. Her kaynağın rolü, ayırma boyutları ve
-dışarıda bırakılanlar
-[Models and data](docs/models-and-data.md#training-data-and-environments)
-belgesinde, Git dışında kalanlar [veri çalışma alanında](data/README.md)
-listelenir.
-
-| Model | Kaynak | Koşullar |
+| Kullanım | Kaynak | Koşullar |
 |---|---|---|
-| Harf | [ASL Alphabet](https://www.kaggle.com/datasets/grassknoted/asl-alphabet), Akash Nagaraj, 2018, [doi:10.34740/KAGGLE/DSV/29550](https://doi.org/10.34740/KAGGLE/DSV/29550) | GPL-2.0 (sağlayıcının etiketi) |
-| Harf; örnekteki el duruşları | [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset), Ayush Thakur | CC0 1.0 |
-| Harf | [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) ile ilişkili yerel `ASL_SemCom` görsel alt kümesi (54.961 landmark satırının 1.580'i) | Kaydedilmemiş; görseller dağıtılmaz |
-| Kelime | [Google - Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs) yarışma verisi (Kaggle, 2023); sağlayıcılar Deaf Professional Arts Network ve Georgia Institute of Technology | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), yarışma kurallarına tabi |
+| Harfler | [ASL Alphabet](https://www.kaggle.com/datasets/grassknoted/asl-alphabet), Akash Nagaraj, 2018, [doi:10.34740/KAGGLE/DSV/29550](https://doi.org/10.34740/KAGGLE/DSV/29550) | GPL-2.0 (sağlayıcının belirttiği) |
+| Harfler, örnek pozlar | [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset), Ayush Thakur | CC0 1.0 |
+| Harfler | [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) ile ilişkili `ASL_SemCom` görselleri | Kayıtlı değil; dağıtılmıyor |
+| Kelimeler | [Google - Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs) (Kaggle, 2023), Deaf Professional Arts Network ve Georgia Institute of Technology | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), yarışma kurallarıyla birlikte |
 
-Veride yapılan değişiklikler: harf görselleri MediaPipe el landmark'larına,
-ardından 93 tasarlanmış özelliğe indirgendi; kelimelerde 250 işaretten 50'si
-seçildi ve her landmark dizisi 168 özellikli 45 kareye yeniden örneklendi.
-Yayımlanan modeller yalnızca öğrenilmiş parametreleri içerir; görselleri,
-kayıtları ya da landmark tablolarını içermez. 24 Model Test harf örneği,
-ayrılmış landmark satırlarından alınmış tekil 93 özellikli vektörlerdir: 23'ü
-ASL Alphabet'ten, K örneği `ASL_SemCom` alt kümesinden gelir
-([ayrıntılar](docs/models-and-data.md#model-test-fixture-contract)). Kamerasız
-örnekteki üç el duruşu (`asl-web/data/demo-letters.json`), uygulamanın
-kullandığı el modelinin (MediaPipe Hand Landmarker) American Sign Language
-Dataset'teki üç fotoğrafta bulduğu landmark'lardır; fotoğrafların kendisi depoda
-yoktur.
+Yapılan değişiklikler: harf görsellerinden MediaPipe el noktaları, onlardan da 93 özellik çıkarıldı; kelimelerde 250 işaretten 50'si seçildi ve her dizi 168 özellikli 45 kareye yeniden örneklendi. Modeller yalnızca öğrenilmiş parametreleri içeriyor. Yarışma kuralları veriyi yeniden dağıtmayı yasakladığı için (madde 7.B) depoda bu veriden türetilmiş nokta verisi yok, kelime örneği de sentetik. Model Test'teki 24 harf örneği, test için ayrılmış satırların 93 özelliğinden oluşur: 23'ü ASL Alphabet'ten, K örneği `ASL_SemCom` görsellerinden. `asl-web/data/demo-letters.json` içindeki örnek pozlar, American Sign Language Dataset'teki üç fotoğraftan çıkarılan noktalardır.
 
-Yarışma kuralları verinin her amaçla kullanılmasına izin verir (madde 7.A),
-ama yeniden dağıtılmasını yasaklar (madde 7.B); ikisi çatıştığında kurallar
-CC BY 4.0 lisansından önce gelir. Bu yüzden depo eğitilmiş kelime modelini ve
-toplu sonuçları yayımlar, landmark verisi yayımlamaz: yarışma verisinden
-üretilen Model Test kelime örnekleri yerelde kalır, yayımlanan kelime örneği
-sentetiktir.
+| Bileşen | Lisans | Kullanım |
+|---|---|---|
+| [MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe) ve Google'ın landmark modelleri | Apache-2.0 | jsDelivr ve Google Cloud Storage'dan yükleniyor |
+| [ONNX Runtime Web](https://github.com/microsoft/onnxruntime), [kjua](https://github.com/lrsjng/kjua) | MIT | jsDelivr'dan yükleniyor |
+| [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next) ve [Mono](https://github.com/googlefonts/atkinson-hyperlegible-next-mono) | SIL OFL 1.1 | Alt küme olarak, lisansıyla birlikte `asl-web/assets/fonts/` içinde |
+| [ASL alfabe tablosu](https://commons.wikimedia.org/wiki/File:Asl_alphabet_gallaudet.svg): Ds13, Gallaudet yazı tipinden (© 1991 David Rakowski), vektöre çeviren Marnanel | Kamu malı | Kırpılarak `asl-web/assets/signs/letters.png` olarak kullanılıyor |
 
-Üçüncü taraf yazılımlar:
-
-| Bileşen | Sürüm | Lisans | Nasıl kullanılıyor |
-|---|---|---|---|
-| [MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe) ve Google'ın el, gövde ve yüz landmark modelleri | 0.10.18 | Apache-2.0 | Kod jsDelivr'dan, modeller Google Cloud Storage'dan yüklenir; depoda dağıtılmaz |
-| [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) | 1.22.0 | MIT | jsDelivr'dan yüklenir; depoda dağıtılmaz |
-| [kjua](https://github.com/lrsjng/kjua) | 0.9.0 | MIT | QR ekranı için jsDelivr'dan yüklenir; depoda dağıtılmaz |
-| [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next) ve [Atkinson Hyperlegible Mono](https://github.com/googlefonts/atkinson-hyperlegible-next-mono) | Sabitlenmedi | SIL Open Font License 1.1 | Latin ve Türkçe karakterlere indirgenmiş hâlleri lisanslarıyla birlikte `asl-web/assets/fonts/` içinde dağıtılır |
-| [ASL harf kartı](https://commons.wikimedia.org/wiki/File:Asl_alphabet_gallaudet.svg); Ds13, Gallaudet yazı tipinden; Marnanel vektörleştirdi | 2004 SVG, Commons'ta güncellendi | Yazarı tarafından kamu malına bırakıldı (yazı tipinin kendisi © 1991 David Rakowski) | 26 harfe kırpılarak `asl-web/assets/signs/letters.png` olarak çizildi; harf ekranının referansı |
-
-`asl-web/data/asl_video_links.json` içindeki işaret videosu bağlantıları
-üçüncü taraf YouTube videolarına gider; videolar sahiplerine aittir.
+`asl-web/data/asl_video_links.json` içindeki video bağlantıları YouTube'daki videolara gidiyor; videolar sahiplerine aittir.

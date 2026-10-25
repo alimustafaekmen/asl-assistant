@@ -34,7 +34,7 @@ function loadWithCamera() {
       // The QR screen builds its link from the page's own address and draws
       // it with the kjua CDN script.
       URL,
-      location: new URL("https://asl-assistant.netlify.app/#letter"),
+      location: new URL("https://asl-assistant.pages.dev/#letter"),
       kjua: () => ({}),
       history: { replaceState() {} },
       cancelAnimationFrame: (id) => cancelledFrames.push(id),

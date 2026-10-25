@@ -1,49 +1,29 @@
-// The camera-free letter demo: a recorded hand played through the live
-// letter pipeline.
+// The camera-free letter demo: a recorded hand played through the live letter
+// pipeline. It only publishes frames to latestMediaPipeResult; everything after
+// that runs unchanged, and neither the camera nor MediaPipe starts.
 //
-// A visitor without a camera, or whose camera is blocked (an in-app browser),
-// watches the letter screen read letters from a recorded hand. The demo is
-// only a frame source: it publishes the recorded landmarks to
-// latestMediaPipeResult, where the camera's frames go, and the render loop,
-// the overlay, realInference(), the smoother and the plate run unchanged.
-// Neither the camera nor MediaPipe is started; the letter model loads as it
-// does for the camera.
+// Only adding the letter on the stage moves the demo on: the plate still shows
+// the previous letter until the model reads the next pose, and adding that
+// stale letter must not count. The hand then leaves the frame for a moment so
+// the smoother starts the next letter from nothing.
 //
-// Consent stays the user's. Each letter is held until the user adds it (Space
-// or Ekle) or skips it; then the hand leaves the frame for a moment, as a
-// signer's does, so the smoother starts the next letter from nothing. Only an
-// add of the letter on the stage moves the demo on: the plate still shows the
-// last letter until the model has read the next pose, and adding that stale
-// letter must not count for the new one.
-//
-// The recording (data/demo-letters.json) holds landmarks of square
-// photographs, so every frame says aspect 1, and the overlay draws the square
-// in the stage's clear middle: the hidden video's size must not reach the
-// features, and there is no video to cover.
-//
-// One frame loop at most: every start stops the previous demo first, and
-// stopDemo() is the one way out, used by the stop button, a camera start,
-// every mode or route change, and a hidden page.
+// The recording holds square photographs, so every frame says aspect 1: the
+// hidden video's size must not reach the features.
 
 /**
- * One letter of the demo recording: the letter and the right hand that signs it.
- *
  * @typedef {Object} DemoLetter
  * @property {string} letter One of the 24 static letters.
  * @property {LandmarkList} landmarks 21 points in a square image, x and y in 0..1.
  */
 
 /**
- * The demo recording, validated: a word and one hand per letter, in order.
- *
  * @typedef {Object} DemoRecording
  * @property {string} word
  * @property {DemoLetter[]} letters
  */
 
 /**
- * How a start ended: playing, refused (the recording could not be used), or
- * cancelled by whatever stopped it while it loaded.
+ * "failed": the recording could not be used. "cancelled": stopped while loading.
  *
  * @typedef {"playing" | "failed" | "cancelled"} DemoStartOutcome
  */
@@ -55,33 +35,22 @@ const DEMO_FRAME_MS = 50;
 /** How long the hand is out of frame after a letter is added or skipped. */
 const DEMO_GAP_MS = 400;
 /**
- * How far a held hand wobbles, as a fraction of the frame: the whole hand
- * drifts by up to DEMO_DRIFT and each point trembles by up to DEMO_TREMOR.
- * Together they stay well under half a percent, which the letter model reads
- * through unchanged.
+ * Hand drift and per-point tremor as a fraction of the frame; together well
+ * under half a percent, which the letter model reads through unchanged.
  */
 const DEMO_DRIFT = 0.0015;
 const DEMO_TREMOR = 0.0005;
 const DEMO_SEED = 0x5eed;
-/**
- * The recorded square's side as a share of the stage's height, at most. The
- * photographs are cropped tight to the hand, which would fill the stage edge
- * to edge.
- */
+/** Square side as a share of stage height; the photos are cropped tight to the hand. */
 const DEMO_FRAME_SCALE = 0.7;
-/**
- * The least side, as a share of the stage's height. On a short phone the
- * demo's card and the plate leave little between them; below this the hand
- * would be too small to read, so it overlaps them a little instead.
- */
+/** Below this share of stage height the hand is too small to read, so it overlaps the card instead. */
 const DEMO_FRAME_MIN = 0.3;
 /** Room kept between the square and whatever lies over the stage, in CSS pixels. */
 const DEMO_FRAME_GAP = 12;
 
 /**
- * The keys of the demo's words (js/i18n/letter.js). Ekle (Add) and Space name
- * the button and the key the visitor sees in the action bar; "Boşluk" (Space)
- * is avoided because the button of that name inserts a space.
+ * Keys into js/i18n/letter.js. "Boşluk" (Space) is avoided because the button
+ * of that name inserts a space.
  *
  * @type {Record<"loading" | "playing" | "done" | "loadFailed" | "modelLoading" | "modelFailed", string>}
  */
@@ -107,8 +76,7 @@ let _demoRecordingLoad = null;
 let _demoRecording = null;
 /** The pending frame timer, or null when no loop runs. @type {number | null} */
 let _demoTimer = null;
-// stopDemo() bumps it; a start that finds it changed after an await was
-// cancelled and leaves everything to whatever is current.
+// stopDemo() bumps it; a start that finds it changed after an await was cancelled.
 let _demoGeneration = 0;
 /** The letter on the stage, or about to come up after the gap. */
 let _demoIndex = 0;
@@ -119,8 +87,7 @@ let _demoTimestamp = 0;
 let _demoNoise = () => 0.5;
 
 /**
- * A small seeded generator (mulberry32), so the wobble is the same on every
- * run and a demo can be reproduced frame for frame.
+ * Seeded (mulberry32), so a demo is reproducible frame for frame.
  *
  * @param {number} seed
  * @returns {() => number} Uniform values in [0, 1).
@@ -137,8 +104,6 @@ function _seededRandom(seed) {
 }
 
 /**
- * Read 21 [x, y, z] points as a landmark list.
- *
  * @param {unknown} value
  * @returns {LandmarkList | null} Null unless there are exactly 21 points of
  *   three finite numbers each.
@@ -157,11 +122,8 @@ function _parseDemoHand(value) {
 }
 
 /**
- * Validate a fetched recording against schema asl-demo-letters-v1.
- *
  * Refused whole when anything is off, so a wrong shape never reaches the
- * overlay or the model: the word must be static letters (A to Y without J or
- * Z), and each letter of it needs its own right hand, in order.
+ * overlay or the model.
  *
  * @param {unknown} value Parsed JSON.
  * @returns {DemoRecording | null}
@@ -185,10 +147,8 @@ function parseDemoRecording(value) {
 }
 
 /**
- * Fetch and validate the recording, the first time a demo starts.
- *
  * Every caller shares one load. A failed one is forgotten, so the next start
- * asks again instead of inheriting the failure for the rest of the visit.
+ * asks again.
  *
  * @returns {Promise<DemoRecording | null>} Null when it cannot be used. Never rejects.
  */
@@ -217,20 +177,14 @@ async function _fetchDemoRecording() {
 }
 
 /**
- * Start the demo on the letter screen.
- *
- * The camera is released first, since a demo never runs beside it, and a demo
- * already running is stopped, so a restart leaves one loop. The recording and
- * the letter model load side by side; frames start once the recording is in,
- * and are dropped by live inference until the model is ready, as the
- * camera's are. A model that cannot load leaves the hand playing and says
- * so, as a camera without its models does.
+ * Frames start once the recording is in and are dropped by live inference
+ * until the letter model is ready, as the camera's are.
  *
  * @returns {Promise<DemoStartOutcome>} Never rejects; a failure is reported on the stage.
  */
 async function startDemo() {
   if (state.cameraOn || _cameraStartAttempt) stopCamera();
-  // The switch itself stops a running demo, as every mode change does.
+  // The switch itself stops a running demo.
   if (state.mode !== "letter") setMode("letter", { focus: true });
   stopDemo();
   const generation = _demoGeneration;
@@ -272,11 +226,8 @@ async function startDemo() {
 }
 
 /**
- * Stop the demo and put the stage back at rest.
- *
- * The one way out: it cancels a start still loading, ends the frame loop and
- * takes the recorded hand off the stage. Without a demo it does nothing, so
- * the camera's frame and stage are never touched.
+ * The one way out of the demo. Without a demo it does nothing, so the camera's
+ * frame and stage are never touched.
  *
  * @returns {void}
  */
@@ -300,8 +251,7 @@ function stopDemo() {
 }
 
 /**
- * Move on once the user has added the letter on the stage. Called by the add
- * itself, so the demo never decides that a letter was taken.
+ * Called by the add itself, so the demo never decides that a letter was taken.
  *
  * @param {string} letter The letter that was added.
  * @returns {void}
@@ -312,8 +262,6 @@ function noteDemoLetterAdded(letter) {
 }
 
 /**
- * Move on without adding the letter on the stage.
- *
  * @returns {void}
  */
 function skipDemoLetter() {
@@ -321,9 +269,8 @@ function skipDemoLetter() {
 }
 
 /**
- * Take the hand out of frame and line up the next letter. Once per letter: an
- * add while the hand is already away repeats a letter in the text, as in live
- * signing, but does not skip one here.
+ * An add while the hand is already away repeats a letter in the text, as in
+ * live signing, but does not skip one here.
  *
  * @returns {void}
  */
@@ -336,9 +283,6 @@ function _advanceDemo() {
 }
 
 /**
- * The recorded hand as it is held in this frame: the whole hand drifts a
- * little and each point trembles a little less.
- *
  * @param {LandmarkList} landmarks
  * @returns {LandmarkList}
  */
@@ -355,9 +299,6 @@ function _heldDemoHand(landmarks) {
 }
 
 /**
- * Publish one frame and schedule the next: the letter on the stage, or no
- * hand during a gap. After the last gap the demo is done and the loop ends.
- *
  * @returns {void}
  */
 function _publishDemoFrame() {
@@ -374,8 +315,7 @@ function _publishDemoFrame() {
   } else {
     hand = _heldDemoHand(recording.letters[_demoIndex].landmarks);
   }
-  // MediaPipe's own timestamps never repeat, and a word recording skips a
-  // repeated one; a clock that stands still must not make one here.
+  // A word recording skips a repeated timestamp, so a still clock must not make one.
   _demoTimestamp = Math.max(performance.now(), _demoTimestamp + 1);
   latestMediaPipeResult = {
     rightHandLandmarks: hand ? [hand] : null,
@@ -390,9 +330,8 @@ function _publishDemoFrame() {
 }
 
 /**
- * Every letter has been added or skipped: no more frames, and the stage
- * offers the camera. The plate is cleared with the hand, so the last letter
- * cannot be added again from an empty stage.
+ * The plate is cleared with the hand, so the last letter cannot be added again
+ * from an empty stage.
  *
  * @returns {void}
  */
@@ -408,13 +347,8 @@ function _finishDemo() {
 }
 
 /**
- * Where the recorded square is drawn on the stage, as a drawing transform
- * only: the landmarks the model reads are not touched.
- *
- * The square is centred across the stage and, between the demo's card above
- * and the plate below (each counted only where it lies over the stage), in
- * the room they leave; it is at most DEMO_FRAME_SCALE of the stage's height
- * and never wider than the stage. Layout reads only: nothing is written.
+ * A drawing transform only: the landmarks the model reads are not touched. The
+ * square sits in the room the demo card and the plate leave on the stage.
  *
  * @param {number} width Stage width in CSS pixels.
  * @param {number} height Stage height in CSS pixels.
@@ -447,18 +381,12 @@ function demoFrameRect(width, height, origin = { left: 0, top: 0 }) {
 }
 
 /**
- * Show the demo's panel for the current phase: the word with the letter on
- * the stage marked, how far it has got, what to do, and the actions that
- * apply. Render only.
- *
  * @returns {void}
  */
 function renderDemoPanel() {
   const on = state.demo !== "off";
-  // The stage's own data, for the stylesheet: which phase the demo is in.
   if (on) els.cameraStage.dataset.demo = state.demo;
   else els.cameraStage.removeAttribute("data-demo");
-  // There is no camera to close while the demo plays; its stop takes that place.
   if (els.cameraToggle) els.cameraToggle.hidden = on;
   if (els.demoStop) {
     els.demoStop.hidden = !on;

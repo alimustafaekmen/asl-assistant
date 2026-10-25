@@ -1,7 +1,7 @@
 """The deploy check holds the folder about to be uploaded to what the site ships.
 
-The site is deployed by dragging asl-web/ into the host's UI, which uploads the
-folder as it is on disk. The Model Test word fixtures exported from the
+An upload of asl-web/ by hand, in the host's UI, takes the folder as it is on
+disk. The Model Test word fixtures exported from the
 competition data live in an ignored folder inside it, and a stray `.env`, a
 private folder or a note in `data/` would be uploaded with the rest.
 `--deploy` lists every file in the working tree and fails on each of them,
@@ -97,7 +97,7 @@ def test_finder_metadata_is_reported_with_the_way_to_remove_it(tmp_path: Path, w
 
     issues = find_deploy_inventory_issues(web).issues
 
-    assert len(issues) == 1 and "make clean" in issues[0], issues
+    assert len(issues) == 1 and "delete it" in issues[0], issues
 
 
 @pytest.mark.parametrize("contents", [[], ["manifest.json", "word-hello.json"]])

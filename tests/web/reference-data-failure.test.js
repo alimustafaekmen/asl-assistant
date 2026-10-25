@@ -25,7 +25,7 @@ const quiet = { ...console, log() {}, info() {}, error() {} };
 /** fetch() serving asl-web/ from disk, with `broken` files answered by their text. */
 function fetchWithBroken(broken) {
   return async (input) => {
-    const path = new URL(String(input), "https://asl-assistant.netlify.app/").pathname;
+    const path = new URL(String(input), "https://asl-assistant.pages.dev/").pathname;
     const name = path.slice(path.lastIndexOf("/") + 1);
     if (name in broken) return new Response(broken[name], { status: 200, headers: { "content-type": "application/json" } });
     try {
@@ -44,7 +44,7 @@ async function bootWith(hash, broken) {
     globals: {
       console: { ...quiet, warn: (...args) => warnings.push(args.map(String).join(" ")) },
       fetch: fetchWithBroken(broken),
-      location: new URL(`https://asl-assistant.netlify.app/${hash}`),
+      location: new URL(`https://asl-assistant.pages.dev/${hash}`),
     },
   });
   await app.ready;

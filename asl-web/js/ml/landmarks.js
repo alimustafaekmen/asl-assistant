@@ -8,13 +8,11 @@
 //   [126..245] face        (40 selected landmarks x 3)
 //   [246..320] pose        (25 selected landmarks x 3)
 //
-// FACE_INDICES and POSE_INDICES are copied from the training notebook
-// (notebooks/word_50_training.ipynb) and are part of the published 50-word
-// model contract. The Python reference is asl_features.word in asl-features/.
+// FACE_INDICES and POSE_INDICES come from notebooks/word_50_training.ipynb and
+// are part of the model contract. Python reference: asl_features.word.
 
 /**
- * One holistic frame in the 321D layout above. JSDoc cannot express the
- * length, so exactly 321 values is a runtime invariant.
+ * Exactly 321 values; JSDoc cannot express the length.
  *
  * @typedef {Float32Array} Frame321D
  */
@@ -38,10 +36,7 @@ console.assert(FACE_INDICES.length === 40, "FACE_INDICES must have 40 entries");
 console.assert(POSE_INDICES.length === 25, "POSE_INDICES must have 25 entries");
 
 /**
- * Resolve one landmark list from either shape MediaPipe returns.
- *
- * Hand results are nested by detected person; pose and face results are already
- * flat. This single-user app always takes the first detected person.
+ * Hand results are nested per detected hand; pose and face are already flat.
  *
  * @param {LandmarkList | LandmarkList[] | null | undefined} maybeNested
  * @returns {LandmarkList | null} Null when nothing was detected.
@@ -50,19 +45,15 @@ function _firstList(maybeNested) {
   if (!maybeNested) return null;
   if (Array.isArray(maybeNested) && maybeNested.length > 0) {
     if (Array.isArray(maybeNested[0])) return maybeNested[0];
-    // Already flat. Classifying the array by its first element is beyond what
-    // a type guard can express, so the cast states the narrowing.
+    // Already flat; a type guard cannot classify an array by one element.
     return /** @type {LandmarkList} */ (maybeNested);
   }
   return null;
 }
 
 /**
- * Flatten a MediaPipe frame into the published 321D layout.
- *
- * Every group is optional. A missing or short group stays zero-filled rather
- * than shifting the following groups, which is how the training pipeline
- * represents an undetected body part.
+ * A missing or short group stays zero-filled rather than shifting the following
+ * groups, as training represents an undetected body part.
  *
  * @param {Partial<MediaPipeFrameResult> | null | undefined} holisticResult
  * @returns {Frame321D} Always 321 values, even for an empty result.
@@ -117,12 +108,9 @@ function landmarksTo321D(holisticResult) {
 }
 
 /**
- * Centre visible landmarks on the shoulder midpoint and scale by shoulder width.
- *
- * Zero-valued landmarks are left at zero, so an undetected group stays
- * undetected instead of being translated to a spurious position. When the
- * shoulders are missing or coincident, the notebook-compatible min-max fallback
- * runs instead.
+ * Centre on the shoulder midpoint and scale by shoulder width. Zero landmarks
+ * stay zero, so an undetected group is not moved to a spurious position.
+ * Without usable shoulders the notebook's min-max fallback runs.
  *
  * @param {Frame321D} frame321d
  * @returns {Frame321D} A new frame; the input is not modified.
@@ -163,12 +151,8 @@ function normalizeShoulders(frame321d) {
 }
 
 /**
- * Scale a frame by the min-max range of its non-zero values.
- *
  * The notebook's path for a frame without usable shoulders. Zeros are missing
- * landmarks and stay zero. A frame with no visible landmark returns all zeros,
- * and one whose non-zero values are all equal passes through unscaled, so the
- * result is always finite.
+ * landmarks and stay zero; the result is always finite.
  *
  * @param {Frame321D} frame321d
  * @returns {Frame321D} A new frame; the input is not modified.

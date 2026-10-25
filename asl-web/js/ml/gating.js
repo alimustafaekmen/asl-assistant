@@ -1,10 +1,7 @@
 // Confidence smoothing and word-level evaluation feedback.
 
 /**
- * One published confusion pair in object form.
- *
- * The reader accepts two object spellings, {word_a, word_b} and {a, b}. Every
- * field is optional because none is validated on load.
+ * Two object spellings are accepted; nothing is validated on load.
  *
  * @typedef {Object} ConfusionPairObject
  * @property {string} [word_a]
@@ -16,15 +13,10 @@
  */
 
 /**
- * One published confusion pair, in any spelling the reader accepts; the third
- * is a bare two-element array.
- *
  * @typedef {ConfusionPairObject | [string, string]} ConfusionPairRaw
  */
 
 /**
- * A published confusion pair reduced to the fields this app uses.
- *
  * @typedef {Object} ConfusionPair
  * @property {string} a Empty when the pair names no first word.
  * @property {string} b Empty when the pair names no second word.
@@ -32,9 +24,7 @@
  */
 
 /**
- * The evaluation fields the app reads for one word: the difficulty here, and
- * the accuracy in the word screen's lists. Other fields in the published JSON
- * are ignored.
+ * Other fields in the published JSON are ignored.
  *
  * @typedef {Object} PerWordStat
  * @property {string} [difficulty] Published label; preferred over the F1 fallback.
@@ -52,13 +42,10 @@ let confusionPairs = [];
 let perWordStats = {};
 
 /**
- * Parse a data file's response, or reject naming its status.
- *
  * @param {Response} res
  * @returns {ReturnType<Response["json"]>} Fetched JSON, unchecked: each reader
  *   guards the shape it uses.
- * @throws {Error} When the response is not ok, so an error page or a JSON
- *   error body is never read as data.
+ * @throws {Error} When the response is not ok, so an error page is never read as data.
  */
 function _jsonIfOk(res) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -66,8 +53,6 @@ function _jsonIfOk(res) {
 }
 
 /**
- * Say which guidance file the word screen goes without, and why.
- *
  * @param {string} file
  * @param {unknown} err The rejection, whatever was thrown.
  * @returns {void}
@@ -77,18 +62,14 @@ function _warnGuidanceUnreadable(file, err) {
 }
 
 /**
- * Load the published confusion pairs and per-word statistics.
- *
- * Both files are optional guidance, so each falls back to empty rather than
- * failing the app, and the console names a file that did not load.
+ * Both files are optional guidance, so each falls back to empty.
  *
  * @returns {Promise<boolean>} False only when reading the results throws; a
  *   missing or unreadable file loads as empty and still returns true.
  */
 async function loadGatingData() {
   try {
-    // Each fallback is cast to its shape: an uncast empty literal widens to
-    // any[], and the guards below would check nothing.
+    // An uncast empty literal widens to any[], and the guards would check nothing.
     const tasks = [
       fetch("./data/confusion_pairs.json")
         .then(_jsonIfOk)
@@ -117,14 +98,8 @@ async function loadGatingData() {
 }
 
 /**
- * Read one published confusion pair, whichever spelling it uses.
- *
- * The array spelling is checked first, since an array has no word_a to fall
- * through from. The live warning and the coach panel both read pairs through
- * here, so they accept the same data.
- *
- * Missing words become empty strings rather than null, so callers can test them
- * without a nullability branch. A pair with an empty word matches nothing.
+ * The live warning and the coach panel both read pairs through here, so they
+ * accept the same data. A missing word is "", which matches nothing.
  *
  * @param {ConfusionPairRaw} pair
  * @returns {ConfusionPair}
@@ -141,8 +116,6 @@ function readConfusionPair(pair) {
 }
 
 /**
- * Warn when the top two labels are a known confusion pair and the call is close.
- *
  * @param {PredictionCandidate | null} top1
  * @param {PredictionCandidate | null} top2
  * @returns {string | null} Guidance in the page's language, or null when the
@@ -182,11 +155,8 @@ function confusionFeedbackCopy(top1, top2) {
 }
 
 /**
- * Report how hard the published evaluation found a word.
- *
- * A published label is used when it is one this module understands. Any other
- * value falls through to the F1 thresholds, so an unexpected string in the
- * bundled JSON cannot reach callers as a difficulty.
+ * A published label is used only when it is a known one, so an unexpected
+ * string in the JSON cannot reach callers as a difficulty.
  *
  * @param {string} word
  * @returns {WordDifficulty} "unknown" when the word has no published entry.
@@ -225,8 +195,7 @@ function difficultyCopy(word) {
   return null;
 }
 
-// Letter-mode temporal smoother. The most frequent label in the recent window
-// wins; smoothLetterPrediction() explains the confidence it reports.
+// Letter-mode smoother: the most frequent label in the recent window wins.
 const _smoother = {
   /** @type {PredictionResult[]} */
   buffer: [],
@@ -264,7 +233,6 @@ const _smoother = {
     const rawAvg = bestCount > 0 ? confSum[best] / bestCount : 0;
     const dominance = bestCount / window;
     const smoothedConf = dominance * rawAvg;
-    // The alternatives come from the winning label's latest frame.
     const matching = this.buffer.filter((p) => p.label === best);
     const last = matching[matching.length - 1];
     return {
@@ -280,13 +248,8 @@ const _smoother = {
 };
 
 /**
- * Add one raw prediction and report the smoothed view of the window.
- *
- * Confidence is window dominance multiplied by the dominant label's mean raw
- * confidence. That keeps the number meaningful on the label-only ONNX path,
- * where every raw confidence is 1.0 and stability is the only signal.
- *
- * The result is never null: the prediction is pushed before the window is read.
+ * Confidence is window dominance times the winner's mean raw confidence, which
+ * stays meaningful on the label-only ONNX path where every raw value is 1.0.
  *
  * @param {PredictionResult} prediction
  * @returns {PredictionResult}
@@ -297,10 +260,7 @@ function smoothLetterPrediction(prediction) {
 }
 
 /**
- * Clear the smoothing window.
- *
- * Called on mode changes, camera resets, and hand loss so a previous sign
- * cannot influence the next one.
+ * Called on mode changes, camera resets and hand loss.
  *
  * @returns {void}
  */

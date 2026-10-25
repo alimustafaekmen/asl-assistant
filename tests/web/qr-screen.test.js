@@ -48,7 +48,7 @@ test("choosing a target radio, by change alone, opens that target", async () => 
   radio.dispatchEvent({ type: "change" });
 
   assert.equal(app.evaluate("state.qrTarget"), "word");
-  assert.equal(app.evaluate("els.qrDemoUrl.textContent"), "https://asl-assistant.netlify.app/#word");
+  assert.equal(app.evaluate("els.qrDemoUrl.textContent"), "https://asl-assistant.pages.dev/#word");
 });
 
 test("the share button is shown where the browser can share", async () => {
@@ -75,5 +75,5 @@ test("pressing the share button hands the link of the chosen target to the share
 
   select(app, "#qrShare").dispatchEvent({ type: "click", detail: 1 });
 
-  assert.deepEqual(shared, [{ title: "ASL Assistant", url: "https://asl-assistant.netlify.app/#test" }]);
+  assert.deepEqual(shared, [{ title: "ASL Assistant", url: "https://asl-assistant.pages.dev/#test" }]);
 });

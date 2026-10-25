@@ -1,99 +1,43 @@
 # asl-desktop
 
-<sub>Location: [`asl-assistant`](../README.md) / `asl-desktop`</sub>
+The first version of the project: a desktop app in Python with CustomTkinter,
+OpenCV and MediaPipe. The web app in `asl-web/` is the product; this one is
+kept working as a reference.
 
-<sub>Related: [`docs/getting-started.md`](../docs/getting-started.md) · [`asl-features/`](../asl-features/README.md) · [`models/word/`](../models/word/README.md) · [`tests/`](../tests/README.md)</sub>
-
-The project's first version: a desktop prototype in Python, built with
-CustomTkinter, OpenCV and MediaPipe. The browser app in `asl-web/` is the
-maintained product; this one is kept working as a reference and for
-experiments.
-
-## What it does
-
-- **Translation view:** reads letters from the camera with the 93-feature
-  LightGBM model and words with the 25-word BiGRU, and can speak the result
-  with offline text-to-speech (`pyttsx3`).
-- **Learning coach:** guided practice for letters and the 25 words.
-- **Personalization:** few-shot letter templates recorded by the user and matched
-  by cosine similarity before the base model runs. They are stored under the
-  ignored `models/profiles/` folder and are never committed.
-
-J and Z are not available. They need motion, and no trained J/Z model is
-published.
-
-## How it is organised
+- **Translation view:** letters with the same 93-feature LightGBM model as the
+  web app, words with a 25-word BiGRU, and offline text-to-speech (`pyttsx3`).
+- **Learning coach:** practice with letters and the 25 words.
+- **Personalisation:** few-shot letter templates recorded by the user, kept in
+  the ignored `models/profiles/` folder.
 
 ```text
 src/asl_desktop/
 ├── app/         main window and navigation
 ├── camera/      camera widget
-├── config.py    desktop paths, camera, thresholds, UI and model settings
+├── config.py    paths, camera, thresholds, UI and model settings
 ├── detection/   MediaPipe hand and holistic wrappers
 ├── models/      letter and sequence classifier wrappers
-├── services/    personalization and text-to-speech
+├── services/    personalisation and text-to-speech
 ├── ui/          translation and coach views
 └── utils/       landmark smoothing and motion tracking
 ```
 
-The app depends on [`asl-features`](../asl-features/README.md) for landmark
-normalization (including the correction for the webcam's non-square frame) and
-the 93D features. Values shared with training (the 21 landmarks, the 24
-letters, augmentation defaults) come from `asl_features.config`. Paths, camera
-behaviour, thresholds, colours and the 25-word model settings live in
-`asl_desktop.config`; the browser has its own JavaScript configuration.
+It uses [`asl-features`](../asl-features/README.md) for the square-units step,
+normalisation and the 93 features. It detects on the camera frame as captured
+and mirrors only the preview; a left hand is mirrored into the right-hand shape
+the letter model was trained on. Its word model reads 30 frames of 321 values
+from `models/word/desktop-25/` and is not the web app's 50-word model.
 
-The detectors read the camera frame as captured, as the models' training
-landmarks were extracted; only the picture on screen is mirrored. The letter
-model was trained on right hands, so both apps mirror a left hand into the
-right-hand shape before normalizing it. They tell the hands apart through
-different MediaPipe APIs, which name them the opposite way round on an
-unmirrored frame, so each app keeps its own label convention
-(`USERS_LEFT_HAND_LABEL` in `detection/hand_detector.py` here).
+## Run
 
-The word path is the 25-class BiGRU with attention pooling, fed 30 frames of 321
-holistic landmark values, from `models/word/desktop-25/`. It does not load the
-web app's 50-word SignTransformer (45 × 168 features). How the two came about
-is told in the [project journey](../docs/project-journey.md).
-
-## Install and run
-
-You need Python 3.12, a camera and a desktop session. The simplest route is the
-Conda environment, which also installs Node 24 for the repository checks:
+You need Python 3.12, a camera and a desktop session. Set up the environment as
+in [getting started](../docs/getting-started.md), then:
 
 ```bash
-conda env create -f environment.yml
-conda activate asl-assistant
-make doctor
-make desktop
+python asl-desktop/main.py
+python -m pytest tests/asl_desktop
 ```
 
-In an existing Conda environment (not `base`) or a Python 3.12 `venv`, run
-`make setup` first. It installs the pinned requirements, then `asl-features` and
-`asl-desktop` in editable mode, and refuses to run in Conda's base environment.
-[Getting started](../docs/getting-started.md) has the direct commands and notes
-for each platform.
-
-Things to know:
-
-- The app needs camera permission.
-- LightGBM needs an OpenMP runtime on macOS; `environment.yml` includes
-  `llvm-openmp`.
-- The letter model is a scikit-learn-compatible pickle, so the pinned
-  scikit-learn (1.8.0 in `requirements.txt`) has to match the version that wrote
-  it. If you replace the model, update and validate both together. The browser's
-  ONNX models are not affected.
-- The `.pkl` and `.pt` model files are Python pickles and can run code when
-  loaded; use only copies you trust.
-- Newly trained artifacts and personalization profiles stay local.
-
-## Tests
-
-```bash
-python -m pytest tests/asl_desktop/unit
-python -m pytest tests/asl_desktop/integration
-```
-
-The unit tests are the fast, deterministic ones. The integration tests may need
-MediaPipe, the model files, PyTorch and a camera. See
-[tests/README.md](../tests/README.md).
+LightGBM needs an OpenMP runtime on macOS (`environment.yml` includes it), and
+the letter pickle needs the scikit-learn version pinned in `requirements.txt`.
+The `.pkl` and `.pt` files are Python pickles; use only copies you trust.

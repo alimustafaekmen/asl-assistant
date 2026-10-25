@@ -1,24 +1,15 @@
-/* Layout: the shell, the top bar and the camera workspace, for phone
- * portrait, phone landscape, tablet and laptop.
- *
- * The rules that matter most:
- * - phone: stage, result and the main action fit the first screen, and the
- *   fixed parts (top bar, transcript, action bar) take at most about 30% of it;
- *   details live below, reached by scrolling, never between the stage and its
- *   result;
- * - laptop (1366x768 and up): stage, result, transcript and actions fit the
- *   window without scrolling; the side column holds supporting cards only.
- *
- * The legacy layer styles .workspace and .side-panel too, so the properties
- * it sets are reset here explicitly rather than left to chance.
+/* Phone: stage, result and main action fit the first screen, the fixed parts
+ * take at most about 30% of it, and details never sit between the stage and
+ * its result. Laptop (1366x768 and up): nothing scrolls.
  */
 
 @layer layout {
+  html, body { margin: 0; min-height: 100%; }
+
   .app-shell {
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    /* The legacy layer paints a gradient here in the dark theme. */
     background: var(--color-page);
   }
 
@@ -56,8 +47,8 @@
     align-items: stretch;
   }
   .topbar__links.menu:popover-open { display: flex; }
-  /* Without the Popover API the app opens the menu through data-open, and
-     the browser neither hides nor places it, so this does both. */
+  /* Without the Popover API the app uses data-open, and the browser neither
+     hides nor places the menu. */
   .topbar__links.menu[data-open="false"] { display: none; }
   .topbar__links.menu[data-open="true"] {
     position: fixed;
@@ -65,6 +56,7 @@
     display: flex;
   }
   .topbar__links .navlink { justify-content: flex-start; }
+  .topbar__links .lang-switch { padding-inline: var(--sp-1); }
 
   /* Workspace */
   .app-shell[data-view="app"] .workspace {
@@ -75,10 +67,12 @@
     padding: 0;
   }
 
-  /* The stage and its result share one grid area, so the result lies over
-     the bottom of the stage while staying outside it in the markup. */
+  /* One grid area, so the result lies over the stage but stays outside it in
+     the markup. */
   .camera-column {
     display: grid;
+    min-width: 0;
+    gap: 10px;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
     grid-template-areas: "stage" "compose";
@@ -143,13 +137,25 @@
     box-shadow: none;
   }
 
-  /* Upright phones and tablets. What the first visit shows follows the
-     stage's own height, which already counts the top bar, the transcript
-     and the mode's rows of actions: the illustration shrinks, then goes,
-     then the facts, the privacy line and the second button, before the
-     content would need a scroll. It ends above the message line rather
-     than keeping padding for it: once the content is taller than the
-     stage, padding no longer keeps the two apart. */
+  /* Page footer */
+  .site-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--size-footer);
+    box-sizing: border-box;
+    padding: var(--sp-1) var(--sp-3) calc(var(--sp-1) + env(safe-area-inset-bottom));
+    font-size: var(--fs-xs);
+    color: var(--color-text-3);
+  }
+  .site-footer a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+  .site-footer a:hover { color: var(--color-text); }
+  .app-shell[data-mode="project"] .site-footer { display: none; }
+
+  /* Upright phones and tablets: by the stage's height, the first-visit
+     content sheds parts before it would need a scroll. Once it is taller
+     than the stage, padding no longer keeps it off the message line, so it
+     ends above it. */
   @media (max-width: 63.99rem) {
     .camera-column > .stage { container: stage / size; }
     .stage__empty { bottom: var(--size-stage-message); padding-bottom: var(--sp-2); }
@@ -175,8 +181,7 @@
     @container stage (max-width: 21rem) and (max-height: 36rem) {
       .stage__facts { display: none; }
     }
-    /* The camera start is the stage's main action; on a stage this short
-       "Örneği izleyin" (the camera-free demo) gives way to it. */
+    /* On a stage this short the demo button gives way to the camera start. */
     @container stage (max-height: 22rem) {
       .stage__intro .stage__cta > .btn--stage { display: none; }
     }
@@ -192,10 +197,8 @@
     @container stage (max-height: 20rem) {
       .stage__problem .stage__cta > .btn--stage { display: none; }
     }
-    /* A short stage leaves the demo's hand little room between its card and
-       the plate, so the card takes the top row itself: the chip gives way
-       (the card says what is playing), and the stop keeps only its icon, as
-       the coach's close does; its label stays for screen readers. */
+    /* The demo's hand needs room between its card and the plate, so the card
+       takes the top row: the chip gives way and the stop keeps only its icon. */
     @container stage (max-height: 36rem) {
       .stage[data-demo] .stage-chip { display: none; }
       .stage-demo { flex: 1 1 0; order: 0; min-width: 0; }
@@ -218,12 +221,9 @@
     .topbar .modes__item { padding-inline: var(--sp-2); }
   }
 
-  /* Phone landscape: the stage fills the height on the left; the mode switch,
-     the result, the transcript and the actions stand in a column on the
-     right. There is no top bar: its switch and "Diğer" lie over the column's
-     first row, and the brand is left out (the Harf tab does what the brand
-     link does). Narrower than a laptop only, so a short desktop window keeps
-     the laptop layout instead of a mix of both. */
+  /* Phone landscape: the stage on the left, a column on the right, no top
+     bar (the Harf tab does what the brand link does). Narrower than a laptop
+     only, so a short desktop window keeps the laptop layout. */
   @media (orientation: landscape) and (max-height: 32rem) and (max-width: 63.99rem) {
     .app-shell { position: relative; }
     .topbar {
@@ -245,9 +245,8 @@
       right: max(var(--sp-3), env(safe-area-inset-right));
     }
 
-    /* Rows: top padding, the switch's slot, the result, the transcript, a
-       spring, the actions, bottom padding. The result's row may shrink below
-       its content, so the actions always stay in the window. */
+    /* The result's row may shrink below its content, so the actions always
+       stay in the window. */
     .camera-column {
       height: 100dvh;
       min-height: 0;
@@ -259,7 +258,7 @@
       grid-template-areas: "stage ." "stage ." "stage plate" "stage strip" "stage ." "stage dock" "stage .";
     }
     /* A plain div with no role, so display: contents drops nothing a screen
-       reader needs; its two parts become rows of the column. */
+       reader needs. */
     .camera-column > .compose { display: contents; }
     .compose > .strip,
     .compose > .dock,
@@ -276,9 +275,8 @@
     .app-shell[data-mode="letter"] .dock > .btn--grow { grid-column: 1 / -1; }
     .dock .btn__label--phone-hidden { position: static; width: auto; height: auto; clip-path: none; }
 
-    /* The result is a card on the page, not a plate on the stage, so the
-       stage colours it reads point at the page's. The lock colour becomes
-       the primary: saffron as a ring or a bar on white would be 1.6:1. */
+    /* A card on the page here, not a plate on the stage: saffron on white
+       would be 1.6:1, so the lock colour becomes the primary. */
     .camera-column > .plate {
       grid-area: plate;
       align-self: stretch;
@@ -292,8 +290,8 @@
       --stage-lock: var(--color-primary);
       justify-content: flex-start;
       gap: var(--sp-3);
-      /* One pixel of padding gives way to the locked border's second one, so
-         locking does not move the content. */
+      /* Gives way to the locked border's second pixel, so locking does not
+         move the content. */
       padding: calc(var(--sp-3) + 1px);
       border: 1px solid var(--color-line);
       background: var(--color-surface);
@@ -305,10 +303,9 @@
     .stage:has(> .stage__empty:not([hidden])) + .plate .plate__level { display: flex; }
     .stage:has(> .stage__empty:not([hidden])) + .plate :is(.signal, .plate__pct) { display: none; }
     .stage:has(> .stage__empty:not([hidden])) + .plate .plate__message { text-align: start; }
-    /* Beside the ring there are 110 to 160 px: the level word on its own
-       line, the meter and percent under it, then two lines of message. That
-       keeps the card about the ring's height, so the column fits every tier;
-       a longer message is cut off on screen, not in the DOM. */
+    /* 110 to 160 px beside the ring: the card stays about the ring's height
+       so the column fits every tier; a longer message is cut off on screen,
+       not in the DOM. */
     .camera-column > .plate .plate__level { line-height: 1.25; }
     .stage:not([data-kind="word"]) + .plate .plate__decision { flex-basis: 100%; }
     .camera-column > .plate .plate__message {
@@ -333,9 +330,8 @@
     /* The stage. Its top row clears a notch on the left. */
     .camera-column > .stage { container: stage / inline-size; }
     .stage__top { inset: var(--sp-3) var(--sp-3) auto max(var(--sp-3), env(safe-area-inset-left)); }
-    /* The stage is short here: the demo's card shares the top row with the
-       chip, and the stop keeps only its icon; on the narrowest stage the
-       chip gives way, as on a short upright phone. */
+    /* A short stage: the demo's card shares the top row with the chip, and
+       the stop keeps only its icon. */
     .stage-demo { flex: 1 1 0; order: 0; min-width: 0; }
     .stage-demo__text { font-size: var(--fs-xs); }
     .stage-demo__stop { width: var(--size-target); min-height: var(--size-target); padding: 0; gap: 0; font-size: 0; }
@@ -371,9 +367,7 @@
       .stage__problem-text { font-size: var(--fs-xs); }
     }
 
-    /* The shortest tier (568x320): the letter actions in one row, Sil and
-       Boşluk as icons (their labels stay for screen readers), a word without
-       its message line, and only the problem's main action. */
+    /* The shortest tier (568x320). */
     @media (max-height: 21.25rem) {
       .topbar .modes { padding: calc(var(--sp-1) / 2); }
       .stage[data-kind="word"] + .plate .plate__message { display: none; }
@@ -411,10 +405,9 @@
     .topbar__end .live-indicator.is-live { display: inline-flex; }
     .topbar__more { display: none; }
 
-    /* The popover becomes a plain row of links. No :popover-open in this
-       list: a browser that does not know the pseudo-class drops the whole
-       rule, and the laptop links would be unstyled there. The fallback's
-       data-open states are listed so they cannot hide or float the row. */
+    /* No :popover-open here: a browser that does not know it drops the whole
+       rule. The data-open fallback is listed so it cannot hide or float the
+       row. */
     .topbar__links.menu,
     .topbar__links.menu[data-open] {
       position: static;
@@ -431,7 +424,8 @@
       background: transparent;
       box-shadow: none;
     }
-    .topbar__links .navlink { min-height: 40px; }
+    .topbar__links .navlink,
+    .topbar__links .lang-switch__option { min-height: 40px; }
     .topbar__links .navlink--icon { width: 40px; padding: 0; justify-content: center; }
     .topbar__links .navlink--icon .navlink__label {
       position: absolute;
@@ -448,10 +442,14 @@
       grid-template-rows: minmax(0, 1fr);
       align-items: stretch;
       gap: var(--sp-4);
-      height: calc(100dvh - var(--size-topbar) - 1px);
-      padding: var(--sp-4) var(--sp-6) var(--sp-6);
+      /* The footer row takes the place of the bottom padding, so the stage
+         keeps its height. */
+      height: calc(100dvh - var(--size-topbar) - 1px - var(--size-footer));
+      padding: var(--sp-4) var(--sp-6) 0;
       box-sizing: border-box;
     }
+    :root { --size-footer: var(--sp-6); }
+    .site-footer { justify-content: flex-end; padding-block: 0; padding-inline: var(--sp-6); }
     .camera-column { height: auto; min-height: 0; gap: var(--sp-3); }
     .compose {
       grid-template-columns: minmax(0, 1fr) auto;
@@ -472,11 +470,9 @@
       padding: 0;
     }
 
-    /* The plate sits bottom-left, as wide as its content and at most 22rem:
-       with a 112 px ring it covers part of a raised hand in about 2 to 7 of
-       100 frames, against 8 to 21 at the 148 px ring. When the hand stays
-       under it anyway, plate-side.js sends it to the bottom-right, which the
-       column, a size container, measures for the slide. */
+    /* Kept small so it seldom covers a raised hand; when it does,
+       plate-side.js moves it to the bottom-right. The column is a size
+       container so the slide can be measured. */
     .camera-column { container: column / inline-size; }
     .camera-column > .plate {
       justify-self: start;
@@ -491,12 +487,10 @@
     /* The demo's card in the top row, centred over the hand it explains. */
     .stage-demo { flex: 0 1 34rem; order: 0; max-width: none; margin-inline: auto; }
     .stage-demo__stop { margin-inline-start: 0; }
-    /* The toast sits just above the transcript row, opposite the plate, so
-       it changes corner with it. */
+    /* Opposite the plate, so it changes corner with it. */
     .toast { inset: auto var(--sp-4) var(--sp-4) auto; margin: 0; }
     .stage[data-plate-side="end"] .toast { inset: auto auto var(--sp-4) var(--sp-4); }
-    /* Camera off: the plate is only the message line, centred under the
-       empty state. */
+    /* Camera off: the plate is only the message line. */
     .stage:has(> .stage__empty:not([hidden])) + .plate { justify-self: stretch; max-width: none; }
 
     /* Empty state: two lines of headline, buttons side by side. */
@@ -510,14 +504,13 @@
     :root { --size-side: 380px; }
     .topbar { padding-inline: var(--sp-8); }
     .app-shell[data-view="app"] .workspace { padding-inline: var(--sp-8); }
+    .site-footer { padding-inline: var(--sp-8); }
   }
 }
 
 @layer utilities {
-  /* Mode visibility. Hide-only on purpose: revealing the current mode's
-     parts with display: revert !important would override every component's
-     own display (a flex card becomes a block). Hiding the other modes' parts
-     leaves each component's layout to the component. */
+  /* Mode visibility is hide-only: revealing parts with display: revert
+     !important would override each component's own display. */
   .app-shell[data-mode="letter"] .mode-only:not(.letter-only),
   .app-shell[data-mode="coach"] .mode-only:not(.coach-only),
   .app-shell[data-mode="word"] .mode-only:not(.word-only) {

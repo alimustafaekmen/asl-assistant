@@ -36,7 +36,7 @@ const quietConsole = { ...console, log() {}, warn() {}, info() {} };
  * @param {string} [hash]
  */
 async function bootedOn(hash = "") {
-  const location = new URL(`https://asl-assistant.netlify.app/${hash}`);
+  const location = new URL(`https://asl-assistant.pages.dev/${hash}`);
   /** @type {{method: string, url: string}[]} */
   const writes = [];
   const record = (method) => (_state, _title, url) => {

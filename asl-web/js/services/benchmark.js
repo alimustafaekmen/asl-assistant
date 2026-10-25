@@ -1,23 +1,14 @@
-// Client-side latency measurements. Each stage keeps a bounded window and
-// reports the mean of its latest samples.
+// Client-side latency: each stage keeps a bounded window and reports its mean.
 
 /**
- * The stages this module measures.
- *
- * This union is the single list that keeps a call site and its sample window in
- * step: recordBenchmark() drops any stage without a bucket, so a name that
- * appears in only one of the two places is a measurement that silently
- * disappears rather than an error.
+ * recordBenchmark() drops a stage without a bucket, so a name missing here is
+ * a measurement that silently disappears.
  *
  * @typedef {"mediapipe" | "feature" | "feature_sequence" | "onnx" | "total"} BenchmarkStage
  */
 
 /**
- * Formatted stage means for the debug panel. Values carry their unit, so they
- * are display strings rather than numbers.
- *
- * This is deliberately a subset of BenchmarkStage. Every stage is recorded and
- * readable through getAvgBenchmark(); these four are the ones the panel shows.
+ * Display strings with units, for the four stages the debug panel shows.
  *
  * @typedef {Object} BenchmarkSummary
  * @property {string} mediapipe
@@ -26,13 +17,9 @@
  * @property {string} total
  */
 
-/** Samples kept per stage; the oldest is dropped once the window is full. */
 const BENCHMARK_MAX_SAMPLES = 30;
 
 /**
- * One sample window per stage, pre-allocated so recording never has to create
- * a bucket.
- *
  * @type {Record<BenchmarkStage, number[]>}
  */
 const benchmarkData = {
@@ -44,12 +31,8 @@ const benchmarkData = {
 };
 
 /**
- * Record one sample for a stage, dropping the oldest when the window is full.
- *
- * The runtime guard stays even though the parameter is typed: these are classic
- * scripts, so a caller is not obliged to have been type-checked. An unrecognised
- * stage is dropped rather than added, because a bucket nothing reads is the same
- * lost measurement in a different place.
+ * The runtime guard stays despite the type: classic-script callers are not
+ * necessarily type-checked.
  *
  * @param {BenchmarkStage} stage
  * @param {number} ms Elapsed time in milliseconds.
@@ -88,10 +71,7 @@ function getBenchmarkSummary() {
 }
 
 /**
- * Clear every sample window.
- *
- * It walks the buckets rather than naming them, so a new stage cannot be left
- * out.
+ * Walks the buckets rather than naming them, so a new stage cannot be left out.
  *
  * @returns {void}
  */

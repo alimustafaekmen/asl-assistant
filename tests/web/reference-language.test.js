@@ -58,7 +58,7 @@ async function bootedApp(hash, languages = ENGLISH, fetch = undefined) {
     languages,
     globals: {
       console: quietConsole,
-      location: new URL(`https://asl-assistant.netlify.app/${hash}`),
+      location: new URL(`https://asl-assistant.pages.dev/${hash}`),
       kjua: () => ({}),
       ...(fetch ? { fetch } : {}),
     },
@@ -185,7 +185,7 @@ test("a switch redraws the panel and the open viewer, and back again", async () 
 test("a reviewed Turkish gloss is shown to a Turkish visitor and not to an English one", async () => {
   const reference = JSON.parse(readFileSync(join(WEB_DIR, "data/word_reference.json"), "utf8"));
   const reviewed = async (input) => {
-    const url = new URL(String(input), "https://asl-assistant.netlify.app/");
+    const url = new URL(String(input), "https://asl-assistant.pages.dev/");
     if (url.pathname === "/data/word_reference.json") {
       const body = { ...reference, gloss_reviewed: true };
       return { ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) };

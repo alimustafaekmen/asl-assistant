@@ -18,7 +18,7 @@ Output: CSV-like rows with one of three statuses:
 
 The script only reads: it changes no notebook, model artifact, runtime JSON or
 web runtime file. It exits 0 when only PASS and KNOWN_GAP rows are present, so
-an accepted gap does not block `make health`, which runs it.
+an accepted gap does not block `make test`, which runs it.
 
 Usage:
     python3 tests/validation/check_word_feature_parity.py

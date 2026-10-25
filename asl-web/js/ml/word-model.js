@@ -1,25 +1,21 @@
-// Word-model ONNX adapter.
-// SignTransformer contract: input (1,45,168), mask (1,45), output (1,50).
-// Inference runs through the ONNX Runtime Web WASM backend.
+// Word-model ONNX adapter. SignTransformer contract: input (1,45,168),
+// mask (1,45), output (1,50).
 
 /**
- * Flattened word model input. Runtime invariant: length is 45 * 168 = 7560,
- * frame-major. predictWord() rejects any other length.
+ * Length 45 * 168 = 7560, frame-major; predictWord() rejects any other length.
  *
  * @typedef {Float32Array} WordFeatures45x168
  */
 
 /**
- * Word model padding mask. Runtime invariant: length is 45, where true marks a
- * real frame and false marks padding. The exported ONNX graph inverts this
- * itself, so it must not be pre-inverted here.
+ * Length 45; true marks a real frame. The exported graph inverts it itself,
+ * so it must never be pre-inverted.
  *
  * @typedef {boolean[]} WordMask45
  */
 
 /**
- * Mask tensor element type. The published graph varies by export, so the
- * adapter tries these in order until one is accepted.
+ * The published graph's mask type varies by export, so each is tried in turn.
  *
  * @typedef {"bool" | "uint8" | "int64"} WordMaskDtype
  */
@@ -30,7 +26,7 @@ let wordSession = null;
 let temperature = 1.0;
 /** @type {string[]} */
 let wordLabels = [];
-/** @type {WordMaskDtype} Resolved at runtime by trying each dtype in turn. */
+/** @type {WordMaskDtype} */
 let wordMaskDtype = "bool";
 /** @type {WordMaskDtype[]} */
 const WORD_MASK_DTYPES = ["bool", "uint8", "int64"];
@@ -38,10 +34,7 @@ const WORD_MASK_DTYPES = ["bool", "uint8", "int64"];
 let _wordModelLoad = null;
 
 /**
- * Load and warm the word model the first time something needs it.
- *
- * Shared, forgotten on failure, and warmed before it resolves, for the same
- * reasons as ensureLetterModel().
+ * Shared, forgotten on failure, and warmed before it resolves, like ensureLetterModel().
  *
  * @returns {Promise<boolean>} True when the session is ready. Never rejects.
  */
@@ -57,10 +50,7 @@ function ensureWordModel() {
 }
 
 /**
- * Create the word session and load its calibration temperature and label map.
- *
- * Never throws: a failure is reported as false, and a missing or unusable
- * temperature file falls back to 1.0 so inference still runs.
+ * A missing or unusable temperature file falls back to 1.0 so inference still runs.
  *
  * @returns {Promise<boolean>} True when the session and labels are ready.
  */
@@ -115,11 +105,8 @@ async function loadWordModel() {
 }
 
 /**
- * Build the padding mask tensor in the requested element type.
- *
- * The mask is passed through as-is: true marks a real frame. The exported graph
- * performs its own attention-mask inversion, so inverting here would silently
- * feed the model the padding instead of the recording.
+ * Passed through as-is: inverting here would feed the model the padding
+ * instead of the recording.
  *
  * @param {WordMask45} mask45 Padding mask; length must be 45.
  * @param {WordMaskDtype} [dtype] Defaults to the dtype currently in force.
@@ -136,17 +123,9 @@ function _buildMaskTensor(mask45, dtype = wordMaskDtype) {
 }
 
 /**
- * Classify one word recording.
- *
- * The input length and mask length are checked here rather than trusted from
- * the type, because a wrong shape would otherwise reach the session and fail
- * with an opaque runtime error.
- *
- * If a run fails, the other mask element types are tried for this call, and
- * the remembered type changes only when another one succeeds. The published
- * graph varies by export, so this is a compatibility path; a run that fails
- * for another reason fails with every type and leaves the remembered one as
- * it was, so the next recording is not sent a type the graph rejects.
+ * Lengths are checked here because a wrong shape would otherwise fail inside
+ * the session with an opaque error. On a failed run the other mask types are
+ * tried; the remembered type changes only when another one succeeds.
  *
  * @param {WordFeatures45x168} features45x168 Flattened input; length must be 7560.
  * @param {WordMask45} mask45 Padding mask; length must be 45.
@@ -168,8 +147,7 @@ async function predictWord(features45x168, mask45) {
   const inputTensor = new ort.Tensor("float32", features45x168, [1, 45, 168]);
   const session = wordSession;
   const usesMask = session.inputNames.length > 1;
-  // The type in force first, then the others in their usual order. A graph
-  // without a mask input runs once.
+  // The type in force first; a graph without a mask input runs once.
   /** @type {(WordMaskDtype | null)[]} */
   const attempts = usesMask
     ? [wordMaskDtype, ...WORD_MASK_DTYPES.filter((dtype) => dtype !== wordMaskDtype)]
@@ -200,8 +178,7 @@ async function predictWord(features45x168, mask45) {
   const t1 = performance.now();
   if (typeof recordBenchmark === "function") recordBenchmark("onnx", t1 - t0);
 
-  // Number() because the element type follows the ONNX dtype; for this
-  // float32 graph it is the identity.
+  // Number() because the element type follows the ONNX dtype.
   const calibrated = Array.from(logits, (x) => Number(x) / temperature);
   const probs = stableSoftmax(calibrated);
 
@@ -233,8 +210,7 @@ function stableSoftmax(logits) {
 }
 
 /**
- * Run one throwaway inference so the first real recording is not slowed by lazy
- * WASM initialization.
+ * A throwaway run, so the first real recording is not slowed by lazy WASM init.
  *
  * @returns {Promise<void>} Resolves even when the warmup itself fails.
  */

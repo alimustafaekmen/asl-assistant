@@ -1,12 +1,7 @@
-# Browser JavaScript Modules
+# Browser modules
 
-<sub>Location: [`asl-assistant`](../../README.md) / [`asl-web`](../README.md) / `js`</sub>
-
-<sub>Related: [`docs/architecture.md`](../../docs/architecture.md) · [`tests/`](../../tests/README.md)</sub>
-
-The web application uses classic scripts and shared browser globals. It does
-not use a bundler or ES-module graph, so the order in `asl-web/index.html` is a
-runtime contract.
+The app uses classic scripts that share one global scope, with no bundler and
+no ES modules, so the order in `asl-web/index.html` is a runtime contract:
 
 ```text
 core/theme-boot.js
@@ -43,334 +38,75 @@ ui/model-test.js
 core/app.js
 ```
 
-The rules behind that order:
+- `core/theme-boot.js` and `core/lang-boot.js` run in `<head>`, so the first
+  paint has the right theme and `<html lang>`.
+- The strings and `core/i18n-boot.js` come before the CDN scripts, so the page
+  is translated before the browser waits on a CDN. An English page stays hidden
+  until then (`data-i18n-pending`, with a 3 s fail-safe in `css/base.css`).
+- `core/config.js` and `core/runtime.js` create the settings, the shared
+  `state`, the `els` element registry and the word buffers, once.
+- `core/app.js` is last and the only script with start-up side effects: it
+  calls `init()`. The other files only declare functions and values.
 
-- `core/theme-boot.js` is in `<head>`, before the stylesheets, so the first
-  frame is painted in the visitor's theme. It writes only the theme onto
-  `<html>`, and reads neither `state` nor `els`, which do not exist yet.
-- `core/lang-boot.js` follows it for the same reason: `<html lang>` names the
-  visitor's language before anything is painted.
-- `core/i18n.js`, the strings files under `i18n/` and `core/i18n-boot.js`
-  open the body's scripts, before the CDN scripts. The parser waits for each
-  CDN script to download, so the page is translated before that wait, not
-  after it: an English reader never waits looking at the Turkish markup.
-  The parser also waits for the strings themselves, and the browser paints
-  the Turkish body parsed above them meanwhile, so `core/lang-boot.js` marks
-  a page in any other language with `data-i18n-pending`, which
-  `css/base.css` hides, and `core/i18n-boot.js` removes the mark once it
-  has run. If the translation never runs, the stylesheet shows the page
-  after 3 s anyway, and a translation that could not run sets `<html lang>`
-  back to `tr`, the language the page is then in.
-- `core/config.js` comes before anything that reads `CONFIG` or the label lists.
-- `core/runtime.js` creates the shared `state`, the `els` DOM registry, the
-  overlay canvas context, and the word recording buffers exactly once.
-- Feature and model modules load before `ml/live-inference.js` uses them.
-- UI modules are defined before `core/app.js` binds events to them.
-- `core/app.js` is last and is the only script that calls `init()`.
+A new file goes into `index.html` where its dependencies require.
 
-No module other than `core/app.js` does asynchronous work, binds events, or
-loads a model while it is being loaded. `core/theme-boot.js` and
-`core/lang-boot.js` only write onto `<html>`, a strings file only registers
-its strings and its language-change listener, and `core/i18n-boot.js` only
-translates the parsed markup. Startup side effects belong in the bootstrap
-flow.
-
-`tests/project/test_web_ui_contracts.py` enforces this order, and
-`tests/web/module-contracts.test.js` loads the scripts the same way the browser
-does, so a duplicated global or a file that `index.html` forgets fails a test.
-
-## Module map
+## Modules
 
 | Module | Responsibility |
 |---|---|
-| `core/theme-boot.js` | Theme resolution before the first paint: saved choice, else the system scheme; the theme-color metas |
-| `core/lang-boot.js` | Language resolution before the first paint: saved choice (`asl-lang`), else the browser's preferred languages, else English; writes `<html lang>` |
-| `core/i18n.js` | The strings registry (`registerStrings`), lookup (`t`), the markup pass over `data-i18n*` attributes (`translatePage`), bound text (`setText`, `setAttrText`), and the switch (`setLanguage`, `onLanguageChange`) |
-| `i18n/shell.js` | Shell strings in Turkish and English: header, navigation, language and theme controls, screen titles, camera status and problems, model downloads |
-| `i18n/letter.js` | Letter screen strings: stage, camera help, plate, transcript, action bar, side cards, demo, toast |
-| `i18n/word.js` | Word screen strings: recording, word dock, word cards and library, reference panel and viewer |
-| `i18n/coach.js` | Coach screen strings: target tile, cues and hints, session bar, study cards, letter grid |
-| `i18n/info.js` | Information screen strings: project page, phone (QR) screen, Model Test |
-| `core/i18n-boot.js` | Translates the parsed page into the visitor's language, before the CDN scripts |
-| `core/config.js` | Runtime configuration, letter/word label lists, difficulty sets, reference assets, and `ORT_WASM_PATHS`, the ONNX Runtime directory both model adapters use (it must match the `ort.wasm.min.js` in `index.html`) |
-| `core/runtime.js` | Shared mutable state, DOM registry, canvas context, word recording buffers |
-| `core/app.js` | Bootstrap, event wiring, hash routing, camera start/stop, render loop, debug API |
-| `media/camera.js` | MediaPipe task lifecycle, GPU/CPU fallback, frame detection loop |
-| `media/overlay.js` | Landmark drawing on the camera canvas |
-| `media/demo-source.js` | The camera-free letter demo: a recorded hand from `data/demo-letters.json` published as live frames, held until the user adds or skips each letter, and its panel on the stage |
-| `ml/landmarks.js` | MediaPipe output to the fixed 321D holistic frame and shoulder normalization |
-| `ml/features.js` | Letter 93D and word 168D feature construction, including the square-units step; the Python counterpart is `asl-features` |
-| `ml/live-inference.js` | Live letter/word inference and word recording finalization |
-| `ml/letter-model.js` | Letter ONNX loading, probability parsing, and a label-only fallback when an output cannot be read as probabilities |
-| `ml/word-model.js` | Word ONNX loading, mask handling, calibration, softmax, and top-3 output |
-| `ml/gating.js` | Letter smoothing and difficulty/confusion feedback data |
-| `ml/hold.js` | Hold detection: a target held steadily for a time counts once |
-| `services/benchmark.js` | Bounded client-side latency measurements |
-| `ui/prediction.js` | Prediction, top-3, status message, feedback, word result guide |
-| `ui/plate-side.js` | Laptop result plate: moves to the other bottom corner when a hand stays under it (time-based hysteresis) |
-| `ui/toast.js` | Toast confirmations with one optional action, and the screen-reader live region |
-| `ui/transcript.js` | Transcript editing, persistence, clipboard, speech output |
-| `ui/word-flow.js` | Word countdown, recording progress, quality readout, action buttons |
-| `ui/coach.js` | Learning coach targets, flows, scoring, word guidance panel |
-| `ui/reference.js` | Reference images, video links, the image viewer dialog |
-| `ui/qr.js` | Demo deep-link URL and QR rendering |
-| `ui/model-test.js` | Offline fixture loading, validation, and model runs |
+| `core/theme-boot.js` | The theme before the first paint |
+| `core/lang-boot.js` | The language before the first paint: saved choice, else the browser's, else English |
+| `core/i18n.js` | The strings registry, `t()`, the markup pass and the language switch |
+| `core/i18n-boot.js` | Translates the parsed page before the CDN scripts |
+| `i18n/shell.js`, `i18n/letter.js`, `i18n/word.js`, `i18n/coach.js`, `i18n/info.js` | The interface strings of each area, Turkish and English side by side |
+| `core/config.js` | `CONFIG`, the letter and word lists, reference assets, the ONNX Runtime path |
+| `core/runtime.js` | Shared state, element registry, canvas context, word buffers |
+| `core/app.js` | Start-up, event binding, routing, camera start and stop, render loop, `window.aslDebug` |
+| `media/camera.js` | MediaPipe tasks, GPU/CPU fallback, the detection loop |
+| `media/overlay.js` | Landmark drawing |
+| `media/demo-source.js` | The camera-free demo: a recorded hand published as live frames |
+| `ml/landmarks.js` | The 321-D holistic frame and shoulder normalisation |
+| `ml/features.js` | The 93-D letter and 168-D word features, square units included |
+| `ml/live-inference.js` | Live letter and word inference, the end of a word recording |
+| `ml/letter-model.js` | Letter ONNX loading and probabilities |
+| `ml/word-model.js` | Word ONNX loading, the mask, calibration, top 3 |
+| `ml/gating.js` | Letter smoothing and word difficulty data |
+| `ml/hold.js` | Hold detection for the coach |
+| `services/benchmark.js` | Latency measurements for the debug panel |
+| `ui/prediction.js` | Result plate, top 3, messages, the word result guide |
+| `ui/plate-side.js` | Moves the laptop result plate away from a hand |
+| `ui/toast.js` | Toasts and the screen-reader live region |
+| `ui/transcript.js` | The text: editing, storage, copy, speech |
+| `ui/word-flow.js` | Word countdown, recording progress and buttons |
+| `ui/coach.js` | The coach |
+| `ui/reference.js` | Reference images, video links, the image viewer |
+| `ui/qr.js` | The QR screen |
+| `ui/model-test.js` | Model Test: loading, validating and running fixtures |
 
-## Data flow
+## Rules
 
-```text
-camera (getUserMedia)      core/app.js    toggleCamera / stopCamera
-  -> media/camera.js       MediaPipe hand + pose + face -> latestMediaPipeResult
-     media/demo-source.js  or, without a camera, a recorded hand -> latestMediaPipeResult
-  -> media/overlay.js      draw landmarks on the canvas
-  -> ml/live-inference.js  realInference() reads the latest frame
-  -> ml/landmarks.js       321D frame + shoulder normalization
-  -> ml/features.js        93D letter features / 168D word features
-  -> ml/letter-model.js    ONNX letter prediction
-     ml/word-model.js      ONNX word prediction over 45 frames + mask
-  -> ui/prediction.js      prediction, top-3, message
-     ui/word-flow.js       recording state and controls
-     ui/coach.js           target scoring
-```
+- **Elements.** Scripts find elements by `id` or a `data-ui` hook, never by a
+  styling class. `requireElement()` throws at start-up when a required element
+  is missing; `optionalElement()` returns `null` and every reader checks it.
+- **Events and renders.** Listeners are bound once, in `bindEvents()` in
+  `core/app.js`. A render function rebuilds from state and starts no listener,
+  timer, fetch or model session.
+- **Text.** Plain text goes through `textContent`. A model label, dataset value
+  or fetched JSON never goes into `innerHTML` unescaped.
+- **Models.** A model loads at its first need, through `ensureLetterModel()` or
+  `ensureWordModel()`; a live frame never starts a load. The word mask is `true`
+  for a real frame and must not be inverted: the ONNX graph does it.
+- **Types.** JSDoc types are checked by TypeScript without emitting files.
+  Unchecked input (fetched JSON, ONNX outputs) is `unknown` until a guard such
+  as `isRecord()` has checked it.
 
-`core/app.js` drives the render loop, which calls `realInference()` and
-`drawOverlay()`; `media/camera.js` drives the detection loop, which calls
-`drawOverlay()` as well. `drawOverlay()` lives in `core/app.js` and hands the
-drawing to `drawLandmarks()` in `media/overlay.js`.
+## Interface strings
 
-The demo is a second frame source, never beside the camera: `startDemo()`
-stops the camera first, and a camera start, any mode or route change and a
-hidden page call `stopDemo()`, its one way out, which ends its frame timer.
-It publishes the recorded right hand about 20 times a second with an
-`aspect` of 1, since the recording holds square photographs; live inference
-reads that aspect instead of the hidden video's, and the overlay draws the
-square in the room the demo's card and the plate leave on the stage. The
-user adds every letter; the demo moves on only after an add of the letter it
-shows, or a skip.
-
-Models load on first use, not at startup. `ensureLetterModel()` in
-`ml/letter-model.js` and `ensureWordModel()` in `ml/word-model.js` download and
-warm a model once and hand every caller the same promise; a failed load is
-forgotten, so the next need retries. The callers are those first needs: the
-camera starting or the mode changing while it is on (through
-`loadModelsWithStatus()` in `core/app.js`, which reports progress), the demo
-starting, a word recording, and a Model Test run. A live frame never starts a
-load; frames are dropped until the model is ready.
-
-## Where new code goes
-
-- A new user-facing screen or flow: a new file under `ui/`.
-- A new model or feature transform: `ml/`.
-- A new shared constant: `core/config.js`.
-- New shared mutable state: `core/runtime.js`, and nowhere else.
-- A new event binding: `bindEvents()` in `core/app.js`, so every listener stays
-  visible from one place.
-- A new interface string: the strings file of its area under `i18n/`, in
-  Turkish and English (see [Interface languages](#interface-languages)).
-
-Add the file to `index.html` in the position its dependencies require, and
-update the expected order in `tests/project/test_web_ui_contracts.py`.
-
-## DOM contracts
-
-The markup and the CSS are expected to change. These rules keep behaviour
-attached to the page while that happens.
-
-**Each mechanism has one job.**
-
-| Mechanism | Job |
-|---|---|
-| `class` | Appearance and layout only |
-| `data-ui` | A stable element lookup for the scripts |
-| `data-mode`, `data-qr-target`, `data-coach-flow`, `data-model-test-task`, `data-quality`, `data-step` | A value from a named union |
-| `data-state` | A finite visual or process state |
-| `id` | Labels, ARIA, deep links, and the element registry |
-| `hidden`, `disabled`, `aria-*` | Visibility, availability, and accessible state |
-
-No script finds an element by a presentation class. Lookups go through
-`queryUi()` and `queryAllUi()`, which resolve a `data-ui` hook, or through the
-registry by id. That is what lets a class be renamed without touching
-JavaScript, and `tests/project/test_web_ui_contracts.py` fails when a script
-looks an element up by class.
-
-**The registry has two halves.**
-
-`requireElement(id, Type?)` proves an element is present while the scripts load
-and throws naming the id if it is not, so a dropped element is a startup error
-rather than a null dereference once its screen opens. `optionalElement()` and a
-plain `getElementById()` are progressive enhancement: they resolve to null and
-every reader guards them. No nullable field is dereferenced unguarded.
-
-Adding an element to the registry means deciding which half it belongs in. If
-the app cannot work without it, it is required.
-
-**Events bind once; renders only render.**
-
-`bindEvents()` runs once and guards against a second call, because every
-binding there adds a listener rather than replacing one. A render function
-rebuilds its root from state: it clears before it builds, so calling it twice
-changes nothing, and it starts no listener, timer, fetch or model session.
-Those belong in the command and lifecycle functions.
-
-Global keyboard shortcuts are ignored while focus is in a form control, so
-type-ahead in a `<select>` and Space on a button belong to the control rather
-than the page.
-
-**Dynamic content.** Plain text goes through `textContent`. `innerHTML` is only
-used for a fully escaped or fully literal template; a model label, a dataset
-value or fetched JSON is never interpolated into HTML unescaped.
-
-## Interface languages
-
-The interface is in Turkish and English. Turkish addresses the visitor as
-*siz*; English is plain US English in sentence case. ASL letters and word
-glosses are not translated.
-
-**Resolution.** `core/lang-boot.js` picks the language before the first
-paint: the visitor's saved choice (`localStorage["asl-lang"]`, `"tr"` or
-`"en"`), else the first of the browser's preferred languages
-(`navigator.languages`, then `navigator.language`) whose primary subtag is
-`tr` or `en`, else English. It writes the result to `<html lang>`, which is
-the one record of the current language (`currentLanguage()`), and, for
-English, `data-i18n-pending`, which keeps the body hidden until
-`core/i18n-boot.js` has translated it.
-
-**Strings.** Each area has one file under `i18n/` that calls
-`registerStrings(area, {tr: {...}, en: {...}})` once. Keys are
-`<area>.<part>.<name>` in lowerCamelCase segments and must start with the
-area (`shell`, `letter`, `word`, `coach`, `info`); a key outside the area or
-registered twice is refused and recorded in `I18N_PROBLEMS.refused`. A value
-is a string, with `{name}` placeholders, or `{one, other}` for a count, picked
-by the `count` parameter. Strings that hold markup are written with
-characters, not entities.
-
-**Markup.** The authored markup is Turkish and stays the fallback. An element
-names its strings with attributes, and `translatePage()` writes them:
-
-| Attribute | Writes |
-|---|---|
-| `data-i18n="key"` | the text; only on an element whose content is text alone (wrap the text in a `<span>` if the element also holds an icon, a key cap or another element) |
-| `data-i18n-html="key"` | the markup, for a string with `<strong>`, `<a>` or a `lang` span in it; only strings from the strings files, never anything a visitor typed |
-| `data-i18n-aria-label`, `data-i18n-title`, `data-i18n-placeholder`, `data-i18n-alt`, `data-i18n-content`, `data-i18n-lang` | that attribute |
-| `data-i18n-params='{"n": 3}'` | the parameters of the element's strings, as JSON |
-
-The Turkish string of every marked element must equal its authored text;
-`tests/web/i18n-core.test.js` holds them together, so switching to English and
-back shows the same Turkish.
-
-**Scripts.** `t(key, params)` returns the string in the current language.
-`setText(element, key, params)` and `setAttrText(element, attribute, key,
-params)` show a string and mark the element with its key, so the next language
-change rewrites it like markup. A change rewrites an element only while it
-still shows the previous language's string: text a script wrote since is that
-script's to redraw. Text a module builds from state (a list, a status, a
-message) is redrawn by the module from state in a listener it registers in
-its strings file with `onLanguageChange(() => ...)`, looking its function up
-when the change comes, since the strings file loads before the module.
-
-The shared message places take a `UiText`: a string, or a function that
-returns one. `setMessage()` and `reportProblem()` (the plate's status line),
-`showFeedback()` (the feedback bar) and `showToast()` (its text and its
-action's label) call a function again after a language change, so any
-screen's message follows a switch when it is written as
-`setMessage(() => t("letter.plate.letterClear", { letter }), "good")`; a
-string stays as it was written. A percentage goes through `percentText(n)`, since Turkish writes
-"%90" and English "90%".
-
-**Missing strings.** A key the current language lacks shows the Turkish
-string; a key nobody registered shows nothing, never the key. Both are
-recorded in `I18N_PROBLEMS.missing` and warned about once.
-
-**Switching.** `setLanguage(language)` saves the choice, moves `<html lang>`,
-rewrites the marked markup and calls every listener. Nothing reloads, and the
-camera, the transcript and the current screen are left as they are. The
-switch in the header (`#languageToggle`, in the "Diğer" menu on a phone) is
-labelled and named in the language it switches to.
-
-**Tests.** The node harness and the browser runner open every page as a
-Turkish browser's unless a test says otherwise:
-`loadWebApp({languages: ["en-US", "en"]})` or `{savedLanguage: "en"}`, and in
-the browser checks the page options of the same names, or
-`make browser-check UI_LANG=en` for the whole suite.
-`tests/web/helpers/turkish-left.mjs` reports the Turkish an English page still
-shows, in text and in spoken attributes.
-
-## Type contracts
-
-The modules carry JSDoc types. They are documentation that a checker can verify,
-not a build step: the browser loads these `.js` files unchanged.
-
-Each type is defined once, in the file where its meaning is fixed, and
-referenced from everywhere else. The classic-script global scope makes those
-definitions visible project-wide, so a second copy would be a second source of
-truth.
-
-| Type group | Owner |
-|---|---|
-| `Language` | `core/lang-boot.js` |
-| `I18nValue`, `I18nParams` | `core/i18n.js` |
-| `RuntimeConfig`, `ThresholdSet`, reference assets | `core/config.js` |
-| State unions, `AppState`, `PredictionResult`, `WordResultAssessment` | `core/runtime.js` |
-| `Frame321D` | `ml/landmarks.js` |
-| `Hand63`, `LetterFeatures93`, `WordFeatures168`, letter motion and smoothing | `ml/features.js` |
-| `BenchmarkStage`, `BenchmarkSummary` | `services/benchmark.js` |
-| `ConfusionPairRaw`, `ConfusionPair`, `PerWordStat`, `WordDifficulty` | `ml/gating.js` |
-| `HoldPhase`, `HoldObservation`, `HoldStatus`, `HoldTimings`, `HoldTracker` | `ml/hold.js` |
-| `WordFeatures45x168`, `WordMask45`, `WordMaskDtype` | `ml/word-model.js` |
-| `OnnxSessionLike`, `OnnxTensorLike`, `ProbabilityVector`, `FrameWarning` | `ml/letter-model.js` |
-| MediaPipe landmark and task shapes | `media/camera.js` |
-| `DemoLetter`, `DemoRecording`, `DemoStartOutcome` | `media/demo-source.js` |
-| Recording diagnostics, `DominantSide` | `ml/live-inference.js` |
-| `ConfidenceLevel`, `FeedbackKind`, `UiText` | `ui/prediction.js` |
-| `CoachLetterData`, `CoachConfusionGroup`, `CoachProgress`, `CoachLetterRecord` | `ui/coach.js` |
-| Fixture and manifest shapes | `ui/model-test.js` |
-
-Three rules keep the annotations honest:
-
-- **JSDoc cannot express a typed-array length.** `LetterFeatures93` says 93 in
-  prose; the real check stays in `predictLetter()`, `predictWord()`, and the
-  fixture validator, and `tests/web/features.test.js` covers the shapes.
-- **Unvalidated input is `unknown` until it is checked.** Fixture JSON, fetched
-  data, and ONNX outputs all pass through a guard such as `isRecord()` before
-  their fields are read. A cast is never a substitute for that check.
-- **Nullable stays nullable.** MediaPipe tasks, the camera stream, the latest
-  frame, and a model result can all be null, and the types say so. The DOM
-  registry is the exception: `requireElement()` proves presence at startup, so
-  the rest of the app can dereference those fields freely.
-
-Where a runtime check cannot be expressed as a narrowing (inspecting one
-element to classify an array, or a membership test on a string union), the
-narrowing is stated in place, next to the check that guarantees it.
-
-Run `make js-typecheck` to verify the contracts. It needs `npm ci` once; nothing
-else in this repository does.
-
-## Model contracts
-
-Word inference picks the dominant hand once for the whole recording, not frame
-by frame. The input mask uses `true` for a real frame and `false` for padding;
-the exported ONNX graph inverts it internally, so callers must not invert it
-first.
-
-The letter path supports 24 static classes. J and Z are not implemented, and
-no J/Z model is loaded by these modules.
-
-## Comment conventions
-
-Source comments are in English; the interface text is Turkish and English,
-kept in the `i18n/` strings files, with the authored markup in Turkish. A comment
-explains a model contract, a browser constraint, a fallback or a non-obvious
-design decision, and does not restate the code line by line.
-
-## Change safety
-
-Before changing feature order, normalization, mask semantics, label handling,
-script order, or recording resets, read:
-
-- [Architecture](../../docs/architecture.md)
-- [Models and data](../../docs/models-and-data.md)
-
-Run `make health` from the repository root, then do the manual camera checks in
-[Architecture](../../docs/architecture.md#checking-a-change). Automated checks
-cannot validate camera permissions, handedness metadata, or device-specific
-MediaPipe behaviour.
+The authored markup is Turkish. An element names its string with
+`data-i18n="area.part.name"` (or `data-i18n-html`, `data-i18n-aria-label` and
+similar for attributes), and each area's file under `i18n/` registers the
+Turkish and English text with `registerStrings()`. Scripts use `t(key)`,
+`setText()` or `setAttrText()`; text built from state is redrawn in an
+`onLanguageChange()` listener. A key missing in English shows the Turkish
+string. Turkish addresses the reader as *siz*; English is plain US English.
+ASL letters and word glosses are not translated.

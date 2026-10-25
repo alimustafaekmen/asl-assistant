@@ -1,15 +1,10 @@
-/* Components: the parts every screen is built from.
- *
- * Each block owns its parts (block__part) and its states (data attributes or
- * is-* classes the app already writes). Colours, sizes and spacing come from
- * tokens.css only. Behaviour never hangs on these class names: the scripts
- * find elements by id or data-ui, so a rename here cannot detach a handler.
+/* Scripts find elements by id or data-ui, never by these class names, so a
+ * rename here cannot detach a handler.
  */
 
 @layer components {
-  /* Icons: drawn as a mask on ::before, coloured by currentColor. The
-     scripts rewrite some button labels with textContent, which would delete
-     a child <svg>; a pseudo-element on the button itself survives that. */
+  /* Icons are a mask on ::before: scripts rewrite some labels with
+     textContent, which would delete a child <svg>. */
   [data-icon]::before {
     content: "";
     flex: none;
@@ -31,7 +26,6 @@
   [data-icon="more"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Ccircle cx='5' cy='12' r='1.6'/%3E%3Ccircle cx='12' cy='12' r='1.6'/%3E%3Ccircle cx='19' cy='12' r='1.6'/%3E%3C/svg%3E"); }
   [data-icon="qr"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7' rx='1'/%3E%3Crect x='14' y='3' width='7' height='7' rx='1'/%3E%3Crect x='3' y='14' width='7' height='7' rx='1'/%3E%3Cpath d='M14 14h3v3M21 14v.01M14 21h7v-4'/%3E%3C/svg%3E"); }
   [data-icon="theme"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z'/%3E%3C/svg%3E"); }
-  [data-icon="language"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M2 12h20'/%3E%3Cpath d='M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z'/%3E%3C/svg%3E"); }
   [data-icon="info"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4M12 8h.01'/%3E%3C/svg%3E"); }
   [data-icon="image"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Ccircle cx='9' cy='9' r='2'/%3E%3Cpath d='m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21'/%3E%3C/svg%3E"); }
   [data-icon="undo"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 14 4 9l5-5'/%3E%3Cpath d='M4 9h10.5a5.5 5.5 0 0 1 0 11H11'/%3E%3C/svg%3E"); }
@@ -58,8 +52,7 @@
   .brand__mark line { stroke: var(--brand-caret); }
   .brand__name { font-size: 1.0625rem; font-weight: var(--fw-bold); letter-spacing: -0.005em; }
 
-  /* Buttons: one base, a few variants. Disabled is visibly different
-     (dashed edge, sunken fill), not only fainter. */
+  /* Buttons. Disabled is a dashed edge and sunken fill, not only fainter. */
   .btn {
     display: inline-flex;
     align-items: center;
@@ -183,6 +176,29 @@
   .navlink:hover { background: var(--color-sunken); }
   .navlink.is-active { text-decoration: underline; text-underline-offset: 4px; }
 
+  /* Both languages side by side, the one shown bright. It follows
+     <html lang>, which is right before any script has run. */
+  .lang-switch { display: inline-flex; align-items: center; }
+  .lang-switch__option {
+    min-width: 2.25rem;
+    min-height: var(--size-target);
+    padding: 0 var(--sp-2);
+    border: 0;
+    border-radius: var(--r-m);
+    background: transparent;
+    color: var(--color-text-3);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.04em;
+    cursor: pointer;
+  }
+  .lang-switch__option:hover { color: var(--color-text); }
+  :root[lang="tr"] .lang-switch__option[data-language="tr"],
+  :root[lang="en"] .lang-switch__option[data-language="en"] {
+    color: var(--color-text);
+    font-weight: var(--fw-bold);
+  }
+
   /* Camera indicator in the bar: only shown while the camera runs. */
   .live-indicator { display: none; }
   .live-indicator.is-live {
@@ -204,8 +220,7 @@
     background: var(--color-error);
   }
 
-  /* Stage: the mirror. Its frame carries the state the app writes to
-     data-state: idle, low, maybe, good, recording. */
+  /* Stage */
   .stage {
     position: relative;
     overflow: hidden;
@@ -234,8 +249,7 @@
     width: 100%;
     height: 100%;
   }
-  /* A mirror: the user's right hand appears on the right. The overlay draws
-     its own mirrored coordinates, so only the video flips. */
+  /* Only the video flips: the overlay mirrors its own coordinates. */
   .stage__video { object-fit: cover; transform: scaleX(-1); }
   .stage__overlay { pointer-events: none; }
 
@@ -287,8 +301,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    /* safe: when the content is taller than the stage it starts at the top
-       and scrolls, instead of overflowing upwards out of reach. */
+    /* safe: taller content scrolls instead of overflowing upwards out of reach. */
     justify-content: safe center;
     gap: var(--sp-5);
     /* The bottom keeps clear of the message line, which can wrap to two. */
@@ -335,13 +348,10 @@
   .stage__facts li { display: flex; align-items: center; gap: var(--sp-2); }
   .stage__facts li::before { --size-icon: 16px; }
 
-  /* The first-visit content is wrapped only so the app can hide it as one
-     while a camera problem shows; it takes no part in the layout. */
+  /* Wrapped only so the app can hide it as one; no part in the layout. */
   .stage__intro { display: contents; }
 
-  /* Camera problem: replaces the first-visit content when the camera cannot
-     open. These are the phone rules; layout.css adjusts them to the stage's
-     height and to phone landscape. */
+  /* Camera problem: phone rules; layout.css adjusts them for other sizes. */
   .stage__problem {
     display: flex;
     flex-direction: column;
@@ -399,8 +409,7 @@
     color: var(--stage-text-2);
   }
   .stage__help-steps strong { color: var(--stage-text); }
-  /* While a problem shows, the plate's message line would only repeat it,
-     so the plate is hidden and the stage keeps no room for it. */
+  /* The plate's message line would only repeat the problem. */
   .stage:has(.stage__problem:not([hidden])) + .plate { display: none; }
   .stage__empty:has(> .stage__problem:not([hidden])) { padding-block: var(--sp-12) var(--sp-6); }
   /* Short phones: the icon goes first, as the illustration does. */
@@ -413,14 +422,9 @@
   .stage__close { display: none; }
   .stage:has(> .stage__empty[hidden]) .stage__close { display: inline-flex; }
 
-  /* The camera-free demo (js/media/demo-source.js), while the stage's
-     data-demo names its phase. Its stop takes the close button's place at
-     the right of the top row; the card says which word the recorded hand
-     spells, with the letter on the stage marked, and what to do. The card
-     takes a row of its own under the top row, and on a laptop it stands
-     between the chip and the stop. The overlay draws the hand in the room
-     the card and the plate leave, so the card is kept short: one row of
-     progress, two lines of text. */
+  /* The camera-free demo. The card is kept short (one row of progress, two
+     lines of text) because the hand is drawn in the room it and the plate
+     leave. */
   .stage[data-demo] .stage__top { flex-wrap: wrap; }
   .stage-demo__stop { margin-inline-start: auto; }
   .stage-demo {
@@ -456,8 +460,7 @@
     font-weight: var(--fw-heavy);
     line-height: 1;
   }
-  /* The letter on the stage: the lock colour and an underline, so it is not
-     told by colour alone; the letters still to come are dimmed. */
+  /* An underline as well as colour, so it is not told by colour alone. */
   .stage-demo__word > [data-state="current"] {
     color: var(--stage-lock);
     text-decoration: underline 3px;
@@ -475,15 +478,13 @@
   .stage-demo__skip { flex: none; min-height: 40px; padding-inline: var(--sp-3); font-size: var(--fs-sm); }
   .stage-demo__camera { justify-self: start; }
   .stage[data-demo="done"] .stage-demo__text { font-size: var(--fs-md); font-weight: var(--fw-semibold); }
-  /* At the end there is no reading left: the plate keeps only its message
-     line, as with the camera off. */
+  /* At the end the plate keeps only its message line. */
   .stage[data-demo="done"] + .plate .plate__visual,
   .stage[data-demo="done"] + .plate .plate__level { display: none; }
 
-  /* Caption plate: the one place the current result lives. With the camera
-     off only its message line shows, so loading and errors are never off
-     screen. It is the stage's next sibling, so it reads the stage's state
-     through "+"; layout.css places it over the stage or beside it. */
+  /* Caption plate: with the camera off its message line still shows, so
+     loading and errors are never off screen. It reads the stage's state
+     through "+". */
   .plate {
     z-index: var(--z-stage-plate);
     display: flex;
@@ -553,8 +554,8 @@
     text-wrap: pretty;
   }
 
-  /* Three bars: level by count as well as by colour. Not named meter: the
-     legacy layer styles .meter as the word recording's progress bar. */
+  /* Level by count as well as colour. Not named meter, which is the word
+     recording's progress bar. */
   .signal { display: inline-flex; align-items: flex-end; gap: 3px; height: 17px; }
   .signal i { width: 5px; border-radius: 2px; background: var(--stage-bar-off); }
   .signal i:nth-child(1) { height: 9px; }
@@ -595,16 +596,14 @@
     border-radius: 50%;
   }
 
-  /* Warnings from the model: confusion, hard, low quality, accepted word.
-     The app rewrites this element's class to feedback-bar feedback-bar--kind,
-     so it is styled through that name. */
+  /* The app rewrites this class to feedback-bar feedback-bar--kind. */
   .stage .feedback-bar {
     position: absolute;
     inset: calc(var(--sp-3) + 40px) var(--sp-3) auto;
     z-index: var(--z-stage-hud);
     width: fit-content;
     max-width: calc(100% - 2 * var(--sp-3));
-    margin-inline: auto;
+    margin: var(--sp-3) auto 0;
     padding: var(--sp-2) var(--sp-3);
     border: 1px solid var(--stage-line);
     border-radius: var(--r-m);
@@ -650,8 +649,7 @@
   }
   .toast[hidden] { display: none; }
   .toast__action { --size-icon: 18px; min-height: 36px; padding-inline: var(--sp-3); }
-  /* The toast is a light surface on the dark stage: the stage's saffron ring
-     would be 1.6:1 here. */
+  /* A light surface: the stage's saffron ring would be 1.6:1 here. */
   .toast :focus-visible { outline-color: var(--color-focus); }
 
   /* Transcript strip */
@@ -674,9 +672,7 @@
     line-height: var(--lh-snug);
     letter-spacing: 0.04em;
     white-space: nowrap;
-    /* Scrolled to its end by the app, so the newest letter shows; an ellipsis
-       at the end would hide exactly that letter. The scrollbar would only
-       take height from a 56 px strip. */
+    /* No ellipsis: it would hide exactly the newest letter. */
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
@@ -748,7 +744,13 @@
   .ranked .top3-row .rank { display: none; }
   .ranked .top3-row b { font-size: var(--fs-lg); font-weight: var(--fw-heavy); overflow: hidden; text-overflow: ellipsis; }
   .ranked .top3-row .bar { height: 8px; border-radius: 4px; background: var(--color-sunken); overflow: hidden; }
-  .ranked .top3-row .bar > span { display: block; height: 100%; background: currentColor; }
+  .ranked .top3-row .bar > span {
+    display: block;
+    height: 100%;
+    border-radius: var(--r-pill);
+    background: currentColor;
+    transition: width var(--dur-2) var(--ease-out);
+  }
   .ranked .top3-row > span:last-child {
     text-align: right;
     font-family: var(--font-mono);
@@ -766,13 +768,29 @@
     background: var(--color-sunken);
   }
   .reference__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
-  .reference .reference-thumbs { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+  /* The note repeats the card's purpose; a phone has no room for it. */
+  .reference .panel__note { max-width: 42.5rem; }
+  @media (max-width: 45rem) {
+    .reference .panel__note { display: none; }
+  }
+  /* The word pages' buttons stay under the image while it scrolls. */
+  .reference .reference-thumbs {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    padding: 10px;
+    border-top: 1px solid var(--color-line);
+    background: color-mix(in srgb, var(--color-surface), transparent 8%);
+  }
   .reference .reference-thumb {
     min-width: var(--size-target);
     min-height: var(--size-target);
     border: 1px solid var(--color-control);
     border-radius: var(--r-m);
     background: var(--color-surface);
+    color: var(--color-text-2);
     font-family: var(--font-mono);
     font-weight: 500;
   }
@@ -787,10 +805,8 @@
   .shortcuts dt { margin: 0; }
   .shortcuts dd { margin: 0; font-size: var(--fs-sm); color: var(--color-text-2); }
 
-  /* Start-up error: shown when the app could not start, so the page does not
-     look ready while every button does nothing. It floats under the top bar,
-     over whatever screen the markup shows, and is announced by the app
-     through #announcer, so it is not a live region itself. */
+  /* Start-up error, so the page does not look ready while every button does
+     nothing. Announced through #announcer, so not a live region itself. */
   .startup-error {
     position: fixed;
     top: calc(var(--size-topbar) + var(--sp-2));
@@ -811,8 +827,7 @@
     transform: translateX(-50%);
   }
 
-  /* Skip link: off screen until it has keyboard focus, then above the top
-     bar. */
+  /* Skip link */
   .skip-link {
     position: absolute;
     top: var(--sp-2);
@@ -844,4 +859,24 @@
     color: var(--color-text);
     box-shadow: var(--elev-float);
   }
+
+  /* Developer panel, toggled with Ctrl+D. */
+  .debug-panel {
+    position: fixed;
+    left: 14px;
+    bottom: 14px;
+    z-index: 100;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    max-width: min(680px, calc(100% - 28px));
+    padding: var(--sp-3);
+    border: 1px solid var(--color-line);
+    border-radius: var(--r-strip);
+    background: var(--color-surface);
+    box-shadow: var(--elev-float);
+    font-size: 0.75rem;
+  }
+  .debug-panel strong { color: var(--color-text); }
+  .debug-panel span { color: var(--color-text-2); }
 }

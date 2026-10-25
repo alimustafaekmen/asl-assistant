@@ -4,5 +4,5 @@
 
 -r requirements.txt
 
-# Formatting and lightweight static checks used by `make format-check` and `make lint`.
+# Formatting and lightweight static checks used by `make format` and `make check`.
 ruff==0.16.8

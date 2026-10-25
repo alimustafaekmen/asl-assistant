@@ -23,7 +23,7 @@ export const ROUTES = [...CAMERA_MODES, "test", "project", "qr"];
  * so it must come from the first stylesheet; a layer named anywhere else
  * that is not in this list lands above all of them.
  */
-export const LAYER_ORDER = ["legacy", "tokens", "base", "components", "layout", "screens", "utilities"];
+export const LAYER_ORDER = ["tokens", "base", "components", "layout", "screens", "utilities"];
 
 // A host in dark mode would otherwise turn every fresh page dark, because the
 // app follows the system preference when nothing is stored.
@@ -58,13 +58,6 @@ const IN_PAGE = String.raw`
     && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5;
   const inside = (inner, outer) => inner.left >= outer.left - 0.5 && inner.right <= outer.right + 0.5
     && inner.top >= outer.top - 0.5 && inner.bottom <= outer.bottom + 0.5;
-  const removeLegacyLayer = () => {
-    const sheet = document.styleSheets[0];
-    const rules = sheet ? [...sheet.cssRules] : [];
-    const index = rules.findIndex((rule) => rule instanceof CSSLayerBlockRule && rule.name === "legacy");
-    if (index < 0) throw new Error("the first stylesheet has no legacy layer block to remove");
-    sheet.deleteRule(index);
-  };
 `;
 
 /** An expression that is true once init() has applied `route`. */
@@ -122,8 +115,8 @@ const STATIC_TYPES = new Set(["Document", "Script", "Stylesheet", "Font", "Image
  * @typedef {object} Check
  * @property {string} name
  * @property {string} summary What it asserts, in one line.
- * @property {boolean} [network] Loads MediaPipe or ORT from their CDNs (the
- *   camera, the demo's real model); skipped with --offline.
+ * @property {boolean} [network] Loads MediaPipe, ORT or kjua from their CDNs
+ *   (the camera, the demo's real model, the QR code); skipped with --offline.
  * @property {number} [timeoutMs]
  * @property {(ctx: CheckContext) => Promise<string[]>} run Returns the problems found.
  */
@@ -172,7 +165,7 @@ export const CHECKS = [
 
   {
     name: "hidden",
-    summary: "an element with [hidden] is never rendered, the toast included, and the new layers keep that on their own",
+    summary: "an element with [hidden] is never rendered, the toast included",
     async run(ctx) {
       const problems = [];
       const page = await openApp(ctx, { route: "letter" });
@@ -202,10 +195,6 @@ export const CHECKS = [
         return problems;
       })()`;
       problems.push(...(await page.eval(inspect("as shipped"))));
-      // base.css keeps its own [hidden] rule so it survives the legacy
-      // layer's removal; while that layer exists, it hides the fault.
-      await page.eval(`(() => { ${IN_PAGE} removeLegacyLayer(); })()`);
-      problems.push(...(await page.eval(inspect("without the legacy layer"))));
       return dedupe(problems);
     },
   },
@@ -254,25 +243,25 @@ export const CHECKS = [
   },
 
   {
-    name: "style-link",
-    summary: "css/style.css is linked, loaded, enabled and first in the cascade",
+    name: "tokens-link",
+    summary: "css/tokens.css, which declares the layer order, is linked, loaded, enabled and first in the cascade",
     async run(ctx) {
       const page = await openApp(ctx, { route: "letter" });
       const problems = await page.eval(`(() => {
         // The path, not the whole URL: a cache tag such as ?v=11 still links the same file.
-        const target = new URL("css/style.css", document.baseURI).pathname;
+        const target = new URL("css/tokens.css", document.baseURI).pathname;
         const links = [...document.querySelectorAll('link[rel="stylesheet"]')].filter(
           (link) => new URL(link.href).pathname === target,
         );
-        if (links.length !== 1) return ["css/style.css is linked " + links.length + " times; expected once"];
+        if (links.length !== 1) return ["css/tokens.css is linked " + links.length + " times; expected once"];
         const [link] = links;
         const problems = [];
-        if (!link.sheet) problems.push("css/style.css did not load");
+        if (!link.sheet) problems.push("css/tokens.css did not load");
         else {
-          if (link.sheet.disabled) problems.push("css/style.css is disabled");
-          if (link.sheet.cssRules.length < 2) problems.push("css/style.css loaded with " + link.sheet.cssRules.length + " rules");
-          if (document.styleSheets[0] !== link.sheet) problems.push("css/style.css is not the first stylesheet, so it cannot set the layer order");
-          if (!matchMedia(link.media || "all").matches) problems.push("css/style.css has a media query that does not match: " + link.media);
+          if (link.sheet.disabled) problems.push("css/tokens.css is disabled");
+          if (link.sheet.cssRules.length < 2) problems.push("css/tokens.css loaded with " + link.sheet.cssRules.length + " rules");
+          if (document.styleSheets[0] !== link.sheet) problems.push("css/tokens.css is not the first stylesheet, so it cannot set the layer order");
+          if (!matchMedia(link.media || "all").matches) problems.push("css/tokens.css has a media query that does not match: " + link.media);
         }
         return problems;
       })()`);
@@ -335,7 +324,7 @@ export const CHECKS = [
 
   {
     name: "reduced-motion",
-    summary: "with prefers-reduced-motion: reduce no element animates or transitions, with or without the legacy layer",
+    summary: "with prefers-reduced-motion: reduce no element animates or transitions",
     async run(ctx) {
       const longest = `(() => {
         ${IN_PAGE}
@@ -368,9 +357,6 @@ export const CHECKS = [
       const page = await openApp(ctx, { route: "letter", media: reduced });
       const shipped = await page.eval(longest);
       if (shipped.seconds > 0.001) problems.push(`as shipped: a ${shipped.seconds}s ${shipped.what} under reduced motion`);
-      await page.eval(`(() => { ${IN_PAGE} removeLegacyLayer(); })()`);
-      const alone = await page.eval(longest);
-      if (alone.seconds > 0.001) problems.push(`without the legacy layer: a ${alone.seconds}s ${alone.what} under reduced motion`);
       return problems;
     },
   },
@@ -436,6 +422,101 @@ export const CHECKS = [
         if (colours.ink !== "rgb(23, 24, 27)") problems.push(`${label} theme: the QR ink is ${colours.ink}, not the near-black ink`);
         if (colours.back !== "rgb(255, 255, 255)") problems.push(`${label} theme: the QR paper is ${colours.back}, not white`);
       }
+      return problems;
+    },
+  },
+
+  {
+    name: "qr-library",
+    summary: "no screen but #qr asks for the QR library; #qr asks for it once and, when the CDN is unreachable, shows the link in the code's place",
+    async run(ctx) {
+      const problems = [];
+      const asksForKjua = (page) => page.blockedRequests.filter((url) => url.includes("/kjua@"));
+      for (const route of ["letter", "word", "coach", "project", "test"]) {
+        const page = await openApp(ctx, { route });
+        if (asksForKjua(page).length) problems.push(`#${route} asks for the QR library: ${asksForKjua(page).join(", ")}`);
+        await page.close();
+      }
+      const page = await openApp(ctx, { route: "qr" });
+      try {
+        await page.waitFor(`document.getElementById("qrCanvas").textContent.includes(document.getElementById("qrDemoUrl").textContent.trim())`, {
+          what: "the link in the code's place once the library is refused",
+        });
+      } catch (error) {
+        problems.push(error.message);
+      }
+      if (asksForKjua(page).length !== 1) problems.push(`#qr asked for the QR library ${asksForKjua(page).length} times, not once`);
+      await page.close();
+      return problems;
+    },
+  },
+
+  {
+    name: "qr-library-cdn",
+    summary: "#qr fetches the QR library from the CDN once, with its integrity hash, and draws the code; no CSP violation",
+    network: true,
+    async run(ctx) {
+      const problems = [];
+      const page = await openApp(ctx, { route: "qr", allowExternal: true });
+      try {
+        await page.waitFor(`Boolean(document.querySelector("#qrCanvas canvas"))`, { what: "the QR code to be drawn", timeoutMs: 15_000 });
+      } catch (error) {
+        problems.push(error.message);
+      }
+      const facts = await page.eval(`(() => {
+        const scripts = [...document.querySelectorAll("script")].filter((script) => script.src.includes("/kjua@"));
+        const fetched = performance.getEntriesByType("resource").filter((entry) => entry.name.includes("/kjua@"));
+        return { scripts: scripts.map((s) => ({ integrity: s.integrity, crossOrigin: s.crossOrigin })), fetched: fetched.length };
+      })()`);
+      if (facts.fetched !== 1) problems.push(`the QR library was fetched ${facts.fetched} times, not once`);
+      if (facts.scripts.length !== 1) problems.push(`the page holds ${facts.scripts.length} QR library scripts, not one`);
+      for (const script of facts.scripts) {
+        if (!/^sha384-/.test(script.integrity)) problems.push("the QR library's script has no integrity hash");
+        if (script.crossOrigin !== "anonymous") problems.push(`the QR library's script is crossorigin=${script.crossOrigin}`);
+      }
+      for (const violation of await page.eval("window.__browserCheck.csp")) {
+        problems.push(`CSP ${violation.disposition} violation of ${violation.directive} by ${violation.blocked || "inline code"}`);
+      }
+      await page.close();
+      return problems;
+    },
+  },
+
+  {
+    name: "qr-code",
+    summary: "the QR screen draws its code with the library it loads from the CDN",
+    network: true,
+    async run(ctx) {
+      const problems = [];
+      const page = await openApp(ctx, { route: "qr", allowExternal: true });
+      try {
+        await page.waitFor(`(() => {
+          const code = document.querySelector("#qrCanvas canvas");
+          return Boolean(code && code.width > 0 && code.height > 0);
+        })()`, { what: "the QR code to be drawn", timeoutMs: 20_000 });
+      } catch (error) {
+        problems.push(error.message);
+      }
+      if (page.exceptions.length) problems.push(`uncaught error: ${page.exceptions.join(" | ")}`);
+      await page.close();
+      return problems;
+    },
+  },
+
+  {
+    name: "cdn-integrity",
+    summary: "a CDN script whose bytes changed does not run",
+    async run(ctx) {
+      const problems = [];
+      const page = await openApp(ctx, {
+        route: "qr",
+        substituteExternal: "globalThis.__substitutedScripts = (globalThis.__substitutedScripts || 0) + 1;",
+      });
+      const scripts = page.substitutedRequests.filter((url) => url.endsWith(".js"));
+      if (scripts.length === 0) problems.push("the QR screen requested no CDN script, so nothing was checked");
+      const ran = await page.eval("globalThis.__substitutedScripts || 0");
+      if (ran) problems.push(`${ran} altered CDN script(s) ran: ${scripts.join(", ")}`);
+      await page.close();
       return problems;
     },
   },
@@ -1178,19 +1259,36 @@ export const CHECKS = [
 
   {
     name: "language-switch",
-    summary: "the language switch is rendered in the laptop header and the phone menu, switches without a reload, keeps the choice and gives up focus after a click",
+    summary: "the language switch shows TR and EN side by side, the language shown standing out, in the laptop header and the phone menu; it switches without a reload, keeps the choice and gives up focus after a click",
     async run(ctx) {
       const problems = [];
       const read = `(() => {
         ${IN_PAGE}
-        const toggle = document.getElementById("languageToggle");
+        const group = document.getElementById("languageSwitch");
+        const [tr, en] = ["tr", "en"].map((language) => group.querySelector('[data-language="' + language + '"]'));
+        const rect = (el) => el.getBoundingClientRect();
         return {
           lang: document.documentElement.lang,
           title: document.title,
-          rendered: rendered(toggle),
-          name: toggle.getAttribute("aria-label"),
-          label: toggle.textContent.trim(),
-          focused: document.activeElement === toggle,
+          rendered: rendered(tr) && rendered(en),
+          // Side by side: on one line, TR first, apart.
+          sideBySide: Math.abs((rect(tr).top + rect(tr).bottom) / 2 - (rect(en).top + rect(en).bottom) / 2) < 2 && rect(tr).right <= rect(en).left,
+          labels: [tr.textContent.trim(), en.textContent.trim()].join(" "),
+          pressed: [tr, en].filter((option) => option.getAttribute("aria-pressed") === "true").map((option) => option.dataset.language).join(","),
+          // The language shown stands out: its text is further from the
+          // page behind it than the other's, in either theme.
+          standsOut: (() => {
+            const luminance = (colour) => {
+              const [r, g, b] = colour.match(/[\\d.]+/g).map(Number);
+              return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            };
+            const page = luminance(getComputedStyle(document.body).backgroundColor);
+            const distance = (el) => Math.abs(luminance(getComputedStyle(el).color) - page);
+            const shown = document.documentElement.lang === "en" ? en : tr;
+            const other = shown === en ? tr : en;
+            return distance(shown) > distance(other) + 20;
+          })(),
+          focused: [tr, en].includes(document.activeElement),
           saved: localStorage.getItem("asl-lang"),
           marker: window.__sameDocument === true,
         };
@@ -1201,12 +1299,19 @@ export const CHECKS = [
       let seen = await laptop.eval(read);
       if (!seen.rendered) problems.push("laptop: the switch is not rendered in the header");
       if (seen.lang !== "tr") problems.push(`laptop: a Turkish browser opened the page in ${seen.lang}`);
-      await laptop.click("#languageToggle");
+      const looks = (where, s) => {
+        if (s.labels !== "TR EN") problems.push(`${where}: the switch reads "${s.labels}"`);
+        if (!s.sideBySide) problems.push(`${where}: TR and EN are not side by side`);
+        if (s.pressed !== s.lang) problems.push(`${where}: the page is in ${s.lang} but "${s.pressed}" is pressed`);
+        if (!s.standsOut) problems.push(`${where}: the language shown does not stand out from the other`);
+      };
+      looks("laptop", seen);
+      await laptop.click('#languageSwitch [data-language="en"]');
       seen = await laptop.eval(read);
       if (seen.lang !== "en") problems.push(`laptop: after a click the page is in ${seen.lang}, not en`);
       if (!seen.marker) problems.push("laptop: the switch reloaded the page");
       if (seen.title !== "Letter recognition · ASL Assistant") problems.push(`laptop: the title is "${seen.title}"`);
-      if (seen.name !== "Türkçeye geç" || seen.label !== "Türkçe") problems.push(`laptop: the switch reads "${seen.label}" named "${seen.name}"`);
+      looks("laptop, in English", seen);
       if (seen.focused) problems.push("laptop: the switch kept focus after a mouse click");
       if (seen.saved !== "en") problems.push(`laptop: the choice was saved as ${seen.saved}`);
       const left = await laptop.eval(`(${turkishLeft})(document.querySelector(".topbar"), { rendered: true })`);
@@ -1227,10 +1332,11 @@ export const CHECKS = [
       await phone.waitFor(`document.getElementById("moreMenu").matches(":popover-open")`, { what: "the phone menu to open" });
       seen = await phone.eval(read);
       if (!seen.rendered) problems.push("phone: the switch is not rendered in the open menu");
-      await phone.click("#languageToggle");
+      looks("phone", seen);
+      await phone.click('#languageSwitch [data-language="tr"]');
       seen = await phone.eval(read);
       if (seen.lang !== "tr") problems.push(`phone: after a click the page is in ${seen.lang}, not tr`);
-      if (seen.name !== "Switch to English" || seen.label !== "English") problems.push(`phone: the switch reads "${seen.label}" named "${seen.name}"`);
+      looks("phone, in Turkish", seen);
       if (phone.exceptions.length) problems.push(`uncaught error: ${phone.exceptions.join(" | ")}`);
       await phone.close();
       return problems;

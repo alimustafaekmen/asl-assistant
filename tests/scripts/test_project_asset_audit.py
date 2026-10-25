@@ -60,13 +60,13 @@ def test_a_drifted_binary_model_fails_the_audit(checkout) -> None:
 
 
 def test_a_deleted_provenance_source_fails_the_audit(checkout) -> None:
-    checkout.remove("models/letter/onnx_exports/letter_model_static_24_web_no_zipmap.onnx")
+    checkout.remove("models/word/web-50/word_model.onnx")
 
     result = checkout.audit("--no-datasets")
 
     assert result.returncode == 1, result.stdout + result.stderr
     failed = checkout.failures(result)
-    assert len(failed) == 1 and "letter_model.onnx" in failed[0], failed
+    assert len(failed) == 1 and "word_model.onnx" in failed[0], failed
     assert "source file missing" in failed[0], failed
 
 

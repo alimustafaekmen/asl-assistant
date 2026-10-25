@@ -31,7 +31,7 @@ function hostileLabels() {
 
 /** fetch() serving the deployed folder from disk, with the hostile label file. */
 async function networkWithHostileLabels(input) {
-  const path = new URL(String(input), "https://asl-assistant.netlify.app/").pathname;
+  const path = new URL(String(input), "https://asl-assistant.pages.dev/").pathname;
   if (path.endsWith("/data/word_labels.json")) {
     const body = JSON.stringify(hostileLabels());
     return { ok: true, status: 200, json: async () => JSON.parse(body), text: async () => body };

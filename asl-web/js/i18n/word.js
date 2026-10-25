@@ -1,9 +1,5 @@
-// Word screen strings: the recording, word dock, word cards and library, and the reference panel and viewer.
-//
-// Word labels and glosses are ASL and stay as they are. The reference panel
-// and viewer serve the letter and coach screens too, so their strings live
-// here with the word screen's. ui/word-flow.js and ui/reference.js redraw
-// what they drew from state on a language change (renderWordLanguage).
+// Word screen strings, and the reference panel and viewer, which the letter
+// and coach screens share. Word labels are ASL and are not translated.
 
 registerStrings("word", {
   tr: {
@@ -292,7 +288,5 @@ registerStrings("word", {
   },
 });
 
-// The word screen and the reference redraw what they drew from state;
-// renderWordLanguage lives in ui/word-flow.js, which loads later, so it is
-// looked up when a change comes.
+// Looked up when called: ui/word-flow.js loads later.
 onLanguageChange(() => renderWordLanguage());

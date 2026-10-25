@@ -1,27 +1,13 @@
-// Transcript editing, persistence, clipboard, and speech output.
-//
-// Letters are appended one character at a time; word results are appended with
-// a trailing space, and only after the user accepts them. Nothing here appends
-// a prediction on its own.
-//
-// The transcript is mirrored into localStorage under "asl-web-transcript" so a
-// reload does not lose it. Storage failures are logged and ignored, because the
-// app must keep working in private windows and with storage blocked.
+// A word result is appended only after the user accepts it. Storage failures
+// are ignored so the app still works in private windows.
 
 /**
- * Options for one transcript append.
- *
  * @typedef {Object} TranscriptAppendOptions
- * @property {string} [debounceKey] Suppresses a repeat of the same key within
- *   250 ms, so a held key or a double click appends once.
- * @property {boolean} [skipIfDuplicate] Skips the append when the transcript
- *   already ends with this token.
+ * @property {string} [debounceKey] A held key or a double click appends once.
+ * @property {boolean} [skipIfDuplicate]
  */
 
 /**
- * Append the current letter prediction, if it is confident enough. Letter
- * mode only; a word goes through appendWordResultToTranscript().
- *
  * @returns {void}
  */
 function appendCurrentLetter() {
@@ -30,32 +16,22 @@ function appendCurrentLetter() {
   if (state.confidence < CONFIG.LETTER_THRESHOLD) return;
   if (appendTranscriptToken(state.prediction, { debounceKey: `letter:${state.prediction}` })) {
     announce(t("letter.transcript.letterAdded", { letter: state.prediction }));
-    // The demo moves to its next letter only when the user has added the
-    // one it shows.
+    // The demo advances only once the user has added the letter it shows.
     if (typeof noteDemoLetterAdded === "function") noteDemoLetterAdded(state.prediction);
   }
 }
 
-/**
- * Whether the word result on screen has already been accepted; a new
- * recording clears it. This, not the 250 ms debounce, limits each result to
- * one append: a second press after the debounce window would pass it.
- */
+// This, not the debounce, limits a word result to one append: a second press
+// after the debounce window would pass it.
 let wordResultAccepted = false;
 
 /**
- * Append the current word result after the user accepted it.
- *
- * The only path from a word prediction to the transcript. One accept appends
- * once; the accept action stays disabled until a new recording produces a
- * new result.
+ * The only path from a word prediction to the transcript.
  *
  * @returns {void}
  */
 function appendWordResultToTranscript() {
-  // The accept button's rule, checked again so a caller that bypasses the
-  // button cannot append what it refuses: a word-mode result, finished, from
-  // the latest recording.
+  // The accept button's rule, checked again for callers that bypass the button.
   if (state.mode !== "word" || state.wordState !== "RESULT") return;
   if (!wordResultIsCurrent() || wordResultAccepted) return;
   if (!state.prediction || state.prediction === "?" || state.prediction.length <= 1) return;
@@ -71,9 +47,8 @@ function appendWordResultToTranscript() {
     returnFocus: els.recordWord,
     action: {
       label: () => t("letter.toast.undo"),
-      // Removes the added word only while it is still the end of the text, so
-      // anything typed since is left alone. The result stays accepted: undo
-      // never offers the same consent twice.
+      // Only while the word still ends the text, so later typing is kept.
+      // The result stays accepted: undo never offers the same consent twice.
       run: () => {
         if (!state.transcript.endsWith(token)) return;
         state.transcript = state.transcript.slice(0, -token.length);
@@ -86,12 +61,9 @@ function appendWordResultToTranscript() {
 }
 
 /**
- * Append one token and persist the transcript.
- *
  * @param {string} token Letter, or a word with its trailing space.
  * @param {TranscriptAppendOptions} [options]
- * @returns {boolean} Whether the token was appended; the debounce and the
- *   duplicate check can each skip it, and a confirmation must not claim it.
+ * @returns {boolean} False when skipped, so no confirmation claims it.
  */
 function appendTranscriptToken(token, options = {}) {
   if (!token) return false;
@@ -111,8 +83,6 @@ function appendTranscriptToken(token, options = {}) {
 }
 
 /**
- * End the current word with a single trailing space.
- *
  * @returns {void}
  */
 function insertSpaceInTranscript() {
@@ -130,41 +100,27 @@ function removeLastTranscriptChar() {
 }
 
 /**
- * Redraw the transcript, escaping it before it reaches innerHTML.
- *
  * @returns {void}
  */
 function renderTranscript() {
   const text = state.transcript.trim();
-  // Lets the stylesheet set the placeholder apart from real text.
   els.transcriptText.dataset.empty = text ? "false" : "true";
-  // Fingerspelled text is English letters; the placeholder is in the
-  // interface's language. The caret is decoration, not a character to read
-  // out. The script owns the line's language from here on, not the markup.
+  // Fingerspelled text is English; the placeholder is in the interface's
+  // language, so the script owns the line's lang from here on.
   els.transcriptText.removeAttribute("data-i18n-lang");
   els.transcriptText.lang = text ? "en" : currentLanguage();
   els.transcriptText.innerHTML = `${escapeHtml(text || t("letter.transcript.placeholder"))}<span class="cursor" aria-hidden="true">|</span>`;
-  // One scrolling line: the end, with the newest letter and the caret, stays
-  // in view and the start fades once scrolled off. A screen reader still
-  // gets the whole text.
+  // Keep the newest letter in view; the start fades once scrolled off.
   const strip = els.transcriptText;
   strip.scrollLeft = text ? strip.scrollWidth || 0 : 0;
   strip.dataset.overflow = text && strip.scrollLeft > 0 ? "start" : "none";
 }
 
-/**
- * Text cleared while its undo is still offered, oldest first. A second clear
- * replaces the toast, and without this its undo would restore only the
- * second part.
- */
+// A second clear replaces the toast; without this its undo would restore only
+// the second part.
 let _clearedPendingUndo = "";
 
 /**
- * Clear the transcript and its stored copy, and offer to undo it.
- *
- * Clears made while an earlier undo is offered add up, so one "Geri al"
- * restores everything, in order. The undo ends with its toast.
- *
  * @returns {void}
  */
 function clearTranscript() {
@@ -176,8 +132,8 @@ function clearTranscript() {
   const restorable = _clearedPendingUndo + cleared;
   showToast(() => t("letter.transcript.cleared"), {
     returnFocus: els.clearText,
-    // Also runs for the toast this one replaces, which is why the pending
-    // text is set again after showToast().
+    // Also runs for the toast this one replaces, hence the assignment after
+    // showToast().
     onEnd: () => {
       _clearedPendingUndo = "";
     },
@@ -196,8 +152,6 @@ function clearTranscript() {
 }
 
 /**
- * Mirror the transcript into localStorage; a failure is logged and ignored.
- *
  * @returns {void}
  */
 function saveTranscript() {
@@ -209,8 +163,6 @@ function saveTranscript() {
 }
 
 /**
- * Restore the stored transcript, or start empty when storage is unavailable.
- *
  * @returns {void}
  */
 function restoreTranscript() {
@@ -224,10 +176,9 @@ function restoreTranscript() {
 }
 
 /**
- * Copy the transcript to the clipboard and confirm it in a toast, not in the
- * camera status chip, which the status loop rewrites every second.
+ * Confirms in a toast: the status loop rewrites the status chip every second.
  *
- * @returns {Promise<void>} Resolves whether or not the copy succeeded.
+ * @returns {Promise<void>}
  */
 async function copyTranscript() {
   const text = state.transcript.trim();
@@ -244,10 +195,6 @@ async function copyTranscript() {
 }
 
 /**
- * Speak the transcript, or the current prediction when it is empty.
- *
- * Does nothing where speech synthesis is unavailable.
- *
  * @returns {void}
  */
 function speakTranscript() {
@@ -261,8 +208,6 @@ function speakTranscript() {
 }
 
 /**
- * Escape text for interpolation into innerHTML.
- *
  * @param {string} value
  * @returns {string}
  */

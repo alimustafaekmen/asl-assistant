@@ -1,263 +1,103 @@
 # ASL Assistant
 
-[Live demo](https://asl-assistant.netlify.app/) · [Getting started](docs/getting-started.md) · [Documentation](docs/README.md) · [Technical report](TECHNICAL_REPORT.md) · [Türkçe](README.tr.md)
+[![CI](https://github.com/alimustafaekmen/asl-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/alimustafaekmen/asl-assistant/actions/workflows/ci.yml)
 
-**Live demo:** https://asl-assistant.netlify.app/
+**Live demo:** https://asl-assistant.pages.dev/ · [Technical report](TECHNICAL_REPORT.md) · [Türkçe](README.tr.md)
 
-ASL Assistant is a sign-language assistant that runs in the browser. It reads
-American Sign Language letters live from the camera and turns them into text,
-and it has an experimental mode for 50 isolated ASL words. Hand, face and pose
-landmarks are found with MediaPipe and classified with ONNX models, all inside
-the page: there is no application server, and the camera image never leaves the
-device. The interface is in English and Turkish.
+ASL Assistant reads American Sign Language letters from the camera and turns them into text, in the browser. MediaPipe finds the hand, face and pose landmarks, and two small ONNX models classify them inside the page: there is no server, and the camera image never leaves the device. Letter recognition is the main mode; an experimental mode recognises 50 isolated ASL words. The interface is in English and Turkish.
 
-![The letter screen on a laptop, light theme. A dark camera stage asks the visitor to show an ASL letter and offers two buttons, Turn on camera and Watch the demo; side cards hold the most likely results, the letter reference and the keyboard shortcuts; the text strip and the Delete, Space and Add buttons sit below, and the top bar ends with the switch to Türkçe.](docs/assets/screenshots/letter-laptop.png)
+![The letter screen on a laptop: a dark camera stage with the Turn on camera and Watch the demo buttons, side cards with the most likely results, the letter reference and the keyboard shortcuts, and the text strip with the Delete, Space and Add buttons below.](docs/assets/screenshots/letter-laptop.png)
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone.png" width="240" alt="The letter screen on a phone, light theme: the camera stage with the Turn on camera and Watch the demo buttons, then the text strip and the Delete, Space and Add buttons."><br><sub>Letter screen on a phone</sub></td>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone-dark.png" width="240" alt="The same letter screen on a phone in the dark theme."><br><sub>Dark theme</sub></td>
-    <td align="center" width="33%"><img src="docs/assets/screenshots/camera-help-phone.png" width="240" alt="The camera stage after the camera permission was refused: the title reads Camera not allowed, with the Try again and Watch the demo buttons and expanded step-by-step help for iPhone Safari and Chrome."><br><sub>Help after a refused camera permission</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone.png" width="240" alt="The letter screen on a phone, light theme."><br><sub>Letter screen on a phone</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/letter-phone-dark.png" width="240" alt="The letter screen on a phone, dark theme."><br><sub>Dark theme</sub></td>
+    <td align="center" width="33%"><img src="docs/assets/screenshots/camera-help-phone.png" width="240" alt="The camera stage after the camera permission was refused, with step-by-step help for iPhone Safari and Chrome."><br><sub>Help after a refused camera</sub></td>
   </tr>
-</table>
-
-<table>
   <tr>
-    <td align="center" width="50%"><img src="docs/assets/screenshots/word-laptop.png" width="100%" alt="The word screen on a laptop: the camera stage invites the visitor to record an ASL word that is added only after they accept it; side cards hold the results, the word reference, words to try first and the searchable 50-word list; the dock holds the Camera off, Record again and Add to text buttons."><br><sub>Word screen (experimental)</sub></td>
-    <td align="center" width="50%"><img src="docs/assets/screenshots/demo-laptop.png" width="100%" alt="The camera-free demo on a laptop: a recorded hand drawn in landmarks on the dark stage; a card above it spells FLY with L marked as the current letter, 2 of 3, and asks the visitor to add the letter with Add or Space; the result card reads L at 100%, the most likely results list L first, and the text strip already holds F."><br><sub>The camera-free demo reading a recorded hand</sub></td>
+    <td align="center" colspan="2"><img src="docs/assets/screenshots/demo-laptop.png" width="100%" alt="The camera-free demo: a recorded hand drawn in landmarks spells FLY; the result card reads L and the text already holds F."><br><sub>The camera-free demo</sub></td>
+    <td align="center"><img src="docs/assets/screenshots/word-laptop.png" width="100%" alt="The word screen on a laptop, with the results, the word reference and the 50-word list."><br><sub>Word screen (experimental)</sub></td>
   </tr>
 </table>
-
-The screenshots come from headless Chrome without a camera, in English;
-the [Turkish README](README.tr.md) shows the same screens in Turkish. The demo
-screenshot is a real run of the published letter model on the recorded hand;
-why it reads 100% is explained under [How it works](#how-it-works).
 
 ## What it does
 
-| Mode (label in the app) | What it does |
-|---|---|
-| Letter | Recognises 24 static ASL letters from the camera, live. Space adds the shown letter to the text, Enter adds a space, Backspace deletes. The text can be copied or read aloud. This is the main mode. |
-| Word (experimental) | Records one isolated sign and shows the three most likely of 50 words. Nothing reaches the text until you accept the result. |
-| Coach (early) | Practice with a chosen letter or word. A letter counts when it is held steadily; progress is kept on the device. |
-| Camera-free demo (*Watch the demo*) | On the letter screen, plays a recorded hand spelling FLY through the path a camera frame takes: the landmarks drawn on the stage, the letter features, the letter model, the smoothing and the result card. You add each letter with Space or *Add*, and at the end the demo offers the camera. It loads the letter model only. |
-| Model Test (for developers) | Runs bundled samples through the models without a camera, one at a time or all together, and shows the prediction, confidence and time. It is at `#test`, linked from the project page. |
-| QR (*Open on phone*) | A QR code that opens the hosted letter or word screen on a phone. |
-| Project (*How it works*) | A short summary of the models and their limits. |
-| Language (*Türkçe* / *English*) | Every screen is in English and Turkish. The first visit opens in the browser's language, or in English if that is neither; the switch at the end of the top bar (in *More* on a phone) changes it at once, without a reload, and keeps the camera running and the text. The choice is kept on the device. |
+- **Letters.** Recognises 24 static ASL letters live from the camera. Space adds the letter shown, Enter adds a space, Backspace deletes; the text can be copied or read aloud.
+- **Camera-free demo.** *Watch the demo* plays a recorded hand spelling FLY through the same pipeline as the camera, and you add each letter yourself.
+- **Words (experimental).** Records one isolated sign and shows the three most likely of 50 words. Nothing reaches the text until you accept it.
+- **Coach.** Practice with a chosen letter or word; progress stays on the device.
+- **Also:** a QR code to open the app on a phone, a short project page, and Model Test (`#test`), which runs bundled samples through the models.
 
 ## How it works
 
 ```text
-camera frame (stays in the page)
-  -> MediaPipe Tasks Vision: hand, pose and face landmarks
-  -> letter: 21 hand landmarks, left hand mirrored, smoothed  -> 93 features
-             -> LightGBM exported to ONNX                     -> 24 letters
-  -> word:   321-D frames (hands, face, pose) for up to 45 frames
-             -> 45 x 168 features + a 45-value padding mask
-             -> SignTransformer exported to ONNX              -> top 3 of 50 words
-  -> ONNX Runtime Web (WebAssembly)
-  -> the visitor adds the letter, or accepts the word
+camera frame -> MediaPipe Tasks Vision (hand, pose, face landmarks)
+  letter: 21 hand landmarks -> 93 features -> LightGBM (ONNX) -> 24 letters
+  word:   45 frames x 168 features + mask -> SignTransformer (ONNX) -> top 3 of 50 words
+  -> ONNX Runtime Web (WebAssembly) -> the user adds the letter or accepts the word
 ```
 
-The app is plain HTML, CSS and JavaScript. The browser loads classic
-`<script>` files in a fixed order; there is no framework, bundler, transpiler
-or build step, and the files in `asl-web/` are the files that are deployed.
-ONNX Runtime and the QR library come from jsDelivr with integrity hashes,
-MediaPipe from jsDelivr and its landmark models from Google Cloud Storage. The
-models in `asl-web/models/` download only when something needs them, so a
-visitor who opens neither the camera nor the demo downloads none.
-
-The recorded results, from [`asl-web/data/model-card.json`](asl-web/data/model-card.json):
+The app is plain HTML, CSS and JavaScript loaded as classic scripts, with no framework and no build step. Feature engineering is defined in Python (`asl-features/`) for training and repeated in JavaScript for the browser; parity checks keep the two within 1e-4. Models download on first use, so opening the page costs about 0.35 MB.
 
 | | Letter model | Word model |
 |---|---|---|
-| Model | LightGBM | SignTransformer encoder, 446,195 parameters |
-| Classes | 24 static letters (J and Z need motion and are not included) | 50 isolated signs |
-| Input | 93 engineered features | 45 × 168 features plus a mask |
-| Recorded test result | 99.35% accuracy on 8,245 held-out rows | 71.92% accuracy, 0.714 macro-F1 on 3,918 recordings |
-| Split | Random over landmark rows; **not** signer-independent | Signer-independent; the test set is 4 signers not seen in training |
-| File | 13.2 MB ONNX, served gzipped at 2.2 MB | 1.9 MB ONNX |
+| Model | LightGBM, 93 engineered features | SignTransformer, 45 × 168 features and a mask |
+| Classes | 24 static letters | 50 isolated signs |
+| Result | 99.35% on a random held-out split; about 70% on hands from another dataset | 71.92% accuracy, 0.714 macro-F1 on 4 unseen signers |
 
-Read the two figures with their caveats. The letter split was drawn at random
-from merged image datasets, so near-identical frames of the same person can
-sit on both sides of it; 99.35% probably overstates accuracy for a new signer.
-The word figure is for isolated signs from held-out signers, not continuous
-signing, and live confidence is often much lower. The demo's 100% is not a
-result either: its three photographs are in the letter model's training
-split, so the demo shows how the app works, not how accurate it is. [Models and data](docs/models-and-data.md) has the feature
-order, the ONNX contracts and the full evaluation scope.
-
-## Technologies and tools
-
-| Area | What is used |
-|---|---|
-| Browser runtime | [MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe) 0.10.18 (hand, pose and face landmarkers), [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) 1.22.0 on WebAssembly, [kjua](https://github.com/lrsjng/kjua) 0.9.0 for QR codes, Web Speech for reading text aloud |
-| Interface | HTML, CSS cascade layers and classic scripts, with no build step; [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next) and [Mono](https://github.com/googlefonts/atkinson-hyperlegible-next-mono), self-hosted; JSDoc types checked by TypeScript 5.9.3 without emitting files (development only) |
-| Machine learning | Python 3.12, LightGBM, PyTorch, onnx and onnxruntime, MediaPipe for landmark extraction, scikit-learn; versions pinned in [`requirements.txt`](requirements.txt). The word model was trained in a Kaggle notebook on a single T4 GPU. |
-| Testing | `node:test` with a `node:vm` harness that loads the real browser scripts, pytest, headless-Chrome checks over the DevTools Protocol with no npm dependency, Ruff |
-| Hosting | Netlify, as a static site uploaded by hand; response headers live in `asl-web/_headers` |
-
-## Engineering practices
-
-- **Tests that are shown to fail.** The rules that matter most each have a
-  behavioural test that was run against a deliberately broken copy and seen to
-  fail: a word is never added without the visitor accepting it, the word mask
-  is not inverted, frames reach the model in order, and leaving a camera screen
-  releases the camera. The [headless-Chrome checks](tests/browser/README.md)
-  were shown to fail on deliberate faults the same way.
-  New tests assert behaviour rather than source text and mock only the system
-  boundaries: camera, network, clock, MediaPipe and ONNX Runtime. Some older
-  tests still match source text; each is retired once a replacement is shown
-  to catch the same faults.
-- **Python and the browser compute the same features.** Feature engineering
-  lives in Python (`asl-features/`) for training and in JavaScript for the app. A
-  vector in the wrong order still runs and quietly predicts nonsense, so
-  `make parity` feeds the same deterministic inputs to both and requires them
-  to agree within 1e-4, for letters and words. Every deployed model is also
-  checked against its source by SHA-256 and against its expected ONNX inputs
-  and outputs.
-- **A deploy inventory.** The site is deployed by dragging `asl-web/` into the
-  host, which uploads whatever is on disk. `make deploy-check` lists every file
-  that upload would carry and fails on ignored or hidden files, unknown file
-  types, and the local samples derived from data that may not be redistributed.
-- **Privacy.** No backend, no account and no analytics. Video is
-  processed in the page and is not recorded or sent anywhere. The browser keeps
-  three things in `localStorage`: the theme, the text and the coach progress.
-  CDN scripts are pinned to exact versions with integrity hashes.
+The demo reads its poses at 100% because their photographs are in the letter model's training data: it shows how the app works, not how accurate it is. The [technical report](TECHNICAL_REPORT.md) covers the data, the experiments and the browser runtime.
 
 ## Quick start
 
-To run the app, any static file server will do; nothing needs installing:
+```bash
+make web    # serves asl-web/ at http://localhost:8080; nothing to install
+```
+
+The camera needs `localhost` or HTTPS. To work on the code you need Python 3.12 and Node 24; `environment.yml` provides both:
 
 ```bash
-make web               # serves asl-web/ at http://localhost:8080
+conda env create -f environment.yml && conda activate asl-assistant   # or: make setup in a Python 3.12 venv
+npm ci                 # TypeScript, for the type check
+make check             # lint, format, type check, runtime files, Python and JS tests, parity
+make browser-check     # headless Chrome checks (needs Chrome)
 ```
 
-The camera works on `localhost` or HTTPS, not from a `file://` page. To see
-the app read letters without a camera, press **Watch the demo** on the letter
-screen. Model Test, which runs the bundled samples, is
-at `#test`.
+`make help` lists every target; [getting started](docs/getting-started.md) has the details.
 
-To work on the code (Python 3.12 and Node 24; the Conda file is one way to get
-both):
+## Tech stack
 
-```bash
-conda env create -f environment.yml
-conda activate asl-assistant
-make setup             # pinned dependencies and the local packages
-make check             # lint, tests, validation, parity, type check (run npm ci once first)
-make browser-check     # checks in headless Chrome; needs Chrome
-make deploy-check      # before every upload of asl-web/
-```
-
-[Getting started](docs/getting-started.md) covers `venv`, Windows, every `make`
-target, deployment and troubleshooting.
-
-## Project layout
-
-```text
-asl-web/       the app: index.html, css/, js/ (core, media, ml, services, ui), models/, data/
-asl-features/  Python feature engineering for letters and words, the source of truth for both pipelines
-asl-desktop/   an earlier desktop prototype in Python, kept working
-scripts/       data preparation, training, fixture export, validation
-tests/         browser units (tests/web), headless-Chrome checks, Python and repository tests
-notebooks/     word-model training records and results
-models/        curated model files and their metadata
-docs/          architecture, getting started, models and data, project history
-```
-
-The [documentation index](docs/README.md) says which document answers which
-question, from the browser architecture to the project's history.
+- **Browser:** MediaPipe Tasks Vision 0.10.18, ONNX Runtime Web 1.22.0, kjua for QR codes, Web Speech; JSDoc types checked by TypeScript.
+- **Machine learning:** Python 3.12, LightGBM, PyTorch, scikit-learn, ONNX; the word model was trained in a Kaggle notebook.
+- **Testing:** `node:test` on the real browser scripts, pytest, headless Chrome over the DevTools Protocol, Ruff.
+- **Hosting:** Cloudflare Pages, as a static folder with no build step.
 
 ## Limitations
 
-- The app has not yet been tested on a real phone. Automated checks run in
-  headless desktop Chrome with a simulated camera; iOS Safari and Android
-  Chrome are untested.
-- The word model is experimental. It recognises isolated signs, not continuous
-  signing, and a result below a confidence threshold cannot be accepted.
-- The letter model has 24 static letters, no J or Z, and no "no sign" class.
-  Its 99.35% comes from a split that shares signers with training; on hands it
-  has never seen it measured 69%, weakest on the fist letters (M, N, T, S, E,
-  A). See [Models and data](docs/models-and-data.md).
-- The word reference pictures in the app have not yet been checked against an
-  ASL dictionary; when in doubt, compare a handshape with a standard one.
-- The Content Security Policy is report-only. It will be enforced once it has
-  been read on the deployed site in a real browser.
-- The first visit needs a network connection: ONNX Runtime and MediaPipe come
-  from public CDNs, about 15 MB for a first letter session.
-- The command that converted the letter model to ONNX is not in the repository.
-
-## Future work
-
-- Test on real devices: iOS Safari and Android Chrome, with real hands and
-  lighting.
-- Evaluate the letter model on signers it has never seen.
-- Add more words and move from isolated signs towards continuous signing.
-- Translate at sentence level rather than word by word.
-- Update models on the device without redeploying the site.
-- Enforce the Content Security Policy.
-- Work offline as a progressive web app.
-- Review accessibility and usefulness with Deaf users.
+- The letter model knows 24 static letters. J and Z need motion, and I have not trained a model for them.
+- The letter model scores 99% on a random split of its training data but about 70% on hands from a different dataset. The training photos are long runs of near-identical frames, so a random split leaves near-copies of the test rows in training.
+- The word model is experimental: 50 isolated signs, 72% on 4 signers it never saw. It never adds a word without the user's consent.
+- So far I have tested it in desktop Chrome.
 
 ## Licence
 
-The source code and the trained model files are released under the
-[PolyForm Noncommercial License 1.0.0](LICENSE). Personal, educational and
-research use are allowed; commercial use needs the copyright holder's
-permission.
-
-The model files in `asl-web/models/` and `models/` are treated as part of the
-software, and the terms of their training data, listed below, also apply. This
-project makes no claim either way about whether a dataset's licence, such as
-the GPL-2.0 label on the main letter source, carries over to weights trained on
-it. If your use needs certainty, check the source terms or train your own model
-with the scripts here. The `.pkl` and `.pt` files are Python pickles: load them
-only from a copy you trust.
+The source code and the trained model files are released under the [PolyForm Noncommercial License 1.0.0](LICENSE): personal, educational and research use are allowed, commercial use needs my permission. The terms of the training data below also apply to the model files. The `.pkl` and `.pt` files are Python pickles; load them only from a copy you trust.
 
 ## Data and attribution
 
-The raw datasets are not in this repository. Each source's role, split sizes
-and exclusions are in
-[Models and data](docs/models-and-data.md#training-data-and-environments), and
-the [data workspace](data/README.md) lists what stays out of Git.
-
-| Model | Source | Terms |
+| Used for | Source | Terms |
 |---|---|---|
 | Letters | [ASL Alphabet](https://www.kaggle.com/datasets/grassknoted/asl-alphabet), Akash Nagaraj, 2018, [doi:10.34740/KAGGLE/DSV/29550](https://doi.org/10.34740/KAGGLE/DSV/29550) | GPL-2.0, as labelled by the provider |
-| Letters; the demo's hand poses | [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset), Ayush Thakur | CC0 1.0 |
-| Letters | A local `ASL_SemCom` image subset associated with [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) (1,580 of 54,961 landmark rows) | Not recorded; the images are not redistributed |
-| Words | [Google - Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs) competition data (Kaggle, 2023), provided by the Deaf Professional Arts Network and the Georgia Institute of Technology | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), subject to the competition rules |
+| Letters, demo poses | [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset), Ayush Thakur | CC0 1.0 |
+| Letters | `ASL_SemCom` images associated with [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) | Not recorded; not redistributed |
+| Words | [Google - Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs) (Kaggle, 2023), Deaf Professional Arts Network and Georgia Institute of Technology | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), subject to the competition rules |
 
-Changes made to the data: the letter images were reduced to MediaPipe hand
-landmarks and then to 93 engineered features; for words, 50 of the 250 signs
-were selected and each landmark sequence was resampled to 45 frames of 168
-features. The published models contain learned parameters only, not the
-images, recordings or landmark tables. The 24 Model Test letter samples are
-single 93-feature vectors from held-out landmark rows: 23 from ASL Alphabet and
-the K sample from the `ASL_SemCom` subset
-([details](docs/models-and-data.md#model-test-fixture-contract)). The camera-free
-demo's three hand poses, in `asl-web/data/demo-letters.json`, are the landmarks
-that the hand model the app runs (MediaPipe Hand Landmarker) finds in three
-American Sign Language Dataset photographs; the photographs are not included.
+Changes: the letter images were reduced to MediaPipe hand landmarks and 93 features; for words, 50 of the 250 signs were kept and each sequence resampled to 45 frames of 168 features. The models hold learned parameters only. The competition rules forbid redistributing the data (section 7.B), so the repository publishes no landmark data from it and its word sample is synthetic. The 24 Model Test letter samples are the 93 features of held-out rows, 23 from ASL Alphabet and the K sample from the `ASL_SemCom` images. The demo poses in `asl-web/data/demo-letters.json` are landmarks found in three American Sign Language Dataset photographs.
 
-The competition rules allow the data to be used for any purpose (section 7.A)
-but forbid redistributing it (section 7.B), and they prevail over its CC BY 4.0
-licence where the two conflict. This repository therefore publishes the trained
-word model and aggregate results, but no landmark data: the Model Test word
-samples exported from the competition stay local, and the published word
-sample is synthetic.
+| Component | Licence | Use |
+|---|---|---|
+| [MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe) and Google's landmarker models | Apache-2.0 | Loaded from jsDelivr and Google Cloud Storage |
+| [ONNX Runtime Web](https://github.com/microsoft/onnxruntime), [kjua](https://github.com/lrsjng/kjua) | MIT | Loaded from jsDelivr |
+| [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next) and [Mono](https://github.com/googlefonts/atkinson-hyperlegible-next-mono) | SIL OFL 1.1 | Subset, in `asl-web/assets/fonts/` with the licence |
+| [ASL alphabet chart](https://commons.wikimedia.org/wiki/File:Asl_alphabet_gallaudet.svg) by Ds13, from the Gallaudet font (© 1991 David Rakowski), vectorised by Marnanel | Public domain | Cropped as `asl-web/assets/signs/letters.png` |
 
-Third-party software:
-
-| Component | Version | Licence | How it is used |
-|---|---|---|---|
-| [MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe), with Google's hand, pose and face landmarker models | 0.10.18 | Apache-2.0 | Code from jsDelivr, models from Google Cloud Storage; not redistributed |
-| [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) | 1.22.0 | MIT | Loaded from jsDelivr, not redistributed |
-| [kjua](https://github.com/lrsjng/kjua) | 0.9.0 | MIT | Loaded from jsDelivr for the QR screen, not redistributed |
-| [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next) and [Atkinson Hyperlegible Mono](https://github.com/googlefonts/atkinson-hyperlegible-next-mono) | Not pinned | SIL Open Font License 1.1 | Redistributed, subset to Latin and Turkish, in `asl-web/assets/fonts/` with the licence |
-| [ASL alphabet chart](https://commons.wikimedia.org/wiki/File:Asl_alphabet_gallaudet.svg) by Ds13, from the Gallaudet font, vectorised by Marnanel | 2004 SVG, revised on Commons | Public domain, released by the author (the font itself is © 1991 David Rakowski) | Rendered and cropped to the 26 letters as `asl-web/assets/signs/letters.png`; the letter screen's reference |
-
-The sign video links in `asl-web/data/asl_video_links.json` point to
-third-party YouTube videos, which belong to their creators.
+The video links in `asl-web/data/asl_video_links.json` point to YouTube videos owned by their creators.

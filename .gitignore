@@ -97,7 +97,6 @@ node_modules/
 .cache/
 .parcel-cache/
 .vite/
-.netlify/
 playwright-report/
 test-results/
 blob-report/
@@ -145,7 +144,6 @@ blob-report/
 !/models/**/*.json
 !/models/**/README.md
 !/models/letter/letter_model.pkl
-!/models/letter/onnx_exports/letter_model_static_24_web_no_zipmap.onnx
 !/models/word/web-50/word_model.onnx
 !/models/word/web-50/word_model.pt
 !/models/word/desktop-25/word_model.pt

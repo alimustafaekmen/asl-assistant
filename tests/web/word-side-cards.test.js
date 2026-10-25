@@ -27,7 +27,7 @@ const WORDS = Object.keys(readJson("data/word_labels.json"));
  */
 function diskFetchWith(replaced) {
   return async (input) => {
-    const url = new URL(String(input), "https://asl-assistant.netlify.app/");
+    const url = new URL(String(input), "https://asl-assistant.pages.dev/");
     const name = url.pathname.split("/").at(-1);
     if (url.pathname.startsWith("/data/") && name in replaced) {
       const body = replaced[name];
@@ -48,7 +48,7 @@ async function bootedApp(replaced = {}) {
     boot: true,
     globals: {
       console: quietConsole,
-      location: new URL("https://asl-assistant.netlify.app/#word"),
+      location: new URL("https://asl-assistant.pages.dev/#word"),
       fetch: diskFetchWith(replaced),
     },
   });

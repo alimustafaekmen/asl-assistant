@@ -1,18 +1,10 @@
-// Browser runtime configuration and fixed domain lists.
-//
-// The web app uses classic scripts that share one global scope. This file must
-// load before any script that reads CONFIG, the label lists, or the reference
-// asset map. It performs no work at load time.
-//
-// Letter and word label order mirrors letter_labels.json and word_labels.json
-// and is part of the model contract; changing it silently breaks every
-// prediction.
+// Runtime configuration and label lists. Loads before every script that reads
+// them. Label order is part of the model contract (letter_labels.json,
+// word_labels.json): a wrong order still runs and predicts nonsense.
 
 /**
- * Thresholds and feature flags the browser runtime reads at call time.
- *
- * Letter and word thresholds are deliberately on different scales: the 50-class
- * word model produces low top-1 confidence even when it is right.
+ * Letter and word thresholds use different scales: the 50-class word model
+ * gives low top-1 confidence even when it is right.
  *
  * @typedef {Object} RuntimeConfig
  * @property {number} UNKNOWN_THRESHOLD Below this a letter result is uncertain.
@@ -51,8 +43,6 @@
  */
 
 /**
- * The three thresholds that apply to the active letter or word context.
- *
  * @typedef {Object} ThresholdSet
  * @property {number} unknown Below this the result is reported as uncertain.
  * @property {number} confident At or above this the result is reported as confident.
@@ -71,52 +61,43 @@
  * @property {string[]} wordPages The five readable word reference pages, in order.
  */
 
-// Where ONNX Runtime Web fetches its worker and WASM files. It must be the
-// directory of the ort.wasm.min.js that index.html loads, whose version is
-// pinned there with SRI: a JavaScript and WASM pair from two versions fails at
-// the first model load. Both model adapters read this one value.
+// Must be the directory of the ort.wasm.min.js that index.html pins with SRI:
+// a JavaScript and WASM pair from two versions fails at the first model load.
 /** @type {string} */
 const ORT_WASM_PATHS = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/";
 
+// The kjua QR encoder, fetched when the QR screen first draws. Pinned: a
+// version change needs a new integrity hash.
+const QR_LIBRARY_SCRIPT = Object.freeze({
+  src: "https://cdn.jsdelivr.net/npm/kjua@0.9.0/dist/kjua.min.js",
+  integrity: "sha384-ayVM0To8wzK2eG/sCNqF3XW4aHfJBsYEneUeObYWVZCnBZbscaz45eTQaxEowih9",
+});
+
 /** @type {RuntimeConfig} */
 const CONFIG = {
-  // Letter-mode thresholds for the 24-class static model.
   UNKNOWN_THRESHOLD: 0.45,
   CONFIDENT_THRESHOLD: 0.65,
   LETTER_THRESHOLD: 0.6,
-  // Word-mode thresholds are intentionally lower. The 50-class model often
-  // produces low top-1 confidence even for a correct prediction. A word too
-  // weak to accept must not read as likely anywhere, so the uncertain band
+  // A word too weak to accept must not read as likely, so the uncertain band
   // ends where acceptance begins: keep the first two equal.
   WORD_UNKNOWN_THRESHOLD: 0.15,
   WORD_CONFIDENT_THRESHOLD: 0.20,
   WORD_ACCEPT_THRESHOLD: 0.15,
-  // Temporal smoothing and display limits.
   SMOOTHING_ALPHA: 0.4,
   SMOOTHER_WINDOW: 5,
   TOP_K: 3,
   WORD_FRAME_COUNT: 45,
-  // The recording countdown shows three 720 ms steps. Despite its name, this
-  // value counts steps, not seconds.
+  // Counts 720 ms countdown steps, not seconds.
   COUNTDOWN_SECONDS: 3,
-  // A word recording that the camera cannot fill ends on its own instead of
-  // waiting at 0/45. A frame is usable only with hand, face and shoulders in
-  // view. The first usable frame gets longer than a later gap, because the
-  // hands come up after the countdown. The overall limit catches frames that
-  // trickle in just often enough to beat the gap. All three are starting
-  // values, to be tuned on real devices.
+  // A frame is usable only with hand, face and shoulders in view. The first
+  // frame gets longer because the hands come up after the countdown; the
+  // overall limit catches frames that trickle in just often enough.
   WORD_FIRST_FRAME_TIMEOUT_MS: 6000,
   WORD_NO_HAND_TIMEOUT_MS: 4000,
   WORD_MAX_RECORDING_MS: 15000,
-  // Coach letter scoring is a hold, not a button press. One second of a still
-  // handshape is about nine 120 ms inference ticks, and is what the hint "en
-  // az 1 saniye sabit" (hold still for at least a second) asks. Success means
-  // the plate would say "Emin" (confident), so the confidence stays equal to
-  // CONFIDENT_THRESHOLD. The grace is two ticks, so a single noisy frame does
-  // not reset a hold; the release separates two repetitions. The miss hint
-  // waits long enough not to nag while the hand is still forming, and the
-  // advance long enough to see the success and choose to stay. All are
-  // starting values, to be tuned on real devices.
+  // One second is about nine 120 ms inference ticks. The hold confidence equals
+  // CONFIDENT_THRESHOLD so success matches the "confident" plate; the grace of
+  // two ticks keeps one noisy frame from resetting a hold.
   COACH_HOLD_MS: 1000,
   COACH_HOLD_CONFIDENCE: 0.65,
   COACH_HOLD_GRACE_MS: 240,
@@ -124,35 +105,27 @@ const CONFIG = {
   COACH_MISS_MS: 1500,
   COACH_ADVANCE_MS: 2500,
   COACH_SESSION_SIZE: 10,
-  // MediaPipe normally reports handedness from the user's perspective. Enable
-  // this only on devices where left and right labels are consistently swapped.
+  // Enable only on devices that consistently report swapped labels.
   SELFIE_HANDEDNESS_SWAP: false,
-  // MediaPipe hand thresholds. These defaults are aligned with the Python
-  // preprocessing configuration; lower them only after testing the target camera.
+  // Aligned with the Python preprocessing configuration.
   HAND_DETECTION_CONFIDENCE: 0.5,
   HAND_PRESENCE_CONFIDENCE: 0.5,
   HAND_TRACKING_CONFIDENCE: 0.5,
-  // Minimum handedness score for letter inference. The legacy key remains as a
-  // compatibility fallback; set the values to 0 to disable this quality gate.
+  // HAND_HANDEDNESS_SCORE_MIN is a legacy fallback key; 0 disables the gate.
   LETTER_HANDEDNESS_SCORE_MIN: 0.5,
   HAND_HANDEDNESS_SCORE_MIN: 0.5,
-  // Letter-only EMA smoothing. It runs after handedness standardization and
-  // before normalization, then resets on mode changes, camera resets, or hand loss.
+  // Runs after handedness standardization and before normalization.
   LETTER_LANDMARK_SMOOTHING_ENABLED: true,
   LETTER_LANDMARK_SMOOTHING_ALPHA: 0.6,
-  // Letter motion is observable by default but does not gate predictions. When
-  // enabled, the gate skips frames whose mean absolute delta exceeds the limit.
+  // Motion is measured by default but gates predictions only when enabled.
   LETTER_MOTION_DEBUG_ENABLED: true,
   LETTER_MOTION_GATE_ENABLED: false,
   LETTER_MOTION_GATE_THRESHOLD: 0.08,
-  DEMO_PUBLIC_URL: "https://asl-assistant.netlify.app/",
+  DEMO_PUBLIC_URL: "https://asl-assistant.pages.dev/",
 };
 
 /**
- * Resolve thresholds for the active letter or word context.
- *
- * A multi-character coach target is a word context, so it follows the word
- * thresholds even though the mode is "coach".
+ * A multi-character coach target is a word context and uses word thresholds.
  *
  * @returns {ThresholdSet}
  */
@@ -171,8 +144,7 @@ function _thresholdsForMode() {
   };
 }
 
-// Static letter domain. The output order matches letter_labels.json; J and Z
-// require motion and are not classes in the published model.
+// J and Z need motion and are not classes in the published model.
 /** @type {string[]} */
 const LETTERS = [
   "A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M",
@@ -207,9 +179,8 @@ const HARD_WORDS = new Set([
   "fireman",
 ]);
 
-// The groups the word screen lists the 50 words under, in the order shown.
-// Each label of WORDS belongs to exactly one group. A title is read when the
-// list is drawn, in the page's language at that moment (js/i18n/word.js).
+// Each label of WORDS belongs to exactly one group, listed in display order.
+// Titles are read in the page's language when the list is drawn.
 /** @type {{title: string, words: string[]}[]} */
 const WORD_CATEGORIES = [
   {

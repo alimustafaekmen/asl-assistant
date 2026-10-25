@@ -3,7 +3,7 @@
 The parity scripts are the only check that the browser computes the letter
 and word features the models were trained on: the feature order, a mirrored
 hand, the shoulder normalisation. A fault there still produces a vector of
-the right length, so nothing else notices. make health trusts their exit
+the right length, so nothing else notices. make test trusts their exit
 codes, so a script forced to exit 0 would pass every gate with a perturbed
 feature in the browser code.
 

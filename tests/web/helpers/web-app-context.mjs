@@ -234,7 +234,7 @@ function historyFake(location) {
   };
 }
 
-const DEFAULT_PAGE_URL = "https://asl-assistant.netlify.app/";
+const DEFAULT_PAGE_URL = "https://asl-assistant.pages.dev/";
 
 /**
  * The browser's preferred languages when a test does not choose them.
@@ -449,7 +449,7 @@ function watchBootstrap(context, { boot, currentScript }) {
  *
  * `globals` replaces host APIs: the default boundary fakes (fetch from the
  * asl-web folder on disk, queued animation frames, Map-backed localStorage,
- * matchMedia, location and history on https://asl-assistant.netlify.app/), or
+ * matchMedia, location and history on https://asl-assistant.pages.dev/), or
  * ones the sandbox leaves out, such as the streams used to decompress a
  * download. They are in place before the first script runs.
  *

@@ -1,18 +1,9 @@
-// Reference gallery: sign images, video links, and the viewer dialog.
-//
-// Letter mode shows the alphabet chart. Word contexts show the five-page
-// split reference, because the combined poster is unreadable at screen size. In
-// coach mode the current target decides which of the two is shown. In word mode
-// a recognised word shows its own card: the page image cropped to the card's
-// rectangle from data/word_reference.json, so no extra image files are needed.
-//
-// Video links use the same JSON shape as the desktop prototype.
+// A word card is its page image cropped to the rectangle in
+// data/word_reference.json, so no extra image files are needed.
 
-// Both data files are optional, so a failed read is no error for the visitor,
-// but it is reported, naming the file: a deploy that broke one would otherwise
-// lose the published links or the word cards without a trace. Only the fetch
-// and the parse are guarded; what is built from the data, and the render that
-// follows, are not, so a bug there is not mistaken for a missing file.
+// Both data files are optional but a failed read is logged, so a broken deploy
+// leaves a trace. Only the fetch and parse are guarded, so a rendering bug is
+// not mistaken for a missing file.
 
 /**
  * @param {string} path
@@ -25,11 +16,9 @@ function warnReferenceData(path, fallback, reason) {
 }
 
 /**
- * Load the optional reference video links. A missing or unreadable file
- * leaves the generated search URL in place, so the video action always leads
- * somewhere.
+ * Without the file the video button falls back to a search URL.
  *
- * @returns {Promise<void>} Resolves whether or not the links were loaded.
+ * @returns {Promise<void>}
  */
 async function loadReferenceVideoLinks() {
   const path = "./data/asl_video_links.json";
@@ -55,10 +44,7 @@ async function loadReferenceVideoLinks() {
 }
 
 /**
- * Load where each word's card sits on the reference pages. Optional: without
- * it the word reference shows whole pages only.
- *
- * @returns {Promise<void>} Resolves whether or not the file was loaded.
+ * @returns {Promise<void>}
  */
 async function loadWordReference() {
   const path = "./data/word_reference.json";
@@ -106,18 +92,18 @@ async function loadWordReference() {
 }
 
 /**
- * @param {string} label A word label as the model names it.
- * @returns {WordCard | null} Its card, or null when the data is missing or
- *   does not know the word.
+ * @param {string} label As the model names it.
+ * @returns {WordCard | null}
  */
 function wordCard(label) {
   return wordReference?.cards.find((card) => card.label === label) ?? null;
 }
 
 /**
+ * An English page shows no gloss: the word itself is already English.
+ *
  * @param {WordCard} card
- * @returns {string} The Turkish gloss, empty until a signer has reviewed them.
- *   An English page shows none: the word itself is already English.
+ * @returns {string}
  */
 function wordGloss(card) {
   if (currentLanguage() !== "tr") return "";
@@ -125,8 +111,7 @@ function wordGloss(card) {
 }
 
 /**
- * Show text that is not a string of ours, such as a word, and stop a language
- * change from rewriting it.
+ * For text that is not one of our strings, so a language switch leaves it alone.
  *
  * @param {Element} element
  * @param {string} text
@@ -140,7 +125,7 @@ function setPlainText(element, text) {
 
 /**
  * @param {WordCard} card
- * @returns {string} The heading for a card: the word, with its gloss when shown.
+ * @returns {string}
  */
 function wordCardTitle(card) {
   const gloss = wordGloss(card);
@@ -148,14 +133,11 @@ function wordCardTitle(card) {
 }
 
 /**
- * Crop a page image to one card.
+ * Custom properties go through the CSS object model, which the CSP allows
+ * where an inline style attribute is not.
  *
- * The stylesheet scales and offsets the page inside the clipping frame from
- * these custom properties. They are set through the CSS object model, which
- * a content security policy allows where an inline style attribute is not.
- *
- * @param {HTMLElement} frame The clipping box.
- * @param {HTMLImageElement} image The page image inside it.
+ * @param {HTMLElement} frame
+ * @param {HTMLImageElement} image
  * @param {WordCard} card
  * @returns {void}
  */
@@ -169,28 +151,21 @@ function showWordCard(frame, image, card) {
   frame.style.setProperty("--ref-h", String(h));
   frame.style.setProperty("--ref-aspect", String((w * pageW) / (h * pageH)));
   const gloss = wordGloss(card);
-  // Drawn again on a language change, with the rest of the card.
   image.alt = t(gloss ? "word.reference.cardAltGloss" : "word.reference.cardAlt", { title: card.title, gloss });
   image.src = REFERENCE_ASSETS.wordPages[card.page - 1];
 }
 
 /**
- * What the reference panel shows now, so the open button opens the same.
- *
  * @type {{kind: "letter" | "page" | "card", index: number, label: string}}
  */
 let referenceView = { kind: "letter", index: 0, label: "" };
 
-/** The word whose card the panel last opened itself for. */
 let referenceCardShown = "";
 
-/** The page image waiting for the panel to open, so a closed panel loads nothing. */
+// Browsers fetch even a hidden image, so a word page waits for the panel to open.
 let referencePendingSrc = "";
 
 /**
- * Give the panel image its source once the panel is open. Browsers fetch even
- * a hidden image, so a word page is held back until it can be seen.
- *
  * @returns {void}
  */
 function applyReferencePendingSrc() {
@@ -200,11 +175,6 @@ function applyReferencePendingSrc() {
 }
 
 /**
- * Point the reference panel at the right material for the current mode.
- *
- * A recognised word shows its own card and opens the panel the first time
- * that word appears.
- *
  * @returns {void}
  */
 function updateReferenceForMode() {
@@ -237,7 +207,6 @@ function updateReferenceForMode() {
     const pageIndex = referenceView.kind === "page" ? referenceView.index : 0;
     const refAsset = isWordRef ? REFERENCE_ASSETS.wordPages[pageIndex] : REFERENCE_ASSETS.letter.src;
     if (isWordRef && els.referenceBody.hidden) {
-      // The panel is closed: hold the page back until it opens.
       referencePendingSrc = refAsset;
       els.referenceImage.removeAttribute("src");
     } else {
@@ -288,10 +257,7 @@ function updateReferenceForMode() {
 }
 
 /**
- * Build the page buttons for the split word reference.
- *
- * @param {boolean} isWordRef Whether whole pages are showing; letter mode and a
- *   word's own card hide the strip.
+ * @param {boolean} isWordRef
  * @returns {void}
  */
 function renderReferenceThumbnails(isWordRef) {
@@ -304,7 +270,6 @@ function renderReferenceThumbnails(isWordRef) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "reference-thumb";
-    // Found again by this hook, not by the class that styles them.
     button.dataset.ui = "reference-thumb";
     button.textContent = `${index + 1}`;
     setAttrText(button, "title", "word.reference.pageTitle", { n: index + 1 });
@@ -324,12 +289,9 @@ function renderReferenceThumbnails(isWordRef) {
 }
 
 /**
- * Resolve the video link for a target, falling back to a search URL.
- *
- * @param {string} mode Current app mode.
- * @param {string} target Letter or word; may be empty when nothing is selected.
- * @returns {string} A published link when one exists, otherwise a generated
- *   search URL.
+ * @param {string} mode
+ * @param {string} target May be empty.
+ * @returns {string}
  */
 function buildReferenceVideoUrl(mode, target) {
   const isWordTarget = mode === "word" || (mode === "coach" && target && target.length > 1);
@@ -348,8 +310,6 @@ function buildReferenceVideoUrl(mode, target) {
 }
 
 /**
- * Open or close the reference body, and keep its button in step.
- *
  * @param {boolean} open
  * @returns {void}
  */
@@ -365,21 +325,11 @@ function toggleReference() {
   setReferenceOpen(els.referenceBody.hidden);
 }
 
-// The viewer: a modal dialog over the letter chart, a word page, or one
-// word's card.
-
-/**
- * Zoom steps of the viewer, as fractions of the image's natural width. Zero
- * fits the image to the viewer, capped at a width that stays readable.
- */
+// Fractions of the image's natural width; zero fits it to the viewer.
 const VIEWER_ZOOM_LEVELS = [0, 0.5, 0.75, 1, 1.5, 2];
 
 /**
- * What the viewer shows now, and what to focus when it closes.
- *
- * `label` is the word a card or a card's page belongs to; it is empty for the
- * letter chart and for a page opened on its own. `opener` is the control that
- * opened the viewer, because focus goes back to it, not to the image.
+ * Focus returns to `opener` on close, not to the image.
  *
  * @type {{open: boolean, kind: "letter" | "page" | "card", index: number, label: string, zoom: number, opener: HTMLElement | null}}
  */
@@ -393,15 +343,16 @@ function viewerDialog() {
 }
 
 /**
- * @returns {boolean} True while the viewer is showing. Keys belong to it then.
+ * @returns {boolean}
  */
 function referenceViewerOpen() {
   return Boolean(viewerDialog()?.hasAttribute("open"));
 }
 
 /**
- * @returns {boolean} True from the countdown to the result: the viewer would
- *   cover the camera while the user is signing.
+ * The viewer would cover the camera while the user is signing.
+ *
+ * @returns {boolean}
  */
 function referenceViewerBlocked() {
   return (
@@ -410,8 +361,6 @@ function referenceViewerBlocked() {
 }
 
 /**
- * Keep the open button from offering a viewer that cannot open.
- *
  * @returns {void}
  */
 function syncReferenceOpener() {
@@ -420,11 +369,7 @@ function syncReferenceOpener() {
 }
 
 /**
- * Open the viewer on the letter chart, a word page, or one word's card.
- *
- * A modal dialog makes the rest of the page inert and keeps Tab inside.
- * A card request the card data cannot meet shows a page instead: the one
- * given, or the first.
+ * A card the data does not know falls back to a page.
  *
  * @param {{kind: "letter" | "page" | "card", index?: number, label?: string, opener?: HTMLElement | null}} request
  * @returns {void}
@@ -453,8 +398,6 @@ function openReferenceViewer({ kind, index = 0, label = "", opener = null }) {
 }
 
 /**
- * Close the viewer and give focus back to whatever opened it.
- *
  * @returns {void}
  */
 function closeReferenceViewer() {
@@ -468,8 +411,7 @@ function closeReferenceViewer() {
 }
 
 /**
- * Focus the control that opened the viewer, once per opening. If the page has
- * rebuilt that control since, the open button stands in for it.
+ * If the page has rebuilt the opener since, the open button stands in for it.
  *
  * @returns {void}
  */
@@ -483,9 +425,6 @@ function restoreViewerFocus() {
 }
 
 /**
- * Draw the viewer for viewerState: the image or the card, its title, and the
- * tools that apply to it. Only the image in use is given a source.
- *
  * @returns {void}
  */
 function renderViewer() {
@@ -543,8 +482,6 @@ function renderViewer() {
 }
 
 /**
- * Draw the viewer again if it is open; a closed viewer loads nothing.
- *
  * @returns {void}
  */
 function renderOpenViewer() {
@@ -552,8 +489,6 @@ function renderOpenViewer() {
 }
 
 /**
- * Show the zoom level, and stop the buttons at either end of the steps.
- *
  * @returns {void}
  */
 function renderViewerZoom() {
@@ -567,7 +502,7 @@ function renderViewerZoom() {
     body.dataset.zoom = level ? "set" : "fit";
   }
   if (readout) {
-    // The visible text stays inside the name; tapping it fits the image.
+    // The visible text stays inside the accessible name.
     if (level) {
       const percent = { n: Math.round(level * 100) };
       setText(readout, "word.percent", percent);
@@ -582,8 +517,6 @@ function renderViewerZoom() {
 }
 
 /**
- * Move the zoom one step, or to fit.
- *
  * @param {number} step 1 or -1; 0 returns to fit.
  * @returns {void}
  */
@@ -594,9 +527,7 @@ function stepViewerZoom(step) {
 }
 
 /**
- * Show the previous or next word card, or word page; both wrap around.
- *
- * @param {number} direction 1 for next, -1 for previous.
+ * @param {number} direction
  * @returns {void}
  */
 function stepViewer(direction) {
@@ -612,8 +543,6 @@ function stepViewer(direction) {
 }
 
 /**
- * Swap between a word's card and the whole page that holds it.
- *
  * @returns {void}
  */
 function toggleViewerCard() {
@@ -633,12 +562,8 @@ function toggleViewerCard() {
 }
 
 /**
- * Wire the panel's open controls and the viewer's own.
- *
- * Escape arrives as the dialog's cancel event and closes through
- * closeReferenceViewer(), so focus goes back. A click on the dialog itself,
- * not on its content, is a click on the backdrop. The keys act only while
- * focus is inside the dialog.
+ * Escape arrives as the dialog's cancel event and is routed through
+ * closeReferenceViewer() so focus goes back.
  *
  * @returns {void}
  */
@@ -646,7 +571,6 @@ function bindReferenceLightbox() {
   const dialog = viewerDialog();
   if (!dialog) return;
 
-  /** Open on whatever the panel shows; focus returns to the open button. */
   const openFromPanel = () => {
     openReferenceViewer({
       kind: referenceView.kind,
@@ -656,7 +580,6 @@ function bindReferenceLightbox() {
     });
   };
   document.getElementById("referenceOpen")?.addEventListener("click", openFromPanel);
-  // The image and the card are also pointer targets; keyboard users have the button.
   els.referenceImage?.addEventListener("click", openFromPanel);
   document.getElementById("referenceCard")?.addEventListener("click", openFromPanel);
 
@@ -669,7 +592,6 @@ function bindReferenceLightbox() {
   on("lightboxZoomOut", () => stepViewerZoom(-1));
   on("lightboxZoom", () => stepViewerZoom(0));
   on("lightboxMode", toggleViewerCard);
-  // The coach's target tile has its own button for the same view.
   document.getElementById("coachReference")?.addEventListener("click", (event) => {
     openReferenceViewer({
       kind: referenceView.kind,
@@ -683,8 +605,8 @@ function bindReferenceLightbox() {
     event.preventDefault();
     closeReferenceViewer();
   });
-  // A close the browser made on its own still returns focus.
   dialog.addEventListener("close", restoreViewerFocus);
+  // A click on the dialog itself, not its content, is on the backdrop.
   dialog.addEventListener("click", (event) => {
     if (event.target === dialog) closeReferenceViewer();
   });

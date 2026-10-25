@@ -1,11 +1,6 @@
-// Coach screen strings: the target tile, cues and hints, session bar, study cards and letter grid.
-//
-// The coach's sentences about a letter are built from these and from the
-// teaching data (data/letter_curriculum.json, data/letter_confusion.json),
-// which carries its cues and reasons in both languages. ui/coach.js also
-// fills the word screen's side cards, so their counts and labels are here.
-// What the coach draws from state is redrawn on a language change
-// (renderCoachLanguage).
+// Coach screen strings. The cues and reasons per letter are in the teaching
+// data, in both languages. The word screen's side cards are filled by
+// ui/coach.js, so their strings are here.
 
 registerStrings("coach", {
   tr: {
@@ -172,6 +167,5 @@ registerStrings("coach", {
   },
 });
 
-// renderCoachLanguage lives in ui/coach.js, which loads later, so it is
-// looked up when a change comes.
+// Looked up when called: ui/coach.js loads later.
 onLanguageChange((language, previous) => renderCoachLanguage(previous));

@@ -93,7 +93,7 @@ test("startup restores the saved theme and transcript and opens the route in the
     globals: {
       console: quietConsole,
       localStorage: storageWith({ "asl-theme": "dark", "asl-web-transcript": "MERHABA" }),
-      location: new URL("https://asl-assistant.netlify.app/#word"),
+      location: new URL("https://asl-assistant.pages.dev/#word"),
     },
   });
   await app.ready;
@@ -106,7 +106,7 @@ test("startup restores the saved theme and transcript and opens the route in the
 test("an unknown route in the address bar opens letter mode at startup", async () => {
   const app = loadWebApp({
     boot: true,
-    globals: { console: quietConsole, location: new URL("https://asl-assistant.netlify.app/#home") },
+    globals: { console: quietConsole, location: new URL("https://asl-assistant.pages.dev/#home") },
   });
   await app.ready;
 

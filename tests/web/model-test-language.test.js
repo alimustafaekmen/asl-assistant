@@ -191,7 +191,8 @@ test("local word samples keep their number and are marked local in English", asy
       },
     ],
   };
-  const app = loadWebApp({ languages: ENGLISH, globals: { console: quietConsole } });
+  // A development server: the only host the local folder can be served from.
+  const app = loadWebApp({ languages: ENGLISH, globals: { console: quietConsole, location: new URL("http://localhost:8080/") } });
   app.evaluate(FAKE_ORT_SOURCE);
   routeFetch(app, (path) => {
     if (path.includes("local/manifest.json")) return jsonResponse(local);

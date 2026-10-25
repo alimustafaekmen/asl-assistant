@@ -1,10 +1,7 @@
-/* Base: fonts, document defaults, focus, and the few element rules every
- * screen shares. Nothing here names a component.
- */
+/* Fonts, document defaults and focus. Nothing here names a component. */
 
-/* Self-hosted: the CSP allows fonts from this origin only, and a third-party
-   font host would learn about every visit. Both files are subset to Latin
-   plus the Turkish letters (ğ ı İ ş Ş) and keep the full weight axis. */
+/* Self-hosted: the CSP allows fonts from this origin only, and a font host
+   would learn about every visit. Subset to Latin plus ğ ı İ ş Ş. */
 @font-face {
   font-family: "Atkinson Hyperlegible Next";
   src: url("../assets/fonts/atkinson-hyperlegible-next.woff2") format("woff2");
@@ -38,10 +35,8 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* A page in a language other than the authored Turkish stays hidden until
-     js/core/i18n-boot.js has translated it, so the Turkish is never painted.
-     The animation is the fail-safe: if the translation never runs, the
-     Turkish page shows after 3 s rather than staying blank. Reduced motion
+  /* A non-Turkish page stays hidden until i18n-boot.js has translated it.
+     Fail-safe: if that never runs, the page shows after 3 s. Reduced motion
      shortens durations, not delays, so it fires there too. */
   html[data-i18n-pending] body {
     visibility: hidden;
@@ -54,19 +49,19 @@
     }
   }
 
-  /* One visible ring for every focusable thing, in both themes. Components on
-     the dark stage swap the colour, not the shape. */
+  /* Components on the dark stage swap the ring's colour, not its shape. */
   :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
     outline: 2px solid var(--color-focus);
     outline-offset: 2px;
   }
 
-  /* No element resets here: a later layer wins over the legacy layer whatever
-     the specificity, so a reset of p or h1 margins in this layer would undo
-     every margin the legacy layer still sets. Components reset their own parts. */
+  /* Components reset their own margins. */
+  * { box-sizing: border-box; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 0; -webkit-tap-highlight-color: transparent; }
+  img { display: block; max-width: 100%; height: auto; }
 
-  /* hidden must win over any component's display. Kept here, not only in the
-     legacy layer, so it survives that layer's removal. */
+  /* hidden must win over any component's display. */
   [hidden] { display: none !important; }
 
   @media (prefers-reduced-motion: reduce) {

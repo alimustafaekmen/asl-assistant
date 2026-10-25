@@ -47,7 +47,7 @@ class ArtifactContract:
     required: bool = True
 
 
-# Source-to-deploy pairs documented in ``docs/models-and-data.md``.
+# Source-to-deploy pairs: each published file and the copy it comes from.
 ARTIFACTS: tuple[ArtifactContract, ...] = (
     ArtifactContract(
         "word_model.onnx",
@@ -56,10 +56,13 @@ ARTIFACTS: tuple[ArtifactContract, ...] = (
         "model",
         1500,
     ),
+    # The ONNX export of models/letter/letter_model.pkl exists only here:
+    # check_letter_model_parity.py compares it with the pickle, and the .gz
+    # copy beside it must decompress to it.
     ArtifactContract(
         "letter_model.onnx",
         WEB_MODELS_DIR / "letter_model.onnx",
-        LETTER_MODEL_DIR / "onnx_exports" / "letter_model_static_24_web_no_zipmap.onnx",
+        None,
         "model",
         10000,
     ),
@@ -182,15 +185,15 @@ ALL_ARTIFACTS: tuple[ArtifactContract, ...] = (
     *GZIP_ARTIFACTS,
 )
 
-# What an upload of asl-web/ may contain. The site is deployed by dragging the
-# folder into the host's UI, which takes it as it is on disk, ignored files and
-# editor metadata included, so the deploy check holds the working tree to this
-# list rather than to what Git tracks.
+# What an upload of asl-web/ may contain. A folder uploaded by hand, as in a
+# host's dashboard, takes it as it is on disk, ignored files and editor
+# metadata included, so the deploy check holds the working tree to this list
+# rather than to what Git tracks.
 #
 # Each directory names the endings its files may have; a file is judged by the
 # deepest listed directory above it. An entry that starts with a dot is a
 # suffix, any other entry an exact file name.
-DEPLOY_ROOT_FILES: frozenset[str] = frozenset({"index.html", "favicon.ico", "_headers"})
+DEPLOY_ROOT_FILES: frozenset[str] = frozenset({"index.html", "404.html", "favicon.ico", "_headers"})
 DEPLOY_FILES_ANYWHERE: frozenset[str] = frozenset({"README.md"})
 DEPLOY_ALLOWED_ENDINGS: dict[str, tuple[str, ...]] = {
     "js": (".js",),

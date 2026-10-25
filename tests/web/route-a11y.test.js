@@ -39,7 +39,7 @@ const TITLES = {
  * recorded; start() runs the page's own init().
  */
 function pageOn(hash = "") {
-  const location = new URL(`https://asl-assistant.netlify.app/${hash}`);
+  const location = new URL(`https://asl-assistant.pages.dev/${hash}`);
   const history = {
     replaceState(_state, _title, url) {
       if (url !== undefined && url !== null) location.href = new URL(String(url), location.href).href;

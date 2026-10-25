@@ -140,7 +140,7 @@ export async function coachApp(options = {}) {
     FaceLandmarker: { createFromOptions: async () => emptyTask(true) },
   };
 
-  const location = new URL(`https://asl-assistant.netlify.app/${options.hash ?? "#coach"}`);
+  const location = new URL(`https://asl-assistant.pages.dev/${options.hash ?? "#coach"}`);
   const app = loadWebApp({
     boot: true,
     globals: {

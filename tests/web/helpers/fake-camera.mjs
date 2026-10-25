@@ -168,7 +168,7 @@ export function appWithFakeCamera(options = {}) {
       // Switching screens writes the address bar, and the QR screen draws its
       // link with the kjua CDN script.
       URL,
-      location: new URL("https://asl-assistant.netlify.app/#letter"),
+      location: new URL("https://asl-assistant.pages.dev/#letter"),
       history: { replaceState() {} },
       kjua: () => ({}),
       __importVision() {

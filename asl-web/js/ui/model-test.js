@@ -1,56 +1,41 @@
-// Model Test screen: run the published ONNX models against offline fixtures,
-// which shows the models working without a camera.
-//
-// A fixture comes from the bundled manifest, a URL, the file picker, or a
-// drop, and is validated, run through the matching model, and reported
-// against its expected label.
-//
 // Validation is the only guard between hand-written JSON and an ONNX session,
-// so it enforces the published model contract: 93 features for a letter;
-// 45 x 168 features plus a 45-entry mask for a word, where true marks a real
-// frame and false marks padding.
+// so it enforces the model contract: 93 letter features; 45 x 168 word
+// features and a 45-entry mask where true marks a real frame.
 
 /**
- * One entry of the bundled fixture manifest. The fields come straight from
- * JSON, so every one is optional.
+ * Straight from JSON, so every field is optional.
  *
  * @typedef {Object} ModelTestManifestItem
  * @property {string} [id]
  * @property {string} [label]
  * @property {string} [title]
- * @property {string} [path] Fixture path relative to asl-web/.
+ * @property {string} [path] Relative to asl-web/.
  * @property {string} [expected_label]
- * @property {number | string} [confidence] Expected confidence, as published.
- * @property {string} [kind] "deterministic-smoke" marks a made-up input that
- *   proves the pipeline runs and says nothing about accuracy.
+ * @property {number | string} [confidence]
+ * @property {string} [kind] "deterministic-smoke": a made-up input that says
+ *   nothing about accuracy.
  */
 
-/**
- * Fixtures under this path are exported from the competition data, which may
- * not be redistributed: the folder is git-ignored and must not be deployed.
- */
+// Exported from competition data that may not be redistributed: git-ignored
+// and never deployed.
 const MODEL_TEST_LOCAL_PATH = "./data/model-test-samples/local/";
-/** The manifest kind of a sample that is made up, not recorded. */
 const MODEL_TEST_SYNTHETIC_KIND = "deterministic-smoke";
 
 /**
  * @param {ModelTestManifestItem} item
- * @returns {boolean} True for a sample that exists only on this computer.
+ * @returns {boolean}
  */
 function isLocalModelTestItem(item) {
   return typeof item.path === "string" && item.path.startsWith(MODEL_TEST_LOCAL_PATH);
 }
 
 /**
- * The name a manifest sample is shown by.
- *
- * The manifest titles its samples in Turkish ("Harf A", "Kelime give #3"),
- * so a Turkish page shows the title and an English page names the sample
- * from its label, keeping a title's sample number.
+ * The manifest titles are Turkish ("Kelime give #3"), so an English page
+ * names the sample from its label.
  *
  * @param {ModelTestManifestItem} item
- * @param {ModelTask} task The model the sample is for.
- * @returns {string} Empty when the item has no title, label or id.
+ * @param {ModelTask} task
+ * @returns {string}
  */
 function modelTestItemTitle(item, task) {
   const title = item.title || item.label || item.id || "";
@@ -67,16 +52,13 @@ function modelTestItemTitle(item, task) {
 }
 
 /**
- * A manifest sample as its dropdown option reads.
- *
  * @param {ModelTestManifestItem} item
  * @param {ModelTask} task
  * @returns {string}
  */
 function modelTestOptionText(item, task) {
   const title = modelTestItemTitle(item, task);
-  // A made-up sample's expected confidence is the model's old answer to
-  // random numbers, so it is not shown as something to expect.
+  // A made-up sample's confidence is the model's answer to random numbers.
   if (!Number.isFinite(Number(item.confidence)) || item.kind === MODEL_TEST_SYNTHETIC_KIND) return title;
   return t("info.test.option.expected", {
     title,
@@ -85,9 +67,7 @@ function modelTestOptionText(item, task) {
 }
 
 /**
- * Show text the panel made rather than a string, such as a label or a file
- * name. The element stops naming a string, so a language change does not
- * write one back over the text.
+ * For text that is not one of our strings, so a language switch leaves it alone.
  *
  * @param {HTMLElement | null | undefined} element
  * @param {string} text
@@ -100,36 +80,18 @@ function setModelTestPlainText(element, text) {
   element.textContent = text;
 }
 
-/**
- * Where the loaded sample came from, kept so a language change can name it
- * again: `name` gives its name in the current language, and `ownSource`
- * says whether the fixture states a source of its own. Null before a
- * sample loads.
- *
- * @type {{name: () => string, ownSource: boolean} | null}
- */
+// Kept so a language switch can write them again.
+
+/** @type {{name: () => string, ownSource: boolean} | null} */
 let _modelTestSource = null;
 
-/**
- * The text of the result note, kept so a language change can write it
- * again. Null while the note shows its authored string.
- *
- * @type {(() => string) | null}
- */
+/** @type {(() => string) | null} */
 let _modelTestNote = null;
 
-/**
- * The answer on screen, kept so a language change can write its figures
- * again; null while none is shown.
- *
- * @type {{confidence: number, alternatives: PredictionCandidate[]} | null}
- */
+/** @type {{confidence: number, alternatives: PredictionCandidate[]} | null} */
 let _modelTestAnswer = null;
 
-/**
- * The failure of each batch row that failed, kept so a language change can
- * explain it again. @type {WeakMap<ModelTestBatchRow, unknown>}
- */
+/** @type {WeakMap<ModelTestBatchRow, unknown>} */
 const _modelTestRowErrors = new WeakMap();
 
 /**
@@ -139,135 +101,108 @@ const _modelTestRowErrors = new WeakMap();
  */
 
 /**
- * Fields both validated fixture kinds carry.
- *
  * @typedef {Object} ModelTestSampleMeta
  * @property {string} sampleId
- * @property {string} expectedLabel Empty string when the fixture has no reference.
+ * @property {string} expectedLabel Empty when the fixture has no reference.
  * @property {number} expectedConfidence NaN when the fixture declares none.
- * @property {unknown} expectedTop3 Carried through unvalidated; not read back.
+ * @property {unknown} expectedTop3 Carried through unvalidated.
  * @property {string} schemaVersion
  * @property {string} source
- * @property {string} shapeLabel Human-readable input shape.
- * @property {string} maskLabel Human-readable mask summary, in the language
- *   the sample was loaded in.
- * @property {boolean} synthetic Made up to prove the pipeline runs: shown as a
- *   check, never scored against its expected label.
+ * @property {string} shapeLabel
+ * @property {string} maskLabel
+ * @property {boolean} synthetic Never scored against its expected label.
  */
 
 /**
- * A letter fixture whose feature count normalizeModelTestSample() has checked.
- *
  * @typedef {ModelTestSampleMeta & {task: "letter", features: LetterFeatures93, mask: null}} LetterModelTestSample
  */
 
 /**
- * A validated word fixture, with its features flattened and its mask checked.
- *
  * @typedef {ModelTestSampleMeta & {task: "word", features: WordFeatures45x168, mask: WordMask45}} WordModelTestSample
  */
 
 /**
- * A fixture that passed validation. The task field discriminates the union:
- * a word sample always has a mask and a letter sample never does.
- *
  * @typedef {LetterModelTestSample | WordModelTestSample} ModelTestSample
  */
 
 /**
- * What was wrong with a fixture. The validator's messages stay technical, for
- * tests and the console; the panel maps the code to a plain sentence.
+ * The validator's messages stay technical; the panel maps the code to a
+ * plain sentence.
  *
  * @typedef {"unreadable" | "bad-json" | "not-object" | "no-features" | "letter-length" |
  *   "word-length" | "mask-length" | "mask-value" | "not-number" | "mask-empty"} ModelTestErrorCode
  */
 
 /**
- * The error a fixture that cannot be used throws.
- *
  * @typedef {Error & {code: ModelTestErrorCode, count?: number}} ModelTestFixtureError
  */
 
 /**
- * One sample's line in a batch run.
- *
  * @typedef {Object} ModelTestBatchRow
- * @property {string} id The manifest id.
+ * @property {string} id
  * @property {string} title
- * @property {string} expected The reference label; "" when the sample has none.
- * @property {string} predicted What the model answered; "" when the row failed.
+ * @property {string} expected
+ * @property {string} predicted
  * @property {"correct" | "wrong" | "no-reference" | "error"} verdict
  * @property {number} confidence NaN when the row failed.
  * @property {number} ms Inference time alone; NaN when the row failed.
- * @property {string} error What went wrong, as first shown; "" unless the row failed.
- * @property {boolean} local From the unpublished local fixtures.
- * @property {boolean} synthetic Made up to prove the pipeline runs; it measures nothing.
+ * @property {string} error
+ * @property {boolean} local
+ * @property {boolean} synthetic
  */
 
 /**
- * What a finished batch adds up to. Only samples that have a reference count
- * towards accuracy, and a failed one counts as not correct.
+ * Only samples with a reference count towards accuracy; a failed one counts
+ * as not correct.
  *
  * @typedef {Object} ModelTestBatchSummary
- * @property {number} total Samples run, failed ones included.
- * @property {number} counted Samples that count towards accuracy.
+ * @property {number} total
+ * @property {number} counted
  * @property {number} correct
- * @property {number | null} accuracy correct / counted; null when nothing counted.
- * @property {number | null} medianMs Median inference time; null when no inference ran.
- * @property {number | null} prepMs Time to prepare the model, once; null when it was ready.
- * @property {number} failed Samples whose row is an error.
- * @property {boolean} synthetic Whether any sample was made up. Those run but do not count.
- * @property {boolean} hasLocal Whether any sample is local-only.
+ * @property {number | null} accuracy
+ * @property {number | null} medianMs
+ * @property {number | null} prepMs Null when the model was already ready.
+ * @property {number} failed
+ * @property {boolean} synthetic
+ * @property {boolean} hasLocal
  */
 
 /**
- * A batch run over every sample of one kind, as the panel shows it.
- *
  * @typedef {Object} ModelTestBatch
  * @property {ModelTask} task
  * @property {"preparing" | "running" | "done" | "error"} status
- * @property {number} total Samples the run will go through.
- * @property {ModelTestBatchRow[]} rows Finished rows, in manifest order.
- * @property {ModelTestBatchSummary | null} summary Set when the run is done.
- * @property {string} error What went wrong, as first shown; "" unless the run could not start.
+ * @property {number} total
+ * @property {ModelTestBatchRow[]} rows In manifest order.
+ * @property {ModelTestBatchSummary | null} summary
+ * @property {string} error
  */
 
 /**
- * How far a fixture has got through the panel's four process steps. "error"
- * clears them all rather than marking a step.
- *
  * @typedef {"idle" | "loading" | "validated" | "running" | "done" | "error"} ModelTestProcessStatus
  */
 
 /**
- * Switch the panel between the letter and word models.
- *
- * @param {string} task Anything other than "word" selects the letter model.
+ * @param {string} task
  * @returns {void}
  */
 function setModelTestTask(task) {
   const next = task === "word" ? "word" : "letter";
-  // Results belong to the samples they were run on, so another kind has none.
   if (next !== state.modelTestTask) resetModelTestBatch();
   state.modelTestTask = next;
   queryElements("[data-model-test-task]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.modelTestTask === state.modelTestTask);
   });
-  // The ranked list is styled for the model's labels: words need more room.
   if (els.modelTestTop3List) els.modelTestTop3List.dataset.task = next;
   renderModelTestSampleOptions();
   updateModelTestDomainHelp();
 }
 
-/** The published manifest's load, shared by every caller; null before it starts. @type {Promise<void> | null} */
+/** @type {Promise<void> | null} */
 let _modelTestManifestLoad = null;
-/** The local fixtures' load, started when Model Test opens; null before. @type {Promise<void> | null} */
+/** @type {Promise<void> | null} */
 let _localModelTestFixturesLoad = null;
 
 /**
- * Load every fixture the panel can offer: the published manifest, then any
- * local word fixtures.
- *
  * @returns {Promise<void>} Never rejects.
  */
 async function loadModelTestManifest() {
@@ -276,11 +211,7 @@ async function loadModelTestManifest() {
 }
 
 /**
- * Load the bundled fixture manifest, once.
- *
- * init() starts this after the route and the render loop, so a slow answer
- * delays nothing on screen. A missing or unreadable manifest falls back to
- * one built-in fixture per task, so the demo screen still works offline.
+ * Without the manifest the screen falls back to one built-in fixture per task.
  *
  * @returns {Promise<void>} Never rejects.
  */
@@ -320,11 +251,7 @@ function loadPublishedModelTestManifest() {
 }
 
 /**
- * Add the local word fixtures to the panel, once, when Model Test opens.
- *
- * The local folder exists only on a machine the fixtures were exported to,
- * so anywhere else the request is a 404; it is made on this screen only, not
- * on every page load.
+ * Asked for on this screen only: anywhere but the exporting machine it is a 404.
  *
  * @returns {Promise<void>} Never rejects.
  */
@@ -340,13 +267,22 @@ function loadLocalModelTestFixtures() {
 }
 
 /**
- * Add the word fixtures of the local manifest, when there is one. A clone has
- * no local folder, and its absence is not an error.
+ * The only place the git-ignored local folder can be served from.
  *
- * @param {ModelTestManifest} manifest Published manifest, extended in place.
+ * @returns {boolean}
+ */
+function isLocalDevelopmentHost() {
+  return ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+}
+
+/**
+ * A clone has no local folder, and its absence is not an error.
+ *
+ * @param {ModelTestManifest} manifest Extended in place.
  * @returns {Promise<void>}
  */
 async function appendLocalWordFixtures(manifest) {
+  if (!isLocalDevelopmentHost()) return;
   /** @type {ModelTestManifest | undefined} */
   let local;
   try {
@@ -364,8 +300,8 @@ async function appendLocalWordFixtures(manifest) {
 }
 
 /**
- * @param {ModelTask} [task] Defaults to the task the panel is showing.
- * @returns {ModelTestManifestItem[]} Empty when the manifest has no entries.
+ * @param {ModelTask} [task]
+ * @returns {ModelTestManifestItem[]}
  */
 function getModelTestManifestItems(task = state.modelTestTask) {
   const manifest = state.modelTestManifest || {};
@@ -373,10 +309,8 @@ function getModelTestManifestItems(task = state.modelTestTask) {
 }
 
 /**
- * Rebuild the fixture dropdown for the active task.
- *
- * For words the first preferred fixture in the manifest is selected, so the
- * demo does not open on a weak case.
+ * For words a preferred fixture is selected, so the demo does not open on a
+ * weak case.
  *
  * @returns {void}
  */
@@ -414,8 +348,7 @@ function renderModelTestSampleOptions() {
 }
 
 /**
- * Write the dropdown's options in the current language, keeping the one
- * the visitor selected.
+ * Renames in place, so the visitor's selection is kept.
  *
  * @returns {void}
  */
@@ -432,11 +365,8 @@ function renameModelTestSampleOptions() {
 }
 
 /**
- * Load the best available demo fixture for a task.
- *
- * @param {string} task Anything other than "word" selects the letter model.
- * @returns {Promise<void>} Resolves after reporting an error when no fixture
- *   is available.
+ * @param {string} task
+ * @returns {Promise<void>}
  */
 async function loadPreferredModelTestSample(task) {
   const normalizedTask = task === "word" ? "word" : "letter";
@@ -457,11 +387,9 @@ async function loadPreferredModelTestSample(task) {
 }
 
 /**
- * Load the preferred fixture for a task and run it. The run is skipped when
- * the loaded fixture is for another task, so a failed load cannot run the
- * previous sample.
+ * A failed load cannot run the previous sample: the task must match.
  *
- * @param {string} task Anything other than "word" selects the letter model.
+ * @param {string} task
  * @returns {Promise<void>}
  */
 async function loadAndRunPreferredModelTestSample(task) {
@@ -473,15 +401,12 @@ async function loadAndRunPreferredModelTestSample(task) {
 }
 
 /**
- * Describe the selected model, and the run-all button that runs it.
- *
  * @returns {void}
  */
 function updateModelTestDomainHelp() {
   const isWord = state.modelTestTask === "word";
   setText(els.modelTestDomainHelp, isWord ? "info.test.help.word" : "info.test.help.letter");
-  // Run-all runs the selected model, so the line under it names that model,
-  // and it promises a count only when some sample is a real recording.
+  // Promise a count only when some sample is a real recording.
   const countable = getModelTestManifestItems().some((item) => item.kind !== MODEL_TEST_SYNTHETIC_KIND);
   setText(
     els.modelTestBatchHint,
@@ -505,14 +430,10 @@ async function loadSelectedModelTestSample() {
 }
 
 /**
- * Fetch and validate a fixture from a URL.
- *
- * @param {string} url Fixture path relative to asl-web/.
- * @param {string | (() => string)} [displayName] The sample's name, or what
- *   gives it in the current language; falls back to the URL.
- * @param {string} [kind] The manifest's kind for the fixture, if it has one.
- * @returns {Promise<void>} Resolves after reporting a fetch or validation
- *   failure to the user.
+ * @param {string} url Relative to asl-web/.
+ * @param {string | (() => string)} [displayName]
+ * @param {string} [kind]
+ * @returns {Promise<void>}
  */
 async function loadModelTestSampleFromUrl(url, displayName, kind) {
   const name = typeof displayName === "function" ? displayName : () => displayName || url;
@@ -527,23 +448,17 @@ async function loadModelTestSampleFromUrl(url, displayName, kind) {
 }
 
 /**
- * Fetch a fixture's JSON, not yet validated.
- *
- * @param {string} url Fixture path relative to asl-web/.
- * @param {() => string} [name] Gives the sample's name for the message when
- *   the fetch fails.
- * @returns {Promise<unknown>}
- * @throws {Error} A ModelTestVisitorError when the request fails or is
- *   refused, or a fixture error with code "bad-json" when the body is not JSON.
+ * @param {string} url Relative to asl-web/.
+ * @param {() => string} [name]
+ * @returns {Promise<unknown>} Not yet validated.
+ * @throws {Error}
  */
 async function fetchModelTestJson(url, name = () => url) {
   let res;
   try {
     res = await fetch(url, { cache: "no-store" });
   } catch (cause) {
-    // fetch rejects only when no response arrived at all: offline, a dropped
-    // connection, a blocked request. Its own text ("Failed to fetch") is for
-    // the console.
+    // No response at all; fetch's own text ("Failed to fetch") is for the console.
     throw modelTestVisitorError(() => t("info.test.error.connection"), `${url}: ${errorMessage(cause)}`);
   }
   const status = res.status;
@@ -556,8 +471,7 @@ async function fetchModelTestJson(url, name = () => url) {
 }
 
 /**
- * @param {Event & {target: HTMLInputElement}} event Change event from the
- *   fixture file input.
+ * @param {Event & {target: HTMLInputElement}} event
  * @returns {Promise<void>}
  */
 async function handleModelTestSampleFile(event) {
@@ -567,7 +481,7 @@ async function handleModelTestSampleFile(event) {
 }
 
 /**
- * @param {DragEvent} event A drop on the fixture drop zone.
+ * @param {DragEvent} event
  * @returns {Promise<void>}
  */
 async function handleModelTestSampleDrop(event) {
@@ -579,11 +493,8 @@ async function handleModelTestSampleDrop(event) {
 }
 
 /**
- * Read and validate a fixture from a local file.
- *
  * @param {File} file
- * @returns {Promise<void>} Resolves after reporting a parse or validation
- *   failure to the user.
+ * @returns {Promise<void>}
  */
 async function readModelTestSampleFile(file) {
   try {
@@ -603,11 +514,9 @@ async function readModelTestSampleFile(file) {
 }
 
 /**
- * Parse fixture text, reporting a failure as "bad-json".
- *
  * @param {string} text
  * @returns {unknown}
- * @throws {ModelTestFixtureError} With code "bad-json" when the text is not JSON.
+ * @throws {ModelTestFixtureError}
  */
 function parseModelTestJson(text) {
   try {
@@ -618,19 +527,17 @@ function parseModelTestJson(text) {
 }
 
 /**
- * @param {unknown} err Anything a catch clause receives.
- * @returns {string} The error's message, or its text form.
+ * @param {unknown} err
+ * @returns {string}
  */
 function errorMessage(err) {
   return err instanceof Error ? err.message : String(err);
 }
 
 /**
- * Build the error an unusable fixture throws.
- *
  * @param {ModelTestErrorCode} code
- * @param {string} message Technical text, kept for tests and the console.
- * @param {number} [count] The size found, for the codes that report one.
+ * @param {string} message Technical, for tests and the console.
+ * @param {number} [count] The size found.
  * @returns {ModelTestFixtureError}
  */
 function modelTestFixtureError(code, message, count) {
@@ -642,31 +549,25 @@ function modelTestFixtureError(code, message, count) {
  * @returns {err is ModelTestFixtureError}
  */
 function isModelTestFixtureError(err) {
-  // Testing the code against the union's members makes the predicate true for
-  // every error modelTestFixtureError() builds, and for nothing else.
   return err instanceof Error && "code" in err && typeof err.code === "string" && MODEL_TEST_ERROR_CODES.has(err.code);
 }
 
-/** Every code a fixture error can carry; keep in step with ModelTestErrorCode. @type {ReadonlySet<string>} */
+/** Keep in step with ModelTestErrorCode. @type {ReadonlySet<string>} */
 const MODEL_TEST_ERROR_CODES = new Set([
   "unreadable", "bad-json", "not-object", "no-features", "letter-length",
   "word-length", "mask-length", "mask-value", "not-number", "mask-empty",
 ]);
 
 /**
- * An error the panel raised itself, carrying a plain sentence for the
- * visitor: a model that did not load, a sample that could not be fetched.
- * The sentence is given in the current language each time it is asked for,
- * so a failure on screen follows a language change. Its message may stay
- * technical, for the console.
+ * visitorText is a function so a failure on screen follows a language switch;
+ * the message may stay technical, for the console.
  *
  * @typedef {Error & {visitorText: () => string}} ModelTestVisitorError
  */
 
 /**
- * @param {() => string} visitorText Gives what the panel shows.
- * @param {string} [message] What the console shows; defaults to the text
- *   shown when the error was raised.
+ * @param {() => string} visitorText
+ * @param {string} [message]
  * @returns {ModelTestVisitorError}
  */
 function modelTestVisitorError(visitorText, message = visitorText()) {
@@ -682,13 +583,8 @@ function isModelTestVisitorError(err) {
 }
 
 /**
- * Say what went wrong in words a visitor can act on.
- *
- * A fixture error is explained from its code, and an error the panel raised
- * carries its own sentence. Anything else (a runtime error, a bug) is never
- * shown as it is: its text is technical, so the visitor gets a plain message
- * and the caller logs the error itself. The sentence is in the current
- * language.
+ * Any other error (a runtime error, a bug) is never shown as it is; the
+ * caller logs it.
  *
  * @param {unknown} err
  * @returns {string}
@@ -721,21 +617,17 @@ function describeModelTestError(err) {
 }
 
 /**
- * Validate a fixture and show its metadata.
- *
- * @param {unknown} rawSample Parsed JSON, not yet trusted.
- * @param {() => string} sourceName Gives where it came from, for the status
- *   line, in the current language.
- * @param {string} [kind] The manifest's kind for the fixture, if it has one.
+ * @param {unknown} rawSample Not yet trusted.
+ * @param {() => string} sourceName
+ * @param {string} [kind]
  * @returns {void}
- * @throws {Error} When validation rejects the fixture; callers report the
- *   message to the user.
+ * @throws {Error}
  */
 function setModelTestSample(rawSample, sourceName, kind) {
   const sample = normalizeModelTestSample(rawSample, sourceName(), kind);
   state.modelTestSample = sample;
   _modelTestSource = { name: sourceName, ownSource: isRecord(rawSample) && Boolean(rawSample.source || rawSample.dataset) };
-  // A run still waiting for its model belongs to the sample it started with.
+  // A run still waiting for its model belongs to the previous sample.
   _modelTestSampleEpoch += 1;
   setModelTestTask(sample.task);
   updateModelTestProcess("validated");
@@ -765,8 +657,6 @@ function setModelTestSample(rawSample, sourceName, kind) {
 }
 
 /**
- * Name the loaded sample and its source in the current language.
- *
  * @returns {void}
  */
 function drawModelTestSource() {
@@ -781,9 +671,7 @@ function drawModelTestSource() {
 }
 
 /**
- * Write the result note, and keep what gives it for a language change.
- *
- * @param {() => string} text Gives the note in the current language.
+ * @param {() => string} text
  * @returns {void}
  */
 function setModelTestNote(text) {
@@ -792,18 +680,13 @@ function setModelTestNote(text) {
 }
 
 /**
- * Turn unvalidated JSON from a URL, the file picker, or a drop into a fixture
- * that is safe to feed a model.
- *
- * The task comes from the task field, or from the presence of a mask; then
- * the published shapes are enforced: 93 features for a letter, 45 x 168
- * features and a 45-entry mask for a word.
+ * The task comes from the task field, or from the presence of a mask.
  *
  * @param {unknown} rawSample
- * @param {string} [sourceName] Fallback source label.
- * @param {string} [kind] The manifest's kind; a fixture may also carry its own.
- * @returns {ModelTestSample} A validated, discriminated fixture.
- * @throws {Error} With a Turkish message naming what was wrong.
+ * @param {string} [sourceName]
+ * @param {string} [kind]
+ * @returns {ModelTestSample}
+ * @throws {Error}
  */
 function normalizeModelTestSample(rawSample, sourceName, kind) {
   if (!isRecord(rawSample)) {
@@ -840,8 +723,7 @@ function normalizeModelTestSample(rawSample, sourceName, kind) {
       throw modelTestFixtureError("mask-length", `Kelime fixture mask[45] bekler, ${mask.length} geldi`, mask.length);
     }
     const realFrames = mask.filter(Boolean).length;
-    // With no real frame the word model would still answer, with a word and a
-    // confidence that mean nothing.
+    // With no real frame the model would still answer, meaninglessly.
     if (realFrames === 0) {
       throw modelTestFixtureError("mask-empty", "Kelime fixture mask içinde gerçek frame yok");
     }
@@ -883,13 +765,13 @@ function normalizeModelTestSample(rawSample, sourceName, kind) {
 }
 
 /**
- * Flatten a nested numeric array in row order, so a word fixture published
- * flat and one published as 45 frames of 168 values give the same input.
+ * Row order, so a flat word fixture and one as 45 frames of 168 give the same
+ * input.
  *
  * @param {unknown[]} value
- * @param {string} fieldName Field name used in the error message.
+ * @param {string} fieldName
  * @returns {number[]}
- * @throws {Error} When any leaf is not a finite number.
+ * @throws {Error}
  */
 function flattenNumericArray(value, fieldName) {
   const out = [];
@@ -910,14 +792,12 @@ function flattenNumericArray(value, fieldName) {
 }
 
 /**
- * Read a padding mask in any of its published spellings: booleans, 0/1, and
- * their string forms, because fixtures have been exported from several tools.
- * True means a real frame.
+ * Fixtures come from several tools, so booleans, 0/1 and their string forms
+ * are all accepted.
  *
  * @param {unknown} value
- * @returns {WordMask45} The length is checked by the caller.
- * @throws {Error} When the value is not an array, or an entry is not a
- *   recognised boolean spelling.
+ * @returns {WordMask45} The caller checks the length.
+ * @throws {Error}
  */
 function normalizeMask(value) {
   if (!Array.isArray(value)) {
@@ -937,28 +817,18 @@ function normalizeMask(value) {
   });
 }
 
-/**
- * Counts the samples loaded so far. A run that finishes at a different count
- * than it started at belongs to a sample no longer on screen.
- */
+// A run that finishes at another epoch belongs to a sample no longer on screen.
 let _modelTestSampleEpoch = 0;
 
 /**
- * The run in flight for the sample on screen, so a second press joins it
- * instead of running the sample again. @type {{epoch: number, done: Promise<void>} | null}
+ * A second press joins the run in flight. @type {{epoch: number, done: Promise<void>} | null}
  */
 let _modelTestRun = null;
 
 /**
- * Run the loaded fixture against its model.
+ * The model download is kept out of the measured time.
  *
- * The model loads here if nothing has loaded it yet; the download is kept
- * out of the measured time, which is inference alone.
- *
- * Pressing Run during the sample's run joins it. A run whose sample was
- * replaced while it waited reports nothing.
- *
- * @returns {Promise<void>} Resolves after reporting a failure to the user.
+ * @returns {Promise<void>}
  */
 function runModelTestSample() {
   if (_modelTestRun && _modelTestRun.epoch === _modelTestSampleEpoch) return _modelTestRun.done;
@@ -971,7 +841,7 @@ function runModelTestSample() {
 }
 
 /**
- * @param {number} epoch The sample count the run was started at.
+ * @param {number} epoch
  * @returns {Promise<void>}
  */
 async function executeModelTestRun(epoch) {
@@ -984,7 +854,6 @@ async function executeModelTestRun(epoch) {
   const stale = () => epoch !== _modelTestSampleEpoch;
   const isWord = sample.task === "word";
   try {
-    // A model download is labelled as loading, not as inference.
     setText(
       els.modelTestSampleStatus,
       (isWord ? wordSession : letterSession) ? "info.test.status.running" : "info.test.status.loadingModel",
@@ -1029,16 +898,13 @@ async function executeModelTestRun(epoch) {
 }
 
 /**
- * Show a fixture's prediction against its expected label.
- *
  * @param {ModelTestSample} sample
  * @param {PredictionResult} result
- * @param {number} elapsed Inference time in milliseconds.
+ * @param {number} elapsed Milliseconds.
  * @returns {void}
  */
 function renderModelTestResult(sample, result, elapsed) {
-  // A made-up sample's expected label is the model's own earlier answer to
-  // random numbers: matching it proves the pipeline ran, not that it is right.
+  // Matching a made-up sample proves the pipeline ran, not that it is right.
   const expected = sample.synthetic ? "" : sample.expectedLabel || "";
   const matched = expected ? result.label === expected : null;
   const alternatives = result.alternatives?.length
@@ -1077,9 +943,6 @@ function renderModelTestResult(sample, result, elapsed) {
 }
 
 /**
- * Write the answer's figures, its confidence and ranked list, in the
- * current language.
- *
  * @returns {void}
  */
 function drawModelTestAnswer() {
@@ -1089,10 +952,7 @@ function drawModelTestAnswer() {
 }
 
 /**
- * Ranked candidates in a line: "1. A %90 · 2. B %6" in Turkish,
- * "1. A 90% · 2. B 6%" in English.
- *
- * @param {PredictionCandidate[]} items Ranked candidates, best first.
+ * @param {PredictionCandidate[]} items Best first.
  * @returns {string}
  */
 function formatModelTestTop(items) {
@@ -1103,8 +963,6 @@ function formatModelTestTop(items) {
 }
 
 /**
- * A whole percentage in the page's language: "%90" or "90%".
- *
  * @param {number} percent
  * @returns {string}
  */
@@ -1113,9 +971,7 @@ function formatWholePercent(percent) {
 }
 
 /**
- * Rebuild the panel's ranked alternatives list.
- *
- * @param {PredictionCandidate[]} items Ranked candidates, best first.
+ * @param {PredictionCandidate[]} items Best first.
  * @returns {void}
  */
 function renderModelTestTop3(items) {
@@ -1144,8 +1000,8 @@ function renderModelTestTop3(items) {
 }
 
 /**
- * Empty the answer fields, so an earlier run's prediction never sits beside a
- * sample or an error it does not belong to.
+ * An earlier prediction must never sit beside a sample or error it does not
+ * belong to.
  *
  * @returns {void}
  */
@@ -1158,10 +1014,7 @@ function clearModelTestResult() {
 }
 
 /**
- * Report a fixture or inference failure in the result area.
- *
- * @param {() => string} message Gives what the visitor is told, in the
- *   current language.
+ * @param {() => string} message
  * @returns {void}
  */
 function showModelTestError(message) {
@@ -1176,14 +1029,10 @@ function showModelTestError(message) {
 }
 
 /**
- * One step of the Model Test progress strip, as its data-step value.
- *
  * @typedef {"sample" | "validate" | "inference" | "result"} ModelTestProcessStep
  */
 
 /**
- * Mark how far the fixture has got through the four process steps.
- *
  * @param {ModelTestProcessStatus} status
  * @returns {void}
  */
@@ -1198,7 +1047,6 @@ function updateModelTestProcess(status) {
     done: ["sample", "validate", "inference", "result"],
     error: [],
   };
-  // Typed as strings because dataset values are tested against it.
   /** @type {Set<string>} */
   const active = new Set(activeByStatus[status] || []);
   els.modelTestProcessSteps.dataset.status = status;
@@ -1208,25 +1056,21 @@ function updateModelTestProcess(status) {
 }
 
 /**
- * Write a measurement in the page's language: one decimal only under 10,
- * where it still tells figures apart, no trailing zero decimal, and the
- * decimal comma Turkish writes ("7,6") or the point English writes ("7.6").
+ * One decimal only under 10, where it still tells figures apart; "7,6" in
+ * Turkish, "7.6" in English.
  *
  * @param {number} value
  * @returns {string}
  */
 function formatMeasurement(value) {
-  // 9.96 rounds to "10.0" at one decimal; the trailing-zero strip leaves "10".
+  // 9.96 rounds to "10.0"; the strip leaves "10".
   const text = Math.abs(value) < 10 ? value.toFixed(1).replace(/\.0$/, "") : String(Math.round(value));
   return currentLanguage() === "tr" ? text.replace(".", ",") : text;
 }
 
 /**
- * Write a probability as a percentage in the page's language: "%7,6" and
- * "%100" in Turkish, "7.6%" and "100%" in English.
- *
  * @param {number} value Probability in [0, 1].
- * @returns {string} The percentage, or "-" when not finite.
+ * @returns {string}
  */
 function formatPercent(value) {
   if (!Number.isFinite(value)) return "-";
@@ -1235,7 +1079,7 @@ function formatPercent(value) {
 
 /**
  * @param {number} ms
- * @returns {string} "0,6 ms" or "0.6 ms", "12 ms"; "-" when not finite.
+ * @returns {string}
  */
 function formatMilliseconds(ms) {
   return Number.isFinite(ms) ? `${formatMeasurement(ms)} ms` : "-";
@@ -1243,25 +1087,19 @@ function formatMilliseconds(ms) {
 
 /**
  * @param {number} ms
- * @returns {string} The time in seconds, "1,9 sn" or "1.9 s"; "-" when not finite.
+ * @returns {string}
  */
 function formatSeconds(ms) {
   return Number.isFinite(ms) ? t("info.format.seconds", { n: formatMeasurement(ms / 1000) }) : "-";
 }
 
-/**
- * Counts the times the batch was reset. A run that wakes up at a different
- * count than it started at was abandoned.
- */
+// A run that wakes up at another epoch was abandoned.
 let _modelTestBatchEpoch = 0;
 
-/** The batch in flight, so a second press joins it. @type {Promise<void> | null} */
+/** @type {Promise<void> | null} */
 let _modelTestBatchRun = null;
 
 /**
- * Drop the batch and any run still going, so numbers never stay on screen for
- * samples they were not run on.
- *
  * @returns {void}
  */
 function resetModelTestBatch() {
@@ -1272,17 +1110,9 @@ function resetModelTestBatch() {
 }
 
 /**
- * Run every bundled sample of one kind through its model, one at a time.
+ * Model preparation is timed apart, so a row's time is inference alone.
  *
- * Each sample becomes a row as it finishes, and the run ends with a summary.
- * Model preparation is timed apart, so a row's time is inference alone. The
- * camera and MediaPipe are never involved.
- *
- * Pressing again during a run joins it. Switching to the other kind abandons
- * it: the run stops at its next step and shows nothing.
- *
- * @param {string} [task] Anything other than "word" runs the letters. Defaults
- *   to the kind the panel is showing.
+ * @param {string} [task]
  * @returns {Promise<void>} Never rejects; a failure is in the batch.
  */
 function runModelTestBatch(task = state.modelTestTask) {
@@ -1298,12 +1128,12 @@ function runModelTestBatch(task = state.modelTestTask) {
 
 /**
  * @param {ModelTask} kind
- * @param {number} epoch The reset count the run was started at.
+ * @param {number} epoch
  * @returns {Promise<void>}
  */
 async function executeModelTestBatch(kind, epoch) {
   const stale = () => epoch !== _modelTestBatchEpoch;
-  // The list may still be loading, as when the screen was opened by a link.
+  // The list may still be loading when the screen was opened by a link.
   await loadModelTestManifest();
   if (stale()) return;
 
@@ -1340,10 +1170,8 @@ async function executeModelTestBatch(kind, epoch) {
 }
 
 /**
- * Fetch, validate and run one manifest sample.
- *
  * @param {ModelTestManifestItem} item
- * @param {ModelTask} kind The model the batch is running.
+ * @param {ModelTask} kind
  * @returns {Promise<ModelTestBatchRow>} Never rejects; a failure is an "error" row.
  */
 async function runModelTestBatchItem(item, kind) {
@@ -1367,7 +1195,6 @@ async function runModelTestBatchItem(item, kind) {
     row.expected = sample.expectedLabel;
     if (sample.task !== kind) throw modelTestVisitorError(() => t("info.test.error.wrongModel", { name: name() }));
 
-    // Only the inference is timed: fetching and validating the sample is not it.
     const t0 = performance.now();
     const result = sample.task === "word"
       ? await predictWord(sample.features, sample.mask)
@@ -1388,16 +1215,12 @@ async function runModelTestBatchItem(item, kind) {
 }
 
 /**
- * Total a finished batch.
- *
  * @param {ModelTestBatchRow[]} rows
  * @param {number | null} prepMs
  * @returns {ModelTestBatchSummary}
  */
 function summarizeModelTestBatch(rows, prepMs) {
-  // A failed sample still has its reference, so it counts as not correct:
-  // leaving it out would flatter the model. A made-up sample runs, but
-  // answering it right proves nothing about accuracy.
+  // A failed sample counts as not correct: leaving it out would flatter the model.
   const counted = rows.filter((row) => row.expected !== "" && !row.synthetic);
   const correct = counted.filter((row) => row.verdict === "correct").length;
   const times = rows.map((row) => row.ms).filter(Number.isFinite).sort((a, b) => a - b);
@@ -1417,8 +1240,6 @@ function summarizeModelTestBatch(rows, prepMs) {
 }
 
 /**
- * The batch in a sentence or two, in the current language.
- *
  * @param {ModelTestBatch} batch
  * @returns {string}
  */
@@ -1451,7 +1272,7 @@ function describeModelTestBatch(batch) {
   return parts.join(" ");
 }
 
-/** The strings that name the row verdicts. @type {Record<ModelTestBatchRow["verdict"], string>} */
+/** @type {Record<ModelTestBatchRow["verdict"], string>} */
 const MODEL_TEST_VERDICT_KEYS = {
   correct: "info.test.verdict.correct",
   wrong: "info.test.verdict.wrong",
@@ -1460,15 +1281,11 @@ const MODEL_TEST_VERDICT_KEYS = {
 };
 
 /**
- * Show the batch: its summary line and one table row per finished sample.
- *
  * @returns {void}
  */
 function renderModelTestBatch() {
   const batch = state.modelTestBatch;
   if (els.modelTestBatch) els.modelTestBatch.hidden = !batch;
-  // What the samples can show differs by model, so only the note for the
-  // model that ran is shown.
   if (els.modelTestNoteLetter) els.modelTestNoteLetter.hidden = batch?.task !== "letter";
   if (els.modelTestNoteWord) els.modelTestNoteWord.hidden = batch?.task !== "word";
   if (els.modelTestSummary) els.modelTestSummary.textContent = batch ? describeModelTestBatch(batch) : "";
@@ -1479,19 +1296,17 @@ function renderModelTestBatch() {
     const row = document.createElement("tr");
     row.dataset.verdict = item.verdict;
     if (item.local) row.dataset.local = "true";
-    // A made-up sample answered "correctly" is a run check, not a success.
     const verdictLabel = t(
       item.synthetic && item.verdict !== "error" ? "info.test.badge.check" : MODEL_TEST_VERDICT_KEYS[item.verdict],
     );
-    // Named again from the manifest, so the name follows a language change.
+    // Named again from the manifest, so the name follows a language switch.
     const sample = item.id ? samples.find((entry) => entry.id === item.id) : undefined;
     const title = sample && batch ? modelTestItemTitle(sample, batch.task) || item.title : item.title;
     const failure = _modelTestRowErrors.has(item) ? describeModelTestError(_modelTestRowErrors.get(item)) : item.error;
     const cells = [
       item.local ? t("info.test.batch.localTitle", { title }) : title,
       item.expected || "-",
-      // A failed row has no answer, so its reason takes the answer's place.
-      item.predicted || failure || "-",
+        item.predicted || failure || "-",
       formatPercent(item.confidence),
       formatMilliseconds(item.ms),
       verdictLabel,
@@ -1505,33 +1320,25 @@ function renderModelTestBatch() {
   }
 }
 
-// Project page: the model card. The page's figures are read from
-// data/model-card.json when it opens rather than typed into the markup, where
-// they would go stale at the next retraining. This lives here because it
-// shares the number formatters above.
+// Project page figures come from data/model-card.json, not the markup, so
+// they do not go stale at the next retraining. They share the formatters above.
 
 /**
- * The card's load, so a second visit does not fetch again. Null before the
- * first visit and after a failure, so the next visit retries.
+ * Cleared after a failure, so the next visit retries.
  *
  * @type {Promise<void> | null}
  */
 let _modelCardLoad = null;
 
 /**
- * The card the page's figures were filled from, kept so a language change
- * can write them again; null until a card has filled them.
- *
  * @type {unknown}
  */
 let _modelCardShown = null;
 
 /**
- * Look up a figure of the card by its dotted path.
- *
  * @param {unknown} card
  * @param {string} path For example "word.accuracy".
- * @returns {number | null} Null when the path leads nowhere or to a non-number.
+ * @returns {number | null}
  */
 function modelCardFigure(card, path) {
   /** @type {unknown} */
@@ -1541,11 +1348,8 @@ function modelCardFigure(card, path) {
 }
 
 /**
- * Write a figure the way the page states it.
- *
  * @param {number} value
- * @param {string | undefined} format "percent", "mb" (a size in bytes) or, by
- *   default, a whole number.
+ * @param {string | undefined} format "percent", "mb" (from bytes) or a whole number.
  * @returns {string}
  */
 function formatModelCardFigure(value, format) {
@@ -1555,8 +1359,7 @@ function formatModelCardFigure(value, format) {
 }
 
 /**
- * Fill the page's figures from a card, all or none: a sentence with one
- * figure missing would read as nonsense, so the block then stays hidden.
+ * All or none: a sentence with one figure missing would read as nonsense.
  *
  * @param {unknown} card
  * @returns {void}
@@ -1578,11 +1381,8 @@ function renderProjectModelCard(card) {
 }
 
 /**
- * Write the filled sentences again in the page's language.
- *
- * Their figures make the shown sentences differ from their strings, so the
- * markup pass leaves them as they are: each is rewritten from its string and
- * filled again, its figures now formatted the new language's way.
+ * The markup pass skips these sentences because their figures make them
+ * differ from their strings.
  *
  * @returns {void}
  */
@@ -1604,8 +1404,6 @@ async function fetchModelCard() {
 }
 
 /**
- * Read the model card and fill the project page from it.
- *
  * @returns {Promise<void>} Never rejects; on a failure the numbers stay hidden.
  */
 function loadProjectModelCard() {
@@ -1621,9 +1419,6 @@ function loadProjectModelCard() {
 }
 
 /**
- * Redraw what the information screens drew from state, after a language
- * change has translated their markup.
- *
  * @returns {void}
  */
 function renderInfoLanguage() {
@@ -1632,11 +1427,6 @@ function renderInfoLanguage() {
 }
 
 /**
- * Write again what the Model Test panel built from state: the dropdown, the
- * loaded sample's name, the answer's figures, the result note and the batch.
- * The status, badge and labels follow the change by themselves, written
- * with setText().
- *
  * @returns {void}
  */
 function renderModelTestLanguage() {

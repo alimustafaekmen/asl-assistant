@@ -6,8 +6,8 @@ scripts (`scripts/data_preparation/`), the model-training scripts
 (`scripts/model_training/`), and the Python tests (`tests/`).
 
 The browser runtime (`asl-web/`) does NOT depend on this package; it ships
-its own JavaScript implementation. See `docs/models-and-data.md`
-for the contract that both implementations follow.
+its own JavaScript implementation. The Features section of `TECHNICAL_REPORT.md`
+describes the contract that both implementations follow.
 
 Modules:
 - config: landmark, letter-class, and augmentation constants

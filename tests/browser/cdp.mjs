@@ -287,6 +287,9 @@ export class Browser {
  * @property {string[]} [holdPaths] Leave the page's own requests whose path
  *   ends with one of these unanswered until release(), as a slow network
  *   leaves one script; the parser stops at it. Use navigate().
+ * @property {string} [substituteExternal] Answer every request to another
+ *   origin with this JavaScript, readable cross-origin, as a CDN that serves
+ *   altered files would.
  */
 
 /** The browser's preferred languages in a page that does not choose them. */
@@ -410,6 +413,17 @@ export class Page {
       this.send("Fetch.continueRequest", { requestId }).catch(() => {});
     } else if (this.holdExternal) {
       this.heldRequests.push(url);
+    } else if (this.substituteExternal !== null) {
+      this.substitutedRequests.push(url);
+      this.send("Fetch.fulfillRequest", {
+        requestId,
+        responseCode: 200,
+        responseHeaders: [
+          { name: "Content-Type", value: "text/javascript; charset=utf-8" },
+          { name: "Access-Control-Allow-Origin", value: "*" },
+        ],
+        body: Buffer.from(this.substituteExternal).toString("base64"),
+      }).catch(() => {});
     } else {
       this.blockedRequests.push(url);
       this.send("Fetch.failRequest", { requestId, errorReason: "BlockedByClient" }).catch(() => {});
@@ -437,6 +451,9 @@ export class Page {
       });
     }
     this.holdExternal = options.holdExternal === true;
+    this.substituteExternal = options.substituteExternal ?? null;
+    /** Requests answered with substituteExternal. */
+    this.substitutedRequests = [];
     this.holdPaths = options.holdPaths ?? [];
     /** Requests left unanswered under holdExternal or holdPaths. */
     this.heldRequests = [];

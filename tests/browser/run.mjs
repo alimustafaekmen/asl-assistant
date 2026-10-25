@@ -20,8 +20,9 @@ import { startServer } from "./serve.mjs";
 
 const USAGE = `usage: node tests/browser/run.mjs [--offline] [--lang tr|en] [--only name[,name]] [--list]
 
-  --offline   skip the checks that load MediaPipe or ONNX Runtime from their
-              CDNs (the camera, and the demo read by the real letter model);
+  --offline   skip the checks that load MediaPipe, ONNX Runtime or kjua from
+              their CDNs (the camera, the demo read by the real letter model,
+              and the QR code drawn by kjua);
               every other check runs offline
   --lang      the browser language every page opens with: tr (the default)
               or en; a check that needs a language of its own still sets it
@@ -164,7 +165,7 @@ async function main() {
     for (const check of selected) {
       if (check.network && options.offline) {
         skipped += 1;
-        console.log(`SKIP  ${check.name}  (--offline: it loads MediaPipe or ONNX Runtime from their CDNs)`);
+        console.log(`SKIP  ${check.name}  (--offline: it loads a runtime from its CDN)`);
         continue;
       }
       const pages = [];

@@ -27,10 +27,10 @@ test("choosing another target redraws the code for that target", () => {
   app.get("setQrTarget")("test");
 
   assert.deepEqual(drawn.map((options) => options.text), [
-    "https://asl-assistant.netlify.app/#word",
-    "https://asl-assistant.netlify.app/#test",
+    "https://asl-assistant.pages.dev/#word",
+    "https://asl-assistant.pages.dev/#test",
   ]);
-  assert.equal(app.evaluate("els.qrDemoUrl.textContent"), "https://asl-assistant.netlify.app/#test");
+  assert.equal(app.evaluate("els.qrDemoUrl.textContent"), "https://asl-assistant.pages.dev/#test");
 });
 
 test("the code stays dark on white in the dark theme", () => {
@@ -66,5 +66,5 @@ test("the code's label carries the link, so it can be read without seeing the co
 
   app.get("setQrTarget")("word");
 
-  assert.match(app.evaluate('els.qrCanvas.getAttribute("aria-label")'), /https:\/\/asl-assistant\.netlify\.app\/#word$/);
+  assert.match(app.evaluate('els.qrCanvas.getAttribute("aria-label")'), /https:\/\/asl-assistant\.pages\.dev\/#word$/);
 });

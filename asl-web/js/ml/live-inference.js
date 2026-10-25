@@ -1,47 +1,29 @@
-// Live inference: turn the latest MediaPipe frame into a prediction.
+// Live inference: turns the latest published MediaPipe frame into a prediction.
 //
-// camera.js owns the MediaPipe tasks and publishes latestMediaPipeResult. This
-// file consumes it and drives the two model paths, which are deliberately
-// different:
+// Letter: one frame, 93 features, throttled by the render loop and smoothed.
+// Word: 45 accepted frames, each with hand, pose and face, since the layout has
+// a fixed slot for each. Features are then rebuilt at sequence level so the
+// dominant hand is chosen across the whole recording, as in training.
 //
-//   Letter: one frame, 93 features, throttled by the render loop, smoothed
-//   across frames, and optionally skipped when the motion gate is enabled.
-//
-//   Word: 45 accepted frames collected into a buffer. A frame is accepted only
-//   when hand, pose, and face landmarks are all present, because the feature
-//   layout has a fixed slot for each. When the buffer is full, features are
-//   rebuilt at sequence level so dominant-hand selection is made across the
-//   whole recording rather than per frame, matching the training pipeline. If
-//   that rebuild fails, the per-frame buffer is used instead.
-//
-// Only one asynchronous model call runs at a time; the re-entrancy guard drops
-// frames rather than queueing them. A result that arrives after the user
-// changed mode or stopped the camera is discarded.
-//
-// The diagnostics here (visibility ratios, dominant-hand timeline, shoulder
-// fallback counts, feature summaries) are read-only and never change model
-// output.
+// One model call at a time: frames are dropped, never queued, and a result that
+// arrives after a mode change or camera stop is discarded. The diagnostics never
+// change model output.
 
 /**
- * Which hand carried the sign in one frame, by the same rule the feature
- * pipeline uses.
+ * Which hand carried the sign in one frame, by the feature pipeline's rule.
  *
  * @typedef {"right" | "left" | "none"} DominantSide
  */
 
 /**
- * Where the model input for a finished recording came from.
- *
- * "sequence-level" is the training-parity path: features rebuilt across the
- * whole recording. "frame-level-fallback" means that rebuild threw and the
- * per-frame buffer was used instead.
+ * "frame-level-fallback": the sequence-level rebuild threw and the per-frame
+ * buffer was used instead.
  *
  * @typedef {"frame-level" | "sequence-level" | "frame-level-fallback"} InferenceFeatureSource
  */
 
 /**
- * Per-recording counters. These are diagnostics only: nothing here changes the
- * model input or the prediction.
+ * Diagnostics only: nothing here changes the model input or the prediction.
  *
  * @typedef {Object} WordRecordingStats
  * @property {number} startTs Timestamp of the first observed frame, 0 before then.
@@ -58,8 +40,6 @@
  */
 
 /**
- * Landmark visibility over one finished recording.
- *
  * @typedef {Object} LandmarkVisibilitySummary
  * @property {number} handVisibleRatio
  * @property {number} poseVisibleRatio
@@ -70,8 +50,6 @@
  */
 
 /**
- * Summary of a numeric block, for the debug snapshot.
- *
  * @typedef {Object} NumericStats
  * @property {number} min
  * @property {number} max
@@ -80,8 +58,6 @@
  */
 
 /**
- * Live view of the frame being recorded, for the HUD and the debug API.
- *
  * @typedef {Object} WordCurrentFrameDebug
  * @property {boolean} handVisible
  * @property {boolean} poseVisible
@@ -91,8 +67,7 @@
  */
 
 /**
- * Read-only snapshot of the last finished recording, published for
- * window.aslDebug.
+ * Read-only snapshot of the last finished recording, for window.aslDebug.
  *
  * @typedef {Object} WordDebugSnapshot
  * @property {WordState} state
@@ -113,18 +88,14 @@ let _firstInferenceLogged = false;
 let _firstPredictionLogged = false;
 let _wordWaitMessageShown = false;
 /**
- * Letter frames predictLetter() returned nothing for. Created on first use
- * rather than at load, so this script still loads when letter-model.js,
- * which defines createFrameWarning(), did not.
+ * Created on first use, so this script still loads without letter-model.js.
  *
  * @type {FrameWarning | null}
  */
 let _noLetterResultWarning = null;
 /**
- * Timestamp of the last MediaPipe result a word recording took, or null at
- * the start of one. The render loop runs word inference on every frame, but
- * MediaPipe publishes from its own loop, so a frame can read a result that
- * has already been recorded.
+ * Timestamp of the last result a word recording took. MediaPipe publishes from
+ * its own loop, so a render frame can read a result already recorded.
  *
  * @type {number | null}
  */
@@ -146,10 +117,8 @@ let _wordRecordingStats = {
 };
 
 /**
- * Clear per-recording diagnostics and re-arm the missing-landmark hint.
- *
- * Called when a recording starts, on retry, and after inference finishes, so
- * counters never span two recordings.
+ * Called when a recording starts, on retry and after inference, so counters
+ * never span two recordings.
  *
  * @returns {void}
  */
@@ -172,11 +141,8 @@ function resetWordRecordingStats() {
 }
 
 /**
- * Report the dominant side for one raw frame, by the per-frame rule of
- * computeDominantHand().
- *
- * Read-only. The model input chooses one side for the whole recording; this
- * makes a hand switch mid-recording visible in diagnostics.
+ * By the per-frame rule of computeDominantHand(). The model input chooses one
+ * side per recording; this makes a mid-recording switch visible.
  *
  * @param {Frame321D} raw321d
  * @returns {DominantSide}
@@ -193,11 +159,8 @@ function _observeDominantSide(raw321d) {
 }
 
 /**
- * Detect when shoulder normalization had to use its min-max fallback.
- *
- * Offsets 279 and 282 are pose landmarks 11 and 12 in the flattened layout.
- * Read-only, and it counts only a missing shoulder: normalizeShoulders() also
- * falls back when the two shoulders coincide, which this does not see.
+ * Pose landmarks 11 and 12 sit at 279 and 282. Counts only a missing shoulder,
+ * not the coincident-shoulder fallback.
  *
  * @param {Frame321D} raw321d
  * @returns {boolean} True when either shoulder is missing.
@@ -215,17 +178,8 @@ function _observeShoulderFallback(raw321d) {
 }
 
 /**
- * Run one inference pass against the latest MediaPipe frame.
- *
- * Called from the render loop. Returns without doing anything when neither
- * the camera nor the demo is publishing frames, no frame has been published,
- * or a model call is already in flight:
- * frames are dropped rather than queued, so a slow model cannot build a
- * backlog.
- *
- * Letter contexts predict every eligible frame and reset the smoother when the
- * hand disappears. Word contexts collect accepted frames until the recording is
- * full and then finalize it.
+ * Called from the render loop. Frames are dropped, not queued, while a model
+ * call is in flight, so a slow model cannot build a backlog.
  *
  * @param {number} now Render loop timestamp in milliseconds.
  * @returns {Promise<void>} Never rejects; failures are logged and the guard is
@@ -233,34 +187,29 @@ function _observeShoulderFallback(raw321d) {
  */
 async function realInference(now) {
   if (typeof state === "undefined" || !framesLive()) return;
-  // A word recording's clock runs on every tick, before any frame is looked
-  // at: a recording nobody is in front of is the one that has to end.
+  // The recording clock runs before any frame is looked at: a recording nobody
+  // is in front of is the one that has to end.
   if (state.wordState === "RECORDING" && typeof checkWordRecordingClock === "function") {
     checkWordRecordingClock(now);
   }
-  // camera.js publishes the frame. If it never loaded, the name does not
-  // exist, and a bare read here would reject before the handling below.
+  // If camera.js never loaded the name does not exist, and a bare read would throw.
   if (typeof latestMediaPipeResult === "undefined" || !latestMediaPipeResult) return;
 
   const letterContext = isLetterContext();
 
-  // The framing readout is read before a frame is dropped for having no hand,
-  // so it can say the hand is what is missing. It only reads the result.
+  // Read before a handless frame is dropped, so it can say the hand is missing.
   if (!letterContext && typeof noteWordFraming === "function") {
     noteWordFraming(latestMediaPipeResult);
   }
   if (_inferenceInFlight) return;
 
-  // Skip frames without hands. Letter contexts also reset temporal smoothing,
-  // of the predictions and of the landmarks, so a previous sign cannot leak
-  // across a hand-loss gap. This frame never reaches computeLetterFeatures(),
-  // so its own all-zero reset of the landmark average does not happen here.
+  // Letter contexts reset both smoothers on hand loss, so a previous sign
+  // cannot leak across the gap.
   if (!latestMediaPipeResult.rightHandLandmarks && !latestMediaPipeResult.leftHandLandmarks) {
     if (letterContext) {
       resetSmoother();
       resetLetterLandmarkSmoother();
-      // The coach counts what it sees, so it is told the hand has gone. Letter
-      // mode keeps showing its last letter on purpose.
+      // The coach counts what it sees; letter mode keeps its last letter on purpose.
       if (state.mode === "coach") noteCoachHandLost();
     }
     return;
@@ -275,24 +224,16 @@ async function realInference(now) {
   state.frameCount = (state.frameCount || 0) + 1;
   const tStart = performance.now();
   try {
-    // The letter model loads on first need, and the camera start or the mode
-    // switch that made this a letter context has asked for it. A frame never
-    // asks: after a failure it would start a download every 120 ms. Until the
-    // model has loaded and warmed up, frames are dropped here, the same as any
-    // frame that arrives while inference is in flight.
+    // A frame never asks for the model: after a failure it would start a
+    // download every 120 ms. Frames are dropped until it is loaded and warm.
     if (letterContext && (!letterSession || !(await ensureLetterModel()))) return;
 
     const raw = landmarksTo321D(latestMediaPipeResult);
     const normalized = normalizeShoulders(raw);
 
-    // A coach target letter takes the same path as letter mode: the same
-    // features, motion gate, smoothing and diagnostics.
     if (letterContext) {
       const f93 = computeLetterFeatures(raw, _frameAspect(latestMediaPipeResult));
 
-      // The motion gate is off unless CONFIG.LETTER_MOTION_GATE_ENABLED. When
-      // on, it skips a frame whose hand moved more than the threshold since
-      // the last one.
       const motionData =
         typeof getLastLetterMotion === "function"
           ? getLastLetterMotion()
@@ -308,7 +249,6 @@ async function realInference(now) {
         motionData &&
         motionData.meanAbsDelta > motionGateThreshold;
 
-      // Publish a read-only letter snapshot for window.aslDebug.
       if (typeof window !== "undefined") {
         let rhCount = 0;
         let lhCount = 0;
@@ -389,8 +329,6 @@ async function realInference(now) {
             `[INF] first letter prediction: ${result.label} (${(result.confidence * 100).toFixed(1)}%)`,
           );
         }
-        // Distinguish probability-tensor output from the label-only fallback in
-        // diagnostics without changing the displayed prediction.
         if (typeof window !== "undefined") {
           window._lastRawLetterPrediction = {
             label: result.label,
@@ -410,8 +348,7 @@ async function realInference(now) {
             confidence: smoothed.confidence,
           };
         }
-        // The coach scores a target letter by its hold, so the hold sees the
-        // result before the plate shows it.
+        // The hold sees the result before the plate shows it.
         if (state.mode === "coach") noteCoachLetter(smoothed, now);
         updatePrediction(smoothed);
       } else {
@@ -420,12 +357,10 @@ async function realInference(now) {
       }
     } else if (state.mode === "word" || _isCoachWordTarget()) {
       if (state.wordState === "RECORDING") {
-        // One MediaPipe result is one frame of the sign, however many render
-        // frames read it: a repeat would fill the window with a hand standing
-        // still and shorten the recording in time.
+        // One MediaPipe result is one frame of the sign: a repeat would fill the
+        // window with a still hand and shorten the recording in time.
         if (latestMediaPipeResult.timestamp === _lastWordFrameTimestamp) return;
         _lastWordFrameTimestamp = latestMediaPipeResult.timestamp;
-        // Visibility counters, for the quality warnings and the debug API.
         if (_wordRecordingStats.startTs === 0) {
           _wordRecordingStats.startTs = now;
         }
@@ -439,7 +374,6 @@ async function realInference(now) {
         if (handVisibleNow) _wordRecordingStats.handVisibleCount++;
         if (poseVisibleNow) _wordRecordingStats.poseVisibleCount++;
         if (faceVisibleNow) _wordRecordingStats.faceVisibleCount++;
-        // For the debug API (window.aslDebug).
         if (typeof window !== "undefined") {
           window._lastWordCurrentFrame = {
             handVisible: handVisibleNow,
@@ -454,7 +388,7 @@ async function realInference(now) {
           if (typeof window !== "undefined") {
             window._lastWordCurrentFrame.acceptedForRecording = false;
           }
-          // Show the missing-landmark hint once, then re-arm it after recovery.
+          // Show the hint once, then re-arm it after recovery.
           if (!_wordWaitMessageShown && typeof showWordMessage === "function") {
             showWordMessage("word.message.notAllInView", "maybe");
             _wordWaitMessageShown = true;
@@ -469,7 +403,6 @@ async function realInference(now) {
           window._lastWordCurrentFrame.acceptedForRecording = true;
         }
 
-        // Diagnostics only; they do not touch the model input.
         const dominantSide = _observeDominantSide(raw);
         _wordRecordingStats.dominantHandTimeline.push(dominantSide);
         if (_wordRecordingStats.dominantHandTimeline.length > 45) {
@@ -513,8 +446,8 @@ async function realInference(now) {
 }
 
 /**
- * The camera frame's width over its height, which the letter features need to
- * see the hand undistorted; 1 until the video reports its size.
+ * The letter features need it to see the hand undistorted; 1 until the video
+ * reports its size.
  *
  * @returns {number}
  */
@@ -525,10 +458,8 @@ function _videoAspect() {
 }
 
 /**
- * The width over height of the image a frame's landmarks were measured in:
- * what the frame says, else the camera video's. The demo's recording is a
- * square photograph while the hidden video may still report the last
- * camera's size, so the frame's own word comes first.
+ * The frame's own aspect comes first: the demo's square photographs play while
+ * the hidden video may still report the last camera's size.
  *
  * @param {MediaPipeFrameResult} result
  * @returns {number}
@@ -538,8 +469,7 @@ function _frameAspect(result) {
 }
 
 /**
- * @returns {boolean} True in letter mode and for a single-letter coach
- *   target: the contexts that classify one frame at a time.
+ * @returns {boolean} True in letter mode and for a single-letter coach target.
  */
 function isLetterContext() {
   return state.mode === "letter" || (state.mode === "coach" && state.coachTarget?.length === 1);
@@ -555,19 +485,10 @@ function _isCoachWordTarget() {
 }
 
 /**
- * Turn a full recording into a prediction and publish the result.
- *
- * Features are rebuilt across the whole recording so dominant-hand selection
- * matches the training pipeline; if that rebuild throws, the per-frame buffer
- * is used and the snapshot records which path ran.
- *
- * A result that arrives after the user changed mode or stopped the camera is
- * discarded rather than displayed, even if the user is back by then. Either
- * way the frame buffers are cleared before returning; the per-recording
- * counters are reset here when the run ends in RESULT, and by the next start
- * otherwise. A result that arrives after a newer recording started touches
- * nothing, because the state and the buffers belong to that recording. A run
- * that produced no result still ends in RESULT, with no word on offer.
+ * A result that arrives after a mode change or camera stop is discarded, even
+ * if the user is back by then; one that arrives after a newer recording started
+ * touches nothing, because the state and buffers belong to that recording. A
+ * run with no result still ends in RESULT, with no word on offer.
  *
  * @returns {Promise<void>}
  */
@@ -576,8 +497,6 @@ async function _finishWordRecordingReal() {
   state.wordState = "PROCESSING";
   updateWordState();
 
-  // Visibility over the recording, for the quality warnings and the debug
-  // snapshot.
   const recordingDurationMs =
     _wordRecordingStats.startTs > 0
       ? performance.now() - _wordRecordingStats.startTs
@@ -609,8 +528,7 @@ async function _finishWordRecordingReal() {
     inferenceFeatureSource = "frame-level-fallback";
   }
 
-  // Frames fill from slot 0 in recording order, padding after them. true
-  // marks a real frame, and predictWord() passes the mask on uninverted.
+  // true marks a real frame; predictWord() passes the mask on uninverted.
   const flat = new Float32Array(45 * 168);
   const mask = new Array(45).fill(false);
   for (let i = 0; i < Math.min(inferenceBuffer.length, 45); i++) {
@@ -618,8 +536,7 @@ async function _finishWordRecordingReal() {
     mask[i] = true;
   }
 
-  // Summarize compact features over real frames only. Motion occupies indices
-  // 105..167 of each 168D frame.
+  // Summaries over real frames only; motion occupies 105..167.
   let f168Min = Infinity;
   let f168Max = -Infinity;
   let f168Sum = 0;
@@ -665,15 +582,11 @@ async function _finishWordRecordingReal() {
     console.error("[WORD] word inference failed:", err);
   }
 
-  // A newer recording started while the model ran: the state and the
-  // buffers are that recording's now, so this one leaves them alone.
+  // A newer recording started while the model ran; its state is not ours.
   if (recording !== wordRecordingSerial) return;
 
-  // Ignore a late asynchronous result if the user changed mode or stopped the
-  // camera. A mode change and a stop both return the recording to IDLE, so a
-  // state that is no longer PROCESSING means this recording was abandoned,
-  // also when the user has come back to a word screen with the camera on by
-  // the time the model answers.
+  // A mode change or stop returns the recording to IDLE, so a state that is no
+  // longer PROCESSING means this one was abandoned.
   const coachWordTarget = _isCoachWordTarget();
   if (
     state.wordState !== "PROCESSING" ||
@@ -691,8 +604,7 @@ async function _finishWordRecordingReal() {
 
   let wordFeedbackShown = false;
   if (!result) {
-    // A failed run ends in a RESULT with no word, never with the previous
-    // word still on offer.
+    // Never leave the previous word on offer after a failed run.
     updatePrediction({ label: "?", confidence: 0, alternatives: [] });
     reportWordProblem("word.message.processingFailed");
   } else {
@@ -702,7 +614,7 @@ async function _finishWordRecordingReal() {
       updateCoachFromPrediction();
     }
 
-    // Prefer actionable confusion feedback over the broader difficulty warning.
+    // Actionable confusion feedback wins over the broader difficulty warning.
     let confusionMsg = null;
     let hardMsg = null;
     if (typeof confusionFeedbackCopy === "function" && result.alternatives.length >= 2) {
@@ -735,12 +647,11 @@ async function _finishWordRecordingReal() {
       }
     }
 
-    // Consent: a word reaches the transcript only when the user accepts it,
-    // never from here.
+    // Consent: a word reaches the transcript only when the user accepts it.
   }
 
-  // Recording quality. The state gets codes, which prediction.js words for
-  // the user; the debug snapshot keeps the technical reason with its numbers.
+  // The state gets codes for prediction.js; the debug snapshot keeps the
+  // technical reason with its numbers.
   /** @type {WordQualityCode[]} */
   const codes = [];
   /** @type {string[]} */
@@ -788,12 +699,9 @@ async function _finishWordRecordingReal() {
     wordFeedbackShown = true;
   }
 
-  // The final recording snapshot, for window.aslDebug.
   if (typeof window !== "undefined") {
-    // word-model.js owns the calibration temperature.
     const temperatureVal = typeof temperature !== "undefined" ? temperature : null;
 
-    // Derive parity metrics only when inference produced a result.
     let top1Top2Margin = null;
     let confusionPairMatched = null;
     if (result && Array.isArray(result.alternatives) && result.alternatives.length >= 2) {
@@ -847,7 +755,6 @@ async function _finishWordRecordingReal() {
   state.wordState = "RESULT";
   updateWordState();
 
-  // Reset motion, buffers, and recording statistics before the next capture.
   frameBuffer = [];
   normalizedFrameBuffer = [];
   previousFrame = null;

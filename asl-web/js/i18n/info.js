@@ -1,7 +1,4 @@
-// Information screen strings: the project page, the phone (QR) screen and Model Test.
-//
-// Figures are written by ui/model-test.js, which also redraws on a language
-// change what the markup cannot: the project page's filled-in figures.
+// Project page, QR screen and Model Test strings.
 
 registerStrings("info", {
   tr: {
@@ -38,7 +35,6 @@ registerStrings("info", {
     "info.project.limits.title": "Sınırlar",
     "info.project.limits.scope": "Yalnızca tek tek harfleri ve 50 kelimeyi tanır; cümle çevirmez.",
     "info.project.limits.errors": "Farklı el, ışık ve kamera açılarında hata yapabilir.",
-    "info.project.limits.phones": "Gerçek telefonlarda henüz sınanmadı.",
     "info.project.limits.references":
       "Referans görselleri yeniden hazırlanıyor; M, N, S, T ve E çizimleri birbirine çok benziyor.",
     "info.project.privacy.title": "Gizlilik",
@@ -263,7 +259,6 @@ registerStrings("info", {
     "info.project.limits.title": "Limits",
     "info.project.limits.scope": "It recognizes single letters and 50 words only; it does not translate sentences.",
     "info.project.limits.errors": "It can make mistakes with different hands, lighting and camera angles.",
-    "info.project.limits.phones": "It has not been tested on real phones yet.",
     "info.project.limits.references":
       "The reference images are being redrawn; the drawings of M, N, S, T and E look very much alike.",
     "info.project.privacy.title": "Privacy",
@@ -460,7 +455,5 @@ registerStrings("info", {
   },
 });
 
-// The figures and lists these screens draw from state are redrawn by
-// ui/model-test.js, which loads later, so the function is looked up when a
-// change comes.
+// Looked up when called: ui/model-test.js loads later.
 onLanguageChange(() => renderInfoLanguage());

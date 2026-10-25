@@ -36,7 +36,8 @@ function fakeFetch(responses) {
 async function loadManifestWith(responses) {
   const { loadWebApp } = await import("./helpers/web-app-context.mjs");
   const { fetch, requested } = fakeFetch(responses);
-  const app = loadWebApp({ globals: { fetch } });
+  // A development server: the only host the local folder can be served from.
+  const app = loadWebApp({ globals: { fetch, location: new URL("http://localhost:8080/") } });
   await app.get("loadModelTestManifest")();
   return { manifest: app.get("state").modelTestManifest, requested };
 }

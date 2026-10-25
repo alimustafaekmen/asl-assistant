@@ -10,7 +10,7 @@ Example (activate a compatible Python environment first):
   python scripts/validation/verify_project_assets.py --root path/to/checkout
 
 The dataset report is informational and never changes the exit status;
-``--no-datasets`` leaves it out, which is what ``make health`` does.
+``--no-datasets`` leaves it out.
 
 Exit status:
   0  the web runtime files and the provenance chain are complete
@@ -52,7 +52,7 @@ def check_provenance_hash_chain(root: Path) -> bool:
     print(f"{'─' * 60}")
 
     ok = True
-    # Source-to-deploy pairs documented in ``docs/models-and-data.md``.
+    # Source-to-deploy pairs, from contracts.py.
     for check in compare_provenance(provenance_pairs(root)):
         label = check.name
         if check.status == "missing_deploy":
@@ -118,12 +118,12 @@ def check_web_runtime(root: Path) -> bool:
     web_data_dir = str(rebased(WEB_DATA_DIR, root))
     web_js_dir = rebased(WEB_JS_DIR, root)
     print(f"\n{'─' * 60}")
-    print("  ACTIVE WEB RUNTIME (Netlify deploy)")
+    print("  ACTIVE WEB RUNTIME (Cloudflare Pages deploy)")
     print(f"{'─' * 60}")
 
     required_files = [
         ("index.html", os.path.join(web_dir, "index.html")),
-        ("style.css", os.path.join(web_dir, "css", "style.css")),
+        ("tokens.css", os.path.join(web_dir, "css", "tokens.css")),
         ("letter_model.onnx", os.path.join(web_models_dir, "letter_model.onnx")),
         ("word_model.onnx", os.path.join(web_models_dir, "word_model.onnx")),
         ("letters.png", os.path.join(web_dir, "assets", "signs", "letters.png")),

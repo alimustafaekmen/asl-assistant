@@ -1,6 +1,6 @@
 {
   "schema_version": "model-card-v1",
-  "note_en": "The figures the Project page states about the two models, each copied from where it is recorded (see tests/project/test_web_contracts.py for the sources). signer_independent is documented in docs/models-and-data.md. No top-k figure for the word model is recorded, so none is given.",
+  "note_en": "The figures the Project page states about the two models, each copied from where it is recorded (see tests/project/test_web_contracts.py for the sources). signer_independent is explained in TECHNICAL_REPORT.md. No top-k figure for the word model is recorded, so none is given.",
   "letter": {
     "model_type": "LightGBM",
     "classes": 24,

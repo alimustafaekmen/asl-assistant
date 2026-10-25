@@ -1,20 +1,9 @@
-/* The information screens: #test (Model Test, linked for developers from
- * the project page), #qr ("Telefonda aç") and #project ("Nasıl çalışır").
- *
- * They share a page frame and a few components (a choice group, a notice, a
- * list of facts), so those live at the top; each screen's own layout follows.
- * The cards are the .panel of components.css, a hairline and no shadow. Every
- * size, colour and space is a token, so the dark theme needs nothing here.
- *
- * The camera workspace is hidden on these routes, so nothing of the stage or
- * the side panel is styled in this file.
- */
+/* #test, #qr and #project: shared parts first, then each screen. */
 
 @layer screens {
   /* The page frame */
 
-  /* layout.css gives the workspace a fixed laptop height and a two-column
-     grid for the camera. These screens are ordinary documents that scroll. */
+  /* Undo the camera workspace's fixed laptop height: these pages scroll. */
   .app-shell:is([data-mode="test"], [data-mode="qr"], [data-mode="project"]) .workspace {
     display: block;
     height: auto;
@@ -40,8 +29,8 @@
     line-height: var(--lh-tight);
     text-wrap: balance;
   }
-  /* Focus lands here from script when the route changes; a ring around a
-     heading would look like a control. */
+  /* Focus lands here on a route change; a ring would make it look like a
+     control. */
   .page__title:focus { outline: none; }
   .page__lead { max-width: 60ch; font-size: var(--fs-md); color: var(--color-text-2); }
 
@@ -106,6 +95,7 @@
   .mt__actions .btn { flex: 1 1 10rem; }
   .mt .panel > .btn { justify-self: start; }
   /* Word results need the word screen's wider label column. */
+  .mt .model-test-top3 { margin-bottom: var(--sp-3); }
   .mt .model-test-top3[data-task="word"] .top3-row { grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr) 3rem; }
   .mt .model-test-top3[data-task="word"] .top3-row b { font-size: var(--fs-md); }
 
@@ -122,8 +112,7 @@
     color: var(--color-selected-fg);
   }
 
-  /* The legacy layer styles .model-test-advanced as a boxed card; the class
-     stays because the tests find the advanced section by it. */
+  /* The advanced section is a ruled-off part of its panel, not a card. */
   .mt .mt__advanced {
     margin: 0;
     padding: var(--sp-3) 0 0;
@@ -131,6 +120,7 @@
     border-top: 1px solid var(--color-line);
     border-radius: 0;
     background: transparent;
+    overflow: hidden;
   }
   .mt .mt__advanced > summary { color: inherit; font-weight: var(--fw-semibold); }
   .mt .mt__advanced[open] > summary { margin-bottom: var(--sp-3); }
@@ -206,8 +196,7 @@
     font-variant-numeric: tabular-nums;
     text-align: end;
   }
-  /* A wrong or failed row is marked by its verdict word and a sunken ground,
-     never by colour alone. */
+  /* Never by colour alone. */
   .mt__table tr:is([data-verdict="wrong"], [data-verdict="error"]) { background: var(--color-sunken); }
   .mt__table tr:is([data-verdict="wrong"], [data-verdict="error"]) td:last-child { font-weight: var(--fw-bold); }
 
@@ -216,8 +205,8 @@
     .mt__side { position: sticky; top: calc(var(--size-topbar) + var(--sp-4)); }
   }
 
-  /* Phones: a row of the table becomes a small stack, so nothing scrolls
-     sideways. The header row stays for a screen reader. */
+  /* Phones: each row stacks so nothing scrolls sideways; the header row stays
+     for a screen reader. */
   @media (max-width: 39.99rem) {
     .mt__table thead {
       position: absolute;
@@ -273,8 +262,7 @@
   .qr__fact { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--color-text-2); }
   .qr__fact::before { --size-icon: 16px; }
 
-  /* The code is dark on light in both themes, so its tile does not follow
-     the page. */
+  /* Dark on light in both themes. */
   .qr__tile {
     box-sizing: border-box;
     display: grid;
@@ -289,8 +277,7 @@
     color: var(--qr-ink);
   }
   .qr__canvas { width: min(100%, 280px); aspect-ratio: 1; }
-  /* kjua sizes its canvas with an inline pixel style (420 px, drawn at that
-     size for a sharp image); the tile scales it down. */
+  /* kjua sets an inline 420 px size for a sharp image; scale it down. */
   .qr__canvas :is(canvas, img) { display: block; width: 100% !important; height: auto !important; }
   .qr__canvas p { margin: 0; overflow-wrap: anywhere; font-size: var(--fs-sm); }
   .qr__caption { font-size: var(--fs-sm); text-align: center; }
@@ -300,8 +287,7 @@
     .qr__tile { width: auto; }
   }
 
-  /* Phones, in the order a phone visitor needs: the link first, the choice,
-     then the code to show someone next to them. */
+  /* Phones: the link first; the code is for someone next to them. */
   @media (max-width: 39.99rem) {
     .qr, .qr__copy { display: flex; flex-direction: column; }
     .qr__copy { display: contents; }

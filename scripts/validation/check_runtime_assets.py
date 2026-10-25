@@ -7,11 +7,10 @@ export manifest, and ONNX input/output contracts by default. It intentionally
 skips local dataset inspection; use ``verify_project_assets.py`` for the broader
 repository audit.
 
-With ``--deploy`` (``make deploy-check``) it also lists every file under
-``asl-web/`` in the working tree, which is what a drag-and-drop upload takes,
-and fails on anything the site does not ship: the local Model Test fixture
-folder, files Git ignores, hidden files, and paths outside the allowlist in
-``contracts.py``. Run it before every upload.
+With ``--deploy`` it also lists every file under ``asl-web/``, which is what
+an upload of the folder takes, and fails on anything the site does not ship:
+the local Model Test fixture folder, files Git ignores, hidden files, and
+paths outside the allowlist in ``contracts.py``.
 
 Examples:
   python scripts/validation/check_runtime_assets.py
@@ -26,7 +25,7 @@ Exit status:
   2  bad usage, or ONNX Runtime cannot be imported and --no-onnx was not given,
      so the models were not verified
 
-See ``docs/models-and-data.md`` for model provenance and ONNX contracts.
+The source-to-deploy pairs and ONNX contracts are in ``contracts.py``.
 """
 
 from __future__ import annotations
@@ -350,7 +349,7 @@ def check_model_test_fixtures(root: Path) -> bool:
         _warn(
             "model-test-samples/local/ is present: uploading asl-web/ as it is would publish "
             "fixtures derived from competition data; move this folder out before a deploy "
-            "(make deploy-check fails while it is there)"
+            "(--deploy fails while it is there)"
         )
 
     registered: set[str] = set()
@@ -792,7 +791,7 @@ def find_deploy_inventory_issues(web_dir: Path, ignored: Iterable[Path] = ()) ->
             files += 1
             rel = PurePosixPath((folder_path / name).relative_to(web_dir).as_posix())
             if name == ".DS_Store":
-                reason = "macOS Finder metadata; make clean removes it"
+                reason = "macOS Finder metadata; delete it"
             elif any(part.startswith(".") for part in rel.parts):
                 reason = "hidden file; the site does not publish it"
             elif not _shipped_kind(rel):
@@ -912,7 +911,7 @@ def main(argv: list[str] | None = None) -> int:
         if not file_ok:
             print("  - Missing or truncated files: copy them again from their source")
         if not json_ok:
-            print("  - JSON schema error: see docs/models-and-data.md")
+            print("  - JSON schema error: fix the file named above")
         if not fixtures_ok:
             print("  - Export the Model Test manifest and fixtures again")
         if not hash_ok:

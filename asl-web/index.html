@@ -3,34 +3,29 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <!-- One toolbar colour per scheme, each the page colour of that theme
-         (tokens.css --color-page). js/core/theme-boot.js points both at the
-         chosen one when the visitor has picked a theme. -->
+    <!-- theme-boot.js points both at the chosen theme's colour. -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f3ef" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131416" />
     <title data-i18n="shell.documentTitle">Harf tanıma · ASL Assistant</title>
     <meta name="description" data-i18n-content="shell.metaDescription" content="ASL Assistant, ASL harflerini ve kelimelerini tarayıcıda tanır; kamera görüntüsü cihazından hiç çıkmaz." />
     <link rel="icon" href="favicon.ico" sizes="32x32" />
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
-    <!-- Link preview. Most preview crawlers do not resolve relative URLs, so og:url and og:image name the live host. -->
+    <!-- Most preview crawlers do not resolve relative URLs. -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://asl-assistant.netlify.app/" />
+    <meta property="og:url" content="https://asl-assistant.pages.dev/" />
     <meta property="og:title" content="ASL Assistant · ASL harf tanıma" />
     <meta property="og:description" content="ASL Assistant, ASL harflerini ve kelimelerini tarayıcıda tanır; kamera görüntüsü cihazından hiç çıkmaz." />
-    <meta property="og:image" content="https://asl-assistant.netlify.app/assets/social-preview.png" />
+    <meta property="og:image" content="https://asl-assistant.pages.dev/assets/social-preview.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="ASL Assistant harf ekranı: kamera alanında “Kameraya bir ASL harfi gösterin; tanınan harf metne yazılır.” başlığı, Kamerayı aç ve Örneği izleyin düğmeleri." />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preload" href="assets/fonts/atkinson-hyperlegible-next.woff2" as="font" type="font/woff2" crossorigin />
-    <!-- Before the stylesheets, so the first frame is already in the visitor's
-         theme and <html lang> names their language; a blocking script after
-         them would wait for them. -->
+    <!-- Before the stylesheets, so the first frame has the visitor's theme and
+         language; after them it would wait for them. -->
     <script src="js/core/theme-boot.js?v=12"></script>
     <script src="js/core/lang-boot.js?v=12"></script>
-    <!-- style.css first: it declares the cascade layer order, and the first
-         declaration wins. The files after it add layers above the legacy one. -->
-    <link rel="stylesheet" href="css/style.css?v=12" />
+    <!-- tokens.css first: it declares the cascade layer order. -->
     <link rel="stylesheet" href="css/tokens.css?v=12" />
     <link rel="stylesheet" href="css/base.css?v=12" />
     <link rel="stylesheet" href="css/layout.css?v=12" />
@@ -41,8 +36,7 @@
   </head>
   <body>
     <div class="app-shell" data-ui="app-shell" data-view="app" data-mode="letter">
-      <!-- Handled by the app (preventDefault): followed as a link, #main would
-           be an unknown route and open letter mode. -->
+      <!-- Handled by the app: as a link, #main would be an unknown route. -->
       <a class="skip-link" id="skipLink" href="#main" data-i18n="shell.skipLink">İçeriğe geç</a>
       <div class="visually-hidden" id="announcer" role="status" aria-live="polite"></div>
       <p class="startup-error" id="startupError" hidden></p>
@@ -66,9 +60,12 @@
             <button class="navlink" data-ui="mode-tab" type="button" data-mode="project" data-i18n="shell.menu.project">Nasıl çalışır</button>
             <button class="navlink navlink--icon" data-ui="mode-tab" type="button" data-mode="qr" data-icon="qr" title="Telefonda aç" data-i18n-title="shell.menu.qr"><span class="navlink__label" data-i18n="shell.menu.qr">Telefonda aç</span></button>
             <button class="navlink navlink--icon" type="button" id="themeToggle" data-icon="theme" title="Koyu tema" data-i18n-title="shell.menu.theme" aria-pressed="false"><span class="navlink__label" data-i18n="shell.menu.theme">Koyu tema</span></button>
-            <!-- Named and labelled in the language it switches to, so a visitor
-                 who cannot read the page can still find it. -->
-            <button class="navlink" type="button" id="languageToggle" data-icon="language" lang="en" data-i18n-lang="shell.language.code" aria-label="Switch to English" data-i18n-aria-label="shell.language.action"><span data-i18n="shell.language.label">English</span></button>
+            <!-- Each option is named in its own language, so a visitor who cannot
+                 read the page can still find theirs. -->
+            <div class="lang-switch" id="languageSwitch" role="group" aria-label="Dil" data-i18n-aria-label="shell.language.group">
+              <button class="lang-switch__option" type="button" data-language="tr" lang="tr" aria-label="Türkçe" aria-pressed="true">TR</button>
+              <button class="lang-switch__option" type="button" data-language="en" lang="en" aria-label="English" aria-pressed="false">EN</button>
+            </div>
           </div>
         </div>
       </header>
@@ -76,9 +73,7 @@
       <main id="main" tabindex="-1">
         <section class="workspace" data-ui="workspace" id="appWorkspace">
           <section class="camera-column" data-ui="workspace-pane" aria-label="Kamera" data-i18n-aria-label="shell.region.camera">
-            <!-- One h1 per screen. Its text is the document title (with
-                 " · ASL Assistant"), and focus moves to it when the visitor
-                 changes route. -->
+            <!-- Doubles as the document title; focus moves here on a route change. -->
             <h1 class="visually-hidden mode-only letter-only" data-screen-title="letter" data-i18n="shell.route.letter" tabindex="-1">Harf tanıma</h1>
             <h1 class="visually-hidden mode-only coach-only" data-screen-title="coach" data-i18n="shell.route.coach" tabindex="-1">Koç</h1>
             <h1 class="visually-hidden mode-only word-only" data-screen-title="word" data-i18n="shell.route.word" tabindex="-1">Kelime (deneysel)</h1>
@@ -88,8 +83,6 @@
               <canvas id="overlayCanvas" class="stage__overlay" width="1280" height="720" aria-hidden="true"></canvas>
 
               <div class="stage__empty" id="cameraEmpty">
-                <!-- The first-visit content; the camera problem below takes its
-                     place when the camera cannot open. -->
                 <div class="stage__intro" id="cameraIntro">
                   <svg class="stage__illustration" viewBox="6 46 152 182" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"><polyline class="bone" points="100,220 78,200 58,182 40,170 22,160"></polyline><polyline class="bone" points="100,220 88,150 86,110 85,84 84,60"></polyline><polyline class="bone" points="88,150 106,150 112,126 100,134 96,148"></polyline><polyline class="bone" points="106,150 122,154 128,134 116,140 112,152"></polyline><polyline class="bone" points="122,154 136,162 142,146 132,150 128,160"></polyline><polyline class="bone" points="100,220 136,162"></polyline></g><g><circle class="joint" cx="100" cy="220" r="4"></circle><circle class="joint" cx="22" cy="160" r="4"></circle><circle class="joint" cx="84" cy="60" r="4"></circle><circle class="joint" cx="88" cy="150" r="4"></circle><circle class="joint" cx="86" cy="110" r="4"></circle><circle class="joint" cx="58" cy="182" r="4"></circle><circle class="joint" cx="96" cy="148" r="4"></circle><circle class="joint" cx="112" cy="152" r="4"></circle><circle class="joint" cx="128" cy="160" r="4"></circle><circle class="joint" cx="136" cy="162" r="4"></circle></g></svg>
                   <h2 class="stage__headline">
@@ -100,28 +93,18 @@
                   <p class="stage__lead" data-i18n="letter.stage.lead">Kamerayı açınca tarayıcı izin ister. Görüntü cihazınızdan çıkmaz, kaydedilmez.</p>
                   <div class="stage__cta">
                     <button class="btn btn--stage-primary" type="button" data-trigger="camera" data-icon="camera"><span class="mode-only letter-only word-only" data-i18n="letter.camera.turnOn">Kamerayı aç</span><span class="mode-only coach-only" data-i18n="letter.stage.coachStart">Çalışmayı başlat</span></button>
-                    <!-- The camera-free demo (js/media/demo-source.js) reads letters
-                         from a recorded hand on the letter screen; the coach and
-                         word screens send a visitor without a camera there. -->
                     <button class="btn btn--stage" type="button" data-trigger="demo" data-icon="play" data-i18n="letter.stage.watchDemo">Örneği izleyin</button>
                   </div>
                   <ul class="stage__facts">
                     <li class="mode-only letter-only coach-only" data-icon="info" data-i18n="letter.stage.fact.letters">24 ASL harfi · J ve Z hareketli olduğu için yok</li>
                     <li class="mode-only word-only" data-icon="info" data-i18n="letter.stage.fact.words">50 kelime · deneysel; el, yüz ve omuzlar görünmeli</li>
                     <li data-icon="info" data-i18n="letter.stage.fact.asl">ASL (Amerikan İşaret Dili), TİD değil</li>
-                    <!-- Measured with an empty cache: the first camera start fetches about
-                         15 MB (hand model, MediaPipe and ONNX Runtime WASM, letter model);
-                         word mode adds pose, face and the word model, up to 24 MB in all. -->
                     <li class="mode-only letter-only coach-only" data-icon="info" data-i18n="letter.stage.fact.download">İlk kamera açılışında yaklaşık 15 MB iner; sonraki açılışlarda inmez</li>
                     <li class="mode-only word-only" data-icon="info" data-i18n="letter.stage.fact.wordDownload">İlk kamera açılışında en fazla 24 MB iner; Wi-Fi önerilir</li>
                   </ul>
                 </div>
 
-                <!-- Why the camera did not open and what to do. The app fills the
-                     title and text for the cause and puts the steps of the
-                     browser in use first; every browser's steps stay in the list.
-                     Not a live region: the cause is announced once through
-                     #announcer. -->
+                <!-- Not a live region: the cause is announced once through #announcer. -->
                 <div class="stage__problem" id="cameraProblem" hidden>
                   <span class="stage__problem-icon" data-icon="camera-off" aria-hidden="true"></span>
                   <h2 class="stage__headline stage__problem-title" id="cameraProblemTitle">Kamera açılamadı</h2>
@@ -148,10 +131,6 @@
                 <span class="stage-chip" id="latencyBadge" data-i18n="shell.badge.ready">Hazır</span>
                 <span class="visually-hidden" id="modeBadge">Harf Modu</span>
                 <button class="btn btn--stage stage__close" type="button" id="cameraToggle" data-icon="camera-off" data-i18n="letter.camera.turnOff">Kamerayı kapat</button>
-                <!-- The camera-free demo (js/media/demo-source.js): the word
-                     the recorded hand spells, with the letter on the stage
-                     marked, what to do, and, at the end, the camera. Its stop
-                     follows it and takes the close button's place. -->
                 <section class="stage-demo" id="demoPanel" tabindex="-1" aria-labelledby="demoTitle" hidden>
                   <h2 class="visually-hidden" id="demoTitle" data-i18n="letter.demo.title">Kamerasız örnek</h2>
                   <div class="stage-demo__head">
@@ -162,9 +141,6 @@
                   <button class="btn btn--stage-primary stage-demo__camera" type="button" id="demoCamera" data-trigger="camera" data-icon="camera" data-i18n="letter.demo.camera" hidden>Kamerayı açın</button>
                 </section>
                 <button class="btn btn--stage stage-demo__stop" type="button" id="demoStop" data-icon="x" data-i18n="letter.demo.stop" hidden>Durdurun</button>
-                <!-- Word recording readout, at the top of the stage where the
-                     head is and no sign is made. Shown from the countdown to
-                     the end of the recording (css/screens-word.css). -->
                 <div class="stage-hud" id="wordHud">
                   <div class="stage-hud__line">
                     <strong id="wordHudStep" data-i18n="word.hud.getReady">Hazırlanın</strong>
@@ -178,8 +154,6 @@
                 </div>
               </div>
 
-              <!-- The coach's target, beside the learner's own hand: the
-                   letter, and a button for the reference image. -->
               <div class="target-tile mode-only coach-only" id="coachTargetTile" data-kind="letter">
                 <button class="target-tile__ref" type="button" id="coachReference" data-icon="image" aria-haspopup="dialog" aria-label="Referans görselini büyüt" data-i18n-aria-label="coach.tile.enlarge"><span data-i18n="coach.tile.reference">Referans</span></button>
                 <div class="target-tile__main" role="group" aria-labelledby="coachTargetLabel coachTargetGlyph">
@@ -198,12 +172,9 @@
               </div>
             </div>
 
-            <!-- The result: a sibling of the stage, not part of it, so the layout
-                 can lay it over the stage (portrait, laptop) or beside it (phone
-                 landscape). The stage's data attributes still style it. -->
+            <!-- A sibling of the stage, so the layout can put it over the stage or
+                 beside it. -->
             <div class="plate" id="resultPlate">
-              <!-- Shown in word mode only (css/screens-word.css): the recording
-                   step, and that the model is experimental. -->
               <div class="plate__head">
                 <div class="plate__steps" aria-label="Kelime kayıt akışı" data-i18n-aria-label="word.plate.stepsName">
                   <span data-ui="word-step" data-i18n="word.plate.step.prepare">Hazırlık</span>
@@ -230,14 +201,11 @@
                   <strong id="wordResultDecision" data-i18n="letter.wordGuide.waiting">Sonuç bekleniyor</strong>
                   <span id="wordResultAction" data-i18n="letter.wordGuide.waitingAction">Kayıt tamamlandığında model sonucu burada yorumlanır.</span>
                 </div>
-                <!-- The coach's cue and hint for the target. -->
                 <p class="plate__cue mode-only coach-only" id="coachHint"></p>
-                <!-- The wait before the next target, which the learner can stop. -->
                 <div class="plate__advance mode-only coach-only" id="coachAdvance" hidden>
                   <span class="plate__bar" id="coachAdvanceBar" role="progressbar" aria-label="Sıradaki harfe geçiş" data-i18n-aria-label="coach.advance.label"><i></i></span>
                   <button class="btn btn--stage plate__stay" type="button" id="coachStay" data-i18n="coach.advance.stay">Burada kal</button>
                 </div>
-                <!-- Success, miss and the end of a session, for a screen reader. Written when the phase changes. -->
                 <p class="visually-hidden mode-only coach-only" id="coachVerdict" role="status" aria-atomic="true"></p>
               </div>
             </div>
@@ -245,9 +213,7 @@
             <div class="compose">
               <section class="strip mode-only letter-only word-only" aria-labelledby="transcriptHeading">
                 <h2 class="visually-hidden" id="transcriptHeading" data-i18n="letter.transcript.heading">Yazılan metin</h2>
-                <!-- The placeholder is in the interface's language; once the
-                     app runs, renderTranscript() writes the line and its lang
-                     (the typed letters are English). -->
+                <!-- renderTranscript() owns the lang: typed letters are English. -->
                 <p class="strip__text" id="transcriptText" data-empty="true" lang="tr" data-i18n-lang="letter.transcript.placeholderLang"><span data-i18n="letter.transcript.placeholder">Metin burada görünür</span><span class="cursor" aria-hidden="true">|</span></p>
                 <button class="btn btn--quiet btn--icon" type="button" id="copyText" data-icon="copy" title="Metni kopyala" aria-label="Metni kopyala" data-i18n-title="letter.transcript.copy" data-i18n-aria-label="letter.transcript.copy"></button>
                 <button class="btn btn--quiet btn--icon" type="button" id="speakText" data-icon="volume" title="Sesli oku" aria-label="Sesli oku" data-i18n-title="letter.transcript.speak" data-i18n-aria-label="letter.transcript.speak"></button>
@@ -266,9 +232,7 @@
                 <button class="btn mode-only letter-only" type="button" id="insertSpace" data-icon="space" aria-keyshortcuts="Enter"><span class="btn__label" data-i18n="letter.dock.space">Boşluk</span> <span class="kbd" aria-hidden="true">Enter</span></button>
                 <button class="btn btn--primary btn--grow mode-only letter-only" type="button" id="manualAddLetter" data-icon="plus" aria-keyshortcuts="Space"><span data-i18n="letter.dock.add">Ekle</span> <span class="kbd" aria-hidden="true">Space</span></button>
 
-                <!-- Word dock: which of these show depends on the recording
-                     step (data-word-step, css/screens-word.css). The labels
-                     are written by the scripts into the data-label spans. -->
+                <!-- Scripts write the labels into the data-label spans. -->
                 <button class="btn btn--primary btn--grow mode-only word-only" type="button" id="recordWord" data-icon="record"><span data-label data-i18n="word.record.start">Kaydı başlat</span> <span class="kbd" aria-hidden="true">Enter</span></button>
                 <button class="btn mode-only word-only" type="button" id="retryWord" data-icon="retry"><span data-label data-i18n="word.retry.label">Yeniden kaydet</span> <span class="kbd" aria-hidden="true">Enter</span></button>
                 <button class="btn btn--accent btn--grow mode-only word-only" type="button" id="appendWordResult" data-icon="check"><span data-label data-i18n="word.append.add">Metne ekle</span> <span class="kbd" aria-hidden="true">Space</span></button>
@@ -291,8 +255,6 @@
               <p class="panel__note mode-only word-only" data-i18n="letter.ranked.wordNote">Kayıt bittikten sonra önce sonuçlara bakın; emin değilseniz yeniden kaydedin.</p>
             </section>
 
-            <!-- The study controls. A card pair beside the stage on a laptop;
-                 on a phone the session button opens them as a sheet. -->
             <div class="coach-study mode-only coach-only" id="coachStudy">
               <section class="panel" aria-labelledby="coachStudyTitle">
                 <div class="panel__head">
@@ -363,7 +325,7 @@
               </div>
             </section>
 
-            <!-- Both word cards are built from data/per_word_stats.json and data/confusion_pairs.json. -->
+            <!-- Built from data/per_word_stats.json and data/confusion_pairs.json. -->
             <details class="panel word-guide word-demo-card mode-only word-only" id="wordDemoCard" hidden>
               <summary class="word-guide__summary">
                 <h2 class="panel__title" data-i18n="word.demo.title">Önce bunları deneyin</h2>
@@ -438,7 +400,7 @@
                   </p>
                 </section>
 
-                <!-- The figures come from data/model-card.json; the block stays hidden until it has been read. -->
+                <!-- Filled from data/model-card.json; hidden until then. -->
                 <section class="panel pj__numbers" id="projectNumbers" hidden aria-labelledby="pjNumbersTitle">
                   <h2 class="panel__title" id="pjNumbersTitle" data-i18n="info.project.numbers.title">Ne kadar iyi tanır?</h2>
                   <ul class="pj__list">
@@ -467,7 +429,6 @@
                   <ul class="pj__list">
                     <li data-i18n="info.project.limits.scope">Yalnızca tek tek harfleri ve 50 kelimeyi tanır; cümle çevirmez.</li>
                     <li data-i18n="info.project.limits.errors">Farklı el, ışık ve kamera açılarında hata yapabilir.</li>
-                    <li data-i18n="info.project.limits.phones">Gerçek telefonlarda henüz sınanmadı.</li>
                     <li data-i18n="info.project.limits.references">Referans görselleri yeniden hazırlanıyor; M, N, S, T ve E çizimleri birbirine çok benziyor.</li>
                   </ul>
                 </section>
@@ -493,7 +454,6 @@
                   </ul>
                 </details>
 
-                <!-- Model Test stays for developers; visitors get the demo on the letter screen. -->
                 <p class="pj__dev" data-i18n-html="info.project.developers">Geliştiriciler için: <a href="#test">modeli örnek dosyalarla test edin (Model Test)</a></p>
               </div>
 
@@ -550,7 +510,7 @@
               </div>
             </div>
 
-            <p class="pj__footer">© 2026 Ali Mustafa Ekmen · PolyForm Noncommercial 1.0.0</p>
+            <p class="pj__footer">© 2026 Ali Mustafa Ekmen · PolyForm Noncommercial 1.0.0 · <a href="https://github.com/alimustafaekmen/asl-assistant" target="_blank" rel="noreferrer"><span data-i18n="shell.footer.source">Kaynak kodu GitHub'da</span><span class="visually-hidden" data-i18n="info.newTab"> (yeni sekmede açılır)</span></a></p>
           </section>
 
           <section class="page mt" id="modelTestScreen" hidden aria-labelledby="modelTestTitle">
@@ -654,7 +614,6 @@
               </div>
             </div>
 
-            <!-- The run-all result, hidden until a run starts. -->
             <section class="panel mt__batch" id="modelTestBatch" hidden aria-labelledby="mtBatchTitle">
               <h2 class="panel__title" id="mtBatchTitle" data-i18n="info.test.batch.title">Tüm örneklerin sonucu</h2>
               <p class="mt__summary" id="modelTestSummary"></p>
@@ -696,11 +655,11 @@
                 </p>
               </div>
               <div class="qr__link">
-                <p class="qr__url" id="qrDemoUrl">https://asl-assistant.netlify.app/#letter</p>
+                <p class="qr__url" id="qrDemoUrl">https://asl-assistant.pages.dev/#letter</p>
                 <div class="qr__actions">
                   <button class="btn btn--primary" type="button" id="qrShare" hidden data-i18n="info.qr.share">Bağlantıyı paylaş</button>
                   <button class="btn" type="button" id="qrCopyDemo" data-icon="copy" data-i18n="info.qr.copy">Bağlantıyı kopyala</button>
-                  <a class="btn btn--quiet qr__open" id="qrOpenDemo" href="https://asl-assistant.netlify.app/#letter" target="_blank" rel="noreferrer" data-icon="external" data-i18n="info.qr.openTab">Yeni sekmede aç</a>
+                  <a class="btn btn--quiet qr__open" id="qrOpenDemo" href="https://asl-assistant.pages.dev/#letter" target="_blank" rel="noreferrer" data-icon="external" data-i18n="info.qr.openTab">Yeni sekmede aç</a>
                 </div>
                 <p class="panel__note" id="qrStatus" data-i18n="info.qr.preparing">QR hazırlanıyor...</p>
               </div>
@@ -733,8 +692,11 @@
         </section>
       </main>
 
-      <!-- Reference viewer: a native modal dialog, so the page behind it is
-           inert and Tab stays inside. The ids keep their lightbox names. -->
+      <footer class="site-footer">
+        <a href="https://github.com/alimustafaekmen/asl-assistant" target="_blank" rel="noreferrer"><span data-i18n="shell.footer.source">Kaynak kodu GitHub'da</span><span class="visually-hidden" data-i18n="info.newTab"> (yeni sekmede açılır)</span></a>
+      </footer>
+
+      <!-- A native modal dialog, so the page behind it is inert. -->
       <dialog class="viewer" id="lightbox" aria-labelledby="lightboxTitle">
         <div class="viewer__bar">
           <h2 class="viewer__title" id="lightboxTitle" data-i18n="word.viewer.title">ASL referans görseli</h2>
@@ -768,10 +730,8 @@
       </section>
     </div>
 
-    <!-- The interface strings, and the pass that puts the parsed page into the
-         visitor's language. Before the CDN scripts: the parser waits for each
-         of those to download, and the page must not wait in Turkish for an
-         English reader. Each area keeps its strings in its own file. -->
+    <!-- Before the CDN scripts, so an English reader does not wait on them
+         looking at Turkish. -->
     <script src="js/core/i18n.js?v=12"></script>
     <script src="js/i18n/shell.js?v=12"></script>
     <script src="js/i18n/letter.js?v=12"></script>
@@ -780,13 +740,12 @@
     <script src="js/i18n/info.js?v=12"></script>
     <script src="js/core/i18n-boot.js?v=12"></script>
 
-    <!-- ONNX Runtime Web and the kjua QR encoder, pinned: a version change needs a new integrity hash. -->
+    <!-- Pinned: a version change needs a new integrity hash. -->
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.wasm.min.js" integrity="sha384-epp8GDQUoLKx5qHa6SoDHKv7fSHILsEYk4uEsHdPRBztXEIVWCe/lhhrQJUBMZcf" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/kjua@0.9.0/dist/kjua.min.js" integrity="sha384-ayVM0To8wzK2eG/sCNqF3XW4aHfJBsYEneUeObYWVZCnBZbscaz45eTQaxEowih9" crossorigin="anonymous"></script>
 
-    <!-- MediaPipe Tasks Vision is not loaded here: js/media/camera.js imports its ES module bundle on the first camera start. -->
+    <!-- MediaPipe is imported by js/media/camera.js on the first camera start. -->
 
-    <!-- Classic scripts in dependency order: each uses globals from those above it, and app.js starts the app. -->
+    <!-- In dependency order: each uses globals from those above it. -->
     <script src="js/core/config.js?v=12"></script>
     <script src="js/core/runtime.js?v=12"></script>
     <script src="js/ml/landmarks.js?v=12"></script>

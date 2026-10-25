@@ -14,6 +14,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { flush } from "./helpers/fake-camera.mjs";
 import { LETTER_URL, announced, clipboard, qrApp, status } from "./helpers/qr-app.mjs";
 import { turkishLeft } from "./helpers/turkish-left.mjs";
 
@@ -42,10 +43,12 @@ test("an English reader gets the screen in English before and after the code is 
   assert.deepEqual(missing(app), []);
 });
 
-test("an English reader gets the fallback in English when the code cannot be drawn", () => {
+test("an English reader gets the fallback in English when the code cannot be drawn", async () => {
   const { app } = englishQr({ kjua: false });
 
   app.get("renderQrDemo")();
+  // The page asks for the library; the refusal arrives after the call.
+  await flush();
 
   assert.deepEqual(turkishOn(app), []);
   assert.match(app.evaluate("els.qrCanvas.textContent"), /The QR code could not be drawn\./);

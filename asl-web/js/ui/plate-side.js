@@ -1,27 +1,17 @@
-// Which bottom corner of the laptop stage the result plate takes.
-//
-// On a laptop the plate lies over the bottom-left of the stage, where a hand
-// raised to sign can land under it, so the plate moves to the bottom-right
-// while the hand covers it. The holds and the spacing below keep a hand at
-// the plate's edge from making it jump every frame. They are wall-clock
-// times, not frame counts, so the display's refresh rate does not change
-// them.
-//
-// Phones are left alone: upright the plate spans the stage, sideways it
-// stands beside it. CSS moves the plate (data-plate-side on the stage); this
-// file only decides.
+// On a laptop the result plate covers the stage's bottom-left, where a signing
+// hand often is, so it moves to the bottom-right while the hand covers it.
+// The holds are in milliseconds, not frames, so the refresh rate does not
+// change them. CSS does the moving (data-plate-side on the stage).
 
-/** How long the hand must cover the plate before it moves. */
+// The holds keep a hand at the plate's edge from making it jump every frame.
 const PLATE_SIDE_MOVE_MS = 500;
-/** How long the home corner must be clear before the plate comes back. */
 const PLATE_SIDE_RETURN_MS = 1000;
-/** The least time between two moves. */
 const PLATE_SIDE_SPACING_MS = 2000;
-/** The layout in which the plate overlaps the stage. */
+// Phones are left alone: there the plate does not overlap the stage.
 const PLATE_SIDE_LAPTOP_QUERY = "(min-width: 64rem)";
 
 /**
- * A box in stage pixels, mirrored as the visitor sees the stage.
+ * Stage pixels, mirrored as the visitor sees the stage.
  *
  * @typedef {Object} StageBox
  * @property {number} left
@@ -36,14 +26,12 @@ const PLATE_SIDE_LAPTOP_QUERY = "(min-width: 64rem)";
 
 /**
  * @typedef {Object} PlateSideState
- * @property {PlateSide} side The corner the plate is in.
- * @property {number | null} since When the condition for the next move began, or null.
- * @property {number} lastMove When the plate last moved.
+ * @property {PlateSide} side
+ * @property {number | null} since When the condition for the next move began.
+ * @property {number} lastMove
  */
 
 /**
- * The plate in its home corner, with no earlier move to wait out.
- *
  * @returns {PlateSideState}
  */
 function initialPlateSide() {
@@ -53,26 +41,18 @@ function initialPlateSide() {
 /**
  * @param {StageBox} a
  * @param {StageBox} b
- * @returns {boolean} True when the boxes share any area.
+ * @returns {boolean}
  */
 function stageBoxesMeet(a, b) {
   return Math.min(a.right, b.right) > Math.max(a.left, b.left) && Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top);
 }
 
 /**
- * Decide the plate's corner for one frame.
- *
- * Pure. At home, the plate moves once the hand has covered the home corner,
- * and not the other one, for PLATE_SIDE_MOVE_MS; away, it comes back once
- * the home corner has been clear (or no hand seen) for PLATE_SIDE_RETURN_MS.
- * Two moves are at least PLATE_SIDE_SPACING_MS apart. Any frame that breaks
- * the condition restarts the wait. Frozen holds the corner and resets the
- * wait.
+ * The plate leaves home only when the hand covers the home corner and not the
+ * other one, so it never moves under the hand.
  *
  * @param {PlateSideState} current
  * @param {{hand: StageBox | null, start: StageBox, end: StageBox, now: number, frozen?: boolean}} frame
- *   The hand's box (null when no hand is seen), the plate's box in each
- *   corner, the frame time in milliseconds, and whether moves are held.
  * @returns {PlateSideState}
  */
 function plateSideFor(current, { hand, start, end, now, frozen = false }) {
@@ -91,16 +71,14 @@ function plateSideFor(current, { hand, start, end, now, frozen = false }) {
 }
 
 /**
- * The box around every hand point of a MediaPipe frame, in stage pixels.
- *
- * Points are normalised against the unmirrored frame, so each goes through
- * the video's cover crop and is then flipped, as overlay.js draws them.
+ * Points are normalised to the unmirrored frame, so each goes through the
+ * video's cover crop and is then flipped, as overlay.js draws them.
  *
  * @param {MediaPipeFrameResult | null} result
- * @param {number} width Stage width in CSS pixels.
- * @param {number} height Stage height in CSS pixels.
+ * @param {number} width
+ * @param {number} height
  * @param {HTMLVideoElement | {videoWidth: number, videoHeight: number} | null} videoEl
- * @returns {StageBox | null} Null when the frame has no hand.
+ * @returns {StageBox | null}
  */
 function handBoxOnStage(result, width, height, videoEl) {
   if (!result) return null;
@@ -109,8 +87,7 @@ function handBoxOnStage(result, width, height, videoEl) {
   const points = [];
   for (const hands of [result.rightHandLandmarks, result.leftHandLandmarks]) {
     if (!Array.isArray(hands)) continue;
-    // Nested by detected hand, as camera.js publishes them; a flat list is
-    // the older shape, which the overlay also accepts.
+    // Nested per hand from camera.js; the overlay also accepts a flat list.
     const lists = Array.isArray(hands[0]) ? hands : [hands];
     for (const list of lists) {
       if (Array.isArray(list)) points.push(.../** @type {NormalizedLandmark[]} */ (list));
@@ -128,8 +105,6 @@ let _plateSide = initialPlateSide();
 let _plateSideLaptop = null;
 
 /**
- * Write the corner to the stage, where the stylesheet reads it.
- *
  * @param {PlateSide} side
  * @returns {void}
  */
@@ -138,11 +113,7 @@ function showPlateSide(side) {
 }
 
 /**
- * Run one frame of the decision against the live camera result, from the
- * render loop. Off a laptop or with the camera off, the plate goes home and
- * the wait starts over.
- *
- * @param {number} now Animation frame timestamp in milliseconds.
+ * @param {number} now
  * @returns {void}
  */
 function updatePlateSide(now) {
@@ -158,16 +129,14 @@ function updatePlateSide(now) {
   const stage = els.cameraStage.getBoundingClientRect();
   const box = plate.getBoundingClientRect();
   if (!stage.width || !box.width) return;
-  // The plate keeps the same gap to the stage edge in either corner. Mid-slide
-  // the gap reads larger, which is harmless: two moves are seconds apart.
+  // Mid-slide the gap reads larger, which is harmless: moves are seconds apart.
   const gap = Math.max(0, Math.min(box.left - stage.left, stage.right - box.right));
   const top = box.top - stage.top;
   const bottom = box.bottom - stage.top;
   const start = { left: gap, top, right: gap + box.width, bottom };
   const end = { left: stage.width - gap - box.width, top, right: stage.width - gap, bottom };
   const hand = handBoxOnStage(latestMediaPipeResult, stage.width, stage.height, els.video);
-  // The plate stays still while a word is recorded, so it does not move
-  // across the hands being recorded.
+  // Held still while a word records, so it does not slide across the hands.
   const frozen = state.wordState === "COUNTDOWN" || state.wordState === "RECORDING" || state.wordState === "PROCESSING";
 
   _plateSide = plateSideFor(_plateSide, { hand, start, end, now, frozen });

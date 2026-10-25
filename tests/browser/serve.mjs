@@ -5,11 +5,11 @@
 // broken. node:http serves them concurrently and keeps the checks
 // deterministic.
 //
-// The response headers come from asl-web/_headers, the same file Netlify reads
-// on every deploy, so the page runs under the site's real Content Security
-// Policy, Report-Only included, and a violation shows up in the checks before
-// it shows up on the live site. The file is published nowhere: Netlify strips
-// it from the deploy, and so does this server.
+// The response headers come from asl-web/_headers, the same file Cloudflare
+// Pages reads on every deploy, so the page runs under the site's real Content
+// Security Policy, Report-Only included, and a violation shows up in the checks
+// before it shows up on the live site. The file is published nowhere: the host
+// does not serve it, and neither does this server.
 //
 //   node tests/browser/serve.mjs [port]     serve until interrupted
 
@@ -20,9 +20,9 @@ import { fileURLToPath } from "node:url";
 
 export const WEB_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../asl-web");
 
-// Netlify's types for the extensions the app ships. A `.gz` file is served as
-// an opaque gzip body, not with Content-Encoding: the app checks the magic
-// bytes and decompresses the letter model itself.
+// Content types for the extensions the app ships. A `.gz` file is served as
+// application/gzip with no Content-Encoding, as Cloudflare Pages serves it: the
+// app checks the magic bytes and decompresses the letter model itself.
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -45,7 +45,7 @@ const MIME_TYPES = {
 };
 
 /**
- * Parse a Netlify `_headers` file into path rules.
+ * Parse a `_headers` file into path rules.
  *
  * The format is a path line followed by indented `Name: value` lines; `#`
  * starts a comment. A path may end in `*`, which matches any rest.

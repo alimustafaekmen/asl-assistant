@@ -10,7 +10,7 @@ import { loadWebApp } from "./web-app-context.mjs";
 const quietConsole = { ...console, log() {}, warn() {}, info() {}, error() {} };
 
 /** The link the screen shows by default, on the published site. */
-export const LETTER_URL = "https://asl-assistant.netlify.app/#letter";
+export const LETTER_URL = "https://asl-assistant.pages.dev/#letter";
 
 /**
  * @param {{
@@ -18,7 +18,7 @@ export const LETTER_URL = "https://asl-assistant.netlify.app/#letter";
  *   navigator?: object,
  *   execCommand?: () => boolean,
  *   style?: Record<string, string>,
- * }} [options] `kjua: false` is a CDN script that never loaded. `execCommand`
+ * }} [options] `kjua: false` is a CDN script the network refuses. `execCommand`
  *   is the legacy copy command. `style` maps a custom property to the value
  *   the page computes for it.
  */
@@ -33,6 +33,17 @@ export function qrApp({ kjua = true, navigator = {}, execCommand, style } = {}) 
   };
   const app = loadWebApp({ globals });
   holder.app = app;
+  if (!kjua) {
+    // The page fetches the library by adding a script element; the network
+    // refuses it, as when the CDN is blocked or the visitor is offline.
+    const head = app.evaluate("document.head");
+    const append = head.appendChild.bind(head);
+    head.appendChild = (node) => {
+      const added = append(node);
+      if (node.localName === "script") node.dispatchEvent({ type: "error", target: node });
+      return added;
+    };
+  }
   if (execCommand) app.evaluate("document").execCommand = execCommand;
   return { app, drawn };
 }

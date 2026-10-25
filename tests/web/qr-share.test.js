@@ -19,7 +19,7 @@ test("sharing hands the link to the system share sheet", async () => {
 
   // The app's object has the app realm's prototype, so it is compared as data.
   assert.deepEqual(JSON.parse(JSON.stringify(shared)), [
-    { title: "ASL Assistant", url: "https://asl-assistant.netlify.app/#word" },
+    { title: "ASL Assistant", url: "https://asl-assistant.pages.dev/#word" },
   ]);
 });
 

@@ -1,42 +1,17 @@
-// ASL Assistant bootstrap and orchestration.
-//
-// The browser app has no build step. index.html loads plain <script> files that
-// share one global scope, so load order is a runtime contract and this file is
-// last. Every other module only declares things; startup side effects live here.
-//
-// What stays in this file: init(), model and fixture loading coordination,
-// central event binding, hash routing and mode switching, theme and home
-// behaviour, camera permission with start/stop, the render loop, the debug
-// panel, and the window.aslDebug console API.
-//
-// Feature work belongs in its own module. js/README.md has the map.
+// Bootstrap and orchestration. Loads last; every other script only declares
+// things, so startup side effects live here. js/README.md has the module map.
 
 /**
- * Options for a mode change.
- *
  * @typedef {Object} SetModeOptions
- * @property {boolean} [syncHash] When false, the URL hash is left alone. Used
- *   when the change came from the hash itself.
- * @property {boolean} [focus] When true, focus moves to the new screen's h1.
- *   Set for a change the visitor made, never for the first load: the control
- *   they pressed may now be hidden, and a screen reader starts the new
- *   screen at its heading.
+ * @property {boolean} [syncHash] False when the change came from the hash itself.
+ * @property {boolean} [focus] Move focus to the new screen's h1. Only for a
+ *   visitor's change: the pressed control may now be hidden.
  */
 
 /**
- * Bring the app up, in the order the modules depend on.
- *
- * Preferences, coach options, and event bindings come first so the UI is
- * usable; the route is applied next and the render loop starts. Only then do
- * the reads that can be slow begin: a deep link must not show the wrong
- * screen, nor a started camera go unread, while a fetch is pending. The local
- * Model Test fixtures are not read here at all; that screen asks for them.
- *
- * No model loads here. A bare URL opens letter mode, but most visitors never
- * start the camera, so the models wait for their first real need: the camera
- * starting in a mode that runs one, a word recording, or a Model Test run.
- * The fixture manifest and the word guidance data are a few kilobytes and
- * load last; the guidance panel renders once its fetch has settled.
+ * The route is applied before any slow read, so a deep link never shows the
+ * wrong screen while a fetch is pending. No model loads here: most visitors
+ * never start the camera.
  *
  * @returns {Promise<void>}
  */
@@ -55,26 +30,19 @@ async function init() {
 
   requestAnimationFrame(renderLoop);
 
-  // Nothing calls camera.js before the camera starts, so a page that could not
-  // fetch it would start in silence and open a camera nothing tracks. It is
-  // reported here rather than thrown, so the screens without a camera still work.
+  // Nothing calls camera.js before the camera starts, so a missing file would
+  // otherwise go unnoticed until then. Reported, not thrown: other screens still work.
   if (typeof startMediaPipe !== "function") {
     reportStartupFailure(new Error("js/media/camera.js did not load"));
   }
 
-  // The word lists wait for the card data too, so a word's gloss, once shown,
-  // is there when they are built.
+  // The word lists wait for the card data so a gloss is there when they are built.
   await Promise.all([loadPublishedModelTestManifest(), loadGatingData(), wordReferenceLoad]);
   renderWordGuidancePanel();
 }
 
 /**
- * Which models a live camera mode runs.
- *
- * The coach runs the letter model, and the word model only while it is on
- * words: a letter session never downloads the word model, 1.8 MB it would
- * not use. Turning the coach to words with the camera on asks for it then.
- * The informational screens run none.
+ * A letter coach session never downloads the 1.8 MB word model it would not use.
  *
  * @param {AppMode} mode
  * @returns {{letter: boolean, word: boolean}}
@@ -87,19 +55,10 @@ function liveModelNeeds(mode) {
 }
 
 /**
- * Load the models a task needs, the first time it needs them, and say so.
- *
- * Each model loads once however often it is asked for, so this returns at once
- * for a model that is already loaded and then leaves the status line alone.
- * Progress is reported only when a download is actually under way. Each model
- * is optional, so a half-loaded app still runs: the status line says which one
- * is missing rather than failing outright.
- *
- * While the camera is on, the badge reports the camera and MediaPipe, so model
- * progress goes to the message line alone. A load asked for while the camera
- * was on belongs to that camera session: if the camera has been stopped (or
- * restarted) by the time it settles, the outcome is not reported at all,
- * because the stop has already put the badge and the stage back to idle.
+ * Each model is optional, so a half-loaded app still runs and the status line
+ * names what is missing. A load started while the camera was on reports
+ * nothing if that camera session has ended, because the stop already reset
+ * the badge and the stage.
  *
  * @param {{letter?: boolean, word?: boolean}} needs
  * @returns {Promise<boolean>} True when every needed model is ready. Never rejects.
@@ -109,11 +68,9 @@ async function loadModelsWithStatus(needs) {
   const setBadge = (key) => {
     if (!state.cameraOn) setText(els.latencyBadge, key);
   };
-  // The camera session this load belongs to, or null when the camera is off.
   const session = state.stream;
   const sessionEnded = () => session !== null && state.stream !== session;
-  // Whether each model was already loaded is read before its load is asked
-  // for, so a download that starts here is reported.
+  // Read before the load is asked for, so a download that starts here is reported.
   /** @type {{name: string, loaded: boolean, ready: Promise<boolean>}[]} */
   const models = [];
   if (needs.letter) {
@@ -123,10 +80,8 @@ async function loadModelsWithStatus(needs) {
     models.push({ name: "shell.models.word", loaded: !!wordSession, ready: ensureWordModel() });
   }
   const downloading = models.some((model) => !model.loaded);
-  // A record press waiting on the word model, now or by the time it settles,
-  // reports that model's outcome itself: its refusal (hand tracking not ready)
-  // or its failure (try again) must not be overwritten by "Hazır" (ready) or
-  // repeated.
+  // A record press waiting on the word model reports its own outcome, which
+  // must not be overwritten by "ready" or repeated.
   const pressesBefore = wordModelPresses;
   const pressWaiting = needs.word === true && _wordModelWait;
   if (downloading) {
@@ -161,18 +116,11 @@ async function loadModelsWithStatus(needs) {
   }
 }
 
-/** Whether bindEvents() has already run; see the guard in bindEvents(). */
 let _eventsBound = false;
 
 /**
- * Wire every DOM listener.
- *
- * Bindings stay in one place on purpose. Spreading them across the feature
- * modules would make it impossible to see what the page reacts to.
- *
- * Calling it again is a no-op. Every binding adds a listener rather than
- * replacing one, so a second call would make every click fire twice, with
- * nothing at the call site to show it.
+ * Calling it again is a no-op: every binding adds a listener, so a second
+ * call would make every click fire twice.
  *
  * @returns {void}
  */
@@ -182,10 +130,8 @@ function bindEvents() {
 
   queryAllUi("mode-tab").forEach((tab) => {
     tab.addEventListener("click", () => {
-      // On a phone the secondary screens sit in a popover menu, which would
-      // otherwise stay open over the screen it just opened. It closes first:
-      // a popover that closes with focus inside gives focus back to its
-      // button, which would undo the move to the new screen's heading.
+      // Close the phone popover first: closing with focus inside returns focus
+      // to its button and would undo the move to the new heading.
       const menu = tab.closest("[popover]");
       if (menu instanceof HTMLElement) closeMenu(menu);
       setMode(tab.dataset.mode, { focus: true });
@@ -200,21 +146,15 @@ function bindEvents() {
   // No preventDefault: the link's href moves the address to #letter.
   document.querySelector("[data-home-link]")?.addEventListener("click", showHome);
 
-  // The skip link is handled here, not followed: #main is not a route, so
-  // the hash change would fall back to letter mode and leave coach or word.
+  // Handled, not followed: #main is not a route and would fall back to letter mode.
   document.getElementById("skipLink")?.addEventListener("click", (event) => {
     event.preventDefault();
     document.getElementById("main")?.focus({ preventScroll: true });
   });
 
-  // A button clicked with a mouse keeps focus, so the next Space would press
-  // it again (another space after the "Boşluk" button) instead of adding the
-  // current letter; such a click gives its focus up. A click from the
-  // keyboard has detail 0 and keeps its focus, as a keyboard user expects.
-  // So does a touch: iOS VoiceOver's double tap is one, and a blur there
-  // sends VoiceOver back to the top of the page. The pointerType of the
-  // pointerdown on the same button tells the two apart; a click with no such
-  // press is blurred.
+  // A mouse click gives up focus, so the next Space adds a letter instead of
+  // pressing the button again. Keyboard clicks (detail 0) and touches keep it:
+  // a blur after a VoiceOver double tap sends VoiceOver to the top of the page.
   /** @type {{button: HTMLElement, pointerType: string} | null} */
   let lastPress = null;
   window.addEventListener("pointerdown", (event) => {
@@ -231,13 +171,11 @@ function bindEvents() {
     button.blur();
   });
 
-  // A hash change is the visitor's: a link, the address bar, the history.
   window.addEventListener("hashchange", () => {
     setMode(modeFromHash(window.location.hash), { syncHash: false, focus: true });
   });
 
-  // The targets are radios: the arrow keys move between them and fire change,
-  // which a click handler would miss.
+  // Radios: the arrow keys fire change, which a click handler would miss.
   queryElements("[data-qr-target]").forEach((radio) => {
     radio.addEventListener("change", handleQrTargetChange);
   });
@@ -245,21 +183,20 @@ function bindEvents() {
   els.qrShare?.addEventListener("click", shareQrDemoUrl);
 
   els.themeToggle?.addEventListener("click", toggleTheme);
-  els.languageToggle?.addEventListener("click", toggleLanguage);
+  queryElements("[data-language]", els.languageSwitch ?? undefined).forEach((option) => {
+    option.addEventListener("click", () => chooseLanguage(option.dataset.language ?? ""));
+  });
+  renderLanguageSwitch();
 
-  // The start buttons sit in the empty camera stage, which hides once the
-  // camera is on, and the stop button hides once it is off. After a keyboard
-  // press (detail 0) focus moves to the control that is now visible, instead
-  // of falling to the page; a pointer leaves focus alone.
+  // The pressed start or stop control hides, so a keyboard press (detail 0)
+  // moves focus to the control now visible; a pointer leaves focus alone.
   const cameraStarts = queryElements('[data-trigger="camera"]');
   els.cameraToggle?.addEventListener("click", async (event) => {
     await toggleCamera();
     if (event?.detail === 0 && !state.cameraOn) cameraStarts[0]?.focus();
   });
-  // The empty camera stage offers its own start buttons, so the first action
-  // sits where the eye already is rather than in the action bar. A start
-  // that fails hides them too, behind the camera problem, so a keyboard user
-  // is taken to that problem's main action.
+  // A failed start hides the stage's buttons behind the camera problem, so
+  // keyboard focus goes to that problem's main action.
   /** @param {{detail?: number} | undefined} event */
   const afterCameraStart = (event) => {
     if (event?.detail !== 0) return;
@@ -272,17 +209,13 @@ function bindEvents() {
       afterCameraStart(event);
     });
   });
-  // The problem's retry starts the camera the way the stage's own start does.
   els.cameraRetry?.addEventListener("click", async (event) => {
     await toggleCamera();
     afterCameraStart(event);
   });
-  // The camera-free demo starts from the letter stage, the camera problem and
-  // the project page, and plays on the letter screen. The button pressed is
-  // hidden by then, so a keyboard press takes focus to the demo's panel, and
-  // back to the stage's own start when the recording could not be loaded.
-  // The demo's functions are read when pressed, not when bound: a page that
-  // could not fetch the demo still binds everything else.
+  // The pressed button is hidden once the demo plays, so keyboard focus goes
+  // to the demo panel, or back to the stage's start if loading failed. The
+  // demo functions are read on press, so a page without demo-source.js still binds.
   const demoStarts = queryElements('[data-trigger="demo"]');
   demoStarts.forEach((button) => {
     button.addEventListener("click", async (event) => {
@@ -291,9 +224,7 @@ function bindEvents() {
       if ((await started) === "failed" && event.detail === 0) demoStarts[0]?.focus();
     });
   });
-  // The demo's stop hides with it, so a keyboard user's focus goes to the
-  // stage's camera start, which is back in view. Its end action is one of the
-  // camera triggers above.
+  // The stop hides with the demo, so keyboard focus goes to the camera start.
   els.demoStop?.addEventListener("click", (event) => {
     stopDemo();
     if (event.detail === 0) cameraStarts[0]?.focus();
@@ -302,8 +233,7 @@ function bindEvents() {
   els.recordWord?.addEventListener("click", startWordRecording);
   els.retryWord?.addEventListener("click", retryWordRecording);
   els.appendWordResult?.addEventListener("click", appendWordResultToTranscript);
-  // The button disappears when the recording ends, so a keyboard user's focus
-  // goes to the button that starts the next one.
+  // The button disappears when the recording ends.
   els.cancelWord?.addEventListener("click", (event) => {
     cancelWordRecording();
     if (event.detail === 0) els.recordWord?.focus();
@@ -327,11 +257,8 @@ function bindEvents() {
   els.insertSpace?.addEventListener("click", insertSpaceInTranscript);
   document.querySelector('[data-trigger="space"]')?.addEventListener("click", insertSpaceInTranscript);
   els.removeLastChar?.addEventListener("click", removeLastTranscriptChar);
-  // After a coach success the next target comes up on its own; reaching for
-  // the coach's buttons or leaving the page stays on the target instead.
+  // Reaching for the coach's buttons stays on the target instead of auto-advancing.
   els.controlBar.addEventListener("focusin", () => stayOnCoachTarget());
-  // A page in the background shows nobody the demo, so it stops rather than
-  // play on unseen.
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState !== "hidden") return;
     stayOnCoachTarget();
@@ -344,8 +271,6 @@ function bindEvents() {
   });
   els.coachFlowGroup?.addEventListener("keydown", moveCoachRadio);
   els.coachContentGroup?.addEventListener("keydown", moveCoachRadio);
-  // On a phone the study controls are a sheet: the session button opens it,
-  // and its close button, a press outside it and Escape close it.
   els.coachSessionButton?.addEventListener("click", () => setCoachSheet(!isCoachSheetOpen()));
   els.coachSheetClose?.addEventListener("click", () => setCoachSheet(false));
   document.addEventListener("click", (event) => {
@@ -361,8 +286,7 @@ function bindEvents() {
   els.loadSelectedModelTestSample?.addEventListener("click", loadSelectedModelTestSample);
   els.modelTestSampleFile?.addEventListener("change", handleModelTestSampleFile);
   els.runModelTestSample?.addEventListener("click", runModelTestSample);
-  // Read the model when the button is pressed, not when it is bound: the
-  // visitor may have switched models since.
+  // Read on press: the visitor may have switched models since binding.
   els.runModelTestBatch?.addEventListener("click", () => runModelTestBatch(state.modelTestTask));
   els.modelTestDropZone?.addEventListener("dragover", (event) => {
     event.preventDefault();
@@ -374,59 +298,47 @@ function bindEvents() {
   els.modelTestDropZone?.addEventListener("drop", handleModelTestSampleDrop);
 
   els.coachTarget.addEventListener("change", (event) => {
-    // The listener is bound to the coach select, so the change event targets it.
     chooseCoachTarget(/** @type {HTMLSelectElement} */ (event.target).value);
   });
 
   window.addEventListener("keydown", (event) => {
-    // A native popover closes on Escape by itself; the fallback menu does
-    // here, and gives focus back to its button.
+    // A native popover closes on Escape by itself; the fallback menu does here.
     if (event.key === "Escape" && closeFallbackMenu()) {
       event.preventDefault();
       return;
     }
-    // Ctrl-modified, so it cannot collide with typing and stays available
-    // wherever focus is.
+    // Ctrl-modified, so it never collides with typing.
     if (event.ctrlKey && event.key.toLowerCase() === "d") {
       event.preventDefault();
       state.debug = !state.debug;
       els.debugPanel.hidden = !state.debug;
       return;
     }
-    // Any other modified key belongs to the browser: Cmd+Backspace and
-    // Alt+Enter are editing and system keys, not transcript commands.
+    // Other modified keys belong to the browser (Cmd+Backspace, Alt+Enter).
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     // The reference viewer is a modal dialog: its keys are its own.
     if (referenceViewerOpen()) return;
-    // In the coach, Escape closes the phone's study sheet when it is open,
-    // and otherwise only ever keeps the current target, which no focused
-    // control would miss, so it works wherever focus is.
+    // In the coach, Escape closes the phone sheet or keeps the current target.
     if (state.mode === "coach" && event.key === "Escape") {
       if (isCoachSheetOpen()) setCoachSheet(false);
       else stayOnCoachTarget();
       return;
     }
-    // Everything below is an unmodified key, which belongs to the focused
-    // control whenever there is one that consumes typing. Word mode decides
-    // that itself, because Escape cancels a recording whatever has focus.
+    // Unmodified keys belong to a focused control that consumes typing. Word
+    // mode decides itself, because Escape cancels a recording whatever has focus.
     const fromControl = isEditableTarget(event.target);
     if (state.mode === "word") {
       handleWordKey(event, fromControl);
       return;
     }
     if (fromControl) return;
-    // In the coach, Space takes what the coach offers next, as it takes the
-    // letter on the letter screen; with nothing on offer it keeps its default
-    // action. The coach has no other key.
+    // In the coach, Space takes what the coach offers next, if anything.
     if (state.mode === "coach") {
       if (event.code === "Space" && coachPrimaryAction()) event.preventDefault();
       return;
     }
-    // The transcript keys act in letter mode only, where the transcript is
-    // what the user is building. The on-screen buttons call the same
-    // functions instead of simulating a key event. There are deliberately no
-    // single-letter keys: one that clears the text or leaves the screen, with
-    // no way to turn it off, fails WCAG 2.1.4.
+    // No single-letter shortcuts: one that clears the text or leaves the
+    // screen, with no way to turn it off, fails WCAG 2.1.4.
     if (state.mode !== "letter") return;
     if (event.code === "Space") {
       event.preventDefault();
@@ -442,11 +354,8 @@ function bindEvents() {
 }
 
 /**
- * Whether the browser has the Popover API.
- *
- * Safari before 17 has neither the methods nor the ":popover-open"
- * selector, and rejects that selector with an exception, so it must not be
- * used where the methods are missing.
+ * Safari before 17 lacks the methods and throws on the ":popover-open"
+ * selector, so the selector is used only where the methods exist.
  *
  * @returns {boolean}
  */
@@ -455,7 +364,7 @@ function hasPopoverApi() {
 }
 
 /**
- * The popover menu and its button, when the browser cannot open it.
+ * The menu and its button when the browser has no Popover API.
  *
  * @returns {{menu: HTMLElement, button: HTMLElement} | null}
  */
@@ -467,9 +376,6 @@ function fallbackMenu() {
 }
 
 /**
- * Open or close the fallback menu. data-open drives its display, and the
- * button's aria-expanded says the same to a screen reader.
- *
  * @param {{menu: HTMLElement, button: HTMLElement}} parts
  * @param {boolean} open
  * @returns {void}
@@ -480,10 +386,7 @@ function setFallbackMenuOpen({ menu, button }, open) {
 }
 
 /**
- * Let the "Diğer" (more) button open its menu in a browser without popovers.
- *
- * With the Popover API the browser does all of this from popovertarget, so
- * nothing is bound.
+ * With the Popover API the browser handles popovertarget, so nothing is bound.
  *
  * @returns {void}
  */
@@ -498,8 +401,6 @@ function bindMenuFallback() {
 }
 
 /**
- * Close the fallback menu if it is open, and give focus back to its button.
- *
  * @returns {boolean} Whether a menu was closed.
  */
 function closeFallbackMenu() {
@@ -511,8 +412,6 @@ function closeFallbackMenu() {
 }
 
 /**
- * Close a popover menu, natively or through the fallback.
- *
  * @param {HTMLElement} menu
  * @returns {void}
  */
@@ -526,13 +425,8 @@ function closeMenu(menu) {
 }
 
 /**
- * Go "home": the letter screen with the camera released.
- *
- * There is no separate home view. The letter screen's empty camera stage is
- * where the app explains itself, so the brand link opens that screen.
- * Stopping the camera is the point: hiding the workspace alone would leave
- * the stream and the inference loop running, which is wrong for both privacy
- * and battery.
+ * The brand link opens the letter screen with the camera released: hiding
+ * the workspace alone would leave the stream and the inference loop running.
  *
  * @returns {void}
  */
@@ -540,19 +434,13 @@ function showHome() {
   if ((state.cameraOn || _cameraStartAttempt) && typeof stopCamera === "function") {
     stopCamera();
   }
-  // The brand link's own href (#letter) updates the address, so the switch
-  // here leaves the history alone.
+  // The brand link's own href updates the address.
   setMode("letter", { syncHash: false, focus: true });
 }
 
 /**
- * Show a theme everywhere it is read. After load, the only writer of the
- * theme.
- *
- * theme-boot.js already painted the root element before the stylesheets;
- * this repeats that and mirrors the theme onto the body and the shell, which
- * the legacy stylesheet still keys on, and onto the button's pressed state,
- * which is what a screen reader announces.
+ * After load, the only writer of the theme. theme-boot.js painted the root
+ * before the stylesheets; aria-pressed is what a screen reader announces.
  *
  * @param {ThemeName} theme
  * @param {"user" | "system"} source Whether the visitor chose it.
@@ -566,8 +454,6 @@ function applyTheme(theme, source) {
 }
 
 /**
- * Apply the theme the visitor chose, else the system's.
- *
  * @returns {void}
  */
 function restoreTheme() {
@@ -576,13 +462,8 @@ function restoreTheme() {
 }
 
 /**
- * Follow the system switching between light and dark, until the visitor
- * chooses a theme.
- *
- * The choice is read from the root element rather than from storage, so a
- * choice made with storage blocked is kept for the rest of the visit too.
- * Safari before 14 hands out media query lists with addListener only, so the
- * method is looked up on the list itself.
+ * The choice is read from the root element, not storage, so a choice made with
+ * storage blocked holds for the visit. Safari before 14 has only addListener.
  *
  * @returns {void}
  */
@@ -598,8 +479,6 @@ function watchSystemTheme() {
 }
 
 /**
- * Switch between light and dark, and remember the choice.
- *
  * @returns {void}
  */
 function toggleTheme() {
@@ -609,57 +488,59 @@ function toggleTheme() {
 }
 
 /**
- * Switch between Turkish and English, remember the choice, and say so.
+ * A screen reader does not notice the page changing language, so the change
+ * is announced in the new one.
  *
- * The button's own name changes with the language, which a screen reader
- * does not read out again, so the change is announced in the new language.
- *
+ * @param {string} language
  * @returns {void}
  */
-function toggleLanguage() {
-  setLanguage(currentLanguage() === "tr" ? "en" : "tr");
-  announce(t("shell.language.changed"));
+function chooseLanguage(language) {
+  const changed = language !== currentLanguage();
+  setLanguage(/** @type {Language} */ (language));
+  if (changed && currentLanguage() === language) announce(t("shell.language.changed"));
 }
 
 /**
- * Redraw the shell text that state decides, after a language change.
+ * Mark the language shown as pressed in the switch.
  *
- * The marked markup and the bound badges have been rewritten by then; what
- * is left is the document title, which follows the screen's heading, and
- * the camera indicator, written as plain text.
+ * @returns {void}
+ */
+function renderLanguageSwitch() {
+  queryElements("[data-language]", els.languageSwitch ?? undefined).forEach((option) => {
+    option.setAttribute("aria-pressed", String(option.dataset.language === currentLanguage()));
+  });
+}
+
+/**
+ * The shell text that state decides: the document title, the camera
+ * indicator and the language switch. The marked markup and the bound badges
+ * are rewritten already.
  *
  * @returns {void}
  */
 function renderShellLanguage() {
   showScreenHeading(state.mode, false);
+  renderLanguageSwitch();
   els.cameraStatus.lastChild.textContent = t(state.cameraOn ? "shell.status.cameraOn" : "shell.status.ready");
 }
 
 /**
- * Resolve a URL hash to a mode.
- *
- * Unknown input falls back to letter mode, so a stale or hand-edited link opens
- * the app rather than a blank screen.
+ * Unknown input opens letter mode, so a stale link never shows a blank screen.
  *
  * @param {unknown} hash Typically window.location.hash.
  * @returns {AppMode}
  */
 function modeFromHash(hash) {
   const raw = String(hash || "").replace(/^#/, "").trim().toLowerCase();
-  // The membership test is the validation; Array.includes cannot narrow a
-  // string to the union, so the result is stated here.
+  // Array.includes cannot narrow a string to the union.
   return /** @type {AppMode} */ (
     ["letter", "coach", "word", "project", "test", "qr"].includes(raw) ? raw : "letter"
   );
 }
 
 /**
- * Switch to a mode and rebuild everything that depends on it.
- *
- * Temporal state and the recording buffers are cleared first, so a prediction
- * or a half-recorded sign cannot leak across the change. The informational
- * screens replace the workspace entirely and return early, because none of the
- * camera UI applies to them.
+ * Temporal state and recording buffers are cleared first, so nothing leaks
+ * across the change.
  *
  * @param {string} mode Anything unrecognised falls back to letter mode.
  * @param {SetModeOptions} [options]
@@ -670,9 +551,8 @@ function setMode(mode, options = {}) {
   if (options.syncHash !== false && window.location.hash !== `#${mode}`) {
     window.history.replaceState(null, "", `#${mode}`);
   }
-  // Every route change ends the demo, the letter screen's own included: it
-  // is the same release the camera gets on the information screens. Guarded,
-  // so a page that could not fetch the demo still switches screens.
+  // Every route change ends the demo. Guarded: the page still switches screens
+  // if demo-source.js did not load.
   if (typeof stopDemo === "function") stopDemo();
   const shell = els.appShell || queryUi("app-shell");
   if (shell) { shell.dataset.view = "app"; shell.dataset.mode = mode; }
@@ -683,7 +563,6 @@ function setMode(mode, options = {}) {
   normalizedFrameBuffer = [];
   previousFrame = null;
 
-  // Validated by the membership test at the top of this function.
   state.mode = /** @type {AppMode} */ (mode);
   state.wordState = "IDLE";
   state.wordFrames = 0;
@@ -714,14 +593,11 @@ function setMode(mode, options = {}) {
     el.hidden = isProject || isTest || isQr;
   });
   if (isQr) renderQrDemo();
-  // The page's figures come from the model card, read when the page opens.
   if (isProject) loadProjectModelCard();
-  // The panel re-renders its fixture list when the read settles.
   if (isTest) loadLocalModelTestFixtures();
   if (isProject || isTest || isQr) {
-    // These screens replace the camera workspace, so they release the camera
-    // exactly as returning home does, and a camera problem is over: the
-    // visitor has moved on, and the next camera start asks afresh.
+    // These screens release the camera as returning home does, and end any
+    // camera problem: the next start asks afresh.
     if (state.cameraOn || _cameraStartAttempt) stopCamera();
     clearCameraProblem();
     clearFeedback();
@@ -739,16 +615,14 @@ function setMode(mode, options = {}) {
   clearFeedback();
 
   if (mode === "coach") {
-    // Progress and the teaching data are read on the first visit; the coach
-    // does not wait for the data.
+    // The coach does not wait for its data.
     loadCoachProgress();
     loadCoachLetterData();
     updateCoachModeButtons();
     updateCoachFlowButtons();
     updateCoachPanel();
   }
-  // Nothing has been seen on the new screen yet. The coach's target is shown
-  // in the coach card, never on the plate, where it would read as detected.
+  // The coach's target never goes on the plate, where it would read as detected.
   updatePrediction({ label: "?", confidence: 0, alternatives: [] });
 
   updateWordState();
@@ -757,16 +631,11 @@ function setMode(mode, options = {}) {
   syncActionBar();
   showScreenHeading(state.mode, options.focus === true);
 
-  // Entering a live mode with the camera already on is a first need for the
-  // models it runs; with the camera off, starting it will be.
   if (state.cameraOn) loadModelsWithStatus(liveModelNeeds(state.mode));
 }
 
 /**
- * Name the screen in the document title, and move focus to its h1 if asked.
- *
- * The title is the screen's h1 and the app name, so a history entry, a tab
- * and a screen reader all say which screen it is.
+ * The title names the screen for history entries, tabs and screen readers.
  *
  * @param {AppMode} mode
  * @param {boolean} moveFocus
@@ -780,43 +649,31 @@ function showScreenHeading(mode, moveFocus) {
 }
 
 /**
- * The camera start still in progress, or null when none is.
- *
- * state.cameraOn turns true only once the stream arrives, so without this a
- * second Start would open a second stream and a stop during the permission
- * prompt would have nothing to stop. The start then still waits for the first
- * video frame and for hand tracking, and a stop can land in either wait too.
- * stopCamera() clears the token, which is how the start learns, after each
- * wait, that it was cancelled. Each start gets its own token, so a cancelled
- * start cannot take over a newer one.
+ * The camera start in progress, or null. state.cameraOn turns true only when
+ * the stream arrives, so this stops a second start and lets a stop during the
+ * permission prompt or the first-frame wait cancel it. Each start gets its own
+ * token, so a cancelled start cannot take over a newer one.
  *
  * @type {object | null}
  */
 let _cameraStartAttempt = null;
 
 /**
- * The listener on the live stream's tracks for an end the app did not ask
- * for, or null while no stream is live.
- *
- * The browser ends a track on its own when the permission is revoked, the
- * camera is unplugged, or another app takes it. stopCamera() removes the
- * listener before it stops the tracks, so a stop of its own is never reported
- * as a lost camera.
+ * Listener for a track end the app did not ask for (permission revoked, camera
+ * unplugged or taken). stopCamera() removes it first, so its own stop is not
+ * reported as a lost camera.
  *
  * @type {(() => void) | null}
  */
 let _cameraTrackEnded = null;
 
 /**
- * Why the camera is not open, as the stage shows it.
- *
  * @typedef {"denied" | "system" | "busy" | "notfound" | "insecure" | "unsupported" | "failed" | "ended"} CameraProblemKind
  */
 
 /**
- * The parameters of a camera problem's text. Only the insecure page names
- * something: the published address, from the one place it is kept, written
- * as a visitor would type it, without the trailing slash.
+ * Only the insecure page names something: the published address, without the
+ * trailing slash.
  *
  * @param {CameraProblemKind} kind
  * @returns {I18nParams | null}
@@ -826,11 +683,8 @@ function cameraProblemParams(kind) {
 }
 
 /**
- * Map a getUserMedia rejection to the problem the stage shows.
- *
  * Chrome on macOS and Windows says "Permission denied by system" when the
- * operating system, not the site setting, blocks the camera. The message is
- * only a hint; anything else with that name is a site refusal.
+ * operating system, not the site setting, blocks the camera.
  *
  * @param {unknown} error
  * @returns {CameraProblemKind}
@@ -857,11 +711,8 @@ function cameraProblemKind(error) {
 }
 
 /**
- * Which browser's steps to allow the camera fit this visitor, or null.
- *
- * Used only to put those steps first; every browser's stay in the list, so
- * a wrong guess costs a scroll, not the answer. iPadOS Safari reports a Mac,
- * so a Mac with a touch screen is taken for an iPad.
+ * Only reorders the steps, so a wrong guess costs a scroll. iPadOS Safari
+ * reports a Mac, so a Mac with a touch screen is taken for an iPad.
  *
  * @returns {string | null} A data-browser value of #cameraHelpSteps.
  */
@@ -881,12 +732,8 @@ function cameraHelpBrowser() {
 }
 
 /**
- * Show why the camera is not open, in place of the first-visit stage.
- *
- * The stage stays at rest (no video). Where retrying cannot help (an
- * insecure page, a browser without the API) only "Örneği izleyin" (watch the
- * camera-free demo) is offered; where there is no camera it comes first.
- * The cause is announced once, through the message line's report.
+ * Where retrying cannot help (insecure page, no camera API) only the demo is
+ * offered; with no camera found it comes first.
  *
  * @param {CameraProblemKind} kind
  * @returns {void}
@@ -927,8 +774,6 @@ function showCameraProblem(kind) {
 }
 
 /**
- * Put the first-visit stage back.
- *
  * @returns {void}
  */
 function clearCameraProblem() {
@@ -938,10 +783,7 @@ function clearCameraProblem() {
 }
 
 /**
- * Move focus to the camera problem's main action, if one is shown.
- *
- * Called after a keyboard press that failed to open the camera: the button
- * pressed sits in the first-visit content, which is now hidden.
+ * After a failed keyboard start: the pressed button is now hidden.
  *
  * @returns {void}
  */
@@ -954,16 +796,9 @@ function focusCameraProblem() {
 }
 
 /**
- * Start or stop the camera.
- *
  * getUserMedia needs a secure context, so an insecure page is reported before
- * the permission prompt would fail. Standard media errors are mapped to
- * actionable Turkish messages. MediaPipe failing to start is not fatal: the
- * camera stays on and the status line explains what is missing. A track the
- * browser ends releases the camera as a stop does, and the user is told.
- *
- * A granted camera is what starts the live models downloading; a refused one
- * downloads nothing.
+ * the prompt would fail. A MediaPipe failure is not fatal: the camera stays
+ * on and the status line says what is missing.
  *
  * @returns {Promise<void>} Resolves after reporting any failure to the user.
  */
@@ -972,13 +807,12 @@ async function toggleCamera() {
     stopCamera();
     return;
   }
-  // A start is already waiting for the permission prompt.
   if (_cameraStartAttempt) return;
   // The camera and the demo never run together; the camera wins.
   if (typeof stopDemo === "function") stopDemo();
 
-  // Camera APIs require HTTPS, except on localhost; a browser hides them on
-  // an insecure page. A secure page without them is an old browser.
+  // Browsers hide the camera API on an insecure page; a secure page without
+  // it is an old browser.
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     const insecure = window.isSecureContext === false;
     setText(els.latencyBadge, insecure ? "shell.badge.httpsRequired" : "shell.badge.cameraFailed");
@@ -988,7 +822,6 @@ async function toggleCamera() {
 
   const attempt = {};
   _cameraStartAttempt = attempt;
-  // stopCamera() ran during the last wait, so this start was cancelled.
   const cancelled = () => _cameraStartAttempt !== attempt;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -1002,8 +835,7 @@ async function toggleCamera() {
     state.stream = stream;
     state.cameraOn = true;
     els.video.srcObject = stream;
-    // Watched from here on, so a camera lost during the video wait also
-    // cancels this start.
+    // Watched from here on, so a camera lost during the video wait also cancels.
     const onTrackEnded = () => {
       stopCamera();
       showCameraProblem("ended");
@@ -1021,8 +853,7 @@ async function toggleCamera() {
     els.cameraStatus.lastChild.textContent = t("shell.status.cameraOn");
     setText(els.latencyBadge, "shell.badge.cameraOn");
 
-    // Starting the camera is the first need for the live models. They download
-    // alongside MediaPipe rather than after it; neither needs the other.
+    // The models download alongside MediaPipe; neither needs the other.
     const liveModelsLoad = loadModelsWithStatus(liveModelNeeds(state.mode));
 
     if (typeof startMediaPipe === "function") {
@@ -1033,24 +864,21 @@ async function toggleCamera() {
         setText(els.latencyBadge, "shell.badge.trackingReady");
       } catch (err) {
         console.warn("MediaPipe failed to start:", err);
-        // A camera stopped meanwhile has nothing left to track hands on.
         if (cancelled()) return;
         setText(els.latencyBadge, "shell.badge.trackingMissing");
-        // Without MediaPipe no model can run, so this must be the message left
-        // standing, not a later "models ready".
+        // This must be the message left standing, not a later "models ready".
         await liveModelsLoad;
         if (cancelled()) return;
         reportProblem(() => t("shell.tracking.failed"));
       }
     }
   } catch (error) {
-    // A start the user cancelled (home, an information screen) has nothing
-    // left to report: the stop already put the camera area back to idle.
+    // A cancelled start has nothing to report: the stop already reset the stage.
     if (cancelled()) {
       console.warn("A cancelled camera start failed:", error);
       return;
     }
-    // The browser's own text is for the console; it is English and technical.
+    // The browser's own text is English and technical, so it stays in the console.
     setText(els.latencyBadge, "shell.badge.cameraFailed");
     showCameraProblem(cameraProblemKind(error));
     console.error("getUserMedia error:", error);
@@ -1060,11 +888,7 @@ async function toggleCamera() {
 }
 
 /**
- * Stop the camera and return the workspace to a resting state.
- *
- * Every track is stopped, MediaPipe is torn down, and any recording in flight
- * is abandoned: a stale countdown would otherwise block the next recording.
- * The motion buffers are cleared so the next session starts clean.
+ * Any recording in flight is abandoned, or a stale countdown would block the next one.
  *
  * @returns {void}
  */
@@ -1111,13 +935,9 @@ function stopCamera() {
 }
 
 /**
- * Whether the render loop runs inference on this frame.
- *
- * Letter contexts, letter mode and a coach target letter alike, run at most
- * once every 120 ms: the letter model is fast enough to run far more often
- * than the result changes, and the five-frame smoothing window is meant to
- * span about 600 ms of signing wherever a letter is read. Word contexts run
- * every frame, since frames are what a recording collects.
+ * Letter contexts run at most every 120 ms, so the five-frame smoothing window
+ * spans about 600 ms of signing. Word contexts run every frame, since frames
+ * are what a recording collects.
  *
  * @param {number} now Animation frame timestamp in milliseconds.
  * @returns {boolean}
@@ -1127,19 +947,14 @@ function isInferenceDue(now) {
 }
 
 /**
- * Drive one animation frame: FPS, overlay, inference, status, debug.
- *
  * @param {number} now Animation frame timestamp in milliseconds.
  * @returns {void}
  */
 function renderLoop(now) {
   updateFps(now);
   drawOverlay();
-  // On a laptop, the result plate steps aside from a hand under it.
   if (typeof updatePlateSide === "function") updatePlateSide(now);
 
-  // live-inference.js reads the frame camera.js or the demo published; it
-  // no-ops until one has produced landmark data.
   if (framesLive() && typeof realInference === "function" && isInferenceDue(now)) {
     // Only a letter tick moves the throttle, so the first letter frame after a
     // word context runs at once.
@@ -1152,15 +967,11 @@ function renderLoop(now) {
   requestAnimationFrame(renderLoop);
 }
 
-// Status refresh throttle and the running count of hand-less seconds.
 let _lastStatusTick = 0;
 let _noHandSeconds = 0;
 
 /**
- * Refresh the status badge at most once a second.
- *
- * After five seconds without a hand the message explains how to fix the
- * framing, rather than leaving the user watching an unchanging badge.
+ * After five seconds without a hand the message explains the framing.
  *
  * @param {number} now Animation frame timestamp in milliseconds.
  * @returns {void}
@@ -1185,18 +996,14 @@ function updateMediaPipeStatus(now) {
       _noHandSeconds = 0;
       setMessage(() => t("shell.hand.detected"), "good");
     }
-    // Which hand and the frame rate are developer readouts; the debug panel
-    // has the frame rate.
     setText(els.latencyBadge, "shell.badge.handDetected");
   }
 
-  // Pose and face models load in the background; refresh readiness periodically.
+  // Pose and face models load in the background, so readiness is refreshed here.
   syncRecordButton();
 }
 
 /**
- * Count frames and publish a rate once per second.
- *
  * @param {number} now Animation frame timestamp in milliseconds.
  * @returns {void}
  */
@@ -1218,16 +1025,13 @@ function updateFps(now) {
   }
 }
 
+// True while the overlay canvas holds a drawing.
+let _overlayDrawn = false;
+
 /**
- * Resize the overlay canvas to its box and draw the latest landmarks.
- *
- * The canvas is sized in device pixels and scaled back by the pixel ratio, so
- * the overlay stays sharp on a high-density display. Overlay drawing is
- * optional decoration: a failure here must not stop inference.
- *
- * It draws the latest published MediaPipe result, so it takes no timestamp;
- * its two callers, the render loop and the detection loop, run on different
- * clocks.
+ * Sized in device pixels so the overlay stays sharp on high-density displays.
+ * Drawing is decoration: a failure must not stop inference. It takes no
+ * timestamp because its callers run on different clocks.
  *
  * @returns {void}
  */
@@ -1242,29 +1046,34 @@ function drawOverlay() {
   if (els.canvas.width !== pixelWidth || els.canvas.height !== pixelHeight) {
     els.canvas.width = pixelWidth;
     els.canvas.height = pixelHeight;
+    // Resizing empties the bitmap.
+    _overlayDrawn = false;
   }
+
+  // Clearing an empty canvas still makes the browser composite a new frame,
+  // so an idle stage is cleared once and then left alone.
+  const live = framesLive();
+  if (!live && !_overlayDrawn) return;
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cssWidth, cssHeight);
+  _overlayDrawn = live;
 
-  if (!framesLive()) return;
+  if (!live) return;
 
   if (typeof drawLandmarks === "function" && typeof latestMediaPipeResult !== "undefined") {
     try {
-      // The demo's recorded square has no video behind it to cover; it is
-      // drawn in the room the demo's card and the plate leave on the stage.
+      // The demo has no video behind it; its square is drawn in the free room on the stage.
       const frameRect = state.demo === "playing" ? demoFrameRect(cssWidth, cssHeight, rect) : null;
       drawLandmarks(ctx, latestMediaPipeResult, cssWidth, cssHeight, els.video, frameRect);
     } catch (err) {
-      // Overlay rendering is optional; inference should continue if it fails.
+      // Overlay drawing is optional; inference continues.
     }
   }
 }
 
 
 /**
- * Refresh the debug panel while it is open.
- *
  * @returns {void}
  */
 function updateDebug() {
@@ -1282,11 +1091,8 @@ function updateDebug() {
 }
 
 /**
- * Wait until the video reports its dimensions, then start playback.
- *
  * The wait is capped, because a camera that never fires loadedmetadata would
- * otherwise hang startup. Autoplay rejection is logged and ignored: playback
- * often continues anyway.
+ * hang startup. An autoplay rejection is ignored: playback often starts anyway.
  *
  * @param {HTMLVideoElement | null} videoEl
  * @returns {Promise<void>}
@@ -1311,14 +1117,9 @@ async function waitForVideoReady(videoEl) {
 }
 
 /**
- * Tell the user the app could not start.
- *
- * Until init() has bound it, the page is static markup whose buttons look
- * ready and do nothing, so a failed start must not stay silent. The likely
- * causes are a script the page could not fetch, which leaves names init()
- * needs undefined, and an error thrown while starting. The elements are read
- * with getElementById rather than through the registry, because runtime.js,
- * which builds the registry, may be the script that failed.
+ * Until init() binds them the buttons look ready and do nothing, so a failed
+ * start must not stay silent. Uses getElementById because runtime.js, which
+ * builds the registry, may be the script that failed.
  *
  * @param {unknown} error
  * @returns {void}
@@ -1343,7 +1144,6 @@ function reportStartupFailure(error) {
 
 init().catch(reportStartupFailure);
 
-// Runtime diagnostics are available from the browser console via aslDebug.dump().
 window.aslDebug = {
   state,
   CONFIG,
@@ -1375,13 +1175,11 @@ window.aslDebug = {
       previousFrame: previousFrame ? "set" : "null",
     };
   },
-  // Read-only word-pipeline snapshots populated by live-inference.js.
   get wordDebug() {
     if (typeof window === "undefined") return null;
     return {
       lastRecording: window._lastWordDebug || null,
       currentFrame: window._lastWordCurrentFrame || null,
-      // Readable while a recording runs, before its final inference.
       live: {
         wordState: state.wordState,
         wordFrames: state.wordFrames,
@@ -1390,7 +1188,6 @@ window.aslDebug = {
       },
     };
   },
-  // Read-only letter-pipeline snapshots populated during live inference.
   get letterDebug() {
     if (typeof window === "undefined") return null;
     const handednessDebug =
