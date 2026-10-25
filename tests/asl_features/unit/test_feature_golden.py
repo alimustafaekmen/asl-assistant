@@ -59,13 +59,19 @@ def test_letter_inputs_are_unchanged(committed, rebuilt):
     for old, new in zip(committed["letter"]["cases"], rebuilt["letter"]["cases"]):
         assert old["source"] == new["source"], old["name"]
         for slot in ("right", "left"):
-            np.testing.assert_allclose(old[slot], new[slot], rtol=RTOL, atol=ATOL, err_msg=old["name"])
+            np.testing.assert_allclose(
+                old[slot], new[slot], rtol=RTOL, atol=ATOL, err_msg=old["name"]
+            )
 
 
 def test_letter_vectors_match_what_asl_features_computes_now(committed, rebuilt):
     for old, new in zip(committed["letter"]["cases"], rebuilt["letter"]["cases"]):
         np.testing.assert_allclose(
-            old["expect"], new["expect"], rtol=RTOL, atol=ATOL, err_msg=f"{old['name']}: 93-D vector"
+            old["expect"],
+            new["expect"],
+            rtol=RTOL,
+            atol=ATOL,
+            err_msg=f"{old['name']}: 93-D vector",
         )
 
 
@@ -81,7 +87,11 @@ def test_word_frames_match_what_the_notebook_contract_computes_now(committed, re
     for old, new in zip(committed["word"]["sequences"], rebuilt["word"]["sequences"]):
         assert np.shape(old["expect"]) == (len(old["frames"]), 168), old["name"]
         np.testing.assert_allclose(
-            old["expect"], new["expect"], rtol=RTOL, atol=ATOL, err_msg=f"{old['name']}: 168-D frames"
+            old["expect"],
+            new["expect"],
+            rtol=RTOL,
+            atol=ATOL,
+            err_msg=f"{old['name']}: 168-D frames",
         )
 
 
