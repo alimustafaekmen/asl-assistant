@@ -1,5 +1,7 @@
 # ASL Assistant: Technical Report
 
+[Türkçe](TECHNICAL_REPORT.tr.md)
+
 ASL Assistant recognises American Sign Language (ASL) from a webcam, entirely in the browser. MediaPipe finds landmarks (3D points on the hands, face and body) in each camera frame, and two small ONNX models classify them. No camera frame leaves the device. The product is the static web app in [`asl-web/`](asl-web/), live at <https://asl-assistant.pages.dev/>. The repository also holds the Python feature package [`asl-features/`](asl-features/), shared by training and the checks, and an earlier desktop prototype, [`asl-desktop/`](asl-desktop/).
 
 | Figure | Value | Scope |
