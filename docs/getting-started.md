@@ -128,13 +128,13 @@ deterministic fixtures with no camera frames, and the model files `.gitignore`
 allows are fine. Check each dataset's terms before you download, use or share
 it.
 
-[Data preparation](../scripts/data_preparation/README.md) and
-[model training](../scripts/model_training/README.md) cover the letter
+[Data preparation](../scripts/README.md#data-preparation) and
+[model training](../scripts/README.md#model-training) cover the letter
 pipeline. The 50-word model is trained in `notebooks/word_50_training.ipynb`.
 
 Real word samples for Model Test come from competition data that may not be
-redistributed. [Evaluation](../scripts/evaluation/README.md) explains how to
-export them into the ignored `asl-web/data/model-test-samples/local/` folder.
+redistributed. [Fixtures and demo poses](../scripts/README.md#fixtures-and-demo-poses)
+explains how to export them into the ignored `asl-web/data/model-test-samples/local/` folder.
 
 ## Hosting a copy
 
