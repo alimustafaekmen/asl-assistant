@@ -54,12 +54,12 @@ test("a radio whose target is unknown falls back to the letter screen", () => {
 
 test("drawing the screen checks the radio of the target in state and no other", () => {
   const { app } = qrApp();
-  const radios = ["letter", "word", "test"].map((target) => radio(app, target, false));
+  const radios = ["letter", "word"].map((target) => radio(app, target, false));
   for (const element of radios) app.evaluate("document.body").appendChild(element);
 
-  app.get("setQrTarget")("test");
-
-  assert.deepEqual(radios.map((element) => element.checked), [false, false, true]);
   app.get("setQrTarget")("word");
-  assert.deepEqual(radios.map((element) => element.checked), [false, true, false]);
+
+  assert.deepEqual(radios.map((element) => element.checked), [false, true]);
+  app.get("setQrTarget")("letter");
+  assert.deepEqual(radios.map((element) => element.checked), [true, false]);
 });

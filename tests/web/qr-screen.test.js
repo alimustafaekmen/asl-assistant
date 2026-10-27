@@ -71,9 +71,9 @@ test("pressing the share button hands the link of the chosen target to the share
   const shared = [];
   const app = await bootedApp({ share: async (data) => void shared.push(JSON.parse(JSON.stringify(data))) });
   app.get("setMode")("qr");
-  app.get("setQrTarget")("test");
+  app.get("setQrTarget")("word");
 
   select(app, "#qrShare").dispatchEvent({ type: "click", detail: 1 });
 
-  assert.deepEqual(shared, [{ title: "ASL Assistant", url: "https://asl-assistant.pages.dev/#test" }]);
+  assert.deepEqual(shared, [{ title: "ASL Assistant", url: "https://asl-assistant.pages.dev/#word" }]);
 });

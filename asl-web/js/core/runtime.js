@@ -66,7 +66,7 @@
 
 /** Which published model a Model Test fixture runs against. @typedef {"letter" | "word"} ModelTask */
 
-/** Modes the QR demo link can deep-link into. @typedef {"letter" | "word" | "test"} QrTarget */
+/** Modes the QR demo link can deep-link into. @typedef {"letter" | "word"} QrTarget */
 
 /**
  * @typedef {Object} PredictionCandidate

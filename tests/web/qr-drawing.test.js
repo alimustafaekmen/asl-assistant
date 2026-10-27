@@ -24,13 +24,13 @@ test("choosing another target redraws the code for that target", () => {
   const { app, drawn } = qrApp();
 
   app.get("setQrTarget")("word");
-  app.get("setQrTarget")("test");
+  app.get("setQrTarget")("letter");
 
   assert.deepEqual(drawn.map((options) => options.text), [
     "https://asl-assistant.pages.dev/#word",
-    "https://asl-assistant.pages.dev/#test",
+    "https://asl-assistant.pages.dev/#letter",
   ]);
-  assert.equal(app.evaluate("els.qrDemoUrl.textContent"), "https://asl-assistant.pages.dev/#test");
+  assert.equal(app.evaluate("els.qrDemoUrl.textContent"), "https://asl-assistant.pages.dev/#letter");
 });
 
 test("the code stays dark on white in the dark theme", () => {

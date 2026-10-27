@@ -26,7 +26,7 @@ function getDemoBaseUrl() {
  * @returns {string}
  */
 function buildQrDemoUrl(target = state.qrTarget) {
-  const normalizedTarget = ["letter", "word", "test"].includes(target) ? target : "letter";
+  const normalizedTarget = ["letter", "word"].includes(target) ? target : "letter";
   return `${getDemoBaseUrl()}#${normalizedTarget}`;
 }
 
@@ -49,7 +49,7 @@ function handleQrTargetChange(event) {
 function setQrTarget(target) {
   // includes() validates the value but cannot narrow its type, hence the cast.
   state.qrTarget = /** @type {QrTarget} */ (
-    ["letter", "word", "test"].includes(target) ? target : "letter"
+    ["letter", "word"].includes(target) ? target : "letter"
   );
   renderQrDemo();
 }
