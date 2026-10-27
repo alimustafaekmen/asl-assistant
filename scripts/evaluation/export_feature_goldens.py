@@ -11,11 +11,12 @@ outputs to ``tests/web/fixtures/feature-golden.json``:
   ``asl_features.word``, the trained notebook's feature code,
   applied to short sequences.
 
-Two tests read the file. ``tests/asl_features/unit/test_feature_golden.py`` rebuilds
-it and fails if the committed copy differs from what the Python code computes
-now, so the golden cannot drift from Python. ``tests/web/feature-golden.test.js``
-runs ``asl-web/js/ml/features.js`` on the same inputs and expects the same
-numbers, so the browser cannot drift either.
+Several tests read the file; two of them guard it.
+``tests/asl_features/unit/test_feature_golden.py`` rebuilds it and fails if the
+committed copy differs from what the Python code computes now, so the golden
+cannot drift from Python. ``tests/web/feature-golden.test.js`` runs
+``asl-web/js/ml/features.js`` on the same inputs and expects the same numbers,
+so the browser cannot drift either.
 
 The inputs are written out of closed-form geometry, not a random generator, so
 a library upgrade cannot change them. Regenerate after an intended change to

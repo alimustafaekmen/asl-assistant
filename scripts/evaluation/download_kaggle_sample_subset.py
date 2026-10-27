@@ -2,8 +2,10 @@
 """Download a small Kaggle ASL Signs subset for browser model-test fixtures.
 
 This avoids downloading the full competition archive. It first downloads
-`train.csv`, then selects rows from the same signer-independent test split used
-by the word notebook, and finally downloads only the chosen parquet files.
+`train.csv`, then picks rows from the test signers of a seeded 70/15/15 signer
+split, and finally downloads only the chosen parquet files. The split has the
+notebook's proportions and seed but not its random generator (see
+`_choose_rows`), so these signers are not the notebook's test signers.
 
 Prerequisites:
   - Kaggle API installed and authenticated (`~/.kaggle/kaggle.json`)
@@ -102,6 +104,9 @@ def _choose_rows(
             seen.add(pid)
             participant_order.append(pid)
 
+    # The notebook shuffles with np.random.seed(42) and np.random.shuffle; a
+    # Generator with the same seed gives another order, so the test signers
+    # differ. export_model_test_word_samples.py uses this same split.
     signers = np.array(participant_order, dtype=object)
     np.random.default_rng(SEED).shuffle(signers)
     n_train = int(len(signers) * 0.70)

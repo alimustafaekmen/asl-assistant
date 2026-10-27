@@ -228,6 +228,8 @@ def predict_word(
 
 
 def _split_test_rows(train_df, selected_words: set[str]):
+    # The same split as download_kaggle_sample_subset.py. The notebook uses the
+    # legacy np.random.shuffle, so its test signers are different ones.
     filtered = train_df[train_df["sign"].isin(selected_words)].copy()
     rng = np.random.default_rng(SEED)
     signers = filtered["participant_id"].unique().copy()
