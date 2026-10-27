@@ -17,18 +17,12 @@ it runs in seconds, with no camera, GPU or network.
 
 ## How they are written
 
-- **Behaviour, not source text.** The web tests load the real scripts from
-  `asl-web/js/` into a Node `vm` context, in the order `index.html` lists them,
-  against a document built from the real `index.html`.
-- **Fakes only at the edges.** The network, the clock, storage, the camera,
-  MediaPipe and ONNX Runtime are faked (`tests/web/helpers/`); no internal
-  module is mocked.
-- **Shown to fail.** The rules that matter most (a word is never added without
-  the user's accept, the word mask is not inverted, frames reach the model in
-  order, leaving a camera screen releases the camera) each have a test that was
-  run against a deliberately broken copy and seen to fail.
-- **Validators are tested on broken trees.** `tests/scripts/` copies the
-  checkout, breaks one thing and reads the exit code.
+The web tests load the real scripts from `asl-web/js/` into a Node `vm`
+context, in the order `index.html` lists them, against a document built from
+the real `index.html`. Only the network, the clock, storage, the camera,
+MediaPipe and ONNX Runtime are faked (`tests/web/helpers/`). The tests in
+`tests/scripts/` copy the checkout, break one thing and read the validator's
+exit code.
 
 A single file runs on its own with
 `node --test tests/web/word-consent.test.js` or
@@ -44,8 +38,8 @@ python tests/validation/check_letter_model_parity.py
 
 The feature checks run `asl-web/js/ml/features.js` under Node and compare it
 with the Python code the models were trained with, within 1e-4. The model check
-compares the letter pickle with the deployed ONNX model on three fixed hands;
-it shows that the formats agree, not that the model is accurate. Each exits 0
-when everything matched, 1 on a mismatch and 2 when a tool is missing.
+compares the letter pickle with the deployed ONNX model on three fixed hands,
+to check that the two formats give the same answers. The exit codes are
+described in the [scripts notes](../scripts/README.md).
 
 No automated test uses a real camera, real hands or a phone browser.
