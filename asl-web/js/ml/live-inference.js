@@ -5,9 +5,9 @@
 // a fixed slot for each. Features are then rebuilt at sequence level so the
 // dominant hand is chosen across the whole recording, as in training.
 //
-// One model call at a time: frames are dropped, never queued, and a result that
-// arrives after a mode change or camera stop is discarded. The diagnostics never
-// change model output.
+// One model call at a time: frames are dropped, never queued, and a word result
+// that arrives after a mode change or camera stop is discarded. The diagnostics
+// never change model output.
 
 /**
  * Which hand carried the sign in one frame, by the feature pipeline's rule.
@@ -82,7 +82,8 @@
  * @property {number} ts
  */
 
-// One asynchronous model call at a time; the rest are one-shot log guards.
+// One asynchronous model call at a time; the rest show a log line or the word
+// hint only once.
 let _inferenceInFlight = false;
 let _firstInferenceLogged = false;
 let _firstPredictionLogged = false;
@@ -117,8 +118,8 @@ let _wordRecordingStats = {
 };
 
 /**
- * Called when a recording starts, on retry and after inference, so counters
- * never span two recordings.
+ * Called when a recording starts, ends early or is retried, and after
+ * inference, so counters never span two recordings.
  *
  * @returns {void}
  */
