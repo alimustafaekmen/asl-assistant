@@ -166,22 +166,20 @@ const WORDS = [
   "wait", "water", "who", "yes",
 ];
 
-// The coach marks these words easy, HARD_WORDS hard and the rest medium. The
-// sets are picked by hand and only roughly follow the F1 scores in
-// data/per_word_stats.json: happy is easy at 0.69, dog is not hard at 0.59.
+// The coach marks these words easy, HARD_WORDS hard and the rest medium,
+// as the "difficulty" field of data/per_word_stats.json does.
 /** @type {Set<string>} */
 const EASY_WORDS = new Set([
-  "water", "sad", "cow", "uncle", "brown", "duck", "donkey", "lips",
-  "shhh", "dad", "finish", "home", "food", "like", "no", "sick",
-  "have", "happy",
+  "bird", "brown", "cow", "dad", "dog", "donkey", "duck", "finish",
+  "food", "happy", "have", "home", "like", "lips", "mouse", "no",
+  "sad", "shhh", "sick", "thankyou", "uncle", "water",
 ]);
 
 // Marked hard in the coach; see EASY_WORDS.
 /** @type {Set<string>} */
 const HARD_WORDS = new Set([
-  "open", "give", "all", "sleepy", "book", "go", "child", "listen",
-  "talk", "sleep", "who", "toothbrush", "can", "hear", "hello",
-  "fireman",
+  "all", "book", "can", "child", "give", "go", "listen", "open",
+  "sleep", "sleepy", "talk", "who",
 ]);
 
 // Each label of WORDS belongs to exactly one group, listed in display order.
