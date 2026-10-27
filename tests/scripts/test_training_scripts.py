@@ -15,9 +15,9 @@ train_static = pytest.importorskip("scripts.model_training.train_static_letter_m
 def test_tsne_figure_is_written_with_the_pinned_scikit_learn(tmp_path, monkeypatch) -> None:
     """--full-comparison ends with the t-SNE figure; its call must match the library.
 
-    The call used a keyword that scikit-learn renamed and then removed, so the
-    run crashed after the models and four figures were written but before the
-    comparison table and the summary.
+    A keyword that scikit-learn renamed and then removed makes the call raise,
+    after the models and four figures are written but before the comparison
+    table and the summary.
     """
     monkeypatch.setattr(train_static, "DOCS_ASSETS_DIR", str(tmp_path))
     rng = np.random.default_rng(0)

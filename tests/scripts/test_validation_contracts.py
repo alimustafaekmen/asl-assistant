@@ -74,8 +74,8 @@ def test_provenance_pairs_cover_every_artifact_with_a_source() -> None:
 def test_every_provenance_source_is_tracked() -> None:
     """The validators fail on a missing source, which is right only if Git keeps it.
 
-    A source that existed only on one machine would fail every clone. Each one
-    is tracked today; this keeps that premise true for a pair added later.
+    A source that existed only on one machine would fail every clone, so a pair
+    added later must point at a tracked file too.
     """
     if shutil.which("git") is None:
         pytest.skip("git is not on PATH")

@@ -2,9 +2,8 @@
 
 A check that printed that the ONNX step was skipped and then "SAFE TO
 DEPLOY" with exit 0 would report models it could not look at as verified.
-A missing required tool is exit 2 under the
-repository's exit-code contract: the check did not run, which is neither a
-pass nor a contract failure. `--no-onnx` is the explicit way to leave it out.
+A missing required tool is exit 2 under the repository's exit-code contract:
+the check did not run, which is neither a pass nor a contract failure. `--no-onnx` is the explicit way to leave it out.
 
 The import is broken by a package of the same name placed first on
 PYTHONPATH, which is what a half-installed or mismatched build looks like to

@@ -1,9 +1,9 @@
 """The deploy check holds the folder about to be uploaded to what the site ships.
 
 An upload of asl-web/ by hand, in the host's UI, takes the folder as it is on
-disk. The Model Test word fixtures exported from the
-competition data live in an ignored folder inside it, and a stray `.env`, a
-private folder or a note in `data/` would be uploaded with the rest.
+disk. The Model Test word fixtures exported from the competition data live in
+an ignored folder inside it, and a stray `.env`, a private folder or a note in
+`data/` would be uploaded with the rest.
 `--deploy` lists every file in the working tree and fails on each of them,
 while the plain run only warns about the fixture folder, so local testing
 with the fixtures still works.

@@ -37,7 +37,7 @@ def test_missing_local_datasets_do_not_fail_the_audit(checkout) -> None:
 
 
 def test_a_deploy_file_that_drifted_from_its_source_fails_the_audit(checkout) -> None:
-    """Run as a user would: the entry point's exit status is what make reads."""
+    """Run as a user would, in a new interpreter, so the entry point's exit status is covered."""
     source = "models/letter/letter_label_map.json"
     checkout.write(source, checkout.path(source).read_text(encoding="utf-8") + "\n")
 

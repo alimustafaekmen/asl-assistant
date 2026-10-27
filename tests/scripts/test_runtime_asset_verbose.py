@@ -9,7 +9,7 @@ from scripts.validation import check_runtime_assets
 
 
 def test_verbose_lists_the_onnx_inputs_and_outputs(checkout) -> None:
-    """The flag is documented as 'more detail', so it must print some."""
+    """The flag's help promises the ONNX inputs and outputs, so it must print them."""
     plain = checkout.check()
     verbose = checkout.check("--verbose")
 

@@ -204,12 +204,12 @@ def checkout(
 class Background:
     """Independent subprocess runs, started together as soon as tests are collected.
 
-    The make target, parity and doctor tests each need a batch of slow
-    subprocess runs that do not depend on one another. A module lists them in
-    a BACKGROUND_RUNS dict of name -> callable(scratch dir); they all start
-    when collection finishes, run alongside the in-process tests, and the
-    module's fixture waits for its own. Run one module after another, they
-    were the slowest part of the fast suite.
+    For a module that needs slow subprocess runs that do not depend on one
+    another, such as the parity command tests. A module lists them in a
+    BACKGROUND_RUNS dict of name -> callable(scratch dir); they all start when
+    collection finishes, run alongside the in-process tests, and the module's
+    fixture waits for its own. Run one after another, they would be the slowest
+    part of the fast suite.
     """
 
     def __init__(self) -> None:
