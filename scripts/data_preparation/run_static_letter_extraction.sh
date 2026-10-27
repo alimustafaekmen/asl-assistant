@@ -17,7 +17,6 @@ PROJECT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$PROJECT_DIR"
 
 ASL_DIR="data/raw/ASL Alphabet/asl_alphabet_train/asl_alphabet_train"
-MP_DIR="data/raw/MediaPipe_Processed_Asl"
 OUT_DIR="data/processed"
 MAX_PER_CLASS=3000
 
