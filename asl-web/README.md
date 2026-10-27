@@ -95,8 +95,8 @@ key pressed while a control has focus goes to that control.
 A fixture is one JSON file with `schema_version: "asl-sample-v1"`, a `task`
 (`letter` or `word`), `features` and `expected_label`. A letter fixture has 93
 numbers; a word fixture has `45 × 168 = 7560` numbers and a 45-value `mask`.
-The [word fixtures note](data/model-test-samples/words/README.md) explains why
-the only published word fixture is synthetic.
+The [scripts notes](../scripts/README.md#fixtures-and-demo-poses) explain why
+the only published word fixture is synthetic and how to make real ones.
 
 ## Deployment
 
