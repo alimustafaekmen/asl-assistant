@@ -207,9 +207,10 @@ class LearningCoachView(ctk.CTkFrame):
         right.rowconfigure(0, weight=0)  # target card (compact)
         right.rowconfigure(1, weight=0)  # feedback label
         right.rowconfigure(2, weight=0)  # hint label
-        right.rowconfigure(3, weight=0)  # target list (one row, scrolls sideways)
-        right.rowconfigure(4, weight=1)  # reference image: takes the free space
-        right.rowconfigure(5, weight=0)  # next button
+        right.rowconfigure(3, weight=0)  # word-mode start button
+        right.rowconfigure(4, weight=0)  # target list (one row, scrolls sideways)
+        right.rowconfigure(5, weight=1)  # reference image: takes the free space
+        right.rowconfigure(6, weight=0)  # next button
 
         # Row 0: selected target and its short hint.
         target_card = ctk.CTkFrame(
@@ -284,7 +285,7 @@ class LearningCoachView(ctk.CTkFrame):
         )
         self._hint_label.grid(row=2, column=0, sticky="ew", pady=(0, 2))
 
-        # Word mode exposes an explicit start button when idle.
+        # Row 3: word mode's explicit start button, shown when idle.
         self._hazirim_btn = ctk.CTkButton(
             right,
             text="▶  Hazırım, kayda başla",
@@ -296,14 +297,14 @@ class LearningCoachView(ctk.CTkFrame):
             text_color="white",
             command=self._on_hazirim_clicked,
         )
-        self._hazirim_btn.grid(row=2, column=0, sticky="ew", pady=(2, 4))
+        self._hazirim_btn.grid(row=3, column=0, sticky="ew", pady=(2, 4))
         self._hazirim_btn.grid_remove()  # Shown once a word is selected.
 
-        # Row 3: single-line target selector.
+        # Row 4: single-line target selector.
         list_bar = ctk.CTkFrame(
             right, corner_radius=8, fg_color=BG_CARD, border_width=1, border_color=BORDER
         )
-        list_bar.grid(row=3, column=0, sticky="ew", pady=(0, 4))
+        list_bar.grid(row=4, column=0, sticky="ew", pady=(0, 4))
 
         self._scroll_frame = ctk.CTkScrollableFrame(
             list_bar, orientation="horizontal", height=38, fg_color="transparent", corner_radius=0
@@ -313,11 +314,11 @@ class LearningCoachView(ctk.CTkFrame):
         self._word_buttons = {}
         self._populate_list()
 
-        # Row 4: reference image expands into the remaining space.
+        # Row 5: reference image expands into the remaining space.
         self._ref_image_frame = ctk.CTkFrame(
             right, fg_color=BG_CARD, corner_radius=12, border_width=1, border_color=BORDER
         )
-        self._ref_image_frame.grid(row=4, column=0, sticky="nsew", pady=(0, 4))
+        self._ref_image_frame.grid(row=5, column=0, sticky="nsew", pady=(0, 4))
 
         self._ref_image_title = ctk.CTkLabel(
             self._ref_image_frame,
@@ -332,7 +333,7 @@ class LearningCoachView(ctk.CTkFrame):
 
         self._load_ref_image_for_mode()
 
-        # Row 5: next-target action, hidden until success.
+        # Row 6: next-target action, hidden until success.
         self._next_btn = ctk.CTkButton(
             right,
             text="Sonraki →",
@@ -343,7 +344,7 @@ class LearningCoachView(ctk.CTkFrame):
             hover_color="#1e8449",
             command=self._select_next,
         )
-        self._next_btn.grid(row=5, column=0, sticky="ew")
+        self._next_btn.grid(row=6, column=0, sticky="ew")
         self._next_btn.grid_remove()
 
     def _load_ref_image_for_mode(self) -> None:
@@ -499,7 +500,7 @@ class LearningCoachView(ctk.CTkFrame):
             self._word_record_buffer.clear()
             self._word_classifier.reset_buffer()
             self._hazirim_btn.configure(text="▶  Hazırım, kayda başla")
-            self._hazirim_btn.grid(row=2, column=0, sticky="ew", pady=(2, 4))
+            self._hazirim_btn.grid(row=3, column=0, sticky="ew", pady=(2, 4))
             self._feedback_label.configure(
                 text="Hazır olduğunuzda butona basın", text_color=ACCENT_PRIMARY
             )
@@ -598,7 +599,7 @@ class LearningCoachView(ctk.CTkFrame):
                         self._word_state = "idle"
                         self._word_record_buffer.clear()
                         self._hazirim_btn.configure(text="▶  Tekrar Dene")
-                        self._hazirim_btn.grid(row=2, column=0, sticky="ew", pady=(2, 4))
+                        self._hazirim_btn.grid(row=3, column=0, sticky="ew", pady=(2, 4))
         else:
             if not self._letter_loaded:
                 return preview
@@ -662,7 +663,7 @@ class LearningCoachView(ctk.CTkFrame):
                 text_color=ACCENT_SUCCESS,
             )
             self._hint_label.configure(text="")
-            self._next_btn.grid(row=5, column=0, sticky="ew")
+            self._next_btn.grid(row=6, column=0, sticky="ew")
             d = (
                 self._selected_word.upper()
                 if len(self._selected_word) == 1
