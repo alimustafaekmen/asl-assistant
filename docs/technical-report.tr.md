@@ -121,7 +121,7 @@ Doğru uzunlukta ama yanlış sıralı bir vektör yine de çalışır ve saçma
 
 ### Harf modeli
 
-Eğitim betiği yalnızca 46.716 eğitim satırıyla çalışır. Her satırın gürültü eklenmiş 5 kopyasını üretir; kopyalar en fazla ±45° döndürülür ve en fazla ±%20 ölçeklenir. Böylece 280.296 satır olur. Modeli ve özellikleri seçmek için yapılandırmaları bu çoğaltılmış satırların rastgele %15'inde (42.045 satır) karşılaştırdım. Aynı fotoğrafın kopyaları bu bölmenin iki tarafına da düşebilir; bu yüzden bu sayılar yalnızca yapılandırmaları birbiriyle kıyaslamaya yarar. Sonuçlar [`letter_model_meta.json`](../models/letter/letter_model_meta.json) dosyasında kayıtlı:
+Yayımlanan model için eğitim betiği 46.716 eğitim satırını aldı ve her satırın gürültü eklenmiş 5 kopyasını üretti; kopyalar en fazla ±45° döndürüldü ve en fazla ±%20 ölçeklendi. Böylece 280.296 satır oldu. Modeli ve özellikleri seçmek için yapılandırmaları bu çoğaltılmış satırların rastgele %15'inde (42.045 satır) karşılaştırdım. Aynı fotoğrafın kopyaları bu bölmenin iki tarafına da düşebilir; bu yüzden bu sayılar yalnızca yapılandırmaları birbiriyle kıyaslamaya yarar. Betik artık %15'i çoğaltmadan önce ayırıyor; bu yüzden yeni bir çalıştırma bu sayıları birebir vermez. Sonuçlar [`letter_model_meta.json`](../models/letter/letter_model_meta.json) dosyasında kayıtlı:
 
 | Model | Doğruluk |
 |---|---:|

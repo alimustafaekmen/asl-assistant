@@ -105,7 +105,7 @@ The letter counts are rows where MediaPipe found a hand, so images without a han
 
 ### Letter model
 
-The training script works on the 46,716 training rows only. It adds 5 noisy copies of each row, rotated by up to ±45° and scaled by up to ±20%, which gives 280,296 rows. To choose the model and the features, I compared configurations on a random 15% of these augmented rows (42,045). Copies of one photo can land on both sides of that split, so these numbers are useful only for comparing configurations. They are recorded in [`letter_model_meta.json`](../models/letter/letter_model_meta.json):
+For the published model, the training script took the 46,716 training rows and added 5 noisy copies of each row, rotated by up to ±45° and scaled by up to ±20%, which gave 280,296 rows. To choose the model and the features, I compared configurations on a random 15% of these augmented rows (42,045). Copies of one photo can land on both sides of that split, so these numbers are useful only for comparing configurations. The script now holds its 15% out before augmenting, so a new run will not reproduce them exactly. They are recorded in [`letter_model_meta.json`](../models/letter/letter_model_meta.json):
 
 | Model | Accuracy |
 |---|---:|
