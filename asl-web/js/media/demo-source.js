@@ -49,8 +49,8 @@ const DEMO_FRAME_MIN = 0.3;
 const DEMO_FRAME_GAP = 12;
 
 /**
- * Keys into js/i18n/letter.js. "Boşluk" (Space) is avoided because the button
- * of that name inserts a space.
+ * Keys into js/i18n/letter.js. The Turkish text names the key "Space", not
+ * "Boşluk": the button called Boşluk inserts a space.
  *
  * @type {Record<"loading" | "playing" | "done" | "loadFailed" | "modelLoading" | "modelFailed", string>}
  */
