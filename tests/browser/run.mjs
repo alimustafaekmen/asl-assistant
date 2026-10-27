@@ -114,7 +114,7 @@ async function main() {
   const chrome = findChrome();
   if (!chrome.path) {
     const where = chrome.fromEnv ? `CHROME=${chrome.fromEnv} does not exist` : "set CHROME to a Chrome or Chromium binary";
-    console.error(`Chrome bulunamadı / Chrome not found: ${where}. The browser checks did not run.`);
+    console.error(`Chrome not found: ${where}. The browser checks did not run.`);
     return 2;
   }
 
