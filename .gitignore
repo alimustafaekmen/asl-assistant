@@ -4,7 +4,7 @@
 # - Keep the deployable web app, source code, tests, technical docs, and the
 #   small runtime/provenance artifacts required by validation.
 # - Exclude local datasets, environments, credentials, caches, personal notes,
-#   historical experiments, and editor state.
+#   local experiments, and editor state.
 #
 # Important: root-level /models rules are anchored deliberately. They must not
 # hide deploy-critical files under /asl-web/models or /asl-web/data.

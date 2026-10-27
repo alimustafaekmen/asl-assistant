@@ -432,7 +432,7 @@
   /* The plate's message line would only repeat the problem. */
   .stage:has(.stage__problem:not([hidden])) + .plate { display: none; }
   .stage__empty:has(> .stage__problem:not([hidden])) { padding-block: var(--sp-12) var(--sp-6); }
-  /* Short screens: the icon is the first part to go, as the illustration is. */
+  /* Short screens drop the problem icon first, as the empty stage drops its illustration. */
   @media (max-height: 40rem) {
     .stage__problem-icon { display: none; }
     .stage__problem { gap: var(--sp-3); }

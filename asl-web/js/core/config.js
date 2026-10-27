@@ -95,7 +95,8 @@ const CONFIG = {
   WORD_FIRST_FRAME_TIMEOUT_MS: 6000,
   WORD_NO_HAND_TIMEOUT_MS: 4000,
   WORD_MAX_RECORDING_MS: 15000,
-  // One second is about eight letter inference ticks, each just over 120 ms.
+  // One second is about eight letter inference ticks: each waits for the
+  // first camera frame after 120 ms.
   // The hold confidence equals CONFIDENT_THRESHOLD so success matches the
   // "confident" plate; a 240 ms grace, just under two ticks, keeps one noisy
   // frame from resetting a hold.
@@ -108,8 +109,8 @@ const CONFIG = {
   COACH_SESSION_SIZE: 10,
   // Enable only on devices that consistently report swapped labels.
   SELFIE_HANDEDNESS_SWAP: false,
-  // MediaPipe's defaults. The Python extractors also detect at 0.5 but track
-  // at 0.4.
+  // MediaPipe's defaults. The word extractor and the desktop app
+  // (asl_features.config) also detect at 0.5 but track at 0.4.
   HAND_DETECTION_CONFIDENCE: 0.5,
   HAND_PRESENCE_CONFIDENCE: 0.5,
   HAND_TRACKING_CONFIDENCE: 0.5,

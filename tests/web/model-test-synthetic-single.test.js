@@ -3,11 +3,11 @@
 // The only word sample a clone or the live site ships is made up: seeded
 // random numbers, not a recorded sign, whose "expected" word is whatever the
 // model answered when the file was made. The run-all batch reports it as a
-// pipeline check. A single run that says "Eşleşti" and that the model chose
-// the right class, at 8% confidence, is the first thing a visitor sees after
-// "Kelime örneği dene". The fault these tests kill is that claim on the
-// single-run path, and a fix so broad that a real sample stops being scored. ONNX Runtime is faked at its boundary; the manifest and the
-// fixtures are the real files.
+// pipeline check. The fault these tests kill is a single run that says
+// "Eşleşti" and that the model chose the right class, at 8% confidence,
+// right after "Kelime örneği dene"; and a fix so broad that a real sample
+// stops being scored. ONNX Runtime is faked at its boundary; the manifest
+// and the fixtures are the real files.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

@@ -1,6 +1,6 @@
 /* Colours live here; components read the semantic names. The two dimming
- * backdrops (coach sheet, reference viewer) are the only colours set
- * elsewhere. Every text/background pair meets WCAG 2.2 AA in both themes.
+ * backdrops (coach sheet, reference viewer) are the only colours another
+ * stylesheet sets. Every text/background pair meets WCAG 2.2 AA in both themes.
  * Saffron is never text or a thin line on a light surface (1.6:1 on the
  * page, 1.8:1 on white).
  */

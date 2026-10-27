@@ -10,8 +10,8 @@
 // index.html loads this file and the strings at the end of the body, before
 // the CDN scripts, and js/core/i18n-boot.js translates the page there: a
 // visitor reading English sees English as soon as the body is parsed, not
-// after ONNX Runtime has downloaded. Like the strings files, this file only
-// declares; it starts nothing.
+// after ONNX Runtime has downloaded. Like the strings files, it starts
+// nothing.
 
 /**
  * A translated string. An object is a count-dependent string, picked by
