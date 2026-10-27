@@ -10,17 +10,15 @@ make web            # http://localhost:8080; another port: make web PORT=8081
 ```
 
 `make web` uses Python's built-in `http.server`, so nothing needs installing;
-any static file server works. Open the page over `http://localhost`, not as a
-`file://` page: the app fetches its models and data. The camera works only on
-`localhost` or HTTPS, so on a phone use <https://asl-assistant.pages.dev/>. The
-first visit needs a network connection, because ONNX Runtime and MediaPipe come
-from public CDNs.
+any static file server works. Open the page over `http://localhost`, because
+the app fetches its models and data and a `file://` page cannot. The camera
+works only on `localhost` or HTTPS, so on a phone use
+<https://asl-assistant.pages.dev/>. The first visit needs a network connection,
+because ONNX Runtime and MediaPipe come from public CDNs.
 
 The page opens in English or Turkish after the browser's language. Without a
 camera, **Watch the demo** on the letter screen plays a recorded hand through
-the letter model. Model Test, at `#test`, runs the bundled samples; the one
-word sample is synthetic and should read `give` at 7.6%, which checks the
-pipeline, not accuracy.
+the letter model. Model Test, at `#test`, runs the bundled samples.
 
 ## Set up for development
 
@@ -77,11 +75,6 @@ Windows PowerShell and cmd have no `make`. Use WSL, or the commands directly:
 | `make test` | `python -m pytest tests/`, `npm test` and the three `tests/validation/check_*_parity.py` scripts |
 | `make browser-check` | `npm run browser-check` |
 
-The parts of `make check`: `python -m ruff check asl-desktop asl-features scripts tests`,
-`python -m ruff format --check asl-desktop asl-features scripts tests`,
-`npm run typecheck`, `python scripts/validation/check_runtime_assets.py`, and the
-tests above.
-
 ## Desktop prototype
 
 ```bash
@@ -105,28 +98,12 @@ data/
 └── reference/   local reference mappings
 ```
 
-What trained the published models:
-
-| Model | Source | Rows or recordings used | Terms |
-|---|---|---:|---|
-| Letters | [ASL Alphabet](https://www.kaggle.com/datasets/grassknoted/asl-alphabet) | 52,419 | GPL-2.0, as labelled |
-| Letters | [American Sign Language Dataset](https://www.kaggle.com/datasets/ayuraj/asl-dataset) | 962 | CC0 |
-| Letters | `ASL_SemCom` images associated with [ASL-Fingerspelling](https://github.com/Mohammed-Shoaib/ASL-Fingerspelling) | 1,580 | Not recorded |
-| Words | [Google Isolated Sign Language Recognition](https://www.kaggle.com/competitions/asl-signs) | 19,299 for the 50-word model | CC BY 4.0, subject to the competition rules |
-
-The letter rows are landmarks extracted successfully, merged into 54,961 rows
-and split into 46,716 for training and 8,245 held out. The raw-data layout and
-the `ASL_SemCom` terms are not recorded well enough to publish the images or to
-promise a one-command rebuild. Explored but not used: MediaPipe Processed ASL
-(no usable hands found), MS-ASL (download scripts only), and a small
-competition subset in `data/raw/asl-signs-sample-subset/`, used only for Model
-Test samples. Attribution is in the [README](../README.md#data-and-attribution).
-
-Never commit raw images, videos, participant-level parquet files, generated
-CSVs, Kaggle credentials or archives. Small reviewed JSON under `asl-web/data/`,
-deterministic fixtures with no camera frames, and the model files `.gitignore`
-allows are fine. Check each dataset's terms before you download, use or share
-it.
+The [technical report](technical-report.md#2-data) lists the sources of the
+published models, how much of each was used and their terms, and the
+[README](../README.md#data-and-attribution) has the attribution. Rebuilding the
+letter model is not a single command: the three letter sources have to be
+downloaded and arranged by hand. A small competition subset in
+`data/raw/asl-signs-sample-subset/` is used only for Model Test samples.
 
 [Data preparation](../scripts/README.md#data-preparation) and
 [model training](../scripts/README.md#model-training) cover the letter
@@ -145,7 +122,7 @@ it. Before an upload:
 2. With `make web`, check by hand: the demo, Model Test, camera start and stop,
    adding a letter, a word recording.
 3. Run `python scripts/validation/check_runtime_assets.py --deploy`. It fails
-   on files the site must not ship: competition-derived samples, files Git
+   on files the site should not ship: competition-derived samples, files Git
    ignores, hidden files and unknown file types.
 
 Hosts that read `asl-web/_headers` (Cloudflare Pages, Netlify) send its
