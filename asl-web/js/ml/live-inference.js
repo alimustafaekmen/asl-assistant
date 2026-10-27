@@ -664,31 +664,31 @@ async function _finishWordRecordingReal() {
   const warnings = [];
   if (visibility.poseVisibleRatio < 0.5) {
     codes.push("pose");
-    warnings.push("pose visibility < 0.5: yüz/omuzlar net görünmüyor");
+    warnings.push("pose visibility < 0.5: face or shoulders not clearly in view");
   }
   if (visibility.faceVisibleRatio < 0.5) {
     codes.push("face");
-    warnings.push("face visibility < 0.5: yüz net görünmüyor");
+    warnings.push("face visibility < 0.5: face not clearly in view");
   }
   if (visibility.handVisibleRatio < 0.7) {
     codes.push("hand");
-    warnings.push("hand visibility < 0.7: el aralıklarla kaybolmuş");
+    warnings.push("hand visibility < 0.7: hand lost at times");
   }
   if (visibility.acceptedFrames < 30) {
     codes.push("few-frames");
     warnings.push(
-      `kabul edilen frame az (${visibility.acceptedFrames} < 30): kayıt kalitesi düşük`,
+      `few accepted frames (${visibility.acceptedFrames} < 30): low recording quality`,
     );
   }
   if (recordingDurationMs > 6000) {
     codes.push("slow");
     warnings.push(
-      `kayıt süresi uzun (${(recordingDurationMs / 1000).toFixed(1)} sn): yavaş frame doluşu`,
+      `long recording (${(recordingDurationMs / 1000).toFixed(1)} s): frames arrived slowly`,
     );
   }
   if (motionStats.mean < 0.001) {
     codes.push("still");
-    warnings.push("motion ortalaması çok düşük: gesture yapılmamış olabilir");
+    warnings.push("mean motion very low: no sign may have been made");
   }
 
   state.wordQualityWarnings = codes;

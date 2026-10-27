@@ -1,11 +1,11 @@
 // What a word recording tells the user is plain Turkish, addressed as siz,
 // and never the pipeline's own vocabulary.
 //
-// The pipeline's own strings, such as "pose visibility < 0.5: yüz/omuzlar net
-// görünmüyor", must not reach the feedback bar or the result. Recording
-// quality is a list of codes in state (state.wordQualityWarnings), each with
-// one sentence of copy; the technical strings stay in the debug snapshot,
-// window._lastWordDebug.
+// The pipeline's own strings, such as "pose visibility < 0.5: face or
+// shoulders not clearly in view", must not reach the feedback bar or the
+// result. Recording quality is a list of codes in state
+// (state.wordQualityWarnings), each with one sentence of copy; the technical
+// strings stay in the debug snapshot, window._lastWordDebug.
 //
 // Only the boundaries are faked: the ONNX session, MediaPipe's results and
 // the countdown clock (helpers/word-recording.mjs).
