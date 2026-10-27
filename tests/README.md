@@ -4,9 +4,9 @@
 tests/
 ├── asl_features/   letter and word features, landmark normalisation, the feature goldens
 ├── asl_desktop/    the desktop prototype: unit tests, and integration tests that need MediaPipe
-├── project/        deploy headers, data file contracts, page wiring
+├── project/        deploy headers, data file checks, page wiring
 ├── scripts/        validators and make targets, run against broken copies of the tree
-├── validation/     Python against JavaScript feature parity (commands, not pytest)
+├── validation/     Python against JavaScript feature parity (plain scripts outside pytest)
 ├── web/            the browser scripts on Node's test runner (node:test, node:vm)
 └── browser/        checks in headless Chrome (see browser/README.md)
 ```
