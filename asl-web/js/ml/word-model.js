@@ -136,10 +136,10 @@ function _buildMaskTensor(mask45, dtype = wordMaskDtype) {
 async function predictWord(features45x168, mask45) {
   if (!wordSession) return null;
   if (!features45x168 || features45x168.length !== 45 * 168) {
-    throw new Error(`word input 7560 float bekler, ${features45x168?.length ?? 0} geldi`);
+    throw new Error(`word input needs 7560 floats, got ${features45x168?.length ?? 0}`);
   }
   if (!mask45 || mask45.length !== 45) {
-    throw new Error(`word mask 45 değer bekler, ${mask45?.length ?? 0} geldi`);
+    throw new Error(`word mask needs 45 values, got ${mask45?.length ?? 0}`);
   }
 
   const t0 = performance.now();
