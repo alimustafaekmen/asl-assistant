@@ -95,7 +95,7 @@ function resolveFile(root, urlPath) {
 }
 
 /**
- * Start the server on 127.0.0.1 and a port the OS picks.
+ * Start the server on 127.0.0.1, on `port` or, when it is 0, a port the OS picks.
  *
  * @param {{ root?: string, port?: number }} [options]
  * @returns {Promise<{ origin: string, close: () => Promise<void> }>}

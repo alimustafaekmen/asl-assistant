@@ -7,8 +7,7 @@
 // style, layout boxes or the CSSOM, never the source text, so a harmless move
 // of a rule from one file to another changes nothing here.
 //
-// Each check's summary names what it guards; tests/browser/README.md describes
-// every check.
+// Each check's summary names what it guards; `run.mjs --list` prints them all.
 
 import { turkishLeft } from "../web/helpers/turkish-left.mjs";
 
@@ -1615,7 +1614,8 @@ export const CHECKS = [
         await page.waitFor(`document.getElementById("coachStudy").dataset.open === "true"`, { what: "the coach sheet to open" });
         return page;
       };
-      // The target lies in the dimmed band above the sheet, where a visitor taps to close it.
+      // Whether a tap at the element's centre lands on it: true for a target in
+      // the dimmed band above the sheet, where a visitor taps to close it.
       const reachable = (page, selector) => page.eval(`(() => {
         const el = [...document.querySelectorAll(${JSON.stringify(selector)})].find((e) => e.checkVisibility());
         if (!el) return false;
