@@ -74,8 +74,8 @@ def run_js_compact(seq_321d: np.ndarray, features_js: Path = WEB_FEATURES) -> np
 
     The JS files declare classic global functions, so they are concatenated
     into one temporary script that Node loads as top-level declarations.
-    `CONFIG` and `recordBenchmark` are stubbed: only the letter feature path
-    reads them, and it is not exercised here.
+    `CONFIG` and `recordBenchmark` are globals the rest of the app defines;
+    features.js reads them only when they exist, and the stubs stand in for them.
     """
     if not WEB_LANDMARKS.exists() or not features_js.exists():
         raise FileNotFoundError(f"Web JS missing: {WEB_LANDMARKS}, {features_js}")
