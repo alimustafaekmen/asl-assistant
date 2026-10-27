@@ -466,7 +466,7 @@ async function fetchModelTestJson(url, name = () => url) {
   try {
     return await res.json();
   } catch (cause) {
-    throw modelTestFixtureError("bad-json", `JSON okunamadı: ${errorMessage(cause)}`);
+    throw modelTestFixtureError("bad-json", `could not parse the JSON: ${errorMessage(cause)}`);
   }
 }
 
@@ -504,7 +504,7 @@ async function readModelTestSampleFile(file) {
     try {
       text = await file.text();
     } catch (cause) {
-      throw modelTestFixtureError("unreadable", `dosya okunamadı: ${errorMessage(cause)}`);
+      throw modelTestFixtureError("unreadable", `could not read the file: ${errorMessage(cause)}`);
     }
     setModelTestSample(parseModelTestJson(text), () => file.name);
   } catch (err) {
@@ -522,7 +522,7 @@ function parseModelTestJson(text) {
   try {
     return JSON.parse(text);
   } catch (cause) {
-    throw modelTestFixtureError("bad-json", `JSON okunamadı: ${errorMessage(cause)}`);
+    throw modelTestFixtureError("bad-json", `could not parse the JSON: ${errorMessage(cause)}`);
   }
 }
 
@@ -690,7 +690,7 @@ function setModelTestNote(text) {
  */
 function normalizeModelTestSample(rawSample, sourceName, kind) {
   if (!isRecord(rawSample)) {
-    throw modelTestFixtureError("not-object", "Fixture JSON object olmalı");
+    throw modelTestFixtureError("not-object", "the fixture JSON must be an object");
   }
   const synthetic = (kind || rawSample.kind) === MODEL_TEST_SYNTHETIC_KIND;
 
@@ -698,7 +698,7 @@ function normalizeModelTestSample(rawSample, sourceName, kind) {
   const task = inferredTask === "word" ? "word" : "letter";
   const rawFeatures = rawSample.features || rawSample.input || rawSample.feature_vector;
   if (!Array.isArray(rawFeatures)) {
-    throw modelTestFixtureError("no-features", "features alanı array olmalı");
+    throw modelTestFixtureError("no-features", "the features field must be an array");
   }
   const features = flattenNumericArray(rawFeatures, "features");
 
@@ -716,16 +716,16 @@ function normalizeModelTestSample(rawSample, sourceName, kind) {
     const mask = normalizeMask(rawSample.mask);
     if (features.length !== 45 * 168) {
       throw modelTestFixtureError(
-        "word-length", `Kelime fixture features[7560] bekler, ${features.length} geldi`, features.length,
+        "word-length", `a word fixture needs features[7560], got ${features.length}`, features.length,
       );
     }
     if (mask.length !== 45) {
-      throw modelTestFixtureError("mask-length", `Kelime fixture mask[45] bekler, ${mask.length} geldi`, mask.length);
+      throw modelTestFixtureError("mask-length", `a word fixture needs mask[45], got ${mask.length}`, mask.length);
     }
     const realFrames = mask.filter(Boolean).length;
     // With no real frame the model would still answer, meaninglessly.
     if (realFrames === 0) {
-      throw modelTestFixtureError("mask-empty", "Kelime fixture mask içinde gerçek frame yok");
+      throw modelTestFixtureError("mask-empty", "the word fixture mask has no real frame");
     }
     return {
       task,
@@ -745,7 +745,7 @@ function normalizeModelTestSample(rawSample, sourceName, kind) {
 
   if (features.length !== 93) {
     throw modelTestFixtureError(
-      "letter-length", `Harf fixture features[93] bekler, ${features.length} geldi`, features.length,
+      "letter-length", `a letter fixture needs features[93], got ${features.length}`, features.length,
     );
   }
   return {
@@ -784,7 +784,7 @@ function flattenNumericArray(value, fieldName) {
     }
     const num = Number(item);
     if (!Number.isFinite(num)) {
-      throw modelTestFixtureError("not-number", `${fieldName} içinde sayısal olmayan değer var`);
+      throw modelTestFixtureError("not-number", `${fieldName} holds a value that is not a number`);
     }
     out.push(num);
   }
@@ -802,7 +802,7 @@ function flattenNumericArray(value, fieldName) {
 function normalizeMask(value) {
   if (!Array.isArray(value)) {
     throw modelTestFixtureError(
-      "mask-length", `Kelime fixture mask[45] bekler, ${value == null ? 0 : "geçersiz"} geldi`, 0,
+      "mask-length", `a word fixture needs mask[45], got ${value == null ? 0 : "a non-array"}`, 0,
     );
   }
   return value.map((item) => {
@@ -813,7 +813,7 @@ function normalizeMask(value) {
       if (lowered === "true") return true;
       if (lowered === "false") return false;
     }
-    throw modelTestFixtureError("mask-value", "mask sadece bool, 0/1 veya true/false string değerleri içermeli");
+    throw modelTestFixtureError("mask-value", "mask values must be booleans, 0/1 or the strings true/false");
   });
 }
 
@@ -874,10 +874,10 @@ async function executeModelTestRun(epoch) {
     let result = null;
     const t0 = performance.now();
     if (isWord) {
-      if (typeof predictWord !== "function") throw new Error("word-model.js yüklenmemiş");
+      if (typeof predictWord !== "function") throw new Error("word-model.js is not loaded");
       result = await predictWord(sample.features, sample.mask);
     } else {
-      if (typeof predictLetter !== "function") throw new Error("letter-model.js yüklenmemiş");
+      if (typeof predictLetter !== "function") throw new Error("letter-model.js is not loaded");
       result = await predictLetter(sample.features);
     }
     const elapsed = performance.now() - t0;

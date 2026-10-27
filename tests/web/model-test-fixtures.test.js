@@ -45,7 +45,7 @@ test("flattenNumericArray coerces numeric strings but rejects anything else", ()
   for (const bad of [["a"], [undefined], [NaN], [Infinity], [{}]]) {
     assert.throws(
       () => flattenNumericArray(bad, "features"),
-      /features içinde sayısal olmayan değer var/,
+      /features holds a value that is not a number/,
     );
   }
 });
@@ -58,10 +58,10 @@ test("normalizeMask accepts the documented truthy spellings", () => {
 });
 
 test("normalizeMask rejects a non-array or an unexpected entry", () => {
-  assert.throws(() => normalizeMask(undefined), /Kelime fixture mask\[45\] bekler, 0 geldi/);
-  assert.throws(() => normalizeMask("1111"), /Kelime fixture mask\[45\] bekler, geçersiz geldi/);
-  assert.throws(() => normalizeMask([2]), /mask sadece bool, 0\/1 veya true\/false/);
-  assert.throws(() => normalizeMask([null]), /mask sadece bool, 0\/1 veya true\/false/);
+  assert.throws(() => normalizeMask(undefined), /a word fixture needs mask\[45\], got 0/);
+  assert.throws(() => normalizeMask("1111"), /a word fixture needs mask\[45\], got a non-array/);
+  assert.throws(() => normalizeMask([2]), /mask values must be booleans, 0\/1 or the strings true\/false/);
+  assert.throws(() => normalizeMask([null]), /mask values must be booleans, 0\/1 or the strings true\/false/);
 });
 
 test("a letter fixture is inferred from the absence of a mask", () => {
@@ -106,28 +106,28 @@ test("an explicit task field overrides mask-based inference", () => {
 test("word fixtures must carry 7560 features and 45 mask entries", () => {
   assert.throws(
     () => normalizeModelTestSample({ features: letterFeatures(), mask: wordMask() }, "x"),
-    /Kelime fixture features\[7560\] bekler, 93 geldi/,
+    /a word fixture needs features\[7560\], got 93/,
   );
   assert.throws(
     () => normalizeModelTestSample({ features: wordFeatures(), mask: wordMask().slice(0, 30) }, "x"),
-    /Kelime fixture mask\[45\] bekler, 30 geldi/,
+    /a word fixture needs mask\[45\], got 30/,
   );
 });
 
 test("letter fixtures must carry exactly 93 features", () => {
   assert.throws(
     () => normalizeModelTestSample({ features: letterFeatures().slice(0, 92) }, "x"),
-    /Harf fixture features\[93\] bekler, 92 geldi/,
+    /a letter fixture needs features\[93\], got 92/,
   );
 });
 
 test("a fixture without a usable features array is rejected", () => {
-  assert.throws(() => normalizeModelTestSample(null, "x"), /Fixture JSON object olmalı/);
-  assert.throws(() => normalizeModelTestSample("{}", "x"), /Fixture JSON object olmalı/);
-  assert.throws(() => normalizeModelTestSample({}, "x"), /features alanı array olmalı/);
+  assert.throws(() => normalizeModelTestSample(null, "x"), /the fixture JSON must be an object/);
+  assert.throws(() => normalizeModelTestSample("{}", "x"), /the fixture JSON must be an object/);
+  assert.throws(() => normalizeModelTestSample({}, "x"), /the features field must be an array/);
   assert.throws(
     () => normalizeModelTestSample({ features: { "0": 1 } }, "x"),
-    /features alanı array olmalı/,
+    /the features field must be an array/,
   );
 });
 
@@ -155,7 +155,7 @@ test("isRecord accepts anything whose properties can be read", () => {
 test("an array is still rejected for having no features field", () => {
   assert.throws(
     () => normalizeModelTestSample([1, 2, 3], "x"),
-    /features alanı array olmalı/,
+    /the features field must be an array/,
   );
 });
 
