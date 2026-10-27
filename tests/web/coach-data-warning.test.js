@@ -1,10 +1,10 @@
 // A coach teaching file that cannot be read names itself in the console.
 //
-// The coach goes without a teaching file that fails (coach-data-loading
-// covers what the learner then sees), but letter_confusion.json failed in
-// silence: the look-alike reasons and cues were gone and nothing said why.
-// The fault these tests kill is that silence: a failed read of either file
-// leaves a warning naming it, while the coach falls back as before.
+// The coach goes on without a teaching file that fails (coach-data-loading
+// covers what the learner then sees). The fault these tests kill is a file
+// that fails in silence: the look-alike reasons and cues are gone and
+// nothing says why. A failed read of either file must leave a warning
+// naming it, while the coach falls back as usual.
 //
 // The network is the boundary faked here; everything else is the booted
 // app, driven through its own tabs.

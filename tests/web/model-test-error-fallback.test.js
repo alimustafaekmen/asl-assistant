@@ -1,9 +1,9 @@
 // What the Model Test panel says when something other than the file fails.
 //
 // A wrong file is explained in plain Turkish (model-test-error-copy). The
-// fault these tests kill is the other path: any error that was not a file
-// error went to the visitor as it was, so the panel could show "Failed to
-// fetch" or a raw ONNX Runtime message. A lost connection must be explained
+// fault these tests kill is the other path: an error that is not a file
+// error reaching the visitor as it is, so the panel shows "Failed to fetch"
+// or a raw ONNX Runtime message. A lost connection must be explained
 // as one, anything else with a plain message addressed as siz, and the raw
 // text kept for the console.
 //

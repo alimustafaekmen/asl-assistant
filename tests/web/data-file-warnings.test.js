@@ -1,5 +1,5 @@
 // A data file that does not arrive is named in the console, and the app goes
-// on with the fallback it always had.
+// on with its fallback.
 //
 // Three files the models' output is read through are optional or have a
 // built-in fallback: the word guidance data (confusion_pairs.json and
@@ -7,12 +7,12 @@
 // faults this file kills:
 //
 // - A failed request read as data. A host can answer a missing file with a
-//   JSON error body; without a status check that body became the label map,
-//   and the letter model named its classes from {"error": "Not Found"}.
-// - A failure that says nothing, or nothing useful. The guidance data fell
-//   back to empty without a word, and the label map's warning dropped the
-//   reason, so a deploy that left a file out looked like a model that had
-//   simply become worse.
+//   JSON error body; without a status check that body becomes the label map,
+//   and the letter model names its classes from {"error": "Not Found"}.
+// - A failure that says nothing, or nothing useful: guidance data that falls
+//   back to empty without a word, or a label map warning without the reason.
+//   A deploy that left a file out then looks like a model that has simply
+//   become worse.
 //
 // fetch, the console and ONNX Runtime are replaced at their boundaries; every
 // other file is served from the deployed folder on disk.

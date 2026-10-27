@@ -144,7 +144,7 @@ test("confusion pairs are accepted in every published spelling", () => {
 test("every published pair spelling unpacks to the same words", () => {
   const readConfusionPair = app.get("readConfusionPair");
 
-  // The three spellings the bundled data has used, plus the count field names.
+  // The three pair spellings, and both names of the count field.
   assert.deepStrictEqual({ ...readConfusionPair({ word_a: "hear", word_b: "listen", count: 7 }) },
     { a: "hear", b: "listen", count: 7 });
   assert.deepStrictEqual({ ...readConfusionPair({ a: "hear", b: "listen", confusions: 4 }) },

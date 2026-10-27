@@ -2,8 +2,8 @@
 // the interface does.
 //
 // The confidence above the list reads "%7,6" and the letter screen's ranked
-// list "%8"; Model Test's list wrote "8%". The fault this kills is that one
-// list using the English order. ONNX Runtime is faked at its boundary.
+// list "%8". The fault this kills is Model Test's list alone using the
+// English order ("8%"). ONNX Runtime is faked at its boundary.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

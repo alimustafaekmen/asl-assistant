@@ -1,11 +1,11 @@
 // A failure that lasts is reported, not repeated on every frame.
 //
 // Letter frames are classified about eight times a second. When the model
-// run keeps throwing, or its output keeps being unreadable, each frame used
-// to log the same warning again, from the adapter and once more from the
-// inference loop: two lines a frame, about a thousand a minute, which buries
-// everything else in the console a person would open to find out why the
-// letters stopped. The fault this file kills is that flood. The first failing
+// run keeps throwing, or its output keeps being unreadable, a frame that logs
+// its warning again, from the adapter and once more from the inference loop,
+// writes two lines a frame, about a thousand a minute. That buries everything
+// else in the console a person would open to find out why the letters
+// stopped. The fault this file kills is that flood. The first failing
 // frame must still be reported with its reason, and a frame that works must
 // re-arm the report, so a new failure later is seen at once.
 //

@@ -1,10 +1,10 @@
 // The Model Test run button keeps the wording the page gives it.
 //
 // The markup labels it "Seçili örneği yeniden çalıştır", in the sentence case
-// the rest of the interface uses. Once a sample loaded, the script rewrote it
-// in title case ("Seçili Örneği Tekrar Çalıştır", "Model Çalışıyor"), so the
-// same button changed its words and its casing under the visitor. The fault
-// this kills is any label that drifts from the markup's. ONNX Runtime is
+// the rest of the interface uses. A script that rewrites it once a sample has
+// loaded, in title case ("Seçili Örneği Tekrar Çalıştır", "Model Çalışıyor"),
+// changes the button's words and casing under the visitor. The fault this
+// kills is any label that drifts from the markup's. ONNX Runtime is
 // faked at its boundary and holds the run so the busy label can be read.
 
 import assert from "node:assert/strict";

@@ -3,10 +3,10 @@
 // asl_video_links.json and word_reference.json are optional: without them
 // the video button opens a generated search and the word reference shows
 // whole pages. The fault these tests kill is the silence around that
-// fallback: a malformed file (a bad deploy, a hand edit) was swallowed by a
-// catch that also hid every other error, so nobody could tell the published
-// links or the word cards were gone. A failed read must leave one warning
-// naming the file, and the same fallback as before.
+// fallback: a malformed file (a bad deploy, a hand edit) swallowed by a catch
+// that also hides every other error, so nobody can tell the published links
+// or the word cards are gone. A failed read must leave one warning naming the
+// file, and the same fallback.
 //
 // The network is the boundary faked here: fetch serves the deployed folder
 // from disk, except for the file a test breaks. Everything else is the

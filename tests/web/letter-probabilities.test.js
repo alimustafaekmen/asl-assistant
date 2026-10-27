@@ -4,12 +4,12 @@
 // with a data buffer, or, depending on the export and the runtime version, as
 // the bare numeric array itself. Two faults this file kills:
 //
-// - A bare Float32Array or number array read only partly. The adapter used
-//   to read unknown iterables ten entries deep, so a bare 24-class vector
-//   became ten classes and L through Y could never be shown.
+// - A bare Float32Array or number array read only partly. An adapter that
+//   reads unknown iterables ten entries deep turns a bare 24-class vector
+//   into ten classes, and L through Y can never be shown.
 // - A vector of the wrong length ranked as it came. Classes past the label
-//   list became invented names ("cls_27") on the stage, and a short vector
-//   hid the classes it lacked. A vector that does not have one entry per
+//   list become invented names ("cls_27") on the stage, and a short vector
+//   hides the classes it lacks. A vector that does not have one entry per
 //   label says nothing reliable about which class it favours, so the frame
 //   uses the label output alone, as for any other unreadable output.
 //
