@@ -321,7 +321,12 @@ async function realInference(now) {
         return;
       }
 
+      const mode = state.mode;
+      const coachTarget = state.coachTarget;
       const result = await predictLetter(f93);
+      // A mode change, a new coach target or a camera stop has already reset
+      // the screen this frame was meant for.
+      if (!framesLive() || state.mode !== mode || state.coachTarget !== coachTarget) return;
       if (result) {
         _noLetterResultWarning?.clear();
         if (!_firstPredictionLogged) {
