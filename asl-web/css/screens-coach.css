@@ -352,8 +352,9 @@
     }
   }
 
-  /* Narrow or short windows: the compact tile keeps its icon, not its label. */
-  @media (max-width: 22.5rem), (max-height: 36rem) {
+  /* Narrow or short phone windows: the compact tile keeps its icon, not its
+     label. */
+  @media (max-width: 22.5rem), (max-height: 36rem) and (max-width: 63.99rem) {
     .target-tile__ref { width: var(--size-target); height: var(--size-target); padding: 0; }
     .target-tile__ref > span {
       position: absolute;
@@ -368,7 +369,7 @@
   }
 
   /* Phone landscape: no room for the session's long label. */
-  @media (orientation: landscape) and (max-height: 32rem) {
+  @media (orientation: landscape) and (max-height: 32rem) and (max-width: 63.99rem) {
     .session { min-height: 44px; padding-inline: var(--sp-3); }
     .session__button { font-size: var(--fs-sm); }
   }

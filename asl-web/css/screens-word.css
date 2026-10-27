@@ -316,7 +316,7 @@
   .app-shell[data-mode="word"] .word-state-card { display: none; }
 
   /* Landscape phones: the word face leaves room for the longest word. */
-  @media (orientation: landscape) and (max-height: 32rem) {
+  @media (orientation: landscape) and (max-height: 32rem) and (max-width: 63.99rem) {
     .stage[data-kind="word"] + .plate { --fs-word: 2rem; }
   }
 
