@@ -69,14 +69,3 @@ function getBenchmarkSummary() {
     total: getAvgBenchmark("total").toFixed(1) + " ms",
   };
 }
-
-/**
- * Walks the buckets rather than naming them, so a new stage cannot be left out.
- *
- * @returns {void}
- */
-function resetBenchmark() {
-  for (const samples of Object.values(benchmarkData)) {
-    samples.length = 0;
-  }
-}

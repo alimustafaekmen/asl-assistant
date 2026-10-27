@@ -13,7 +13,6 @@
  * @property {number} WORD_UNKNOWN_THRESHOLD Below this a word result is uncertain.
  * @property {number} WORD_CONFIDENT_THRESHOLD Above this a word result is confident.
  * @property {number} WORD_ACCEPT_THRESHOLD Minimum confidence to offer a word for acceptance.
- * @property {number} SMOOTHING_ALPHA Not read by any script; the letter smoother is a majority vote.
  * @property {number} SMOOTHER_WINDOW Letter predictions the smoother votes over.
  * @property {number} TOP_K Number of alternatives shown to the user.
  * @property {number} WORD_FRAME_COUNT Frames in one word recording; the model input depends on this.
@@ -83,7 +82,6 @@ const CONFIG = {
   WORD_UNKNOWN_THRESHOLD: 0.15,
   WORD_CONFIDENT_THRESHOLD: 0.20,
   WORD_ACCEPT_THRESHOLD: 0.15,
-  SMOOTHING_ALPHA: 0.4,
   SMOOTHER_WINDOW: 5,
   TOP_K: 3,
   WORD_FRAME_COUNT: 45,
