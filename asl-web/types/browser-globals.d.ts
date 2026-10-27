@@ -1,13 +1,11 @@
-// Ambient declarations for the browser globals the app does not own.
+// Ambient declarations for the browser globals the app does not own. They
+// arrive from a CDN script or are attached to `window` at runtime, so JSDoc in
+// the sources cannot describe them. Only editors and `tsc --noEmit` read this
+// file; the page never loads it.
 //
-// This file is not application code. The browser never loads it, it emits no
-// JavaScript, and it is not a deploy artifact; only editors and `tsc --noEmit`
-// read it. It exists because these globals arrive from a CDN script tag or are
-// attached to `window` at runtime, so JSDoc in the sources cannot describe them.
-//
-// Only the surface the app actually uses is declared. The upstream packages
-// ship far larger type trees, and copying them here would turn a CDN version
-// bump into a source change.
+// Only the surface the app uses is declared. The upstream packages ship far
+// larger type trees, and copying them here would turn a CDN version bump into
+// a source change.
 
 /** ONNX Runtime Web, loaded from a CDN script tag in index.html. */
 declare namespace ort {
