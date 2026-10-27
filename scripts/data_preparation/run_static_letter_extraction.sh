@@ -3,6 +3,9 @@
 # balance and split them for the letter model. Takes about 15-20 minutes on an
 # Apple M4 Pro.
 #
+# The merge balances the classes by default. The published model was trained
+# on unbalanced tables: run the merge again with --no-balance to reproduce them.
+#
 # Usage:
 #   ./scripts/data_preparation/run_static_letter_extraction.sh
 #   PYTHON=/path/to/python ./scripts/data_preparation/run_static_letter_extraction.sh

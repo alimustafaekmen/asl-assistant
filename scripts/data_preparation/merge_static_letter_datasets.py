@@ -3,16 +3,18 @@
 Merge, clean, balance, and split static-letter landmark datasets.
 
 The published classifier contains 24 static letters, so J and Z rows are
-removed even if a source dataset provides them.
+removed even if a source dataset provides them. Classes are undersampled to the
+smallest one unless ``--no-balance`` is given; the published model was trained
+without balancing.
 
 Examples:
-  # Merge every CSV under data/processed/.
+  # Merge every *_landmarks.csv under data/processed/.
   python scripts/data_preparation/merge_static_letter_datasets.py
 
   # Merge selected CSV files.
   python scripts/data_preparation/merge_static_letter_datasets.py \\
     --inputs data/processed/asl_alphabet_landmarks.csv \\
-             data/processed/mediapipe_processed_landmarks.csv
+             data/processed/american_sign_language_landmarks.csv
 
   # Limit each class through deterministic undersampling.
   python scripts/data_preparation/merge_static_letter_datasets.py --max-per-class 2000

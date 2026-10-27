@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Extract MediaPipe Holistic landmarks from exploratory MS-ASL clips.
 
-The output follows the narrow Parquet layout expected by the historical word
-notebook loader. This experiment is separate from the Google ASL Signs data
-used to train the published 50-word model.
+The output copies the layout of the competition data (one narrow Parquet file
+per clip and a ``train.csv`` index), which ``word_25_desktop_training.ipynb``
+reads. It keeps only the desktop model's 107 points, so the 50-word notebook,
+which reads other face and pose points, cannot use it as it is. No published
+model uses MS-ASL.
 
 Examples:
     python scripts/data_preparation/extract_msasl_landmarks.py
@@ -11,7 +13,7 @@ Examples:
     python scripts/data_preparation/extract_msasl_landmarks.py --validate-only
 
 Outputs:
-    data/processed/msasl_landmarks/{class_id}_{word}/{entry_id}.parquet
+    data/processed/msasl_landmarks/{class_id}_{class_name}/{entry_id}.parquet
     data/processed/msasl_landmarks/train.csv
     data/processed/msasl_landmarks/extraction_state.json
     data/processed/msasl_landmarks/extraction_metadata.json
@@ -28,7 +30,7 @@ from typing import Optional
 
 import cv2
 
-# This script targets the MediaPipe 0.10.18 Solutions API.
+# Uses the legacy Solutions API (mp.solutions), which the pinned 0.10 release still ships.
 import mediapipe as mp
 import numpy as np
 import pandas as pd
@@ -151,7 +153,7 @@ CLASS_TO_WORDS: dict[int, list[str]] = {}
 for _w, _c in WORD_TO_MSASL_CLASS.items():
     CLASS_TO_WORDS.setdefault(_c, []).append(_w)
 
-# MediaPipe settings aligned with the shared Python ML defaults.
+# The same values as asl_features.config and the desktop HolisticDetector.
 MP_MODEL_COMPLEXITY = 1
 MP_MIN_DETECTION_CONFIDENCE = 0.5
 MP_MIN_TRACKING_CONFIDENCE = 0.4
@@ -327,7 +329,7 @@ def check_outlier_frames(all_rows: list[dict]) -> set[int]:
     if not all_rows:
         return set()
 
-    # Reduce every frame to a mean x/y position for a coarse jump check.
+    # Reduce every frame to one mean x/y value and compare it with the clip's mean.
     frame_stats: dict[int, list[float]] = {}
     for row in all_rows:
         fnum = row["frame"]
@@ -463,7 +465,7 @@ def process_video(
         meta["reject_reason"] = "no_landmarks"
         return None, meta
 
-    # Remove abrupt coordinate jumps and compact the frame indices.
+    # Drop frames far from the clip's mean position and renumber the rest.
     outlier_frames = check_outlier_frames(all_rows)
     meta["outlier_frames"] = len(outlier_frames)
 
@@ -495,7 +497,7 @@ def process_video(
 def find_video_files(video_dir: Path) -> dict[str, Path]:
     """Index downloaded MP4 clips by entry identifier.
 
-    Expected layout: ``{class_id}_{word}/{split}_{idx}.mp4``.
+    Expected layout: ``{class_id}_{class_name}/{split}_{idx}.mp4``.
     """
     videos = {}
     if not video_dir.exists():
@@ -704,7 +706,7 @@ def generate_csv(
     state_file: Path,
     logger: logging.Logger,
 ) -> Path:
-    """Create the index CSV expected by the historical notebook loader.
+    """Write the clip index in the competition's ``train.csv`` layout.
 
     Schema:
         path,sign,participant_id
@@ -926,7 +928,7 @@ def main() -> int:
         f"rejected: {stats['rejected']}, skipped: {stats['skipped']}"
     )
 
-    # Build the notebook-compatible index.
+    # Build the train.csv index.
     generate_csv(args.output_dir, args.state_file, logger)
 
     # Persist a reusable coverage report.

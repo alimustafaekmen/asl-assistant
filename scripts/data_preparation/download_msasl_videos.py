@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Download MS-ASL clips for an exploratory 50-word data experiment.
+"""Download MS-ASL clips of 50 target words for an exploratory experiment.
 
-This helper was not used to train the published 50-word web model, which uses
-Google ASL Signs data. It remains useful for reproducing the documented MS-ASL
-exploration.
+No published model uses MS-ASL: the 50-word web model is trained on the Google
+Isolated Sign Language Recognition competition data.
 
 Examples:
     python scripts/data_preparation/download_msasl_videos.py
@@ -12,7 +11,7 @@ Examples:
     python scripts/data_preparation/download_msasl_videos.py --max-per-word 5  # test
 
 Outputs:
-    data/raw/MS-ASL/videos/{class_id}_{word}/{split}_{idx}.mp4
+    data/raw/MS-ASL/videos/{class_id}_{class_name}/{split}_{idx}.mp4
     data/raw/MS-ASL/download_state.json   (state for resuming)
     data/raw/MS-ASL/download.log          (detailed log)
 """
@@ -457,7 +456,6 @@ def download_all(
                     f"age_restricted={stats['age_restricted']} error={stats['error']}"
                 )
 
-    # Save the final state even when the last batch was smaller than ten.
     save_state(state, state_file)
     return stats
 

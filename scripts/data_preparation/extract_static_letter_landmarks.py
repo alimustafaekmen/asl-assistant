@@ -13,9 +13,11 @@ Examples:
     --max-per-class 3000
 
   python scripts/data_preparation/extract_static_letter_landmarks.py \\
-    --input "data/raw/MediaPipe_Processed_Asl" \\
-    --output "data/processed/mediapipe_processed_landmarks.csv" \\
-    --max-per-class 3000
+    --input "data/raw/American Sign Language Dataset" \\
+    --output "data/processed/american_sign_language_landmarks.csv"
+
+The merge step reads every ``*_landmarks.csv`` under ``data/processed/``, so
+keep that ending in the output name.
 
 Output schema:
   label, f0, f1, f2, ..., f62
@@ -31,7 +33,7 @@ import time
 import cv2
 import numpy as np
 
-# Resolve the local Python ML package when the script is run from a fresh clone.
+# Import asl_features from the source tree, so the script runs without an install.
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ASL_FEATURES_SRC = os.path.join(PROJECT_ROOT, "asl-features", "src")
 if ASL_FEATURES_SRC not in sys.path:
