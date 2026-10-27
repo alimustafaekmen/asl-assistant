@@ -52,6 +52,11 @@ from asl_features.word import (  # noqa: E402
     normalize_shoulders,
 )
 
+try:
+    from .word_signer_split import notebook_test_signers
+except ImportError:  # Direct script execution: python scripts/evaluation/...
+    from word_signer_split import notebook_test_signers
+
 WEB_DATA_DIR = PROJECT_ROOT / "asl-web" / "data"
 WEB_MODEL_PATH = PROJECT_ROOT / "asl-web" / "models" / "word_model.onnx"
 WORD_LABELS_PATH = WEB_DATA_DIR / "word_labels.json"
@@ -60,7 +65,6 @@ MODEL_TEST_DIR = WEB_DATA_DIR / "model-test-samples"
 WORD_OUT_DIR = MODEL_TEST_DIR / "local"
 MANIFEST_PATH = WORD_OUT_DIR / "manifest.json"
 
-SEED = 42
 TARGET_LEN = 45
 FEATURE_DIM = 168
 
@@ -228,15 +232,8 @@ def predict_word(
 
 
 def _split_test_rows(train_df, selected_words: set[str]):
-    # The same split as download_kaggle_sample_subset.py. The notebook uses the
-    # legacy np.random.shuffle, so its test signers are different ones.
     filtered = train_df[train_df["sign"].isin(selected_words)].copy()
-    rng = np.random.default_rng(SEED)
-    signers = filtered["participant_id"].unique().copy()
-    rng.shuffle(signers)
-    n_train = int(len(signers) * 0.70)
-    n_val = int(len(signers) * 0.15)
-    test_signers = set(signers[n_train + n_val :])
+    test_signers = notebook_test_signers(filtered["participant_id"].unique())
     return filtered[filtered["participant_id"].isin(test_signers)].reset_index(drop=True)
 
 

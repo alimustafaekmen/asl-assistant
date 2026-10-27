@@ -2,10 +2,8 @@
 """Download a small Kaggle ASL Signs subset for browser model-test fixtures.
 
 This avoids downloading the full competition archive. It first downloads
-`train.csv`, then picks rows from the test signers of a seeded 70/15/15 signer
-split, and finally downloads only the chosen parquet files. The split has the
-notebook's proportions and seed but not its random generator (see
-`_choose_rows`), so these signers are not the notebook's test signers.
+`train.csv`, then picks rows from the training notebook's test signers, and
+finally downloads only the chosen parquet files.
 
 Prerequisites:
   - Kaggle API installed and authenticated (`~/.kaggle/kaggle.json`)
@@ -32,11 +30,13 @@ import subprocess
 import zipfile
 from pathlib import Path
 
-import numpy as np
+try:
+    from .word_signer_split import notebook_test_signers
+except ImportError:  # Direct script execution: python scripts/evaluation/...
+    from word_signer_split import notebook_test_signers
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 COMPETITION = "asl-signs"
-SEED = 42
 WORD_LABELS_PATH = PROJECT_ROOT / "asl-web" / "data" / "word_labels.json"
 
 
@@ -104,14 +104,7 @@ def _choose_rows(
             seen.add(pid)
             participant_order.append(pid)
 
-    # The notebook shuffles with np.random.seed(42) and np.random.shuffle; a
-    # Generator with the same seed gives another order, so the test signers
-    # differ. export_model_test_word_samples.py uses this same split.
-    signers = np.array(participant_order, dtype=object)
-    np.random.default_rng(SEED).shuffle(signers)
-    n_train = int(len(signers) * 0.70)
-    n_val = int(len(signers) * 0.15)
-    test_signers = set(signers[n_train + n_val :])
+    test_signers = notebook_test_signers(participant_order)
 
     chosen: list[dict[str, str]] = []
     per_word: dict[str, int] = {}
