@@ -340,6 +340,10 @@
     .app-shell[data-mode="coach"] .stage:has(> .stage__empty:not([hidden])) > .target-tile { display: none; }
     .app-shell[data-mode="coach"] .stage__empty { padding-top: revert-layer; }
   }
+  /* A short laptop window has no room for the tile above the first-visit text. */
+  @media (min-width: 64rem) and (max-height: 46rem) {
+    .app-shell[data-mode="coach"] .stage:has(> .stage__empty:not([hidden])) > .target-tile { display: none; }
+  }
 
   /* The narrowest phones: the camera button keeps only its icon visible. */
   @media (max-width: 22.5rem) {
