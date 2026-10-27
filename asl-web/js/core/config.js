@@ -107,7 +107,7 @@ const CONFIG = {
   COACH_SESSION_SIZE: 10,
   // Enable only on devices that consistently report swapped labels.
   SELFIE_HANDEDNESS_SWAP: false,
-  // MediaPipe's defaults. The word extractor and the desktop app
+  // MediaPipe's defaults. The MS-ASL extractor and the desktop app
   // (asl_features.config) also detect at 0.5 but track at 0.4.
   HAND_DETECTION_CONFIDENCE: 0.5,
   HAND_PRESENCE_CONFIDENCE: 0.5,
