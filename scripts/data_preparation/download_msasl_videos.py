@@ -456,7 +456,6 @@ def download_all(
                     f"age_restricted={stats['age_restricted']} error={stats['error']}"
                 )
 
-    save_state(state, state_file)
     return stats
 
 
