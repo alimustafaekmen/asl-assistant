@@ -68,6 +68,7 @@ camera-free demo.
 | `export_feature_goldens.py` | Writes `tests/web/fixtures/feature-golden.json`: synthetic hands and word sequences with the Python 93-D and 168-D features, which the JavaScript tests must reproduce |
 | `download_kaggle_sample_subset.py` | Downloads a few recordings per word from the Google Isolated Sign Language Recognition competition, from the four signers the training notebook held out for testing |
 | `export_model_test_word_samples.py` | Turns those recordings into Model Test samples |
+| `word_signer_split.py` | The training notebook's signer split, shared by the two scripts above |
 | `export_demo_letters.py` | Writes `asl-web/data/demo-letters.json`, the demo's hand poses |
 
 The feature goldens are built from fixed geometry, with no random numbers.
