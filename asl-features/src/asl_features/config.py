@@ -9,6 +9,8 @@ The browser keeps its independent JavaScript contract under ``asl-web/``.
 # MediaPipe hand-landmark contract shared by extraction and Python inference.
 NUM_HANDS = 1
 MIN_DETECTION_CONFIDENCE = 0.5
+# Desktop detectors and the MS-ASL extractor only; the web word model was
+# trained on the Kaggle competition's own landmarks.
 MIN_TRACKING_CONFIDENCE = 0.4
 NUM_LANDMARKS = 21
 HAND_LANDMARK_DIM = NUM_LANDMARKS * 3
