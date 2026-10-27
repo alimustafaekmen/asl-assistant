@@ -1,13 +1,13 @@
-// Where a visitor starts the camera-free demo, and where Model Test went.
+// Where a visitor starts the camera-free demo, and where Model Test is linked.
 //
 // Model Test reads fixture files and shows model output: a developer tool a
-// visitor does not understand (owner decision 2026-10-18). A visitor without
+// visitor does not understand. A visitor without
 // a camera is offered the demo instead, on the letter stage, in the camera
 // problem (an in-app browser that blocks the camera) and on the project page;
 // each plays it on the letter screen. Model Test keeps its route and is
 // linked once, for developers, from the project page.
 //
-// The faults these kill: a start button that still opens Model Test, one that
+// The faults these kill: a start button that opens Model Test, one that
 // starts the demo on the screen it sits on instead of the letter screen, a
 // visitor control left pointing at Model Test, a project page that lost its
 // developer link, and a keyboard press that leaves focus on a hidden button.

@@ -8,9 +8,9 @@
 // Switching mode also has to start the letter smoother from nothing, so a
 // letter held up before the switch cannot show after it.
 //
-// Every route but #test has a tab. Model Test is a developer tool (owner
-// decision 2026-10-18): a visitor never meets it, and the project page links
-// to it, so it is opened here by following that link.
+// Every route but #test has a tab. Model Test is a developer tool: a visitor
+// never meets it, and the project page links to it, so it is opened here by
+// following that link.
 //
 // The page is the real index.html booted through init(). The address bar is a
 // URL object with a recording history; the clicks are the tabs' own.

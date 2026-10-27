@@ -14,8 +14,8 @@ import { loadWebApp, parsedIndexHtml } from "./helpers/web-app-context.mjs";
 
 const quietConsole = { ...console, log() {}, warn() {}, info() {} };
 const ROUTES = ["letter", "coach", "word", "test", "project", "qr"];
-// Model Test is a developer tool (owner decision 2026-10-18): it has no tab,
-// and the project page links to it; routes.test.js follows that link.
+// Model Test is a developer tool: it has no tab, and the project page links
+// to it; routes.test.js follows that link.
 const TABBED_ROUTES = ROUTES.filter((route) => route !== "test");
 
 /** Build loose markup into live stub nodes, outside any app. */

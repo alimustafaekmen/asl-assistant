@@ -82,8 +82,8 @@ function clickTab(app, mode) {
 }
 
 /**
- * Open `mode` as a visitor does. Model Test has no tab since it became a
- * developer tool (owner decision 2026-10-18); the project page links to it.
+ * Open `mode` as a visitor does. Model Test is a developer tool with no tab;
+ * the project page links to it.
  * Focus moves recorded before the last step are dropped, so what is left is
  * the move the route change itself made.
  */

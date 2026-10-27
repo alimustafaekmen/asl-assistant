@@ -49,8 +49,8 @@ function network(overrides = {}) {
 }
 
 /**
- * Open Model Test the way a developer does since it lost its tab: through
- * the address, which the page follows on hashchange.
+ * Open Model Test the way a developer does, as it has no tab: through the
+ * address, which the page follows on hashchange.
  */
 function openModelTest(app) {
   app.get("location").hash = "#test";

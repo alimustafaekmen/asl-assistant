@@ -81,7 +81,7 @@ const advertised = async () => {
   }));
 };
 
-// Shortcuts -------------------------------------------------------------------
+// Shortcuts
 
 test("the page advertises at least the three transcript keys", async () => {
   // A guard on the loop below: with nothing advertised it would pass vacuously.
@@ -128,7 +128,7 @@ test("the keys are taken from the browser only when they act, so other modes kee
   }
 });
 
-// Controls tagged for modes -----------------------------------------------------
+// Controls tagged for modes
 
 test("every mode-only control names a mode it can be shown in", async () => {
   const app = await bootedApp();
@@ -163,7 +163,7 @@ test("the transcript buttons in the dock edit the text in the mode they are show
   }
 });
 
-// Live regions, the phone menu, the toast ----------------------------------------
+// Live regions, the phone menu, the toast
 
 test("the announcer is a polite live region, present and not hidden at load", async () => {
   const app = await bootedApp();
@@ -197,7 +197,7 @@ test("the More button targets a popover menu that holds the secondary screens", 
 
   const screens = [...menu.querySelectorAll('[data-ui="mode-tab"]')].map((tab) => tab.dataset.mode);
   // Model Test is not among them: it is a developer tool, linked from the
-  // project page (owner decision 2026-10-18).
+  // project page.
   assert.deepEqual(screens.sort(), ["project", "qr"]);
 });
 
