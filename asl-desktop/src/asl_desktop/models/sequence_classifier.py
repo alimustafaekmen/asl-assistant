@@ -282,8 +282,8 @@ class SequenceClassifier:
         self.model = self._create_model(num_classes, meta)
 
         # A .pt file is a pickle: weights_only=True restricts it to tensors and
-        # plain containers, so a tampered checkpoint cannot run code. The flag
-        # exists since torch 1.13; the pinned 2.2.2 does not enable it by default.
+        # plain containers, so a tampered checkpoint cannot run code. It is the
+        # default only from torch 2.6, and the package allows 2.2 and later.
         state_dict = torch.load(self._model_path, map_location=DEVICE, weights_only=True)
         self.model.load_state_dict(state_dict)
         self.model.to(DEVICE)

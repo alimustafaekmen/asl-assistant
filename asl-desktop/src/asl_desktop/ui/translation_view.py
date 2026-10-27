@@ -561,7 +561,11 @@ class TranslationView(ctk.CTkFrame):
         return preview
 
     def _process_letter_mode(self, keypoints, frame, is_moving):
-        """Run static-letter inference and optional dynamic J/Z recognition."""
+        """Run static-letter inference and optional dynamic J/Z recognition.
+
+        ``frame`` is the mirrored preview to draw on; ``keypoints`` already
+        come from the unmirrored camera frame.
+        """
 
         # Calibration records features instead of producing predictions.
         if getattr(self, "_is_calibrating", False):
@@ -699,7 +703,10 @@ class TranslationView(ctk.CTkFrame):
         return frame
 
     def _process_word_mode(self, keypoints, frame, is_moving, hands_detected):
-        """Run the legacy 30-frame desktop word model with idle detection."""
+        """Run the legacy 30-frame desktop word model with idle detection.
+
+        As in letter mode, ``frame`` is the mirrored preview to draw on.
+        """
         if not self._word_loaded:
             return frame
 
@@ -762,7 +769,7 @@ class TranslationView(ctk.CTkFrame):
             text=f"Kelime: {'█' * int(_p * 10)}{'░' * (10 - int(_p * 10))} {int(_p * 100)}%"
         )
 
-        # Mirror progress on the camera frame.
+        # Repeat the progress as a bar along the bottom of the preview.
         h, w = frame.shape[:2]
         bar_w = int(w * progress)
         color = (0, int(200 * progress), int(255 * (1 - progress)))

@@ -624,7 +624,8 @@ class LearningCoachView(ctk.CTkFrame):
         return preview
 
     def _update_score(self, predicted: str, conf: float, top3: list) -> None:
-        # Recover the target probability from top-3 when it is not top-1.
+        # In letter mode, take the target's probability from the top three
+        # when it is not first; a wrong word scores zero.
         if predicted == self._selected_word:
             target_prob = conf
         elif top3 and self._mode == "letter":

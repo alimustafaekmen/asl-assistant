@@ -23,7 +23,7 @@ dependencies = [
   "torch>=2.2,<3",
   "customtkinter>=6,<7",
   "pyttsx3>=2.99,<3",
-  "asl-features==0.1.0",  # Sibling package; `make setup` installs it first.
+  "asl-features==0.1.0",  # Sibling package; `make setup` installs it from ./asl-features.
 ]
 
 [project.optional-dependencies]

@@ -24,7 +24,7 @@ _logger = logging.getLogger("ASL.HandDetector")
 # unmirrored camera frame the detector reads. The legacy solution assumes a
 # mirrored selfie image, so it names hands the other way round: on unmirrored
 # photos of right hands, the letter model's training images, it said "Left"
-# for 139 of 146 (measured 2026-10-17). The web app's Tasks API names them as
+# for 139 of 146. The web app's Tasks API names them as
 # they are, so this value belongs to the legacy solution only.
 USERS_LEFT_HAND_LABEL = "Right"
 
@@ -32,10 +32,10 @@ USERS_LEFT_HAND_LABEL = "Right"
 def _as_right_hand(landmarks: np.ndarray) -> np.ndarray:
     """Reflect a left hand into the right hand it mirrors.
 
-    The letter model was trained on right hands only. A left hand fed as it is
-    scored about 49% on unseen signers, and 79% mirrored (measured
-    2026-10-17). Any vertical line serves as the mirror, because
-    normalization then centres the hand on its wrist.
+    The letter model was trained on right hands only. On left hands from the
+    test images it scored about 49% as they are and 79% mirrored. Any
+    vertical line serves as the mirror, because normalization then centres
+    the hand on its wrist.
     """
     coords = landmarks.reshape(-1, 3).copy()
     coords[:, 0] = 1.0 - coords[:, 0]
@@ -75,7 +75,7 @@ class HandDetector:
             if self._last_results.multi_handedness:
                 handedness = self._last_results.multi_handedness[0].classification[0]
                 handedness_score = handedness.score
-                # Without a label the hand is taken as it comes, as before.
+                # Without a label the hand is used as it comes.
                 handedness_label = getattr(handedness, "label", None)
             if handedness_score < LANDMARK_QUALITY_THRESHOLD:
                 self._smoother.reset()
