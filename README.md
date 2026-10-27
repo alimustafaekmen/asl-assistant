@@ -20,7 +20,7 @@ ASL Assistant reads American Sign Language letters from the camera in real time 
 | Model | LightGBM on 93 hand-shape features | Transformer on 45 frames × 168 features |
 | Accuracy | 68.9% on a separate test set | 71.9% top-1, 0.71 macro-F1 on 4 signers never seen in training |
 
-The letter model scores 99.35% on a random split, but that number is too high. The main dataset photographs each letter as long runs of near-identical frames, so a random split leaves near-copies of the test photos in training. I measured it again on a separate test set (68.9%) and by retraining with one whole dataset held out (about 40% to 80%). The [technical report](docs/technical-report.md#letter-model) has the details. The demo poses come from training photos, so the demo shows the app working and the table shows the accuracy.
+The letter model scores 99.35% on a random split, but that number is too high. The main dataset photographs each letter as long runs of near-identical frames, so a random split leaves near-copies of the test photos in training. I measured it again on a separate test set (68.9%) and by retraining with one whole dataset held out (about 40% to 80%). The [technical report](docs/technical-report.md#letter-model) has the details. The demo hand comes from the training photos, which is why the demo always reads it right.
 
 ## What I built
 
@@ -56,7 +56,7 @@ Try it at https://asl-assistant.pages.dev/, or run it locally with `make web` (h
 ## Limitations
 
 - I have not trained a model for J and Z, because they need motion.
-- On the separate test set the letter model is right about 70% of the time. It needs training data from more signers.
+- The letter model needs training data from more signers to do better on new hands.
 - The word model knows only 50 isolated signs, and I measured it on 4 test signers with one training seed.
 - I have tested the app in desktop Chrome, but not yet on a real phone.
 

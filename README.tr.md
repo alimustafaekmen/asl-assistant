@@ -18,9 +18,9 @@ ASL Assistant, Amerikan İşaret Dili (ASL) harflerini kameradan gerçek zamanl�
 | | Harfler (24 statik) | Kelimeler (50 tekil işaret) |
 |---|---|---|
 | Model | 93 el şekli özelliği üzerinde LightGBM | 45 kare × 168 özellik üzerinde Transformer |
-| Doğruluk | Ayrı bir test setinde %68,9 | Eğitimde hiç görülmemiş 4 kişide %71,9 doğruluk, 0,71 makro-F1 |
+| Doğruluk | Ayrı bir test kümesinde %68,9 | Eğitimde hiç görülmemiş 4 kişide %71,9 doğruluk, 0,71 makro-F1 |
 
-Harf modeli rastgele ayrılmış test verisinde %99,35 alıyor, ama bu sayı gerçeği yansıtmıyor. Ana veri seti her harfi birbirine çok benzeyen uzun fotoğraf dizileriyle çekmiş; rastgele ayırınca test fotoğraflarının neredeyse aynısı eğitimde kalıyor. Bu yüzden modeli ayrı bir test setinde (%68,9) ve bir veri setini tamamen dışarıda bırakıp yeniden eğiterek (yaklaşık %40 ile %80 arası) tekrar ölçtüm. Ayrıntılar [teknik raporda](docs/technical-report.tr.md#harf-modeli). Örnekteki el pozları eğitim fotoğraflarından geliyor; örnek uygulamanın çalıştığını, tablo ise doğruluğu gösteriyor.
+Harf modeli rastgele ayrılmış test verisinde %99,35 alıyor, ama bu sayı gerçeği yansıtmıyor. Ana veri seti her harfi birbirine çok benzeyen uzun fotoğraf dizileriyle çekmiş; rastgele ayırınca test fotoğraflarının neredeyse aynısı eğitimde kalıyor. Bu yüzden modeli ayrı bir test kümesinde (%68,9) ve bir veri setini tamamen dışarıda bırakıp yeniden eğiterek (yaklaşık %40 ile %80 arası) tekrar ölçtüm. Ayrıntılar [teknik raporda](docs/technical-report.tr.md#harf-modeli). Örnekteki el eğitim fotoğraflarından geliyor; örneğin her harfi doğru okumasının nedeni bu.
 
 ## Neler yaptım?
 
@@ -56,7 +56,7 @@ Uygulamayı https://asl-assistant.pages.dev/ adresinde deneyebilir ya da `make w
 ## Sınırlamalar
 
 - J ve Z hareket gerektirdiği için bu iki harf için bir model eğitmedim.
-- Harf modeli ayrı test kümesinde yaklaşık %70 oranında doğru. Daha fazla kişiden eğitim verisine ihtiyacı var.
+- Harf modelinin yeni ellerde daha iyi olması için daha fazla kişiden eğitim verisine ihtiyacı var.
 - Kelime modeli yalnızca 50 tekil işaret tanıyor; onu 4 test kişisinde ve tek bir eğitim tohumuyla (seed) ölçtüm.
 - Uygulamayı masaüstü Chrome'da test ettim, gerçek bir telefonda henüz denemedim.
 

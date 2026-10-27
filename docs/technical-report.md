@@ -26,7 +26,9 @@ The live site on Cloudflare Pages is the committed `asl-web/` folder, uploaded a
 
 The browser does not run Python. JavaScript in `asl-web/js/ml/` reimplements the feature code of `asl-features`, and parity checks feed both the same landmarks and require them to agree within 1e-4.
 
-**Load order.** `index.html` holds every screen and loads 32 plain `<script>` files of its own. They share one global scope, so each file can use only what the files before it have defined, and they load in a fixed order. Two small scripts in `<head>` set the theme and the language before the first paint, the string files translate the page before the CDN scripts load, and `core/app.js` comes last and starts the app. The files in between only define functions. [`asl-web/js/README.md`](../asl-web/js/README.md) describes every module.
+### Load order
+
+`index.html` holds every screen and loads 32 plain `<script>` files of its own. They share one global scope, so each file can use only what the files before it have defined, and they load in a fixed order. Two small scripts in `<head>` set the theme and the language before the first paint, the string files translate the page before the CDN scripts load, and `core/app.js` comes last and starts the app. The files in between only define functions. [`asl-web/js/README.md`](../asl-web/js/README.md) describes every module.
 
 ```mermaid
 flowchart LR
@@ -39,15 +41,23 @@ flowchart LR
   W --> V["user accepts the word"]
 ```
 
-**Screens.** `#letter` (the default and the main mode), `#word` (experimental), `#coach`, `#test` (Model Test, a developer tool that runs bundled fixtures without a camera), `#project` and `#qr`. Without a camera, *Watch the demo* on the letter screen plays a recorded hand spelling FLY through the live pipeline.
+### Screens
+
+`#letter` (the default and the main mode), `#word` (experimental), `#coach`, `#test` (Model Test, a developer tool that runs bundled fixtures without a camera), `#project` and `#qr`. Without a camera, *Watch the demo* on the letter screen plays a recorded hand spelling FLY through the live pipeline.
 
 Two loops meet only at the latest MediaPipe result. The detection loop in `media/camera.js` runs while the camera is on, and the render loop in `core/app.js` draws the overlay and calls the models. Letter inference runs at most every 120 ms, so the five-prediction smoother spans about 600 ms of signing. A word recording reads every frame. A frame that arrives during a model call is dropped. The camera-free demo, `media/demo-source.js`, is a second frame source. It sends a recorded hand about 20 times a second, and from the landmark step on everything works as it does with the camera.
 
-**Adding text.** Nothing is added to the text automatically. A letter is added when the user presses Space or *Add*, once its smoothed confidence reaches 0.60. A word is added only after the user accepts it, and only if it comes from the latest recording and its confidence is at least 0.15. Leaving a camera screen turns the camera off and closes MediaPipe. Pressing stop while the camera is still starting cancels the start.
+### Adding text
 
-**Word recording.** `IDLE → COUNTDOWN → RECORDING → PROCESSING → RESULT`. A frame counts only with a hand, the face and both shoulders present. If the recording cannot collect its 45 frames, it ends after 6 s with no usable frame, 4 s without a new one, or 15 s in all. Each recording has a serial number, and a late model result for an older recording is discarded.
+Nothing is added to the text automatically. A letter is added when the user presses Space or *Add*, once its smoothed confidence reaches 0.60. A word is added only after the user accepts it, and only if it comes from the latest recording and its confidence is at least 0.15. Leaving a camera screen turns the camera off and closes MediaPipe. Pressing stop while the camera is still starting cancels the start.
 
-**Lazy loading.** `init()` loads no model. A model loads at its first need: a camera start in its mode, a demo start (letter model only), a word recording or a Model Test run.
+### Word recording
+
+`IDLE → COUNTDOWN → RECORDING → PROCESSING → RESULT`. A frame counts only with a hand, the face and both shoulders present. If the recording cannot collect its 45 frames, it ends after 6 s with no usable frame, 4 s without a new one, or 15 s in all. Each recording has a serial number, and a late model result for an older recording is discarded.
+
+### Lazy loading
+
+`init()` loads no model. A model loads at its first need: a camera start in its mode, a demo start (letter model only), a word recording or a Model Test run.
 
 | Step | Downloaded |
 |---|---|
@@ -58,7 +68,9 @@ Two loops meet only at the latest MediaPipe result. The detection loop in `media
 
 `index.html` loads ONNX Runtime's WebAssembly-only bundle (`ort.wasm.min.js`), because the full bundle also fetched a 4.2 MB WebGPU build that neither model uses. The 13.2 MB letter model ships gzipped at 2.2 MB and is unpacked with `DecompressionStream`, with the raw file as fallback.
 
-**Privacy and security.** No backend, account or analytics. `localStorage` holds the theme, the language, the text and the coach progress. ONNX Runtime and kjua load with Subresource Integrity, and MediaPipe, a dynamic import, is pinned to an exact version. [`asl-web/_headers`](../asl-web/_headers) sets the hardening headers and a Content Security Policy that is still report-only.
+### Privacy and security
+
+No backend, account or analytics. `localStorage` holds the theme, the language, the text and the coach progress. ONNX Runtime and kjua load with Subresource Integrity, and MediaPipe, a dynamic import, is pinned to an exact version. [`asl-web/_headers`](../asl-web/_headers) sets the hardening headers and a Content Security Policy that is still report-only.
 
 ## 2. Data
 
@@ -193,7 +205,7 @@ Per word, 9 have F1 of at least 0.85 (water 0.912, sad 0.910) and 3 fall below 0
 | Real browser | `tests/browser` | Headless Chrome under the real headers: cascade layers, layout at phone and laptop sizes, camera release, the demo, both languages |
 | Parity | `tests/validation` | Python against JavaScript features: max difference 1.12e-5 for letters, 7.15e-7 for words |
 
-The tests fake only the network, the clock, storage, the camera, MediaPipe and ONNX Runtime. For the rules that matter most (no word without consent, mask polarity, frame order, camera release, detection pacing, the raised-hand choice and the demo poses), I broke the code on purpose and checked that the test failed. The deployed ONNX letter model gave the same top-1 label as the pickle on all 8,245 held-out rows. `make check` runs lint, the format check, the type check, the runtime file check, the Python and JavaScript tests and the parity checks, and `make browser-check` runs the Chrome suite. Lighting, permission prompts and a real signer are outside what the automated checks cover.
+The tests fake only the network, the clock, storage, the camera, MediaPipe and ONNX Runtime. The behaviours that matter most each have their own test: no word is added without consent, the mask keeps its polarity, the frames keep their order, the camera is released, detection keeps its pace, the raised hand wins, and the demo poses still read correctly. The deployed ONNX letter model gave the same top-1 label as the pickle on all 8,245 held-out rows. `make check` runs lint, the format check, the type check, the runtime file check, the Python and JavaScript tests and the parity checks, and `make browser-check` runs the Chrome suite. Lighting, permission prompts and a real signer are outside what the automated checks cover.
 
 ## 7. Design decisions
 

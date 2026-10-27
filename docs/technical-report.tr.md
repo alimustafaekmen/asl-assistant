@@ -26,7 +26,9 @@ Cloudflare Pages'teki canlı site, repodaki `asl-web/` klasörünün olduğu gib
 
 Tarayıcıda Python çalışmaz. `asl-web/js/ml/` içindeki JavaScript, `asl-features`'in özellik kodunu yeniden uygular. Eşleşme (parity) kontrolleri ikisine aynı landmark'ları verir ve sonuçların en fazla 1e-4 farklı olmasını ister.
 
-**Yükleme sırası.** `index.html` bütün ekranları içerir ve kendi 32 düz `<script>` dosyasını yükler. Bu dosyalar tek bir global kapsamı paylaşır; her dosya yalnızca kendisinden önce yüklenenlerin tanımladıklarını kullanabilir, bu yüzden yükleme sırası önemlidir. `<head>` içindeki iki küçük script, ilk boyamadan önce temayı ve dili ayarlar. Metin dosyaları sayfayı CDN script'lerinden önce çevirir. En son `core/app.js` gelir ve uygulamayı başlatır; aradaki dosyalar yalnızca fonksiyon tanımlar. Her modülü [`asl-web/js/README.md`](../asl-web/js/README.md) anlatır.
+### Yükleme sırası
+
+`index.html` bütün ekranları içerir ve kendi 32 düz `<script>` dosyasını yükler. Bu dosyalar tek bir global kapsamı paylaşır; her dosya yalnızca kendisinden önce yüklenenlerin tanımladıklarını kullanabilir, bu yüzden yükleme sırası önemlidir. `<head>` içindeki iki küçük script, ilk boyamadan önce temayı ve dili ayarlar. Metin dosyaları sayfayı CDN script'lerinden önce çevirir. En son `core/app.js` gelir ve uygulamayı başlatır; aradaki dosyalar yalnızca fonksiyon tanımlar. Her modülü [`asl-web/js/README.md`](../asl-web/js/README.md) anlatır.
 
 ```mermaid
 flowchart LR
@@ -39,15 +41,23 @@ flowchart LR
   W --> V["kullanıcı kelimeyi onaylar"]
 ```
 
-**Ekranlar.** `#letter` (varsayılan ve ana mod), `#word` (deneysel), `#coach`, `#test` (Model Test: paketle gelen test örneklerini kamerasız çalıştıran bir geliştirici aracı), `#project` ve `#qr`. Kamera yoksa harf ekranındaki *Örneği izleyin*, FLY kelimesini heceleyen kayıtlı bir eli canlı işlem hattından geçirerek oynatır.
+### Ekranlar
+
+`#letter` (varsayılan ve ana mod), `#word` (deneysel), `#coach`, `#test` (Model Test: paketle gelen test örneklerini kamerasız çalıştıran bir geliştirici aracı), `#project` ve `#qr`. Kamera yoksa harf ekranındaki *Örneği izleyin*, FLY kelimesini heceleyen kayıtlı bir eli canlı işlem hattından geçirerek oynatır.
 
 İki döngü yalnızca en son MediaPipe sonucunda buluşur. `media/camera.js` içindeki algılama döngüsü kamera açıkken çalışır. `core/app.js` içindeki render döngüsü ise kaplamayı çizer ve modelleri çağırır. Harf çıkarımı en fazla 120 ms'de bir çalışır, böylece beş tahminlik yumuşatıcı yaklaşık 600 ms'lik bir işareti kapsar. Kelime kaydı ise her kareyi okur. Bir model çağrısı sürerken gelen kare atılır. Kamerasız örnek, `media/demo-source.js`, ikinci bir kare kaynağıdır. Kayıtlı eli saniyede yaklaşık 20 kez gönderir; landmark adımından sonrası kamerayla aynıdır.
 
-**Metne ekleme.** Metne hiçbir şey kendiliğinden eklenmez. Bir harf, yumuşatılmış güveni 0,60'a ulaştığında kullanıcı Boşluk'a ya da *Ekle*'ye basınca eklenir. Bir kelime yalnızca kullanıcı onu onayladıktan sonra eklenir; bunun için de en son kayda ait olması ve güveninin en az 0,15 olması gerekir. Kamera ekranından çıkınca kamera kapanır ve MediaPipe kapatılır. Kamera henüz açılırken durdur'a basmak açılışı iptal eder.
+### Metne ekleme
 
-**Kelime kaydı.** `IDLE → COUNTDOWN → RECORDING → PROCESSING → RESULT`. Bir kare yalnızca bir el, yüz ve iki omuz birlikte göründüğünde sayılır. 45 kare toplanamazsa kayıt şu durumlarda kendiliğinden biter: 6 saniye boyunca kullanılabilir kare yoksa, 4 saniye boyunca yeni kare gelmezse ya da toplam 15 saniye dolarsa. Her kaydın bir sıra numarası vardır; daha eski bir kayıt için geç gelen model sonucu atılır.
+Metne hiçbir şey kendiliğinden eklenmez. Bir harf, yumuşatılmış güveni 0,60'a ulaştığında kullanıcı Boşluk'a ya da *Ekle*'ye basınca eklenir. Bir kelime yalnızca kullanıcı onu onayladıktan sonra eklenir; bunun için de en son kayda ait olması ve güveninin en az 0,15 olması gerekir. Kamera ekranından çıkınca kamera kapanır ve MediaPipe kapatılır. Kamera henüz açılırken durdur'a basmak açılışı iptal eder.
 
-**Gecikmeli yükleme.** `init()` hiçbir model yüklemez. Bir model ilk gerektiğinde yüklenir: kendi modunda bir kamera açılışında, bir örnek başlangıcında (yalnızca harf modeli), bir kelime kaydında ya da bir Model Test çalıştırmasında.
+### Kelime kaydı
+
+`IDLE → COUNTDOWN → RECORDING → PROCESSING → RESULT`. Bir kare yalnızca bir el, yüz ve iki omuz birlikte göründüğünde sayılır. 45 kare toplanamazsa kayıt şu durumlarda kendiliğinden biter: 6 saniye boyunca kullanılabilir kare yoksa, 4 saniye boyunca yeni kare gelmezse ya da toplam 15 saniye dolarsa. Her kaydın bir sıra numarası vardır; daha eski bir kayıt için geç gelen model sonucu atılır.
+
+### Gecikmeli yükleme
+
+`init()` hiçbir model yüklemez. Bir model ilk gerektiğinde yüklenir: kendi modunda bir kamera açılışında, bir örnek başlangıcında (yalnızca harf modeli), bir kelime kaydında ya da bir Model Test çalıştırmasında.
 
 | Adım | İndirilen |
 |---|---|
@@ -58,7 +68,9 @@ flowchart LR
 
 `index.html`, ONNX Runtime'ın yalnızca WebAssembly içeren paketini (`ort.wasm.min.js`) yükler, çünkü tam paket iki modelin de kullanmadığı 4,2 MB'lık bir WebGPU derlemesini de indiriyordu. 13,2 MB'lık harf modeli gzip'lenmiş olarak 2,2 MB gelir ve `DecompressionStream` ile açılır; ham dosya yedek olarak durur.
 
-**Gizlilik ve güvenlik.** Arka uç, hesap ya da analitik yok. `localStorage` temayı, dili, metni ve koç ilerlemesini tutar. ONNX Runtime ve kjua, Subresource Integrity ile yüklenir; dinamik import ile gelen MediaPipe tam bir sürüme sabitlenmiştir. [`asl-web/_headers`](../asl-web/_headers) güvenlik başlıklarını ve hâlâ yalnızca raporlama modunda olan bir İçerik Güvenliği Politikası'nı (CSP) ayarlar.
+### Gizlilik ve güvenlik
+
+Arka uç, hesap ya da analitik yok. `localStorage` temayı, dili, metni ve koç ilerlemesini tutar. ONNX Runtime ve kjua, Subresource Integrity ile yüklenir; dinamik import ile gelen MediaPipe tam bir sürüme sabitlenmiştir. [`asl-web/_headers`](../asl-web/_headers) güvenlik başlıklarını ve hâlâ yalnızca raporlama modunda olan bir İçerik Güvenliği Politikası'nı (CSP) ayarlar.
 
 ## 2. Veri
 
@@ -214,14 +226,7 @@ Kelime bazında 9 kelimenin F1'i en az 0,85 (water 0,912, sad 0,910); 3 kelime 0
 | Gerçek tarayıcı | `tests/browser` | Gerçek başlıklar altında headless Chrome: cascade katmanları, telefon ve laptop boyutlarında yerleşim, kameranın bırakılması, örnek, iki dil |
 | Eşleşme | `tests/validation` | Python'a karşı JavaScript özellikleri: harflerde en büyük fark 1,12e-5, kelimelerde 7,15e-7 |
 
-Testler yalnızca ağı, saati, depolamayı, kamerayı, MediaPipe'ı ve ONNX Runtime'ı taklit eder. En önemli kurallarda kodu bilerek bozdum ve testin başarısız olduğunu gördüm:
-- onaysız kelime eklenmemesi;
-- maske yönü;
-- kare sırası;
-- kameranın bırakılması;
-- algılama temposu;
-- kaldırılan elin seçilmesi;
-- örnek pozlar.
+Testler yalnızca ağı, saati, depolamayı, kamerayı, MediaPipe'ı ve ONNX Runtime'ı taklit eder. En önemli davranışların her birinin kendi testi var: onaysız kelime eklenmemesi, maske yönü, kare sırası, kameranın bırakılması, algılama temposu, kaldırılan elin seçilmesi ve örnek pozlar.
 
 Yayındaki ONNX harf modeli, dışarıda tutulan 8.245 satırın hepsinde pickle ile aynı ilk tahmini (top-1) verdi.
 
