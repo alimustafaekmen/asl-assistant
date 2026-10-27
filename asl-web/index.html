@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <!-- theme-boot.js points both at the chosen theme's colour. -->
+    <!-- When the visitor has picked a theme, theme-boot.js points both at its colour. -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f3ef" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131416" />
     <title data-i18n="shell.documentTitle">Harf tanıma · ASL Assistant</title>
@@ -173,7 +173,8 @@
             </div>
 
             <!-- A sibling of the stage, so the layout can put it over the stage or
-                 beside it. -->
+                 beside it. Keep it right after the stage: the CSS reads the
+                 stage's state through ".stage + .plate". -->
             <div class="plate" id="resultPlate">
               <div class="plate__head">
                 <div class="plate__steps" aria-label="Kelime kayıt akışı" data-i18n-aria-label="word.plate.stepsName">
@@ -730,8 +731,8 @@
       </section>
     </div>
 
-    <!-- Before the CDN scripts, so an English reader does not wait on them
-         looking at Turkish. -->
+    <!-- Before ONNX Runtime from the CDN, so an English reader does not look
+         at Turkish while it downloads. -->
     <script src="js/core/i18n.js?v=12"></script>
     <script src="js/i18n/shell.js?v=12"></script>
     <script src="js/i18n/letter.js?v=12"></script>

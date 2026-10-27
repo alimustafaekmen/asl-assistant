@@ -5,7 +5,8 @@
 # and load code and models from two CDNs, so it is enforced only after a real
 # phone has run every mode on the deployed site without a violation. The CDN
 # sources name the exact package versions the app loads; a version bump changes
-# them here too.
+# them here too. style-src-attr 'unsafe-inline' is there for the two style
+# attributes in index.html (#frameProgress and #confidenceRing).
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
