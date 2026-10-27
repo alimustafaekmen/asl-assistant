@@ -2,7 +2,7 @@
 
 The script runs the deployed ONNX model on seeded synthetic input and writes
 both the input contract and expected output to ``asl-web/data/test_sample.json``.
-The browser should reproduce the stored result within the documented tolerance.
+Model Test runs the same input in the browser and should read the same word.
 
 Example:
     cd asl-assistant
@@ -11,8 +11,9 @@ Example:
 Output:
     asl-web/data/test_sample.json
 
-The source result directory is changed only when ``--write-notebooks`` is
-explicitly supplied.
+``notebooks/word_50_results/test_sample.json`` is written only with
+``--write-notebooks``. ``check_runtime_assets.py`` requires the two copies to be
+byte-identical, so a run without it fails that check until both match.
 """
 
 import argparse

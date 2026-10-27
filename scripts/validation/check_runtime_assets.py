@@ -2,7 +2,7 @@
 """Run fast integrity checks for the deployable ``asl-web`` application.
 
 The command verifies required files and minimum sizes, JSON schemas, Model Test
-fixtures, source-to-deploy hashes, gzipped deploy copies, the curated Kaggle
+fixtures, source-to-deploy hashes, gzipped deploy copies, the word notebook's
 export manifest, and ONNX input/output contracts by default. It intentionally
 skips local dataset inspection; use ``verify_project_assets.py`` for the broader
 repository audit.
@@ -25,7 +25,8 @@ Exit status:
   2  bad usage, or ONNX Runtime cannot be imported and --no-onnx was not given,
      so the models were not verified
 
-The source-to-deploy pairs and ONNX contracts are in ``contracts.py``.
+The file paths, source-to-deploy pairs and upload allowlist are in
+``contracts.py``; the ONNX contracts are in ``check_onnx_contracts()``.
 """
 
 from __future__ import annotations
@@ -646,7 +647,8 @@ def check_onnx_contracts(root: Path, verbose: bool = False) -> bool:
         )
         ok = False
 
-    # Letter model: one 93D engineered feature vector.
+    # Letter model: one 93D engineered feature vector. The probabilities must be
+    # a plain tensor: ONNX Runtime Web cannot reliably read a ZipMap output.
     letter_path = os.path.join(web_models_dir, "letter_model.onnx")
     if not os.path.exists(letter_path):
         _fail("letter_model.onnx missing")

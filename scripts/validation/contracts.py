@@ -1,9 +1,9 @@
 """Canonical paths and source-to-deploy pairs for the published artifacts.
 
 Both validators read them from here, so moving an artifact is one edit and the
-two cannot disagree about where it lives. The module holds paths and the
-relationship between a deploy file and the source it came from, and nothing
-else: no dataset discovery, no UI text, no fixture data.
+two cannot disagree about where it lives. The module holds paths, the
+relationship between a deploy file and the source it came from, and the upload
+allowlist, and nothing else: no dataset discovery, no UI text, no fixture data.
 """
 
 from __future__ import annotations

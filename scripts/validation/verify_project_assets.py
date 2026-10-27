@@ -236,9 +236,8 @@ def check_dataset(name: str, path: str, letter_subdir: bool = True):
         min_count = float("inf")
         max_count = 0
 
-        # Only inspect the 24 classes used by the published letter model.
-        # Raw providers may also contain J/Z folders, but those folders are not
-        # evidence of a trained or deployed J/Z classifier.
+        # Only the 24 classes of the published letter model; J and Z folders
+        # are skipped, since no J/Z model is published.
         for letter in STATIC_LETTERS:
             letter_dir = None
             for try_name in [letter.upper(), letter.lower()]:
