@@ -286,7 +286,7 @@ class LearningCoachView(ctk.CTkFrame):
         self._hint_label.grid(row=2, column=0, sticky="ew", pady=(0, 2))
 
         # Row 3: word mode's explicit start button, shown when idle.
-        self._hazirim_btn = ctk.CTkButton(
+        self._ready_btn = ctk.CTkButton(
             right,
             text="▶  Hazırım, kayda başla",
             height=38,
@@ -295,10 +295,10 @@ class LearningCoachView(ctk.CTkFrame):
             fg_color=COLOR_PURPLE,
             hover_color=COLOR_PURPLE_HOVER,
             text_color="white",
-            command=self._on_hazirim_clicked,
+            command=self._on_ready_clicked,
         )
-        self._hazirim_btn.grid(row=3, column=0, sticky="ew", pady=(2, 4))
-        self._hazirim_btn.grid_remove()  # Shown once a word is selected.
+        self._ready_btn.grid(row=3, column=0, sticky="ew", pady=(2, 4))
+        self._ready_btn.grid_remove()  # Shown once a word is selected.
 
         # Row 4: single-line target selector.
         list_bar = ctk.CTkFrame(
@@ -422,7 +422,7 @@ class LearningCoachView(ctk.CTkFrame):
         self._feedback_label.configure(text="Seçim bekleniyor...", text_color=TEXT_TERTIARY)
         self._hint_label.configure(text="")
         self._next_btn.grid_remove()
-        self._hazirim_btn.grid_remove()
+        self._ready_btn.grid_remove()
         self._word_state = "idle"
         self._word_record_buffer.clear()
 
@@ -499,8 +499,8 @@ class LearningCoachView(ctk.CTkFrame):
             self._word_state = "idle"
             self._word_record_buffer.clear()
             self._word_classifier.reset_buffer()
-            self._hazirim_btn.configure(text="▶  Hazırım, kayda başla")
-            self._hazirim_btn.grid(row=3, column=0, sticky="ew", pady=(2, 4))
+            self._ready_btn.configure(text="▶  Hazırım, kayda başla")
+            self._ready_btn.grid(row=3, column=0, sticky="ew", pady=(2, 4))
             self._feedback_label.configure(
                 text="Hazır olduğunuzda butona basın", text_color=ACCENT_PRIMARY
             )
@@ -508,7 +508,7 @@ class LearningCoachView(ctk.CTkFrame):
                 text=f"'{display}' işaretini referans görsele bakarak öğrenin"
             )
         else:
-            self._hazirim_btn.grid_remove()
+            self._ready_btn.grid_remove()
             self._feedback_label.configure(
                 text="Yapmanızı bekliyorum...", text_color=ACCENT_WARNING
             )
@@ -598,8 +598,8 @@ class LearningCoachView(ctk.CTkFrame):
                     if not self._is_successful:
                         self._word_state = "idle"
                         self._word_record_buffer.clear()
-                        self._hazirim_btn.configure(text="▶  Tekrar Dene")
-                        self._hazirim_btn.grid(row=3, column=0, sticky="ew", pady=(2, 4))
+                        self._ready_btn.configure(text="▶  Tekrar Dene")
+                        self._ready_btn.grid(row=3, column=0, sticky="ew", pady=(2, 4))
         else:
             if not self._letter_loaded:
                 return preview
@@ -769,14 +769,14 @@ class LearningCoachView(ctk.CTkFrame):
                     )
                     self._hint_label.configure(text="")
 
-    def _on_hazirim_clicked(self) -> None:
+    def _on_ready_clicked(self) -> None:
         """Start the word-mode countdown after explicit user confirmation."""
         if self._word_state != "idle" or not self._selected_word:
             return
         self._word_state = "countdown"
         self._word_countdown_end = time.time() + 3.0
         self._word_record_buffer.clear()
-        self._hazirim_btn.grid_remove()
+        self._ready_btn.grid_remove()
         self._confidence_progress.set(0)
         self._confidence_progress.configure(progress_color=COLOR_PRIMARY)
         self._feedback_label.configure(text="Hazırlanın...  3", text_color=ACCENT_PRIMARY)
