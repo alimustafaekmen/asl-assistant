@@ -213,7 +213,6 @@ def build_report(
         f"VIRTUAL_ENV       : {facts.virtual_env or '(empty)'}",
         "",
         "── Python ────────────────────────────────",
-        f"PYTHON (Make var) : {facts.make_python_var or '(unknown)'}",
         f"sys.executable    : {facts.executable}",
         f"Python version    : {facts.python_version}",
         f"Implementation    : {facts.implementation}",

@@ -53,7 +53,6 @@ class EnvironmentFacts:
     platform_string: str = ""
     python_version: str = ""
     implementation: str = ""
-    make_python_var: str = ""
 
 
 @dataclass(frozen=True)
@@ -83,7 +82,6 @@ def describe_current() -> EnvironmentFacts:
         platform_string=platform.platform(),
         python_version=sys.version.split()[0],
         implementation=platform.python_implementation(),
-        make_python_var=os.environ.get("MAKE_PYTHON_VAR", ""),
     )
 
 
