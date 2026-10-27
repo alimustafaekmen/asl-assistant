@@ -56,7 +56,7 @@ Uygulamayı https://asl-assistant.pages.dev/ adresinde deneyebilir ya da `make w
 ## Sınırlamalar
 
 - J ve Z hareket gerektirdiği için bu iki harf için bir model eğitmedim.
-- Harf modeli yeni fotoğraflarda yaklaşık %70 oranında doğru. Daha fazla kişiden eğitim verisine ihtiyacı var.
+- Harf modeli ayrı test kümesinde yaklaşık %70 oranında doğru. Daha fazla kişiden eğitim verisine ihtiyacı var.
 - Kelime modeli yalnızca 50 tekil işaret tanıyor; onu 4 test kişisinde ve tek bir eğitim tohumuyla (seed) ölçtüm.
 - Uygulamayı masaüstü Chrome'da test ettim, gerçek bir telefonda henüz denemedim.
 

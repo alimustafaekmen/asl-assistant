@@ -56,7 +56,7 @@ Try it at https://asl-assistant.pages.dev/, or run it locally with `make web` (h
 ## Limitations
 
 - I have not trained a model for J and Z, because they need motion.
-- On new photos the letter model is right about 70% of the time. It needs training data from more signers.
+- On the separate test set the letter model is right about 70% of the time. It needs training data from more signers.
 - The word model knows only 50 isolated signs, and I measured it on 4 test signers with one training seed.
 - I have tested the app in desktop Chrome, but not yet on a real phone.
 
