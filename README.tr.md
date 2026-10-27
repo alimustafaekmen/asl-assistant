@@ -68,7 +68,7 @@ Uygulamayı https://asl-assistant.pages.dev/ adresinde deneyebilir ya da `make w
 
 ## Lisans
 
-Kaynak kod ve eğitilmiş model dosyaları [PolyForm Noncommercial License 1.0.0](LICENSE) ile yayımlandı: kişisel, eğitim ve araştırma amaçlı kullanım serbest, ticari kullanım için iznim gerekiyor. Model dosyalarına aşağıdaki eğitim verilerinin koşulları da uygulanır. `.pkl` ve `.pt` dosyaları Python pickle dosyalarıdır; bunları yalnızca güvendiğiniz bir kopyadan yükleyin.
+Kaynak kod ve eğitilmiş model dosyaları [PolyForm Noncommercial License 1.0.0](LICENSE) ile yayımlandı: kişisel, eğitim ve araştırma amaçlı kullanım serbest, ticari kullanım için iznim gerekiyor. Model dosyalarına aşağıdaki eğitim verilerinin koşulları da uygulanır.
 
 ## Veri ve atıf
 

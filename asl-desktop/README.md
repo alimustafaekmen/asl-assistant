@@ -40,4 +40,3 @@ python -m pytest tests/asl_desktop
 
 LightGBM needs an OpenMP runtime on macOS (`environment.yml` includes it), and
 the letter pickle needs the scikit-learn version pinned in `requirements.txt`.
-The `.pkl` and `.pt` files are Python pickles; use only copies you trust.

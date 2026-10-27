@@ -68,7 +68,7 @@ Try it at https://asl-assistant.pages.dev/, or run it locally with `make web` (h
 
 ## Licence
 
-The source code and the trained model files are released under the [PolyForm Noncommercial License 1.0.0](LICENSE): personal, educational and research use are allowed, commercial use needs my permission. The terms of the training data below also apply to the model files. The `.pkl` and `.pt` files are Python pickles, so load them only from a copy you trust.
+The source code and the trained model files are released under the [PolyForm Noncommercial License 1.0.0](LICENSE): personal, educational and research use are allowed, commercial use needs my permission. The terms of the training data below also apply to the model files.
 
 ## Data and attribution
 
