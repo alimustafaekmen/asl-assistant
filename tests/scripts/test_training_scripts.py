@@ -50,3 +50,34 @@ def test_next_step_hint_is_a_command_the_jz_trainer_accepts() -> None:
         )
         args = words[script + 1 :]
         build_parser().parse_args(args)
+
+
+def _source_rows(rows: np.ndarray) -> np.ndarray:
+    """Which original row each row came from, for rows built as in the test below.
+
+    Original row k holds 2**k in every coordinate. Augmentation rotates x and y,
+    which keeps their length, scales by at most 20% and adds small noise, so a
+    copy's size still names its row.
+    """
+    size = np.linalg.norm(rows, axis=1) / np.sqrt(rows.shape[1])
+    return np.rint(np.log2(size)).astype(int)
+
+
+def test_no_copy_of_an_evaluation_row_is_trained_on() -> None:
+    """Augmenting before the split puts copies of a held-out row into training."""
+    count = 40
+    X = np.array([np.full(63, 2.0**k) for k in range(count)], dtype=np.float32)
+    y = np.array(["A", "B"] * (count // 2))
+    np.random.seed(0)
+
+    _, X_train, X_test, y_train, y_test, source = train_static.split_and_augment(X, y)
+
+    assert source == "stratified_split"
+    assert len(X_test) == len(y_test) and len(X_train) == len(y_train)
+    evaluation = set(_source_rows(X_test).tolist())
+    trained = set(_source_rows(X_train).tolist())
+    assert evaluation, "the split should hold out some rows"
+    np.testing.assert_array_equal(X_test, X[_source_rows(X_test)])
+    assert evaluation.isdisjoint(trained)
+    assert evaluation | trained == set(range(count))
+    assert len(X_train) == (count - len(evaluation)) * (1 + train_static.AUGMENTATION_MULTIPLIER)

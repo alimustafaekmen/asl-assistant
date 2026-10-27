@@ -2,9 +2,10 @@
 """Train and compare models for the 24-class static-letter task.
 
 The pipeline can extract normalized 63D MediaPipe hand landmarks from images,
-augment those landmarks, build the frozen 93D engineered feature vector, split
-the dataset, and train one model or compare five model families: Random Forest,
-XGBoost, LightGBM (SVM fallback), MLP, and a small 1D CNN.
+split off the evaluation rows, augment the training landmarks, build the frozen
+93D engineered feature vector, and train one model or compare five model
+families: Random Forest, XGBoost, LightGBM (SVM fallback), MLP, and a small
+1D CNN.
 
 Examples (activate any compatible Python environment first):
   python scripts/model_training/train_static_letter_model.py                         # defaults
@@ -344,6 +345,33 @@ def augment_data(
     return X_aug, y_aug
 
 
+def split_and_augment(
+    X: np.ndarray,
+    y_str: np.ndarray,
+    X_external: np.ndarray | None = None,
+    y_external_str: np.ndarray | None = None,
+    use_augment: bool = True,
+) -> tuple:
+    """Hold out the evaluation rows, then augment only the training rows.
+
+    Augmenting before the split would put noisy copies of evaluation rows into
+    training and inflate the score.
+
+    Returns:
+        The same tuple as ``prepare_evaluation_split``, with the training part
+        augmented.
+    """
+    label_map, X_train, X_test, y_train, y_test, evaluation_source = prepare_evaluation_split(
+        X,
+        y_str,
+        X_external,
+        y_external_str,
+    )
+    if use_augment:
+        X_train, y_train = augment_data(X_train, y_train)
+    return label_map, X_train, X_test, y_train, y_test, evaluation_source
+
+
 def apply_feature_engineering(X_raw: np.ndarray) -> np.ndarray:
     """Convert raw 63D landmarks to the frozen 93D letter feature contract.
 
@@ -360,29 +388,24 @@ def apply_feature_engineering(X_raw: np.ndarray) -> np.ndarray:
 
 
 def train_single_model(
-    X: np.ndarray,
-    y_str: np.ndarray,
+    split: tuple,
     model_type: str = "rf",
     use_features: bool = True,
     use_augment: bool = True,
-    X_external: np.ndarray | None = None,
-    y_external_str: np.ndarray | None = None,
 ) -> tuple:
     """Train, evaluate, and persist one selected model family.
+
+    Args:
+        split: The tuple ``split_and_augment`` returns, after feature engineering.
 
     Returns:
         The fitted model, label map, test accuracy, and metadata.
     """
-    label_map, X_train, X_test, y_train, y_test, evaluation_source = prepare_evaluation_split(
-        X,
-        y_str,
-        X_external,
-        y_external_str,
-    )
+    label_map, X_train, X_test, y_train, y_test, evaluation_source = split
 
     print(f"\n  Classes: {len(label_map)}")
     print(f"  Total samples: {len(y_train) + len(y_test)}")
-    print(f"  Feature size: {X.shape[1]}")
+    print(f"  Feature size: {X_train.shape[1]}")
     print(f"  Train: {len(y_train)}, Test: {len(y_test)} ({evaluation_source})")
 
     model = _create_model(model_type)
@@ -434,7 +457,7 @@ def train_single_model(
 
     # Record the training configuration and key metrics.
     metadata = {
-        "num_features": int(X.shape[1]),
+        "num_features": int(X_train.shape[1]),
         "feature_engineering": use_features,
         "augmentation": use_augment,
         "model_type": model_name,
@@ -459,30 +482,25 @@ def train_single_model(
 
 
 def train_full_comparison(
-    X: np.ndarray,
-    y_str: np.ndarray,
+    split: tuple,
     use_features: bool = True,
     use_augment: bool = True,
-    X_external: np.ndarray | None = None,
-    y_external_str: np.ndarray | None = None,
 ) -> tuple:
     """Compare five model families and persist the best held-out result.
+
+    Args:
+        split: The tuple ``split_and_augment`` returns, after feature engineering.
 
     Returns:
         Best model, label map, accuracy, and all comparison results.
     """
-    label_map, X_train, X_test, y_train, y_test, evaluation_source = prepare_evaluation_split(
-        X,
-        y_str,
-        X_external,
-        y_external_str,
-    )
+    label_map, X_train, X_test, y_train, y_test, evaluation_source = split
     inv_map = {v: k for k, v in label_map.items()}
     target_names = [inv_map[i] for i in sorted(inv_map.keys())]
 
     print(f"\n  Classes: {len(label_map)}")
     print(f"  Total samples: {len(y_train) + len(y_test)}")
-    print(f"  Feature size: {X.shape[1]}")
+    print(f"  Feature size: {X_train.shape[1]}")
     print(f"  Train: {len(y_train)}, Test: {len(y_test)} ({evaluation_source})")
 
     # Four conventional estimators and one compact neural baseline.
@@ -581,7 +599,7 @@ def train_full_comparison(
 
     # Store the complete winning-model summary.
     metadata = {
-        "num_features": int(X.shape[1]),
+        "num_features": int(X_train.shape[1]),
         "feature_engineering": use_features,
         "augmentation": use_augment,
         "model_type": best_name,
@@ -605,7 +623,7 @@ def train_full_comparison(
     _save_confusion_matrix(y_test, best_pred, target_names, best_acc)
     _save_model_comparison_chart(results)
     _save_class_f1_chart(results[best_name]["f1_per_class"], target_names, best_name)
-    _save_feature_importance(all_models.get("Random Forest", best_model), X.shape[1])
+    _save_feature_importance(all_models.get("Random Forest", best_model), X_train.shape[1])
     _save_tsne(X_test, y_test, target_names)
     _save_comparison_csv(results)
 
@@ -1021,17 +1039,6 @@ Examples:
             X_external = test_df.drop(columns=["label"]).values.astype(np.float32)
             print(f"  Test CSV: {len(test_df)} samples loaded ({test_csv})")
 
-        # Augment the training CSV only, before feature engineering. Without
-        # --test-csv the split runs on the augmented rows, so copies of one row
-        # can land on both sides: that score only compares settings.
-        if use_augment:
-            print(f"\n{'-' * 60}")
-            print("  Augmentation")
-            print(f"{'-' * 60}")
-            X, y_str = augment_data(X, y_str)
-        else:
-            print("  Augmentation skipped.")
-
     else:
         # Otherwise discover an image dataset and extract landmarks.
         if args.dataset:
@@ -1073,25 +1080,25 @@ Examples:
             print("\nERROR: No keypoints could be extracted.")
             sys.exit(1)
 
-        # Augment raw landmarks before feature engineering; the evaluation
-        # split then runs on the augmented rows, as in the CSV branch.
-        print(f"\n{'-' * 60}")
-        print("  Step 2/4: Augmentation")
-        print(f"{'-' * 60}")
+    # Augment raw landmarks, before feature engineering, and only on the
+    # training side of the split.
+    print(f"\n{'-' * 60}")
+    print("  Step 2/4: Evaluation split and augmentation")
+    print(f"{'-' * 60}")
 
-        if use_augment:
-            X, y_str = augment_data(X, y_str)
-        else:
-            print("  Augmentation skipped.")
+    label_map, X_train, X_test, y_train, y_test, evaluation_source = split_and_augment(
+        X, y_str, X_external, y_external_str, use_augment=use_augment
+    )
+    if not use_augment:
+        print("  Augmentation skipped.")
 
     print(f"\n{'-' * 60}")
     print("  Step 3/4: Feature engineering")
     print(f"{'-' * 60}")
 
     if use_features:
-        X = apply_feature_engineering(X)
-        if X_external is not None:
-            X_external = apply_feature_engineering(X_external)
+        X_train = apply_feature_engineering(X_train)
+        X_test = apply_feature_engineering(X_test)
     else:
         print("  Feature engineering skipped (using the raw 63D coordinates).")
 
@@ -1099,24 +1106,19 @@ Examples:
     print("  Step 4/4: Model training and evaluation")
     print(f"{'-' * 60}")
 
+    split = (label_map, X_train, X_test, y_train, y_test, evaluation_source)
     if args.full_comparison:
         model, label_map, acc, results = train_full_comparison(
-            X,
-            y_str,
+            split,
             use_features=use_features,
             use_augment=use_augment,
-            X_external=X_external,
-            y_external_str=y_external_str,
         )
     else:
         model, label_map, acc, metadata = train_single_model(
-            X,
-            y_str,
+            split,
             model_type=args.model,
             use_features=use_features,
             use_augment=use_augment,
-            X_external=X_external,
-            y_external_str=y_external_str,
         )
 
     t_total = time.time() - t0
@@ -1124,7 +1126,9 @@ Examples:
     print(f"\n{'=' * 60}")
     print("  Done.")
     print(f"  Accuracy:    {acc:.1%}")
-    print(f"  Features:    {X.shape[1]}D ({'feature engineering' if use_features else 'raw'})")
+    print(
+        f"  Features:    {X_train.shape[1]}D ({'feature engineering' if use_features else 'raw'})"
+    )
     print(f"  Time:        {t_total / 60:.1f} min")
     print(f"  Model:       {LETTER_MODEL_PATH}")
     print(f"{'=' * 60}")
