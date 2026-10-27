@@ -23,43 +23,9 @@ language without a reload. Leaving the camera screens for `#test`, `#qr` or
 
 ## Script order
 
-The app uses classic scripts that share browser globals, so their order in
-`index.html` is a runtime contract. [The module notes](js/README.md) explain it.
-
-```text
-js/core/theme-boot.js
-js/core/lang-boot.js
-js/core/i18n.js
-js/i18n/shell.js
-js/i18n/letter.js
-js/i18n/word.js
-js/i18n/coach.js
-js/i18n/info.js
-js/core/i18n-boot.js
-js/core/config.js
-js/core/runtime.js
-js/ml/landmarks.js
-js/ml/features.js
-js/services/benchmark.js
-js/ml/gating.js
-js/ml/hold.js
-js/ml/letter-model.js
-js/ml/word-model.js
-js/media/overlay.js
-js/media/camera.js
-js/media/demo-source.js
-js/ml/live-inference.js
-js/ui/prediction.js
-js/ui/plate-side.js
-js/ui/toast.js
-js/ui/transcript.js
-js/ui/word-flow.js
-js/ui/coach.js
-js/ui/reference.js
-js/ui/qr.js
-js/ui/model-test.js
-js/core/app.js
-```
+The scripts are plain `<script>` tags that share browser globals, so they must
+load in the order `index.html` lists them. [The module notes](js/README.md)
+list that order and describe each module.
 
 ## Settings
 
@@ -76,8 +42,8 @@ js/core/app.js
 | `COACH_HOLD_MS` | 1000 | How long a coach letter must be held |
 | `SELFIE_HANDEDNESS_SWAP` | `false` | Swap left and right for a camera that reports them the other way round |
 
-A change to a threshold or to handedness alters live behaviour and needs a test
-with a real camera.
+Changing a threshold or the handedness setting changes live behaviour, so try
+it with a real camera.
 
 ## Keyboard
 
@@ -100,12 +66,8 @@ the only published word fixture is synthetic and how to make real ones.
 
 ## Deployment
 
-This folder is the whole site; any static host can serve it as it is. Before
-an upload, `python scripts/validation/check_runtime_assets.py --deploy` fails on
-files the site must not ship, such as competition-derived samples or a
-`.DS_Store`. `_headers` sets the response headers, including a report-only
-Content Security Policy, on hosts that read it (Cloudflare Pages, Netlify), and
-`404.html` answers unknown paths.
+This folder is the whole site; [hosting a copy](../docs/getting-started.md#hosting-a-copy)
+describes the checks before an upload.
 
 ## Folders
 

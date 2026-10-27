@@ -1,7 +1,7 @@
 # Browser modules
 
 The app uses classic scripts that share one global scope, with no bundler and
-no ES modules, so the order in `asl-web/index.html` is a runtime contract:
+no ES modules, so they must load in the order `asl-web/index.html` lists them:
 
 ```text
 core/theme-boot.js
@@ -83,22 +83,23 @@ A new file goes into `index.html` where its dependencies require.
 | `ui/qr.js` | The QR screen |
 | `ui/model-test.js` | Model Test: loading, validating and running fixtures |
 
-## Rules
+## How the code is written
 
-- **Elements.** Scripts find elements by `id` or a `data-ui` hook, never by a
-  styling class. `requireElement()` throws at start-up when a required element
-  is missing; `optionalElement()` returns `null` and every reader checks it.
-- **Events and renders.** Listeners are bound once, in `bindEvents()` in
-  `core/app.js`. A render function rebuilds from state and starts no listener,
-  timer, fetch or model session.
-- **Text.** Plain text goes through `textContent`. A model label, dataset value
-  or fetched JSON never goes into `innerHTML` unescaped.
-- **Models.** A model loads at its first need, through `ensureLetterModel()` or
-  `ensureWordModel()`; a live frame never starts a load. The word mask is `true`
-  for a real frame and must not be inverted: the ONNX graph does it.
-- **Types.** JSDoc types are checked by TypeScript without emitting files.
-  Unchecked input (fetched JSON, ONNX outputs) is `unknown` until a guard such
-  as `isRecord()` has checked it.
+- Scripts find elements by `id` or a `data-ui` hook, so a change of styling
+  class does not break them. `requireElement()` throws at start-up when a
+  required element is missing; `optionalElement()` returns `null`, and the code
+  that reads it checks for that.
+- `bindEvents()` in `core/app.js` binds every listener once. Render functions
+  only rebuild the screen from state; they start no timers, fetches or model
+  sessions.
+- Plain text is set with `textContent`. Model labels, dataset values and
+  fetched JSON are escaped before they go into `innerHTML`.
+- A model loads the first time it is needed, through `ensureLetterModel()` or
+  `ensureWordModel()`, so a live frame does not start a download. The word
+  mask is `true` for a real frame; the ONNX graph inverts it itself.
+- TypeScript checks the JSDoc types and emits no files. Fetched JSON and ONNX
+  outputs are typed `unknown` until a check such as `isRecord()` has looked at
+  them.
 
 ## Interface strings
 
