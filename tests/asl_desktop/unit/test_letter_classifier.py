@@ -85,7 +85,7 @@ def test_load_rejects_missing_inputs(tmp_path):
 
 
 def test_a_label_map_with_string_indices_still_names_the_classes(monkeypatch, tmp_path):
-    """Older exports wrote the class index as a string; it must still map."""
+    """A label map may hold the class index as a JSON string; it must still map."""
     model_path = tmp_path / "letter_model.pkl"
     label_path = tmp_path / "letter_labels.json"
     model_path.touch()

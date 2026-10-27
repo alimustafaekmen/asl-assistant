@@ -1,7 +1,8 @@
 """Checkpoint loading must never unpickle arbitrary objects.
 
-A ``.pt`` file is a pickle. The pinned PyTorch (2.2.2) fully unpickles it unless
-``weights_only=True`` is requested, so a tampered checkpoint would run code.
+A ``.pt`` file is a pickle. Without ``weights_only=True`` (the default only from
+PyTorch 2.6) ``torch.load`` unpickles it fully, so a tampered checkpoint would
+run code.
 """
 
 from __future__ import annotations
