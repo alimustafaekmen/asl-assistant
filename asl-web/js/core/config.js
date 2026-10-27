@@ -13,8 +13,8 @@
  * @property {number} WORD_UNKNOWN_THRESHOLD Below this a word result is uncertain.
  * @property {number} WORD_CONFIDENT_THRESHOLD Above this a word result is confident.
  * @property {number} WORD_ACCEPT_THRESHOLD Minimum confidence to offer a word for acceptance.
- * @property {number} SMOOTHING_ALPHA Prediction smoothing weight.
- * @property {number} SMOOTHER_WINDOW Letter label smoothing window, in frames.
+ * @property {number} SMOOTHING_ALPHA Not read by any script; the letter smoother is a majority vote.
+ * @property {number} SMOOTHER_WINDOW Letter predictions the smoother votes over.
  * @property {number} TOP_K Number of alternatives shown to the user.
  * @property {number} WORD_FRAME_COUNT Frames in one word recording; the model input depends on this.
  * @property {number} COUNTDOWN_SECONDS Countdown step count, not a duration.
@@ -32,8 +32,8 @@
  * @property {number} HAND_DETECTION_CONFIDENCE MediaPipe hand detection threshold.
  * @property {number} HAND_PRESENCE_CONFIDENCE MediaPipe hand presence threshold.
  * @property {number} HAND_TRACKING_CONFIDENCE MediaPipe hand tracking threshold.
- * @property {number} LETTER_HANDEDNESS_SCORE_MIN Minimum handedness score for letter inference.
- * @property {number} HAND_HANDEDNESS_SCORE_MIN Legacy fallback for the handedness gate.
+ * @property {number} LETTER_HANDEDNESS_SCORE_MIN A hand with a lower handedness score is dropped, in every mode.
+ * @property {number} HAND_HANDEDNESS_SCORE_MIN Read only when LETTER_HANDEDNESS_SCORE_MIN is unset.
  * @property {boolean} LETTER_LANDMARK_SMOOTHING_ENABLED Enable letter-only landmark EMA.
  * @property {number} LETTER_LANDMARK_SMOOTHING_ALPHA Letter landmark EMA weight.
  * @property {boolean} LETTER_MOTION_DEBUG_ENABLED Publish letter motion diagnostics.
@@ -95,9 +95,10 @@ const CONFIG = {
   WORD_FIRST_FRAME_TIMEOUT_MS: 6000,
   WORD_NO_HAND_TIMEOUT_MS: 4000,
   WORD_MAX_RECORDING_MS: 15000,
-  // One second is about nine 120 ms inference ticks. The hold confidence equals
-  // CONFIDENT_THRESHOLD so success matches the "confident" plate; the grace of
-  // two ticks keeps one noisy frame from resetting a hold.
+  // One second is about eight letter inference ticks, each just over 120 ms.
+  // The hold confidence equals CONFIDENT_THRESHOLD so success matches the
+  // "confident" plate; a 240 ms grace, just under two ticks, keeps one noisy
+  // frame from resetting a hold.
   COACH_HOLD_MS: 1000,
   COACH_HOLD_CONFIDENCE: 0.65,
   COACH_HOLD_GRACE_MS: 240,
@@ -107,11 +108,12 @@ const CONFIG = {
   COACH_SESSION_SIZE: 10,
   // Enable only on devices that consistently report swapped labels.
   SELFIE_HANDEDNESS_SWAP: false,
-  // Aligned with the Python preprocessing configuration.
+  // MediaPipe's defaults. The Python extractors also detect at 0.5 but track
+  // at 0.4.
   HAND_DETECTION_CONFIDENCE: 0.5,
   HAND_PRESENCE_CONFIDENCE: 0.5,
   HAND_TRACKING_CONFIDENCE: 0.5,
-  // HAND_HANDEDNESS_SCORE_MIN is a legacy fallback key; 0 disables the gate.
+  // The gate drops a hand MediaPipe is unsure about, in every mode; 0 turns it off.
   LETTER_HANDEDNESS_SCORE_MIN: 0.5,
   HAND_HANDEDNESS_SCORE_MIN: 0.5,
   // Runs after handedness standardization and before normalization.
@@ -163,7 +165,9 @@ const WORDS = [
   "wait", "water", "who", "yes",
 ];
 
-// Higher-performing words from the published evaluation report (F1 >= 0.75).
+// The coach marks these words easy, HARD_WORDS hard and the rest medium. The
+// sets are picked by hand and only roughly follow the F1 scores in
+// data/per_word_stats.json: happy is easy at 0.69, dog is not hard at 0.59.
 /** @type {Set<string>} */
 const EASY_WORDS = new Set([
   "water", "sad", "cow", "uncle", "brown", "duck", "donkey", "lips",
@@ -171,7 +175,7 @@ const EASY_WORDS = new Set([
   "have", "happy",
 ]);
 
-// Lower-performing words from the published evaluation report (F1 < 0.65).
+// Marked hard in the coach; see EASY_WORDS.
 /** @type {Set<string>} */
 const HARD_WORDS = new Set([
   "open", "give", "all", "sleepy", "book", "go", "child", "listen",

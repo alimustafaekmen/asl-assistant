@@ -4,10 +4,8 @@
 // same reason: a classic script the parser meets there runs before anything
 // is painted, so <html lang> already names the language the page will be
 // shown in. Screen readers pick their voice from it, and core/i18n.js reads
-// it as the current language when it translates the parsed body. It is a
-// file of its own, not part of theme-boot.js, because the two choices are
-// independent and each is tested on its own; both are fetched in parallel
-// while the head is parsed.
+// it as the current language. It is apart from theme-boot.js because the two
+// choices are independent and tested on their own.
 //
 // Like theme-boot.js, it writes only to <html> and reads no DOM registry and
 // no state.

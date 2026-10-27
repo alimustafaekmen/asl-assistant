@@ -23,7 +23,7 @@
  */
 
 /**
- * A recording quality warning code; prediction.js holds the user-facing text.
+ * A recording quality warning code; prediction.js maps each one to its string.
  *
  * @typedef {"pose" | "face" | "hand" | "few-frames" | "slow" | "still"} WordQualityCode
  */
@@ -88,8 +88,8 @@
  *
  * @typedef {Object} WordResultAssessment
  * @property {ConfidenceLevel} level Drives the guide's colour state.
- * @property {string} decision Short Turkish verdict shown to the user.
- * @property {string} action Turkish next-step sentence shown to the user.
+ * @property {string} decision Short verdict, in the page's language.
+ * @property {string} action Next-step sentence, in the page's language.
  * @property {boolean} canAppend Whether the result may be accepted into the transcript.
  */
 
