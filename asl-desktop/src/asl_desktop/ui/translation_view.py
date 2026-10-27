@@ -560,10 +560,10 @@ class TranslationView(ctk.CTkFrame):
 
         return preview
 
-    def _process_letter_mode(self, keypoints, frame, is_moving):
+    def _process_letter_mode(self, keypoints, preview, is_moving):
         """Run static-letter inference and optional dynamic J/Z recognition.
 
-        ``frame`` is the mirrored preview to draw on; ``keypoints`` already
+        ``preview`` is the mirrored image to draw on; ``keypoints`` already
         come from the unmirrored camera frame.
         """
 
@@ -592,7 +592,7 @@ class TranslationView(ctk.CTkFrame):
             self._prediction_label.configure(text="🎯", text_color=COLOR_PRIMARY)
             self._confidence_label.configure(text=f"Kalibre ediliyor: {self._calib_target}")
             self._top3_label.configure(text="")
-            return frame
+            return preview
 
         jz_suppressing = False
 
@@ -601,7 +601,7 @@ class TranslationView(ctk.CTkFrame):
             self._prediction_label.configure(text="Eklendi ✓", text_color=COLOR_SUCCESS)
             self._confidence_label.configure(text="Hazırlanıyor...")
             self._dwell_progress.set(0)
-            return frame
+            return preview
 
         # Feed the optional J/Z sequence model when it is available.
         if self._jz_loaded:
@@ -620,10 +620,10 @@ class TranslationView(ctk.CTkFrame):
                     self._current_confidence = jz_conf
                     self._prediction_label.configure(text=jz_label)
                     self._confidence_label.configure(text=f"Güven: {jz_conf:.0%}")
-            h, w = frame.shape[:2]
+            h, w = preview.shape[:2]
             bar_w = int(w * progress)
             color = (0, int(180 * progress), int(255 * (1 - progress)))
-            cv2.rectangle(frame, (0, h - 6), (bar_w, h), color, -1)
+            cv2.rectangle(preview, (0, h - 6), (bar_w, h), color, -1)
 
         # Static model: 24 letters, excluding J and Z.
         if self._letter_loaded and not jz_suppressing:
@@ -636,7 +636,7 @@ class TranslationView(ctk.CTkFrame):
                 self._prediction_label.configure(text="〰", text_color=COLOR_TEXT_MUTED)
                 self._confidence_label.configure(text="Hareket ediliyor...")
                 self._top3_label.configure(text="")
-                return frame
+                return preview
 
             # Predict only after the pose stabilizes.
             label, confidence, top3 = self._classifier.predict(keypoints)
@@ -700,22 +700,22 @@ class TranslationView(ctk.CTkFrame):
             self._confidence_label.configure(text="J/Z aktif...")
             self._top3_label.configure(text="")
 
-        return frame
+        return preview
 
-    def _process_word_mode(self, keypoints, frame, is_moving, hands_detected):
+    def _process_word_mode(self, keypoints, preview, is_moving, hands_detected):
         """Run the legacy 30-frame desktop word model with idle detection.
 
-        As in letter mode, ``frame`` is the mirrored preview to draw on.
+        As in letter mode, ``preview`` is the mirrored image to draw on.
         """
         if not self._word_loaded:
-            return frame
+            return preview
 
         if self._cooldown_frames > 0:
             self._cooldown_frames -= 1
             self._prediction_label.configure(text="Eklendi ✓", text_color=COLOR_SUCCESS)
             self._confidence_label.configure(text="Hazırlanıyor...")
             # Do not collect frames during cooldown; they belong to the last sign.
-            return frame
+            return preview
 
         # Never buffer face/pose-only frames; forward filling can create false words.
         if not hands_detected:
@@ -734,7 +734,7 @@ class TranslationView(ctk.CTkFrame):
                 self._word_classifier.reset_buffer()
                 self._word_idle_frames = 0
                 self._buffer_progress_label.configure(text="Kelime: ░░░░░░░░░░ 0%")
-            return frame
+            return preview
 
         # A visible but stationary hand is also idle for dynamic word recognition.
         if not is_moving:
@@ -751,7 +751,7 @@ class TranslationView(ctk.CTkFrame):
                 self._word_classifier.reset_buffer()
                 self._word_idle_frames = 0
                 self._buffer_progress_label.configure(text="Kelime: ░░░░░░░░░░ 0%")
-            return frame
+            return preview
 
         # Active signing resets the idle counter.
         self._word_idle_frames = 0
@@ -770,10 +770,10 @@ class TranslationView(ctk.CTkFrame):
         )
 
         # Repeat the progress as a bar along the bottom of the preview.
-        h, w = frame.shape[:2]
+        h, w = preview.shape[:2]
         bar_w = int(w * progress)
         color = (0, int(200 * progress), int(255 * (1 - progress)))
-        cv2.rectangle(frame, (0, h - 6), (bar_w, h), color, -1)
+        cv2.rectangle(preview, (0, h - 6), (bar_w, h), color, -1)
 
         # A result is returned only when the sequence window is ready.
         if word_result is not None:
@@ -799,7 +799,7 @@ class TranslationView(ctk.CTkFrame):
                 self._confidence_label.configure(text=f"Güven: {word_conf:.0%} (düşük)")
                 self._top3_label.configure(text="")
 
-        return frame
+        return preview
 
     def _auto_type_letter(self, letter: str) -> None:
         """Append a letter after its dwell interval completes."""
