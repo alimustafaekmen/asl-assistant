@@ -1,9 +1,9 @@
 """asl-features: the feature code shared across ASL Assistant's Python side.
 
 It holds the landmark normalization and the letter and word model features,
-used by the legacy desktop prototype (`asl-desktop/`), the data-preparation
-scripts (`scripts/data_preparation/`), the model-training scripts
-(`scripts/model_training/`), and the Python tests (`tests/`).
+used by the legacy desktop prototype (`asl-desktop/`), the data-preparation,
+training, evaluation and validation scripts (`scripts/`), and the Python tests
+(`tests/`).
 
 The browser runtime (`asl-web/`) does NOT depend on this package; it ships
 its own JavaScript implementation. The Features section of `docs/technical-report.md`

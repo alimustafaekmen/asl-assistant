@@ -193,8 +193,9 @@ def compute_dominant_hand_features(seq_321d: np.ndarray) -> np.ndarray:
 
     The notebook decides which hand is dominant over the entire sequence
     by averaging zero-fraction across all T frames, and mirrors a left hand
-    by negating its x. The browser decides per frame; the word parity check
-    measures that difference with a hand-switching fixture.
+    by negating its x. The browser chooses once per recording in the same
+    way (``computeDominantHandSequence``); the word parity check covers a
+    recording where the hand switches sides.
     """
     right_hand = seq_321d[:, :63]
     left_hand = seq_321d[:, 63:126]
