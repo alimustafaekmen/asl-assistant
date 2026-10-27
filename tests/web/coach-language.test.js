@@ -88,7 +88,7 @@ async function practiseMissing(coach, target, seen, confidence = 0.9) {
   await coach.play(1800);
 }
 
-// An English visitor ------------------------------------------------------------
+// An English visitor
 
 test("an English visitor's idle coach is in English, with the first letter's English cue", async () => {
   const coach = await englishCoach();
@@ -266,7 +266,7 @@ test("the study sheet opened on a phone is named in English, and renamed by a sw
   assert.equal(coach.el("coachStudy").getAttribute("aria-label"), "Study");
 });
 
-// A switch while the coach is on screen -----------------------------------------
+// A switch while the coach is on screen
 
 test("a switch mid-miss redraws the coach, keeps the camera and the attempt, and says no verdict twice", async () => {
   const coach = await coachApp({ hash: "#coach" });
@@ -340,7 +340,7 @@ test("a switch redraws a success's feedback and a word checked before the camera
   assert.deepEqual(turkishInCoach(words, { wordTarget: true }), []);
 });
 
-// The word screen's side cards ----------------------------------------------------
+// The word screen's side cards
 
 /** The word screen booted with `options` for loadWebApp(). */
 async function wordScreen(options = {}) {

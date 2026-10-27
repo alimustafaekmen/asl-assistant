@@ -15,7 +15,7 @@ const flowButton = (coach, flow) =>
 const cellStates = (coach) =>
   coach.el("coachProgress").children.map((cell) => cell.dataset.state ?? "");
 
-// Progress cells -----------------------------------------------------------------
+// Progress cells
 
 test("the progress cells mark the current and the done targets in the attribute the stylesheet reads", async () => {
   const coach = await coachApp({ hash: "#coach" });

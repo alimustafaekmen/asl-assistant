@@ -51,7 +51,7 @@ function shown(app) {
 
 const candidates = (...pairs) => pairs.map(([label, confidence]) => ({ label, confidence }));
 
-// Letter mode -----------------------------------------------------------------
+// Letter mode
 
 test("a letter result is banded by the letter thresholds on the stage, ring, decision and message", async () => {
   const app = await bootedApp();
@@ -174,7 +174,7 @@ test("fixed sample confidences land in the bands users were promised, whatever C
   expectBands([[0.25, "good"], [0.15, "maybe"], [0.05, "low"]]);
 });
 
-// Word mode -------------------------------------------------------------------
+// Word mode
 
 test("a word result is banded by the lower word thresholds", async () => {
   const app = await bootedApp();
@@ -216,7 +216,7 @@ test("a word whose runner-up is within three points is called too close", async 
   assert.equal(shown(app).decision, "Emin");
 });
 
-// Top-3 -----------------------------------------------------------------------
+// Top-3
 
 test("each alternative is a ranked row with its label, a bar and a percentage", async () => {
   const app = await bootedApp();
@@ -263,7 +263,7 @@ test("without alternatives the list explains itself instead of showing a fake ro
   assert.equal(rows[0].textContent, "Kamera açılınca en olası sonuçlar burada görünür.");
 });
 
-// The stage around the camera -------------------------------------------------
+// The stage around the camera
 
 test("the empty stage gives way to the camera when it starts and returns when it stops", async () => {
   const camera = appWithFakeCamera();

@@ -28,7 +28,7 @@ async function justSucceeded(coach, target = "L") {
   assert.equal(coach.text("decisionLabel"), "Doğru!", "precondition: the hold counted");
 }
 
-// The target tile -------------------------------------------------------------
+// The target tile
 
 test("the target tile shows the target, and a new target replaces it", async () => {
   const coach = await coachApp({ hash: "#coach" });
@@ -59,7 +59,7 @@ test("the reference button on the tile opens the reference image full screen", a
   assert.equal(lightbox.hasAttribute("open"), true);
 });
 
-// The letter grid -------------------------------------------------------------
+// The letter grid
 
 test("the grid has one button per letter, and exactly one is the current target", async () => {
   const coach = await coachApp({ hash: "#coach" });
@@ -107,7 +107,7 @@ test("a quiz does not let the learner pick a letter", async () => {
   assert.equal(coach.app.evaluate("state.coachTarget"), before);
 });
 
-// Radios ----------------------------------------------------------------------
+// Radios
 
 test("the flow radios say which flow is on, and only that one is in the tab order", async () => {
   const coach = await coachApp({ hash: "#coach" });
@@ -148,7 +148,7 @@ test("the content radios switch between letters and words, and each shows its ow
   assert.equal(coach.el("coachCheck").disabled, false);
 });
 
-// Session dots ----------------------------------------------------------------
+// Session dots
 
 test("the dots say how far the session has got", async () => {
   const coach = await coachApp({ hash: "#coach" });
@@ -164,7 +164,7 @@ test("the dots say how far the session has got", async () => {
   assert.equal(coach.text("coachScore"), `1/${goal}`);
 });
 
-// The verdict -----------------------------------------------------------------
+// The verdict
 
 test("the verdict is a status region that is written when the phase changes, not on every tick", async () => {
   const coach = await coachApp({ hash: "#coach" });
@@ -209,7 +209,7 @@ test("success says so to a screen reader, and a miss names what is seen", async 
   assert.equal(coach.text("coachVerdict"), "", "the verdict goes when the phase that it describes does");
 });
 
-// Staying, repeating and moving on ---------------------------------------------
+// Staying, repeating and moving on
 
 test("while the next target is coming up, Burada kal is on offer, and pressing it stays", async () => {
   const coach = await coachApp({ hash: "#coach" });
@@ -268,7 +268,7 @@ test("the check button is for words: a letter has none", async () => {
   assert.equal(coach.el("coachCheck").disabled, true);
 });
 
-// Progress --------------------------------------------------------------------
+// Progress
 
 test("resetting progress from the grid card clears the letters and offers an undo", async () => {
   const coach = await coachApp({ hash: "#coach" });
@@ -297,7 +297,7 @@ test("the note says where progress is kept, or that it cannot be", async () => {
   assert.equal(lost.text("coachStorageNote"), "İlerleme bu tarayıcıda saklanamıyor; sayfayı kapatınca sıfırlanır.");
 });
 
-// The camera ------------------------------------------------------------------
+// The camera
 
 test("the camera is started by the stage button and stopped by the shared toggle", async () => {
   const coach = await coachApp({ hash: "#coach" });

@@ -109,7 +109,7 @@ function authoredColour(scheme) {
   return match[1];
 }
 
-// The first frame -------------------------------------------------------------
+// The first frame
 
 test("a dark-preference visitor's first frame is dark, before any stylesheet applies", () => {
   const page = loadBeforeStylesheets({
@@ -177,7 +177,7 @@ test("blocked storage and a broken matchMedia do not stop the page from parsing"
   );
 });
 
-// While the page is open ---------------------------------------------------------
+// While the page is open
 
 /** A booted page under a switchable system scheme. */
 async function openPage({ system = "light", storage = storageWith(), legacy = false } = {}) {

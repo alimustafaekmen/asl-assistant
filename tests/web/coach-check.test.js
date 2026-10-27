@@ -40,7 +40,7 @@ function shown(coach) {
   };
 }
 
-// The target is never a detection ---------------------------------------------
+// The target is never a detection
 
 test("opening the coach shows its target in the coach card and nothing detected on the plate", async () => {
   const coach = await coachApp({ hash: "#letter" });
@@ -73,7 +73,7 @@ test("the next target is shown as the target, and the plate waits for what the c
   assert.equal(shown(coach).glyph, "W", "the plate shows the hand again, not the target");
 });
 
-// A hand that leaves takes its letter with it ---------------------------------
+// A hand that leaves takes its letter with it
 
 /** The coach in practice with `target` chosen in the target list. */
 async function practising(target) {
@@ -125,7 +125,7 @@ test("on the letter screen the last letter stays when the hand leaves", async ()
   assert.equal(coach.app.evaluate("state.prediction"), "L");
 });
 
-// Holding is the check ---------------------------------------------------------
+// Holding is the check
 
 /** The quiz with its camera on, and the letter it asks for. */
 async function quizzing() {
@@ -193,7 +193,7 @@ test("the target shown below the confident threshold is never counted", async ()
   assert.equal(scored(coach), 0, "an uncertain letter counted as held");
 });
 
-// The stage locks on a success, not on a confident letter ---------------------
+// The stage locks on a success, not on a confident letter
 
 /** Record the hold ring's --score, which the harness's style object drops. */
 function recordRingScore(coach) {
@@ -246,7 +246,7 @@ test("with no hand in view the stage waits, whatever the last letter was", async
   assert.equal(shown(coach).decision, "Bekleniyor");
 });
 
-// A miss names what the camera sees and what tells it from the target ---------
+// A miss names what the camera sees and what tells it from the target
 
 const CURRICULUM = JSON.parse(readFileSync(join(WEB_DIR, "data", "letter_curriculum.json"), "utf8"));
 const CONFUSION = JSON.parse(readFileSync(join(WEB_DIR, "data", "letter_confusion.json"), "utf8"));
