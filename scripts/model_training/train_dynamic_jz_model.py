@@ -702,7 +702,7 @@ def train_jz_model(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """The command line, separate from main() so other scripts can check commands against it."""
+    """The command line, separate from main() so a test can check printed commands against it."""
     parser = argparse.ArgumentParser(
         description="Dynamic letters J and Z: data collection and LSTM training",
         formatter_class=argparse.RawDescriptionHelpFormatter,

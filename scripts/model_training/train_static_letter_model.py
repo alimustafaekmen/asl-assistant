@@ -14,8 +14,10 @@ Examples (activate any compatible Python environment first):
   python scripts/model_training/train_static_letter_model.py --no-augment            # no augmentation
   python scripts/model_training/train_static_letter_model.py --model xgboost         # XGBoost only
 
-Outputs include the trained pickle, label map, metadata, evaluation table, and
-optional documentation figures under ``models/letter/`` and ``docs/assets/``.
+Every run writes ``letter_model.pkl``, ``letter_label_map.json``,
+``letter_model_meta.json`` and a confusion matrix to ``models/letter/``, over the
+published files. ``--full-comparison`` adds ``letter_model_comparison.csv`` there
+and its charts to ``docs/assets/``.
 """
 
 import argparse
@@ -165,7 +167,7 @@ class Conv1DClassifier(BaseEstimator, ClassifierMixin):
         return preds
 
 
-# Resolve the local Python ML package when the script is run from a fresh clone.
+# Import asl_features from the source tree, so the script runs without an install.
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ASL_FEATURES_SRC = os.path.join(PROJECT_ROOT, "asl-features", "src")
 if ASL_FEATURES_SRC not in sys.path:
@@ -1019,7 +1021,9 @@ Examples:
             X_external = test_df.drop(columns=["label"]).values.astype(np.float32)
             print(f"  Test CSV: {len(test_df)} samples loaded ({test_csv})")
 
-        # Augment only the raw landmark rows.
+        # Augment the training CSV only, before feature engineering. Without
+        # --test-csv the split runs on the augmented rows, so copies of one row
+        # can land on both sides: that score only compares settings.
         if use_augment:
             print(f"\n{'-' * 60}")
             print("  Augmentation")
@@ -1069,7 +1073,8 @@ Examples:
             print("\nERROR: No keypoints could be extracted.")
             sys.exit(1)
 
-        # Augment raw landmarks before feature engineering.
+        # Augment raw landmarks before feature engineering; the evaluation
+        # split then runs on the augmented rows, as in the CSV branch.
         print(f"\n{'-' * 60}")
         print("  Step 2/4: Augmentation")
         print(f"{'-' * 60}")
