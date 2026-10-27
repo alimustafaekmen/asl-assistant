@@ -176,9 +176,8 @@ def main():
         "temperature": T,
         "actual_frames": actual_frames,
         "seed": 42,
-        "note": "Bu dosya Python ONNX Runtime ile üretildi. "
-        "Web ONNX çıktısı ile karşılaştırılmalı. "
-        "Max fark < 1e-4 olmalı.",
+        "note": "Written with Python ONNX Runtime. "
+        "Model Test runs the same input in the browser and should read the same word.",
     }
 
     # Write only the deploy fixture unless source output is explicitly requested.
@@ -232,8 +231,8 @@ def main():
     print()
     print("─" * 60)
     print("To check it in the browser:")
-    print("  1. Open localhost:8080 (make web)")
-    print('  2. On the "Kamerasız dene" screen, choose "Kelime modeli", then "Tümünü çalıştır"')
+    print("  1. Run make web and open http://localhost:8080/#test (Model Test)")
+    print('  2. Choose "Word model", then "Run all"')
     print("  3. Compare the browser's ONNX result with the expected word")
     print(f"  4. Expected: {expected_word} ({probs[top3_idx[0]] * 100:.1f}%)")
     print("─" * 60)
