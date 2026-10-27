@@ -1,4 +1,4 @@
-# ASL Sign Language Assistant
+# ASL Assistant
 #
 # Public repository policy:
 # - Keep the deployable web app, source code, tests, technical docs, and the
@@ -9,9 +9,7 @@
 # Important: root-level /models rules are anchored deliberately. They must not
 # hide deploy-critical files under /asl-web/models or /asl-web/data.
 
-# -----------------------------------------------------------------------------
 # Operating-system and editor metadata
-# -----------------------------------------------------------------------------
 .DS_Store
 ._*
 .AppleDouble
@@ -28,9 +26,7 @@ Desktop.ini
 *.swo
 *~
 
-# -----------------------------------------------------------------------------
 # Secrets and machine-local configuration
-# -----------------------------------------------------------------------------
 .env
 .env.*
 !.env.example
@@ -54,9 +50,7 @@ id_ed25519*
 /kaggle/
 /.kaggle/
 
-# -----------------------------------------------------------------------------
 # Python environments, caches, coverage, and build artifacts
-# -----------------------------------------------------------------------------
 .venv*/
 venv/
 env/
@@ -90,9 +84,7 @@ dist/
 wheelhouse/
 pip-wheel-metadata/
 
-# -----------------------------------------------------------------------------
-# JavaScript, browser-test, and static-hosting local output
-# -----------------------------------------------------------------------------
+# JavaScript and browser-test output
 node_modules/
 .cache/
 .parcel-cache/
@@ -106,9 +98,7 @@ blob-report/
 /asl-web/assets/qr-*.svg
 /asl-web/assets/qr-*.png
 
-# -----------------------------------------------------------------------------
 # Jupyter and generated notebook state
-# -----------------------------------------------------------------------------
 .ipynb_checkpoints/
 /wandb/
 /mlruns/
@@ -116,9 +106,7 @@ blob-report/
 /tensorboard/
 /checkpoints/
 
-# -----------------------------------------------------------------------------
 # Local datasets and generated model artifacts
-# -----------------------------------------------------------------------------
 /data/raw/
 /data/processed/
 /data/reference/
@@ -148,15 +136,10 @@ blob-report/
 !/models/word/web-50/word_model.pt
 !/models/word/desktop-25/word_model.pt
 
-# -----------------------------------------------------------------------------
-# Project-local history
-# -----------------------------------------------------------------------------
-# Historical experiments that are not required by the published project.
+# Local experiments the published project does not need
 /legacy/
 
-# -----------------------------------------------------------------------------
 # Logs, temporary files, editor backups, and archive bundles
-# -----------------------------------------------------------------------------
 *.log
 *.pid
 *.bak

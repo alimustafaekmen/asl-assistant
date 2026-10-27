@@ -10,8 +10,8 @@ WEB_DIR       := asl-web
 RUFF_TARGETS  := asl-desktop asl-features scripts tests
 CHECK_RUNTIME := scripts/validation/check_runtime_assets.py
 
-# The desktop integration tests need MediaPipe and a camera model, so they
-# are left out; run them with pytest tests/asl_desktop/integration.
+# The desktop integration tests import MediaPipe and load the real letter
+# model, so they are left out; run them with pytest tests/asl_desktop/integration.
 PYTEST_FAST := tests/asl_features/ tests/asl_desktop/unit/ tests/project/ tests/scripts/
 PYTHONPATHS := $(CURDIR)/asl-features/src:$(CURDIR)/asl-desktop/src
 
