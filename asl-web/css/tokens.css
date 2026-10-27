@@ -1,6 +1,5 @@
-/* Colours live here; components read the semantic names. The two dimming
- * backdrops (coach sheet, reference viewer) are the only colours another
- * stylesheet sets. Every text/background pair meets WCAG 2.2 AA in both themes.
+/* Colours live here; components read the semantic names. Every
+ * text/background pair meets WCAG 2.2 AA in both themes.
  * Saffron is never text or a thin line on a light surface (1.6:1 on the
  * page, 1.8:1 on white).
  */
@@ -128,6 +127,14 @@
     --z-popover: 60;
     --z-toast: 70;
     --z-lightbox: 100;
+  }
+
+  /* Dimming behind the coach's study sheet and the reference viewer, the same
+     in both themes. Also set on ::backdrop, which inherits nothing in older
+     browsers. */
+  :root, ::backdrop {
+    --scrim-sheet: rgb(0 0 0 / 0.5);
+    --scrim-viewer: rgb(16 17 19 / 0.72);
   }
 
   /* theme-boot.js sets data-theme before these stylesheets apply. No
