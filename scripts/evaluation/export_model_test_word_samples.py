@@ -138,7 +138,7 @@ def load_single_parquet(parquet_path: Path):
     try:
         import pandas as pd
     except ImportError as exc:
-        raise SystemExit("pandas is required. Install project dev requirements first.") from exc
+        raise SystemExit("pandas is required: python -m pip install -r requirements.txt") from exc
 
     try:
         df = pd.read_parquet(parquet_path)
@@ -284,7 +284,7 @@ def export_samples(
     try:
         import pandas as pd
     except ImportError as exc:
-        raise SystemExit("pandas is required. Install project dev requirements first.") from exc
+        raise SystemExit("pandas is required: python -m pip install -r requirements.txt") from exc
 
     word_to_idx = _load_json(WORD_LABELS_PATH)
     selected_words = set(word_to_idx)
