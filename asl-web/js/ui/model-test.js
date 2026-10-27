@@ -251,7 +251,7 @@ function loadPublishedModelTestManifest() {
 }
 
 /**
- * Asked for on this screen only: anywhere but the exporting machine it is a 404.
+ * Asked for on this screen only, and only from a local host.
  *
  * @returns {Promise<void>} Never rejects.
  */

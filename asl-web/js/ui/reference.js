@@ -133,8 +133,8 @@ function wordCardTitle(card) {
 }
 
 /**
- * Custom properties go through the CSS object model, which the CSP allows
- * where an inline style attribute is not.
+ * Custom properties go through the CSS object model, which CSP does not
+ * block; an inline style attribute would need style-src-attr.
  *
  * @param {HTMLElement} frame
  * @param {HTMLImageElement} image

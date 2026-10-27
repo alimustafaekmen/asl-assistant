@@ -1,8 +1,9 @@
 // IDLE -> COUNTDOWN -> RECORDING -> PROCESSING -> RESULT.
 //
 // Every way into a new recording clears the motion buffers, or a previous sign
-// would be fed into the next 45-frame window. A failed recording still ends in
-// RESULT, with nothing to accept, so the user sees that this one failed.
+// would be fed into the next 45-frame window. A failed model run still ends in
+// RESULT, with nothing to accept, so the user sees that this one failed; a
+// recording ended early returns to IDLE and says why.
 
 // Without these serials the previous word would stay acceptable through the
 // next recording and could be appended again if that recording failed.
