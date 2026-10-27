@@ -1,7 +1,8 @@
 /* Fonts, document defaults and focus. Nothing here names a component. */
 
 /* Self-hosted: the CSP allows fonts from this origin only, and a font host
-   would learn about every visit. Subset to Latin plus ğ ı İ ş Ş. */
+   would learn about every visit. Subset to Latin-1, the Turkish Ğ ğ İ ı Ş ş
+   and common punctuation; any other character falls back to a system font. */
 @font-face {
   font-family: "Atkinson Hyperlegible Next";
   src: url("../assets/fonts/atkinson-hyperlegible-next.woff2") format("woff2");
@@ -61,7 +62,7 @@
     outline-offset: 2px;
   }
 
-  /* Components reset their own margins. */
+  /* No global margin reset: each component sets its own. */
   * { box-sizing: border-box; }
   button, input, select, textarea { font: inherit; color: inherit; }
   button { cursor: pointer; border: 0; -webkit-tap-highlight-color: transparent; }

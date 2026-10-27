@@ -359,7 +359,7 @@
   .pj__credits dt { font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
   .pj__credits dd { font-size: var(--fs-sm); color: var(--color-text-2); overflow-wrap: anywhere; }
   .pj__footer { font-size: var(--fs-sm); color: var(--color-text-3); }
-  /* The one way into Model Test: a quiet line for developers. */
+  /* The only link to Model Test: a quiet line for developers. */
   .pj__dev { margin: 0; font-size: var(--fs-sm); color: var(--color-text-2); }
 
   @media (min-width: 64rem) {

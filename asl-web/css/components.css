@@ -195,7 +195,7 @@
   .navlink.is-active { text-decoration: underline; text-underline-offset: 4px; }
 
   /* Both languages side by side, the one shown bright. It follows
-     <html lang>, which is right before any script has run. */
+     <html lang>, which lang-boot.js sets before the first paint. */
   .lang-switch { display: inline-flex; align-items: center; }
   .lang-switch__option {
     min-width: 2.25rem;
@@ -432,7 +432,7 @@
   /* The plate's message line would only repeat the problem. */
   .stage:has(.stage__problem:not([hidden])) + .plate { display: none; }
   .stage__empty:has(> .stage__problem:not([hidden])) { padding-block: var(--sp-12) var(--sp-6); }
-  /* Short phones: the icon goes first, as the illustration does. */
+  /* Short screens: the icon is the first part to go, as the illustration is. */
   @media (max-height: 40rem) {
     .stage__problem-icon { display: none; }
     .stage__problem { gap: var(--sp-3); }
@@ -679,7 +679,7 @@
     }
   }
   .toast__action { --size-icon: 18px; min-height: 36px; padding-inline: var(--sp-3); }
-  /* A light surface: the stage's saffron ring would be 1.6:1 here. */
+  /* A light surface: the stage's saffron ring would be 1.8:1 here. */
   .toast :focus-visible { outline-color: var(--color-focus); }
 
   /* Transcript strip */

@@ -52,7 +52,7 @@
     display: flex;
     flex-direction: column;
   }
-  /* A solid backdrop: no blur, so nothing behind the dialog competes with it. */
+  /* A dark backdrop and no blur, so nothing behind the dialog competes with it. */
   .viewer::backdrop { background: rgb(16 17 19 / 0.72); }
   /* The page behind a modal dialog must not scroll. */
   :root:has(dialog.viewer[open]) { overflow: hidden; }

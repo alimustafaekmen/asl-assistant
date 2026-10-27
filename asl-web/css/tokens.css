@@ -1,6 +1,8 @@
-/* Raw values live here only; components read the semantic names. Every
- * text/background pair meets WCAG 2.2 AA in both themes. Saffron is never
- * text or a thin line on a light surface (1.6:1).
+/* Colours live here; components read the semantic names. The two dimming
+ * backdrops (coach sheet, reference viewer) are the only colours set
+ * elsewhere. Every text/background pair meets WCAG 2.2 AA in both themes.
+ * Saffron is never text or a thin line on a light surface (1.6:1 on the
+ * page, 1.8:1 on white).
  */
 
 /* Declared in the first stylesheet the page links: the first statement to
@@ -195,7 +197,7 @@
       --fs-2xl: 2.375rem; /* 38 */
       --fs-level: 1.375rem; /* 22 */
       --fs-word: 3.25rem; /* 52 */
-      --fs-glyph: 5.25rem; /* 84: the ring is 112 so a raised hand clears the plate (see layout.css) */
+      --fs-glyph: 5.25rem; /* 84, in a 112 px ring; a larger one makes the plate cover a raised hand */
       --r-stage: 20px;
       --size-control: 44px;
       --size-icon: 20px;

@@ -1,6 +1,7 @@
 /* Phone: stage, result and main action fit the first screen, the fixed parts
  * take at most about 30% of it, and details never sit between the stage and
- * its result. Laptop (1366x768 and up): nothing scrolls.
+ * its result. Laptop (1366x768 and up): the camera screens fit without a
+ * page scroll.
  */
 
 @layer layout {
@@ -261,9 +262,10 @@
     .modes--panel { flex-wrap: wrap; }
   }
 
-  /* Phone landscape: the stage on the left, a column on the right, no top
-     bar (the Harf tab does what the brand link does). Narrower than a laptop
-     only, so a short desktop window keeps the laptop layout. */
+  /* Phone landscape: the stage on the left, a column on the right that also
+     holds the tabs; no brand (the Harf tab does what the brand link does).
+     Narrower than a laptop only, so a short desktop window keeps the laptop
+     layout. */
   @media (orientation: landscape) and (max-height: 32rem) and (max-width: 63.99rem) {
     .app-shell { position: relative; }
     .topbar {
@@ -322,7 +324,7 @@
     .dock .btn__label--phone-hidden { position: static; width: auto; height: auto; clip-path: none; }
 
     /* A card on the page here, not a plate on the stage: saffron on white
-       would be 1.6:1, so the lock colour becomes the primary. */
+       would be 1.8:1, so the lock colour becomes the primary. */
     .camera-column > .plate {
       grid-area: plate;
       align-self: stretch;
