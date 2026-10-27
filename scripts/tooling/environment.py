@@ -1,14 +1,12 @@
-"""Pure environment detection and setup policy.
+"""Environment detection and setup policy.
 
-Nothing here reads the process it is describing. Every function takes the facts
-it needs, so each state the commands care about (Apple CommandLineTools,
-conda base, an interpreter outside the active environment, missing packages, a
-package that cannot be imported) can be produced in a test without arranging
-a real interpreter to be in that state.
+The decisions take the facts they need as arguments, so each state the commands
+care about (Apple CommandLineTools, conda base, an interpreter outside the
+active environment, missing packages, a package that cannot be imported) can be
+produced in a test without arranging a real interpreter to be in that state.
 
-`describe_current()` is the one function that looks at the running process, and
-it does nothing else, so the boundary between observation and decision stays in
-one place.
+Only `describe_current()` and `check_import()` look at the running process, and
+they decide nothing, so observation and decision stay apart.
 """
 
 from __future__ import annotations
