@@ -36,7 +36,7 @@ test("requireElement rejects an element of the wrong type", () => {
   // carry its real element type.
   assert.throws(
     () => app.get("requireElement")("cameraVideo", app.get("Unrelated")),
-    /beklenen turde degil/,
+    /is not of the expected type/,
   );
 });
 

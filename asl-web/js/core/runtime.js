@@ -274,10 +274,10 @@ function requireElement(id, type) {
   const expected = type || HTMLElement;
   const element = document.getElementById(id);
   if (!element) {
-    throw new Error(`Gerekli DOM elemani bulunamadi: #${id}`);
+    throw new Error(`required element not found: #${id}`);
   }
   if (!(element instanceof expected)) {
-    throw new Error(`#${id} beklenen turde degil: ${expected.name}`);
+    throw new Error(`#${id} is not of the expected type: ${expected.name}`);
   }
   return /** @type {InstanceType<T>} */ (element);
 }

@@ -24,10 +24,10 @@ test("a missing required element fails while the scripts load", () => {
 test("a required element of the wrong type fails while the scripts load", () => {
   // Retagging #cameraVideo to something that is not a <video> would otherwise
   // surface as a null dereference once the camera starts. The message must
-  // name the element and say that its type is wrong ("turde degil").
+  // name the element and say that its type is wrong ("not of the expected type").
   assert.throws(
     () => loadWebApp({ wrongTypeIds: ["cameraVideo"] }),
-    /cameraVideo.*turde degil/,
+    /cameraVideo.*not of the expected type/,
     "a wrongly typed element must say so and name itself",
   );
 });
