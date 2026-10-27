@@ -60,7 +60,7 @@ def test_word_labels_are_dense_50_contract() -> None:
 
 
 def test_word_teaching_data_covers_exactly_the_word_labels() -> None:
-    """The coach's word records are exported, but they are copied by hand.
+    """The notebook exports the coach's word files; they reach asl-web/data by hand.
 
     A word missing from the curriculum is never taught, and a pair that names a
     word the model cannot output is a warning that can never fire. The pairs
