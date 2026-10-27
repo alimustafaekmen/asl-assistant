@@ -9,8 +9,9 @@
 //   would run the letters;
 // - the results stay hidden after a run;
 // - the note under the results speaks of the wrong model, or of both. The
-//   letter samples come from the training photos and the word samples are not
-//   published, and each model's note must say its own.
+//   letter samples are held-out rows from the same datasets as the training
+//   photos and the word samples are not published, and each model's note
+//   must say its own.
 //
 // ONNX Runtime and the clock are the boundaries and are faked.
 

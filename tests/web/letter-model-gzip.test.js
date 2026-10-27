@@ -1,7 +1,7 @@
 // The letter model downloads gzipped and falls back to the raw file.
 //
-// The static host serves .onnx uncompressed, so the raw 12.6 MB file costs about
-// six times its gzipped size in bandwidth. The loader fetches the .gz, checks it
+// The static host serves .onnx uncompressed, so the raw 12.6 MB file is about
+// six times the download of its gzipped copy. The loader fetches the .gz, checks it
 // really is gzip, decompresses it, and hands ONNX Runtime the bytes. Anything
 // that fails on that path must still end in a session, built from the raw file
 // that is always deployed beside it. ONNX Runtime is replaced by a recorder:

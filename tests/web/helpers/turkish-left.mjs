@@ -1,4 +1,4 @@
-// Find Turkish text a page still shows in English.
+// Find Turkish text left on a page that should read in English.
 //
 // A translation is done when an English reader meets no Turkish: no text,
 // and no name a screen reader speaks or a tooltip shows. This walks a part of

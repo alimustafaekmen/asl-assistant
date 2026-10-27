@@ -509,8 +509,8 @@ export function loadWebApp(options = {}) {
     bootstrapScripts,
     /**
      * The promise init() returned when `boot` is set; null otherwise. It
-     * settles when startup has finished: the fixture manifest, the route,
-     * and the word guidance data.
+     * settles when start-up has finished: the route is open and the fixture
+     * manifest, the word guidance data and the word reference data are read.
      *
      * @type {Promise<void> | null}
      */

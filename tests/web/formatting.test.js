@@ -1,6 +1,6 @@
-// Percentage and top-prediction formatters shared by the live UI and the
-// offline Model Test panel. They are the only place model confidences are
-// turned into user-facing text, so rounding and fallbacks are locked here.
+// Percentage formatters: clampPercent for the bars, formatPercent for the
+// Model Test panel and the project page's figures, and formatTopPredictions
+// for the plate's word messages. Their rounding and fallbacks are locked here.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -31,7 +31,7 @@ test("clampPercent treats unusable numbers as zero", () => {
   assert.equal(clampPercent(undefined), 0);
 });
 
-// The interface speaks Turkish, which writes the decimal with a comma and puts
+// These tests run in Turkish, which writes the decimal with a comma and puts
 // no decimal on a whole-looking figure, so a reader sees "%7,6", "%12" and
 // "%100", never "%12.3" or "%100.0". One decimal is kept only under 10, where
 // it still carries meaning.

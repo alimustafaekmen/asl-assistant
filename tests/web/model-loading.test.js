@@ -196,8 +196,8 @@ test("a granted camera loads the models its mode runs; a refused one loads none"
 });
 
 test("the coach on letters downloads only the letter model, and words bring the word model", async () => {
-  // A letter session never runs the word model, and it is 1.8 MB of hosting
-  // credit; it loads when the coach turns to words.
+  // A letter session never runs the word model, and it is a 1.8 MB download;
+  // it loads when the coach turns to words.
   const app = appWithCountedLoaders();
   app.evaluate(`
     globalThis.navigator = { mediaDevices: { getUserMedia: async () => ({ getTracks: () => [] }) } };

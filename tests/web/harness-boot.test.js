@@ -60,7 +60,7 @@ test("a booted app has run init() to the end against the default fakes", async (
 });
 
 test("app.ready follows init()'s own promise: it waits for the last startup read", async () => {
-  // Hold the word guidance data, the last thing init() waits for.
+  // Hold the word guidance data, one of the reads init() waits for at its end.
   const held = deferred();
   const app = loadWebApp({
     boot: true,

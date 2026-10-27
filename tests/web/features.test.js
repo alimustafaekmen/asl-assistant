@@ -4,7 +4,8 @@
 // training pipeline, so these tests pin shape, finiteness, and the few
 // behavioural invariants that are easy to break by accident: which hand is
 // chosen, when motion is zero, and what temporal reset clears. They do not
-// re-derive the feature maths, which is covered by the Python parity checks.
+// re-derive the feature maths; feature-golden.test.js compares the numbers
+// with Python's.
 
 import test from "node:test";
 import assert from "node:assert/strict";
